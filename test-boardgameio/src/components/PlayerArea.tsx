@@ -1,21 +1,37 @@
 import React from "react";
 import Card from "./Card";
-import type { Card as CardType } from "@/types";
+import type { Card as CardType, Player } from "@/types";
 
 interface Props {
-  hand: CardType[];
   isTop?: boolean; // true for player 1, false or undefined for player 0
-  deck: CardType[];
+  player: Player;
 }
 
-const Hand = ({ hand, isTop = false, deck }: Props) => {
+const mana_crystal = "src/assets/mana.png";
+
+const PlayerArea = ({ player, isTop }: Props) => {
+  const { hand, deck } = player;
   return (
-    <div
-      className={`flex justify-between items-${
-        isTop ? "end" : "start"
-      } h-[15%]`}
-    >
-      <div></div>
+    <div className={`flex justify-between items-${isTop ? "end" : "start"}`}>
+      <div id="player-stats" className="w-[30px] overflow-visible">
+        <div className="text-lg font-bold whitespace-nowrap">{player.name}</div>
+        <div className="flex gap-2 flex-col">
+          <span className="whitespace-nowrap">
+            HP: {player.hp}/{player.maxHp}
+          </span>
+          <div className="flex">
+            {Array.from({ length: player.maxMana }).map((_, idx) => (
+              <img
+                key={idx}
+                src={mana_crystal}
+                alt="Mana Crystal"
+                className={`w-6 h-6 ${idx < player.mana ? "" : "opacity-50"}`}
+                draggable="false"
+              />
+            ))}
+          </div>
+        </div>
+      </div>
 
       <div className="flex max-w-[80%] relative">
         {hand.map((card, idx) => (
@@ -53,4 +69,4 @@ const Hand = ({ hand, isTop = false, deck }: Props) => {
   );
 };
 
-export default Hand;
+export default PlayerArea;

@@ -1,6 +1,6 @@
 import React from "react";
 import Card from "./Card";
-import Hand from "./Hand";
+import PlayerArea from "./PlayerArea";
 import type { BoardProps } from "boardgame.io/react";
 import type { GameState } from "@/types";
 
@@ -17,7 +17,7 @@ const Board = ({ ctx, G }: Props) => {
       <div className="aspect-[16/9] w-full max-h-screen bg-[#2a2f36] flex flex-col text-white px-6 py-4 gap-2">
         {/* Player 1 Hand */}
         <div className="h-1/4 flex flex-col justify-end">
-          <Hand hand={p1.hand} isTop deck={p1.deck} />
+          <PlayerArea player={p1} />
         </div>
 
         {/* Board Area */}
@@ -36,7 +36,7 @@ const Board = ({ ctx, G }: Props) => {
         </div>
 
         {/* Player 0 Hand */}
-        <Hand hand={p0.hand} deck={p0.deck} />
+        <PlayerArea player={p0} />
       </div>
     </div>
   );

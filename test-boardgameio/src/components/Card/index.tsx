@@ -116,7 +116,7 @@ const Card = ({
       {(attack !== undefined || health !== undefined) && (
         <>
           {attack !== undefined && (
-            <div className="absolute -left-1 -bottom-1  rounded-full w-8 h-8 flex items-center justify-center text-xl font-bold shadow-lg">
+            <div className="absolute select-none -left-1 -bottom-1  rounded-full w-8 h-8 flex items-center justify-center text-xl font-bold shadow-lg">
               <img
                 src={attackIcon}
                 alt="Card Back"
@@ -136,7 +136,7 @@ const Card = ({
             </div>
           )}
           {health !== undefined && (
-            <div className="absolute right-[-1rem] -bottom-1 rounded-full w-8 h-8 flex items-center justify-center text-xl font-bold  shadow-lg">
+            <div className="absolute select-none right-[-1rem] -bottom-1 rounded-full w-8 h-8 flex items-center justify-center text-xl font-bold  shadow-lg">
               <img
                 src={healthIcon}
                 alt="Card Back"
