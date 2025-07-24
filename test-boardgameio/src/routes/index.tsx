@@ -2,40 +2,74 @@ import { createFileRoute } from "@tanstack/react-router";
 import logo from "../logo.svg";
 
 import { Client } from "boardgame.io/react";
+import { Local } from "boardgame.io/multiplayer";
+import { MCTSBot } from "boardgame.io/ai";
+import Board from "@/components/Board";
+import type { PlayerID, Game, Move } from "boardgame.io";
+import type { GameState, Player } from "@/types";
+import { createDeck } from "@/utils";
+
+const setupData = (): GameState => {
+  const G: GameState = {
+    players: {
+      "0": p0,
+      "1": p1,
+    },
+    board: {
+      "0": [],
+      "1": [],
+    },
+  };
+  return G;
+};
+
+const p0: Player = {
+  id: "0",
+  name: "Player 1",
+  maxHp: 30,
+  hp: 30,
+  maxArmor: 0,
+  armor: 0,
+  maxMana: 10,
+  mana: 10,
+  hand: createDeck(5),
+  deck: createDeck(20),
+};
+
+const p1: Player = {
+  id: "1",
+  name: "Player 2",
+  maxHp: 30,
+  hp: 30,
+  maxArmor: 0,
+  armor: 0,
+  maxMana: 10,
+  mana: 10,
+  hand: createDeck(5),
+  deck: createDeck(20),
+};
+
+const endTurn: Move<GameState> = ({ G, ctx, events }) => {
+  // Switch to the next player
+  events.endTurn();
+  // Reset mana for the next turn
+  G.players[ctx.currentPlayer].mana = G.players[ctx.currentPlayer].maxMana;
+};
+
+const HeathStoneGame: Game<GameState> = {
+  name: "hearthstone",
+  setup: setupData,
+};
+
+const Hearthstone = Client({
+  board: Board,
+  game: HeathStoneGame,
+});
 
 export const Route = createFileRoute("/")({
   component: App,
 });
 
 function App() {
-  return (
-    <div className="text-center">
-      <header className="min-h-screen flex flex-col items-center justify-center bg-[#282c34] text-white text-[calc(10px+2vmin)]">
-        <img
-          src={logo}
-          className="h-[40vmin] pointer-events-none animate-[spin_20s_linear_infinite]"
-          alt="logo"
-        />
-        <p>
-          Edit <code>src/routes/index.tsx</code> and save to reload.
-        </p>
-        <a
-          className="text-[#61dafb] hover:underline"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-        <a
-          className="text-[#61dafb] hover:underline"
-          href="https://tanstack.com"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn TanStack
-        </a>
-      </header>
-    </div>
-  );
+  return <Hearthstone />;
 }
