@@ -13,26 +13,22 @@ const Board = ({ ctx, G }: Props) => {
   const board1 = G.board["1"];
 
   return (
-    <div className="w-screen h-screen bg-[#1c1e22] flex items-center justify-center">
+    <div className="w-screen h-screen bg-[#1c1e22] flex items-center justify-center overflow-hidden">
       <div className="aspect-[16/9] w-full max-h-screen bg-[#2a2f36] flex flex-col text-white px-6 py-4 gap-2">
         {/* Player 1 Hand */}
-        <Hand hand={p1.hand} deckCount={p1.deck.length} isTop />
+        <div className="h-1/4 flex flex-col justify-end">
+          <Hand hand={p1.hand} isTop deck={p1.deck} />
+        </div>
 
         {/* Board Area */}
-        <div className="flex flex-col gap-2 items-center justify-center h-[60%] border-y-4 bg border-yellow-800 py-2">
+        <div className="flex flex-col gap-2 items-center justify-center h-[50%] border-y-4 bg border-yellow-800 py-2">
           {/* Player 1 Board */}
-          <div className="flex justify-center gap-4 h-1/2 items-end">
+          <div className="flex justify-center gap-4 h-1/2 items-end bg-black opacity-30  w-full">
             {board1.map((card, idx) => (
               <Card key={`p1-board-${idx}`} {...card} />
             ))}
           </div>
-
-          <div className="text-yellow-400 text-xs font-semibold uppercase tracking-wide">
-            Battlefield
-          </div>
-
-          {/* Player 0 Board */}
-          <div className="flex justify-center gap-4 h-1/2 items-start">
+          <div className="flex justify-center gap-4 h-1/2 items-end bg-black opacity-30  w-full">
             {board0.map((card, idx) => (
               <Card key={`p0-board-${idx}`} {...card} />
             ))}
@@ -40,7 +36,7 @@ const Board = ({ ctx, G }: Props) => {
         </div>
 
         {/* Player 0 Hand */}
-        <Hand hand={p0.hand} deckCount={p0.deck.length} />
+        <Hand hand={p0.hand} deck={p0.deck} />
       </div>
     </div>
   );
