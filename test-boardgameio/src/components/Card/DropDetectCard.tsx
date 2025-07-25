@@ -3,6 +3,7 @@ import type { CardProps } from "./types";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import Card from ".";
 import type { PlayerID } from "boardgame.io";
+import DragCard from "./DragCard";
 
 interface Props extends CardProps {
   playerID: PlayerID;
@@ -10,11 +11,11 @@ interface Props extends CardProps {
 
 const DropDetectCard = (props: Props) => {
   const { setNodeRef, isOver } = useDroppable({
-    id: props.id,
+    id: props.card.id,
     data: {
       type: "card",
       player: props.playerID, // Include playerID to match the Lane component
-      id: props.id,
+      id: props.card.id,
     },
   });
 
@@ -23,7 +24,7 @@ const DropDetectCard = (props: Props) => {
       ref={setNodeRef}
       className={`${isOver ? "ring-2 ring-yellow-300" : ""}`}
     >
-      <Card {...props} mana={null} />
+      <DragCard {...props} card={{ ...props.card, mana: null }} />
     </div>
   );
 };

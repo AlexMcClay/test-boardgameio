@@ -25,14 +25,32 @@ const Board = ({ ctx, G, moves, ...props }: Props) => {
     if (!over) return;
     console.log("Active card:", active);
     console.log("Over lane:", over);
+    console.log(over.data.current);
     if (over.id === `lane-${ctx.currentPlayer}`) {
       // place card
       moves.placeCard(active.id);
+    } else if (over.data.current?.type === "card") {
+      if (over.data.current.id === active.id) return;
+      console.log("Placing card on another card");
+      const location = active.data.current?.card?.isPlaced ? "board" : "hand";
+      moves.placeCard(active.id, location, {
+        type: "card",
+        id: over.data.current.id,
+        player: over.data.current.player,
+      });
+    } else if (over.data.current?.type === "player") {
+      // place card on player
+      const location = active.data.current?.card?.isPlaced ? "board" : "hand";
+      moves.placeCard(active.id, location, {
+        type: "player",
+        id: over.data.current.id,
+        player: over.data.current.player,
+      });
     }
   };
 
   const handleDragOver = (event: DragOverEvent) => {
-    console.log("Drag over", event);
+    // console.log("Drag over", event);
   };
 
   return (
@@ -59,7 +77,7 @@ const Board = ({ ctx, G, moves, ...props }: Props) => {
                 <DropDetectCard
                   playerID="1"
                   key={`p1-board-${idx}`}
-                  {...card}
+                  card={card}
                 />
               ))}
             </Lane>
@@ -68,7 +86,7 @@ const Board = ({ ctx, G, moves, ...props }: Props) => {
                 <DropDetectCard
                   playerID="0"
                   key={`p0-board-${idx}`}
-                  {...card}
+                  card={card}
                 />
               ))}
             </Lane>

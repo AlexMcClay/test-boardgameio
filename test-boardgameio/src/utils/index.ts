@@ -24,10 +24,20 @@ export function createDeck(count: number): Card[] {
     const deck: Card[] = [];
     for (let i = 0; i < count; i++) {
         // Randomly select a card template
-        const cardTemplate =
-            cardTemplates[Math.floor(Math.random() * cardTemplates.length)];
+        const card = Object.values(cardTemplates)[
+            Math.floor(Math.random() * Object.keys(cardTemplates).length)
+        ];
         // Create a card instance from the template
-        deck.push(createCardInstance(cardTemplate));
+        deck.push(createCardInstance(card));
     }
     return shuffleDeck(deck);
+}
+
+export function createCardFromID(id: string): Card | null {
+    const cardTemplate = cardTemplates[id];
+    if (!cardTemplate) {
+        console.warn(`Card template with ID ${id} not found.`);
+        return null;
+    }
+    return createCardInstance(cardTemplate);
 }

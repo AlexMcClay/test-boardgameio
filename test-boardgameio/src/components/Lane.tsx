@@ -11,7 +11,8 @@ const Lane = ({ children, playerID }: Props) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `lane-${playerID}`,
     data: {
-      type: playerID,
+      type: "lane",
+      id: `lane-${playerID}`,
     },
   });
 

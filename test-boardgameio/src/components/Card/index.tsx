@@ -1,6 +1,7 @@
 import { useFitText } from "@/hooks";
 import React from "react";
 import type { CardProps } from "./types";
+import { motion } from "motion/react";
 
 const cardBack = "src/assets/Card_Back.png";
 const mana_crystal = "src/assets/mana.png";
@@ -10,35 +11,38 @@ const healthIcon = "src/assets/health.png";
 interface Props extends CardProps {}
 
 const Card = ({
-  id,
-  title = "Card Title",
-  description = "Card effect or description goes here.",
-  mana = 0,
-  attack,
-  health,
-  type = "Neutral",
-  imageUrl = "src/assets/Boulderfist_Ogre_full.jpg",
+  card,
   back = false,
+  isDragging = false, // Default to false if not provided
 }: Props) => {
-  const { fontSize, containerRef } = useFitText(title, 1, 0.1); // You can lower minFont further if needed
+  const { fontSize, containerRef } = useFitText(card.title, 1, 0.1); // You can lower minFont further if needed
 
   if (back) {
     return (
-      <div className="w-[150px] relative aspect-[5/7] bg-[#37373b] rounded-2xl flex-col flex gap-1 items-center shadow-xl overflow-hidden">
+      <motion.div
+        className="w-[150px] relative aspect-[5/7] bg-[#37373b] rounded-2xl flex-col flex gap-1 items-center shadow-xl overflow-hidden"
+        layout
+        layoutId={`card-${card.id}`}
+      >
         <img
           src={cardBack}
           alt="Card Back"
           className="object-cover w-full h-full "
           draggable="false"
         />
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="w-[150px] relative aspect-[5/7] bg-[#37373b] rounded-2xl border-4 border-[#54412e] flex-col flex gap-1 items-center shadow-xl text-white font-serif">
+    <motion.div
+      layout
+      layoutId={`card-${card.id}`}
+      transition={isDragging ? { duration: 0 } : undefined}
+      className={`${isDragging && "ring ring-blue-500"} w-[150px] relative aspect-[5/7] bg-[#37373b] rounded-2xl border-4 border-[#54412e] flex-col flex gap-1 items-center shadow-xl text-white font-serif`}
+    >
       {/* Mana Crystal */}
-      {mana !== null && mana !== undefined && (
+      {card.mana !== null && card.mana !== undefined && (
         <div className=" select-none absolute text-lg top-[-1rem] left-[-1rem]  w-8 h-8 flex items-center justify-center font-bold  shadow-md z-10">
           <img
             src={mana_crystal}
@@ -47,14 +51,14 @@ const Card = ({
             // no drag
             draggable="false"
           />
-          <span className="relative z-20">{mana}</span>
+          <span className="relative z-20">{card.mana}</span>
         </div>
       )}
 
       {/* Art */}
       <div className="h-[45%] rounded-t-2xl bg-black overflow-hidden w-full">
         <img
-          src={imageUrl}
+          src={card.imageUrl}
           // alt={title}
           className="object-cover w-full h-full select-none"
           draggable="false"
@@ -65,7 +69,7 @@ const Card = ({
       <div
         ref={containerRef}
         className="text-center w-full font-extrabold text-white py-1 bg-[#f1ce8d] inset-shadow-sm inset-shadow-black overflow-hidden whitespace-nowrap px-2"
-        title={title}
+        title={card.title}
         style={{
           fontSize: `${fontSize}rem`,
           minHeight: "2rem",
@@ -82,16 +86,16 @@ const Card = ({
             lineHeight: "1.2",
           }}
         >
-          {title}
+          {card.title}
         </span>
       </div>
       {/* Description */}
       <div className="select-none text-xs w-full text-black px-3 py-2 grow mb-1 bg-[#a58f79] border-2 border-[#f1ce8d] text-center font-medium">
-        {description}
+        {card.description}
       </div>
 
       {/* Type */}
-      {type && (
+      {card.type && (
         <div className="absolute select-none -bottom-2 text-sm w-fit px-6 text-center font-extrabold text-white shadow-md rounded bg-[#f1ce8d]">
           <span
             style={{
@@ -99,15 +103,15 @@ const Card = ({
               textShadow: "0 1px 0px black",
             }}
           >
-            {type}
+            {card.type}
           </span>
         </div>
       )}
 
       {/* Attack & Health */}
-      {(attack !== undefined || health !== undefined) && (
+      {(card.attack !== undefined || card.health !== undefined) && (
         <>
-          {attack !== undefined && (
+          {card.attack !== undefined && (
             <div className="absolute select-none -left-1 -bottom-1  rounded-full w-8 h-8 flex items-center justify-center text-xl font-bold shadow-lg">
               <img
                 src={attackIcon}
@@ -123,11 +127,11 @@ const Card = ({
                 }}
                 className="absolute"
               >
-                {attack}
+                {card.attack}
               </span>
             </div>
           )}
-          {health !== undefined && (
+          {card.health !== undefined && (
             <div className="absolute select-none right-[-1rem] -bottom-1 rounded-full w-8 h-8 flex items-center justify-center text-xl font-bold  shadow-lg">
               <img
                 src={healthIcon}
@@ -143,13 +147,13 @@ const Card = ({
                 }}
                 className="absolute"
               >
-                {health}
+                {card.health}
               </span>
             </div>
           )}
         </>
       )}
-    </div>
+    </motion.div>
   );
 };
 

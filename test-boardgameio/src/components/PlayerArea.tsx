@@ -71,7 +71,7 @@ const PlayerArea = ({
       <div className="flex  relative self-center justify-center w-full">
         {hand.map((card, idx) => (
           <div
-            key={`${isTop ? "p1" : "p0"}-hand-${idx}`}
+            key={`${isTop ? "p1" : "p0"}-hand-${card.id}`}
             className="relative transition-all duration-300 ease-in-out hover:scale-110 hover:z-50"
             style={{
               marginLeft: idx > 0 ? "-60px" : "0",
@@ -84,7 +84,7 @@ const PlayerArea = ({
               e.currentTarget.style.zIndex = (idx + 1).toString();
             }}
           >
-            <DragCard {...card} />
+            <DragCard card={card} />
           </div>
         ))}
       </div>
@@ -116,7 +116,7 @@ const PlayerArea = ({
               className="absolute"
               style={{ left: `0`, top: `-${idx * 3}px` }}
             >
-              <Card back {...card} />
+              <Card back card={card} />
             </div>
           ))}
         </button>
