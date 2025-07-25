@@ -10,8 +10,9 @@ export interface Card {
     type?: string; // e.g., "Spell", "Beast", "Demon", etc.
     imageUrl?: string; // URL to the card image
     effects: Array<EffectTypes>;
+    onPlace: Array<EffectTypes>; // Effects that trigger when the card is placed
     isPlaced?: boolean; // Optional, to track if the card is placed on the board
-    hasAttacked?: boolean; // Optional, to track if the card has attacked this turn
+    hasAttacked: boolean; // Optional, to track if the card has attacked this turn
     isSpell?: boolean; // Optional, to indicate if the card is a spell
     isMinnion: boolean; // Optional, to indicate if the card is a minion
     targets: TargetTypes[]; // Optional, to specify valid targets for the card
@@ -29,9 +30,15 @@ export type EffectTypes =
     | DamageEffect
     | HealEffect
     | DrawEffect
-    | ChangeKeyEffect;
+    | ChangeKeyEffect
+    | SummonEffect;
 
-type DamageEffect = { type: "damage"; value: number };
+type DamageEffect = {
+    type: "damage";
+    value: number;
+
+    target: "user-select" | "self-hero" | "enemy-hero"; // Target can be user-select, self-hero, enemy-hero, or hero
+};
 
 type HealEffect = {
     type: "heal";
@@ -47,6 +54,12 @@ type ChangeKeyEffect = {
     type: "changeKey";
     key: keyof Card; // Key to change in the card object
     value: any; // New value for the key
+    target: "other" | "self"; // Target of the change, either "other" or "self"
+};
+
+type SummonEffect = {
+    type: "summon";
+    cardID: string; // ID of the card to summon
 };
 
 export interface Player {

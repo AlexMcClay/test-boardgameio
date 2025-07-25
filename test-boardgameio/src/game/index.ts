@@ -2,8 +2,9 @@ import Board from "@/components/Board";
 import { Client } from "boardgame.io/react";
 
 import type { GameState, Player } from "@/types";
-import { createDeck } from "@/utils";
+import { createCardFromID, createDeck, shuffleDeck } from "@/utils";
 import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
+import { warriorDeck } from "@/utils/decks";
 
 export const isVictory = ({ G, ctx }: { G: GameState; ctx: Ctx }) => {
     if (G.players[0].hp <= 0) {
@@ -25,6 +26,13 @@ const setupData = (): GameState => {
         },
         maxMana: 9,
     };
+
+    // Draw 5 cards for each player
+    // for (let i = 0; i < 5; i++) {
+    //     G.players["0"].hand.push(G.players["0"].deck.pop()!);
+    //     G.players["1"].hand.push(G.players["1"].deck.pop()!);
+    // }
+
     return G;
 };
 
@@ -36,8 +44,8 @@ const p0: Player = {
     maxArmor: 0,
     armor: 0,
     mana: 10,
-    hand: createDeck(5),
-    deck: createDeck(20),
+    hand: [],
+    deck: shuffleDeck(warriorDeck()),
 };
 
 const p1: Player = {
@@ -48,8 +56,8 @@ const p1: Player = {
     maxArmor: 0,
     armor: 0,
     mana: 10,
-    hand: createDeck(5),
-    deck: createDeck(20),
+    hand: [],
+    deck: shuffleDeck(createDeck(20)),
 };
 
 const placeCard: Move<GameState> = (
@@ -72,6 +80,11 @@ const placeCard: Move<GameState> = (
         return; // Card not found in the specified location
     }
 
+    if (!card.isPlaced && card.isMinnion && target) {
+        console.warn("Minions must be placed on the board");
+        return; // Minions must be placed on the board
+    }
+
     if ((player.mana < (card.mana || 0)) && !card.isPlaced) {
         console.warn("Not enough mana to play the card");
         return; // Not enough mana to play the card
@@ -91,16 +104,16 @@ const placeCard: Move<GameState> = (
         return; // Card has already attacked this turn
     }
 
+    doEffects({ G, ctx }, cardId, "effects", location, target);
+
     // See if the card can be placed on the board
-    if (!card.isSpell && !card.isPlaced) {
-        card.hasAttacked = false;
+    if (card.isMinnion && !card.isPlaced) {
+        console.log("Placing minion on the board");
         card.isPlaced = true; // Mark the card as placed
+        card.hasAttacked = true;
+        doEffects({ G, ctx }, cardId, "onPlace", location, target);
         G.board[ctx.currentPlayer].push(card);
     }
-
-    console.log("Game state after placing card:", G);
-
-    doEffects({ G, ctx }, cardId, location, target);
 
     if (location === "hand") {
         const cardIndex = player.hand.findIndex((c) => c.id === cardId);
@@ -114,6 +127,7 @@ const doEffects = (
         ctx: Ctx;
     },
     cardId: string,
+    key: "effects" | "onPlace" = "effects",
     location: "hand" | "board",
     target?: {
         type: "card" | "player";
@@ -134,10 +148,10 @@ const doEffects = (
         card.hasAttacked = true; // Mark the card as having attacked
     }
 
-    card.effects.forEach((effect) => {
+    card[key].forEach((effect) => {
         switch (effect.type) {
             case "damage":
-                if (target) {
+                if (target && effect.target === "user-select") {
                     const targetPlayer = G.players[target.player];
                     if (target.type === "player") {
                         targetPlayer.hp -= effect.value;
@@ -156,10 +170,18 @@ const doEffects = (
                             }
                         }
                     }
+                } else if (effect.target === "self-hero") {
+                    const currentPlayer = G.players[ctx.currentPlayer];
+                    currentPlayer.hp -= effect.value;
+                } else if (effect.target === "enemy-hero") {
+                    const enemyPlayer = G.players[
+                        ctx.currentPlayer === "0" ? "1" : "0"
+                    ];
+                    enemyPlayer.hp -= effect.value;
                 }
                 break;
             case "changeKey":
-                if (target) {
+                if (target && effect.target == "other") {
                     if (target.type === "card") {
                         const targetCard = G.board[target.player].find(
                             (c) => c.id === target.id,
@@ -172,6 +194,22 @@ const doEffects = (
                             targetCard[effect.key] = effect.value;
                         }
                     }
+                } else if (effect.target == "self") {
+                    console.log("Changing key on self card:");
+                    if (card[effect.key] !== undefined) {
+                        // @ts-ignore
+                        card[effect.key] = effect.value;
+                    }
+                }
+                break;
+            case "summon":
+                const summonedCard = createCardFromID(effect.cardID);
+                if (summonedCard) {
+                    summonedCard.isPlaced = true; // Mark the summoned card as placed
+                    summonedCard.hasAttacked = true; // Reset attack status for summoned cards
+                    G.board[ctx.currentPlayer].push(summonedCard);
+                } else {
+                    console.warn(`Card with ID ${effect.cardID} not found.`);
                 }
                 break;
             case "draw":
@@ -187,8 +225,8 @@ const drawCard: Move<GameState> = ({ G, ctx }) => {
     handleDrawCard(G, ctx);
 };
 
-function handleDrawCard(G: GameState, ctx: Ctx) {
-    const player = G.players[ctx.currentPlayer];
+function handleDrawCard(G: GameState, ctx: Ctx, playerID?: PlayerID) {
+    const player = G.players[playerID || ctx.currentPlayer];
     if (player.deck.length > 0) {
         const drawnCard = player.deck.pop();
         if (drawnCard) {
@@ -214,6 +252,12 @@ export const HeathStoneGame: Game<GameState> = {
             G.players[ctx.currentPlayer].mana = G.maxMana;
             if (ctx.turn > 1) {
                 handleDrawCard(G, ctx);
+            } else {
+                // Draw 3 cards for the first turn
+                for (let i = 0; i < 5; i++) {
+                    handleDrawCard(G, ctx, "0");
+                    handleDrawCard(G, ctx, "1");
+                }
             }
             G.board[ctx.currentPlayer].forEach((card) => {
                 card.hasAttacked = false; // Reset attack status for all cards
