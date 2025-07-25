@@ -15,6 +15,7 @@ export interface Card {
     hasAttacked: boolean; // Optional, to track if the card has attacked this turn
     isSpell?: boolean; // Optional, to indicate if the card is a spell
     isMinnion: boolean; // Optional, to indicate if the card is a minion
+    taunt?: boolean; // Optional, to indicate if the card has taunt
     targets: TargetTypes[]; // Optional, to specify valid targets for the card
 }
 
@@ -65,6 +66,7 @@ type SummonEffect = {
 export interface Player {
     id: PlayerID;
     name: string;
+    heroPortrait: string; // Optional, if you want to display a hero portrait
     maxHp: number;
     hp: number;
     maxArmor: number;

@@ -39,7 +39,7 @@ const Card = ({
       layout
       layoutId={`card-${card.id}`}
       transition={isDragging ? { duration: 0 } : undefined}
-      className={`${isDragging && "ring ring-blue-500"} w-[150px] relative aspect-[5/7] bg-[#37373b] rounded-2xl border-4 border-[#54412e] flex-col flex gap-1 items-center shadow-xl text-white font-serif`}
+      className={`${isDragging && "ring ring-blue-500"} w-[150px] relative aspect-[5/7] bg-[#37373b] rounded-2xl border-4 border-[#54412e] flex-col flex gap-1 items-center shadow-xl text-white font-serif ${card.taunt ? "border-gray-500" : ""}`}
     >
       {/* Mana Crystal */}
       {card.mana !== null && card.mana !== undefined && (

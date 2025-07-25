@@ -19,7 +19,7 @@ const Lane = ({ children, playerID }: Props) => {
   return (
     <div
       ref={setNodeRef}
-      className={`flex justify-center items-center gap-4 h-1/2  bg-[#00000038] w-full ${isOver ? "ring-2 ring-yellow-300" : ""}`}
+      className={`flex justify-center items-center gap-4 h-1/2  bg-[#00000075] w-full ${isOver ? "ring-2 ring-yellow-300" : ""}`}
     >
       {children}
     </div>

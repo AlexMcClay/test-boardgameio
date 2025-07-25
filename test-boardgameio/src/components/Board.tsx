@@ -13,6 +13,8 @@ import DropDetectCard from "./Card/DropDetectCard";
 
 interface Props extends BoardProps<GameState> {}
 
+const backgroundImage = "src/assets/wood.jpg"; // Path to your background image
+
 const Board = ({ ctx, G, moves, ...props }: Props) => {
   const p0 = G.players["0"];
   const p1 = G.players["1"];
@@ -54,8 +56,19 @@ const Board = ({ ctx, G, moves, ...props }: Props) => {
   };
 
   return (
-    <div className="w-screen h-screen bg-[#1c1e22] flex items-center justify-center overflow-hidden">
-      <div className="aspect-[16/9] w-full max-h-screen bg-[#2a2f36] flex flex-col text-white px-6 py-4 gap-2">
+    <div
+      className="w-screen h-screen bg-[#1c1e22] flex items-center justify-center overflow-hidden relative"
+      style={{
+        backgroundImage: `url(${backgroundImage})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        // filter: "brightness(0.2)",
+        // darken background with filter
+        backgroundBlendMode: "multiply",
+        backgroundColor: "#00000099",
+      }}
+    >
+      <div className="aspect-[16/9] w-full max-h-screen  flex flex-col text-white px-6 py-4 gap-2">
         <DndContext onDragEnd={handleDragEnd} onDragOver={handleDragOver}>
           {/* Player 1 Hand */}
           <div className="h-1/4 flex flex-col justify-end">
@@ -103,6 +116,13 @@ const Board = ({ ctx, G, moves, ...props }: Props) => {
           />
         </DndContext>
       </div>
+      {ctx?.gameover?.winner && (
+        <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black/60 z-50">
+          <div className="text-4xl text-white bg-black/90 px-6 py-4 rounded-lg shadow-lg">
+            {`${G.players[ctx.gameover.winner].name} wins!`}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

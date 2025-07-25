@@ -4,14 +4,13 @@ import type { Card as CardType, GameState, Player } from "@/types";
 import type { PlayerID } from "boardgame.io";
 import type { BoardProps } from "boardgame.io/dist/types/packages/react";
 import DragCard from "./Card/DragCard";
+import HeroSection from "./HeroSection";
 
 interface Props extends BoardProps<GameState> {
   isTop?: boolean; // true for player 1, false or undefined for player 0
   player: Player;
   playerID: PlayerID; // Added playerID to match the Board component
 }
-
-const mana_crystal = "src/assets/mana.png";
 
 const PlayerArea = ({
   player,
@@ -21,6 +20,7 @@ const PlayerArea = ({
   ctx,
   events,
   moves,
+  ...props
 }: Props) => {
   const handleEndTurn = () => {
     // Logic to end the turn, e.g., call a move to end the turn
@@ -45,28 +45,17 @@ const PlayerArea = ({
     <div
       className={`grid grid-cols-3 justify-between items-${isTop ? "end" : "start"} `}
     >
-      <div
-        id="player-stats"
-        className={`overflow-visible ${ctx.currentPlayer === playerID ? "ring-2 ring-yellow-300" : ""}`}
-      >
-        <div className="text-lg font-bold whitespace-nowrap">{player.name}</div>
-        <div className={`flex gap-2 flex-col `}>
-          <span className="whitespace-nowrap">
-            HP: {player.hp}/{player.maxHp}
-          </span>
-          <div className="flex">
-            {Array.from({ length: G.maxMana }).map((_, idx) => (
-              <img
-                key={idx}
-                src={mana_crystal}
-                alt="Mana Crystal"
-                className={`w-6 h-6 ${idx < player.mana ? "" : "opacity-50"}`}
-                draggable="false"
-              />
-            ))}
-          </div>
-        </div>
-      </div>
+      {/* HERO STATS */}
+      <HeroSection
+        player={player}
+        isTop={isTop}
+        playerID={playerID}
+        G={G}
+        ctx={ctx}
+        events={events}
+        moves={moves}
+        {...props}
+      />
 
       <div className="flex  relative self-center justify-center w-full">
         {hand.map((card, idx) => (
@@ -100,7 +89,7 @@ const PlayerArea = ({
         <button
           className="flex max-w-[80%] relative aspect-[5/7] w-[150px] "
           // onClick={handleDrawCard}
-          title="Click to draw a card"
+          title={`${deck.length} cards in deck`}
           style={{
             cursor: ctx.currentPlayer === playerID ? "pointer" : "not-allowed",
           }}

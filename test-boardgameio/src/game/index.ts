@@ -27,18 +27,13 @@ const setupData = (): GameState => {
         maxMana: 9,
     };
 
-    // Draw 5 cards for each player
-    // for (let i = 0; i < 5; i++) {
-    //     G.players["0"].hand.push(G.players["0"].deck.pop()!);
-    //     G.players["1"].hand.push(G.players["1"].deck.pop()!);
-    // }
-
     return G;
 };
 
 const p0: Player = {
     id: "0",
-    name: "Player 1",
+    name: "Arthas",
+    heroPortrait: "src/assets/Arthas.jpg", // Optional, if you want to display a hero portrait
     maxHp: 30,
     hp: 30,
     maxArmor: 0,
@@ -50,7 +45,8 @@ const p0: Player = {
 
 const p1: Player = {
     id: "1",
-    name: "Player 2",
+    name: "Illidan",
+    heroPortrait: "src/assets/Illidan_Stormrage.jpg", // Optional, if you want to display a hero portrait
     maxHp: 30,
     hp: 30,
     maxArmor: 0,
@@ -80,19 +76,92 @@ const placeCard: Move<GameState> = (
         return; // Card not found in the specified location
     }
 
+    // Minions must be placed on the board and not directly targeted
     if (!card.isPlaced && card.isMinnion && target) {
         console.warn("Minions must be placed on the board");
-        return; // Minions must be placed on the board
+        return;
     }
 
-    if ((player.mana < (card.mana || 0)) && !card.isPlaced) {
-        console.warn("Not enough mana to play the card");
-        return; // Not enough mana to play the card
-    } // Not enough mana to play the card
+    // Board limit for minions
+    if (
+        !card.isPlaced && card.isMinnion &&
+        G.board[ctx.currentPlayer].length >= 7
+    ) {
+        console.warn("Cannot place more than 7 cards on the board");
+        return;
+    }
 
-    if (card.isSpell && !target && card.targets.length > 0) {
+    // Mana check for unplaced cards
+    if (!card.isPlaced && player.mana < (card.mana || 0)) {
+        console.warn("Not enough mana to play the card");
+        return;
+    }
+
+    // Spell cards with required targets
+    if (card.isSpell && card.targets.length > 0 && !target) {
         console.warn("Spell cards require a target");
-        return; // Spell cards require a target
+        return;
+    }
+
+    // check if valid target is provided
+    if (target && card.targets.length > 0) {
+        let valid = false;
+        for (const t of card.targets) {
+            switch (t) {
+                case "card":
+                    if (target.type === "card") {
+                        valid = true;
+                        break;
+                    }
+                    break;
+                case "player":
+                    if (target.type === "player") {
+                        valid = true;
+                        break;
+                    }
+                    break;
+                case "card-friendly":
+                    if (
+                        target.type === "card" &&
+                        target.player === ctx.currentPlayer
+                    ) {
+                        valid = true;
+                        break;
+                    }
+                    break;
+                case "card-opponent":
+                    if (
+                        target.type === "card" &&
+                        target.player !== ctx.currentPlayer
+                    ) {
+                        valid = true;
+                        break;
+                    }
+                    break;
+                case "player-friendly":
+                    if (
+                        target.type === "player" &&
+                        target.player === ctx.currentPlayer
+                    ) {
+                        valid = true;
+                        break;
+                    }
+                    break;
+                case "player-opponent":
+                    if (
+                        target.type === "player" &&
+                        target.player !== ctx.currentPlayer
+                    ) {
+                        valid = true;
+                        break;
+                    }
+                    break;
+            }
+        }
+        if (!valid) {
+            console.warn("Invalid target for the card");
+            return; // Invalid target for the card
+        }
     }
 
     player.mana -= !card.isPlaced ? card.mana || 0 : 0; // Deduct mana cost
@@ -207,6 +276,13 @@ const doEffects = (
                 if (summonedCard) {
                     summonedCard.isPlaced = true; // Mark the summoned card as placed
                     summonedCard.hasAttacked = true; // Reset attack status for summoned cards
+                    // check if the board can fit the summoned card
+                    if (G.board[ctx.currentPlayer].length >= 7) {
+                        console.warn(
+                            "Cannot summon more than 7 cards on the board",
+                        );
+                        break; // Cannot summon more than 7 cards on the board
+                    }
                     G.board[ctx.currentPlayer].push(summonedCard);
                 } else {
                     console.warn(`Card with ID ${effect.cardID} not found.`);
@@ -247,7 +323,7 @@ export const HeathStoneGame: Game<GameState> = {
             // Reset mana at the start of each turn
             // Draw a card at the start of the turn
             if (ctx.turn % 2) {
-                G.maxMana = G.maxMana + 1;
+                G.maxMana = Math.min(G.maxMana + 1, 10);
             }
             G.players[ctx.currentPlayer].mana = G.maxMana;
             if (ctx.turn > 1) {
@@ -270,4 +346,5 @@ export const HeathStoneGame: Game<GameState> = {
 export const Hearthstone = Client({
     board: Board,
     game: HeathStoneGame,
+    debug: { collapseOnLoad: true, hideToggleButton: true }, // Set to false for enabling debug panel
 });
