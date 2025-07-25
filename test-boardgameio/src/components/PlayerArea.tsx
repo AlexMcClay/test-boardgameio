@@ -99,15 +99,20 @@ const PlayerArea = ({
             className="absolute inset-0 bg-[#37373b] rounded-2xl flex items-center justify-center border-dotted border-2 border-gray-500 pointer-events-none
           "
           ></div>
-          {deck.slice(0, Math.min(5, deck.length)).map((card, idx) => (
-            <div
-              key={`deck-${idx}`}
-              className="absolute"
-              style={{ left: `0`, top: `-${idx * 3}px` }}
-            >
-              <Card back card={card} />
-            </div>
-          ))}
+          {deck
+            .slice(Math.max(0, deck.length - 5), deck.length)
+            .map((card, idx) => (
+              <div
+                key={card.id}
+                className="absolute"
+                style={{
+                  left: `0`,
+                  top: `-${idx * 3}px`,
+                }}
+              >
+                <Card back card={card} />
+              </div>
+            ))}
         </button>
       </div>
     </div>

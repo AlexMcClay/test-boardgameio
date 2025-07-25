@@ -30,7 +30,11 @@ const Board = ({ ctx, G, moves, ...props }: Props) => {
     console.log(over.data.current);
     if (over.id === `lane-${ctx.currentPlayer}`) {
       // place card
-      moves.placeCard(active.id);
+      moves.placeCard(active.id, "hand", {
+        type: "lane",
+        id: over.id,
+        player: ctx.currentPlayer,
+      });
     } else if (over.data.current?.type === "card") {
       if (over.data.current.id === active.id) return;
       console.log("Placing card on another card");
