@@ -1,10 +1,16 @@
-import React, { useRef, useLayoutEffect, useState } from "react";
+import React, {
+  type DependencyList,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 export function useFitText(
   text: string,
   maxFont = 1.2,
   minFont = 0.3,
-  precision = 0.01
+  precision = 0.01,
+  listen: DependencyList = [],
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [fontSize, setFontSize] = useState(maxFont);
@@ -51,7 +57,7 @@ export function useFitText(
 
     setFontSize(parseFloat(best.toFixed(3)));
     document.body.removeChild(testDiv);
-  }, [text, maxFont, minFont, precision]);
+  }, [text, maxFont, minFont, precision, ...listen]);
 
   return { fontSize, containerRef };
 }

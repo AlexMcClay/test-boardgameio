@@ -9,7 +9,7 @@ export const cardTemplates: Omit<Card, "id">[] = [
         attack: 3,
         health: 2,
         type: "Demon",
-        imageUrl: "https://placehold.co/300x200/orange/white?text=Flame+Imp",
+        imageUrl: "src/assets/Flame_Imp.jpg",
     },
     {
         title: "Chillwind Yeti",
@@ -18,7 +18,7 @@ export const cardTemplates: Omit<Card, "id">[] = [
         attack: 4,
         health: 5,
         type: "Beast",
-        imageUrl: "https://placehold.co/300x200/cyan/white?text=Yeti",
+        imageUrl: "src/assets/Chillwind_Yeti.jpg",
     },
     {
         title: "Fireball",
@@ -27,13 +27,13 @@ export const cardTemplates: Omit<Card, "id">[] = [
         attack: undefined,
         health: undefined,
         type: "Spell",
-        imageUrl: "https://placehold.co/300x200/red/white?text=Fireball",
+        imageUrl: "src/assets/fireball.jpg",
     },
     {
         title: "Arcane Intellect",
         description: "Draw 2 cards.",
         mana: 3,
-        imageUrl: "https://placehold.co/300x200/blue/white?text=Intellect",
+        imageUrl: "src/assets/Arcane_Intellect.jpg",
         type: "Spell",
     },
     {
@@ -43,7 +43,7 @@ export const cardTemplates: Omit<Card, "id">[] = [
         attack: 6,
         health: 7,
         type: "Ogre",
-        imageUrl: "https://placehold.co/300x200/purple/white?text=Ogre",
+        imageUrl: "src/assets/Boulderfist_Ogre_full.jpg",
     },
     {
         title: "Wolfrider",
@@ -52,14 +52,14 @@ export const cardTemplates: Omit<Card, "id">[] = [
         attack: 3,
         health: 1,
         type: "Beast",
-        imageUrl: "https://placehold.co/300x200/gray/white?text=Wolfrider",
+        imageUrl: "src/assets/Wolfrider.jpg",
     },
     {
         title: "Frostbolt",
         description: "Deal 3 damage and Freeze.",
         mana: 2,
         type: "Spell",
-        imageUrl: "https://placehold.co/300x200/lightblue/black?text=Frostbolt",
+        imageUrl: "src/assets/Frostbolt.jpg",
     },
     {
         title: "Bloodfen Raptor",
@@ -68,7 +68,7 @@ export const cardTemplates: Omit<Card, "id">[] = [
         attack: 3,
         health: 2,
         type: "Beast",
-        imageUrl: "https://placehold.co/300x200/green/white?text=Raptor",
+        imageUrl: "src/assets/Bloodfen_Raptor.jpg",
     },
     {
         title: "River Crocolisk",
@@ -77,7 +77,7 @@ export const cardTemplates: Omit<Card, "id">[] = [
         attack: 2,
         health: 3,
         type: "Beast",
-        imageUrl: "https://placehold.co/300x200/brown/white?text=Crocolisk",
+        imageUrl: "src/assets/River_Crocolisk.jpg",
     },
     {
         title: "Ironfur Grizzly",
@@ -86,6 +86,6 @@ export const cardTemplates: Omit<Card, "id">[] = [
         attack: 3,
         health: 3,
         type: "Beast",
-        imageUrl: "https://placehold.co/300x200/tan/black?text=Grizzly",
+        imageUrl: "src/assets/Ironfur_Grizzly.jpg",
     },
 ];

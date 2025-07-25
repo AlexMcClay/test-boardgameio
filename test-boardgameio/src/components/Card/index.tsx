@@ -1,23 +1,13 @@
 import { useFitText } from "@/hooks";
 import React from "react";
+import type { CardProps } from "./types";
 
 const cardBack = "src/assets/Card_Back.png";
 const mana_crystal = "src/assets/mana.png";
 const attackIcon = "src/assets/attack.png";
 const healthIcon = "src/assets/health.png";
 
-type Props = {
-  id: string;
-  title?: string;
-  description?: string;
-  mana?: number;
-  attack?: number;
-  health?: number;
-  type?: string;
-  imageUrl?: string;
-  scale?: number;
-  back?: boolean;
-};
+interface Props extends CardProps {}
 
 const Card = ({
   id,
@@ -27,7 +17,7 @@ const Card = ({
   attack,
   health,
   type = "Neutral",
-  imageUrl = "https://via.placeholder.com/300x200",
+  imageUrl = "src/assets/Boulderfist_Ogre_full.jpg",
   back = false,
 }: Props) => {
   const { fontSize, containerRef } = useFitText(title, 1, 0.1); // You can lower minFont further if needed
@@ -48,21 +38,23 @@ const Card = ({
   return (
     <div className="w-[150px] relative aspect-[5/7] bg-[#37373b] rounded-2xl border-4 border-[#54412e] flex-col flex gap-1 items-center shadow-xl text-white font-serif">
       {/* Mana Crystal */}
-      <div className=" select-none absolute text-lg top-[-1rem] left-[-1rem]  w-8 h-8 flex items-center justify-center font-bold  shadow-md z-10">
-        <img
-          src={mana_crystal}
-          alt="Card Back"
-          className="object-cover w-full h-full absolute scale-130"
-          // no drag
-          draggable="false"
-        />
-        <span className="relative z-20">{mana}</span>
-      </div>
+      {mana !== null && mana !== undefined && (
+        <div className=" select-none absolute text-lg top-[-1rem] left-[-1rem]  w-8 h-8 flex items-center justify-center font-bold  shadow-md z-10">
+          <img
+            src={mana_crystal}
+            alt="Card Back"
+            className="object-cover w-full h-full absolute scale-130"
+            // no drag
+            draggable="false"
+          />
+          <span className="relative z-20">{mana}</span>
+        </div>
+      )}
 
       {/* Art */}
       <div className="h-[45%] rounded-t-2xl bg-black overflow-hidden w-full">
         <img
-          src={""}
+          src={imageUrl}
           // alt={title}
           className="object-cover w-full h-full select-none"
           draggable="false"

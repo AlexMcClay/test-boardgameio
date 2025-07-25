@@ -18,7 +18,6 @@ export interface Player {
     hp: number;
     maxArmor: number;
     armor: number;
-    maxMana: number;
     mana: number;
     hand: Card[];
     deck: Card[];
@@ -27,4 +26,5 @@ export interface Player {
 export interface GameState {
     players: Record<PlayerID, Player>;
     board: Record<PlayerID, Card[]>;
+    maxMana: number; // Optional, if you want to track max mana globally
 }
