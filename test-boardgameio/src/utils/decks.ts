@@ -1,5 +1,6 @@
 import type { Card } from "@/types";
 import { createCardFromID } from ".";
+import type { cardTemplates } from "./cards";
 
 export const warriorDeck = () => {
   const deck = [];
@@ -27,6 +28,19 @@ export const warriorDeck = () => {
   return deck.filter((card) => card !== null) as Card[];
 };
 
+export const warriorDeckString: Record<string, number> = {
+  "charge": 2,
+  "flame-imp": 2,
+  "murloc-raider": 2,
+  "frostwolf-grunt": 2,
+  "wolfrider": 2,
+  "murloc-tidehunter": 2,
+  "razorfen-hunter": 2,
+  "dragonling-mechanic": 2,
+  "senjin-shieldmasta": 2,
+  "boulderfist-ogre": 2,
+};
+
 export const druidDeck = () => {
   const deck = [];
   deck.push(createCardFromID("mark-of-the-wild"));
@@ -51,4 +65,17 @@ export const druidDeck = () => {
   deck.push(createCardFromID("silverback-patriarch"));
 
   return deck.filter((card) => card !== null) as Card[];
+};
+
+export const druidDeckString: Record<string, number> = {
+  "mark-of-the-wild": 2,
+  "innervate": 2,
+  "druid-of-the-claw": 2,
+  "river-crocolisk": 2,
+  "boulderfist-ogre": 2,
+  "darkscale-healer": 2,
+  "nightblade": 2,
+  "elven-archer": 2,
+  "core-hound": 2,
+  "silverback-patriarch": 2,
 };

@@ -1,134 +1,119 @@
-import React from "react";
+import React, { useState } from "react";
 import Card from "./Card";
-import PlayerArea from "./PlayerArea";
 import type { BoardProps } from "boardgame.io/react";
 import type { GameState } from "@/types";
-import {
-  DndContext,
-  type DragEndEvent,
-  type DragOverEvent,
-} from "@dnd-kit/core";
-import Lane from "./Lane";
-import DropDetectCard from "./Card/DropDetectCard";
-
+import Gameboard from "./GameBoard";
+import { cardTemplates } from "@/utils/cards";
+import { druidDeckString, warriorDeckString } from "@/utils/decks";
 interface Props extends BoardProps<GameState> {}
 
 const backgroundImage = "src/assets/wood.jpg"; // Path to your background image
 
 const Board = ({ ctx, G, moves, ...props }: Props) => {
   const p0 = G.players["0"];
-  const p1 = G.players["1"];
-  const board0 = G.board["0"];
-  const board1 = G.board["1"];
+  const [deck, setDeck] = useState<Record<string, number>>({});
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    // console.log("Drag ended", event);
-    const { active, over } = event;
-    if (!over) return;
-    console.log("Active card:", active);
-    console.log("Over lane:", over);
-    console.log(over.data.current);
-    if (over.id === `lane-${ctx.currentPlayer}`) {
-      // place card
-      moves.placeCard(active.id, "hand", {
-        type: "lane",
-        id: over.id,
-        player: ctx.currentPlayer,
-      });
-    } else if (over.data.current?.type === "card") {
-      if (over.data.current.id === active.id) return;
-      console.log("Placing card on another card");
-      const location = active.data.current?.card?.isPlaced ? "board" : "hand";
-      moves.placeCard(active.id, location, {
-        type: "card",
-        id: over.data.current.id,
-        player: over.data.current.player,
-      });
-    } else if (over.data.current?.type === "player") {
-      // place card on player
-      const location = active.data.current?.card?.isPlaced ? "board" : "hand";
-      moves.placeCard(active.id, location, {
-        type: "player",
-        id: over.data.current.id,
-        player: over.data.current.player,
-      });
-    }
-  };
+  function handleConfirmDeck() {
+    moves.setDeck(ctx.currentPlayer, deck);
+  }
 
-  const handleDragOver = (event: DragOverEvent) => {
-    // console.log("Drag over", event);
-  };
+  function handleDeckChange(cardId: string, count: number) {
+    setDeck((prevDeck) => {
+      const newDeck = { ...prevDeck };
+      if (count > 0) {
+        newDeck[cardId] = count;
+      } else {
+        delete newDeck[cardId];
+      }
+      return newDeck;
+    });
+  }
 
-  return (
-    <div
-      className="w-screen h-screen bg-[#1c1e22] flex items-center justify-center overflow-hidden relative"
-      style={{
-        backgroundImage: `url(${backgroundImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        // filter: "brightness(0.2)",
-        // darken background with filter
-        backgroundBlendMode: "multiply",
-        backgroundColor: "#00000099",
-      }}
-    >
-      <div className="aspect-[16/9] w-full max-h-screen  flex flex-col text-white px-6 py-4 gap-2">
-        <DndContext onDragEnd={handleDragEnd} onDragOver={handleDragOver}>
-          {/* Player 1 Hand */}
-          <div className="h-1/4 flex flex-col justify-end">
-            <PlayerArea
-              moves={moves}
-              player={p1}
-              G={G}
-              ctx={ctx}
-              {...props}
-              playerID={"1"}
-            />
-          </div>
+  function handleSetWholeDeck(deck: Record<string, number>) {
+    setDeck(deck);
+  }
 
-          {/* Board Area */}
-          <div className="flex flex-col gap-2 items-center justify-center h-[50%] border-y-4 bg border-yellow-800 py-2">
-            {/* Player 1 Board */}
-            <Lane playerID="1">
-              {board1.map((card, idx) => (
-                <DropDetectCard
-                  playerID="1"
-                  key={`p1-board-${idx}`}
-                  card={card}
-                />
+  if (ctx.phase === "setDeck") {
+    return (
+      <div
+        className="w-screen h-screen bg-[#1c1e22] flex items-center justify-center overflow-hidden relative flex-col"
+        style={{
+          backgroundImage: `url(${backgroundImage})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          // filter: "brightness(0.2)",
+          // darken background with filter
+          backgroundBlendMode: "multiply",
+          backgroundColor: "#00000099",
+        }}
+      >
+        <h2 className="text-white text-2xl mb-4">Set Your Deck</h2>
+        <div className="flex gap-4 h-[80%]">
+          <div className="flex gap-4 flex-wrap  p-4  overflow-auto">
+            {Object.entries(cardTemplates)
+              .sort((a, b) => {
+                // sort by mana cost, then by name
+                return (a[1].mana || 0) - (b[1].mana || 0);
+              })
+              .map(([id, card]) => (
+                <div
+                  className="relative"
+                  key={id}
+                  onClick={() => {
+                    const currentCount = deck[id] || 0;
+
+                    const newCount = currentCount + 1;
+                    handleDeckChange(id, newCount);
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    const currentCount = deck[id] || 0;
+                    const newCount = currentCount > 0 ? currentCount - 1 : 0;
+                    handleDeckChange(id, newCount);
+                  }}
+                >
+                  <Card
+                    key={id}
+                    card={{ ...card, id }}
+                    back={false}
+                    isDragging={false}
+                  />
+                  <div className="text-white absolute text-center mt-2 top-0 right-0">
+                    x{deck[id] || 0}
+                  </div>
+                </div>
               ))}
-            </Lane>
-            <Lane playerID="0">
-              {board0.map((card, idx) => (
-                <DropDetectCard
-                  playerID="0"
-                  key={`p0-board-${idx}`}
-                  card={card}
-                />
-              ))}
-            </Lane>
           </div>
-
-          {/* Player 0 Hand */}
-          <PlayerArea
-            player={p0}
-            G={G}
-            ctx={ctx}
-            {...props}
-            moves={moves}
-            playerID="0"
-          />
-        </DndContext>
-      </div>
-      {ctx?.gameover?.winner && (
-        <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black/60 z-50">
-          <div className="text-4xl text-white bg-black/90 px-6 py-4 rounded-lg shadow-lg">
-            {`${G.players[ctx.gameover.winner].name} wins!`}
+          {/* display predefined decks and their number of cards */}
+          <div className="flex flex-col gap-2">
+            <h3 className="text-white text-lg">Predefined Decks</h3>
+            <button
+              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+              onClick={() => handleSetWholeDeck(warriorDeckString)}
+            >
+              Warrior Deck
+            </button>
+            <button
+              className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+              onClick={() => handleSetWholeDeck(druidDeckString)}
+            >
+              Druid Deck
+            </button>
           </div>
         </div>
-      )}
-    </div>
-  );
+
+        <button
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          onClick={handleConfirmDeck}
+        >
+          Confirm Deck, Total Cards:{" "}
+          {Object.values(deck).reduce((sum, count) => sum + count, 0)}
+        </button>
+      </div>
+    );
+  } else {
+    return <Gameboard ctx={ctx} G={G} moves={moves} {...props} />;
+  }
 };
 
 export default Board;

@@ -2,7 +2,7 @@ import type { Card, EffectTypes } from "@/types";
 
 const damage = (
   value: number | keyof Card,
-  target: "user-select" | "self-hero" | "enemy-hero" = "user-select"
+  target: "user-select" | "self-hero" | "enemy-hero" = "user-select",
 ): EffectTypes => {
   return {
     type: "damage",
@@ -31,7 +31,7 @@ const draw = (value: number): EffectTypes => {
 const changeKey = (
   key: keyof Card,
   value: any,
-  target: "other" | "self" = "other"
+  target: "other" | "self" = "other",
 ): EffectTypes => {
   return {
     type: "changeKey",
@@ -44,7 +44,7 @@ const changeKey = (
 const incrementValue = (
   key: keyof Card,
   value: number,
-  target: "other" | "self" = "other"
+  target: "other" | "self" = "other",
 ): EffectTypes => {
   return {
     type: "incrementValue",
