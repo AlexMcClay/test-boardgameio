@@ -5,6 +5,7 @@ import type { PlayerID } from "boardgame.io";
 import type { BoardProps } from "boardgame.io/dist/types/packages/react";
 import DragCard from "./Card/DragCard";
 import HeroSection from "./HeroSection";
+import HandCard from "./Card/HandCard";
 
 interface Props extends BoardProps<GameState> {
   isTop?: boolean; // true for player 1, false or undefined for player 0
@@ -57,25 +58,24 @@ const PlayerArea = ({
         {...props}
       />
 
-      <div className="flex  relative self-center justify-center w-full">
-        {hand.map((card, idx) => (
-          <div
-            key={`${isTop ? "p1" : "p0"}-hand-${card.id}`}
-            className="relative transition-all duration-300 ease-in-out hover:scale-110 hover:z-50"
-            style={{
-              marginLeft: idx > 0 ? "-60px" : "0",
-              zIndex: idx + 1,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.zIndex = "100";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.zIndex = (idx + 1).toString();
-            }}
-          >
-            <DragCard card={card} />
-          </div>
-        ))}
+      <div
+        className="flex relative self-center justify-center w-full"
+        style={{
+          height: "180px",
+          marginBottom: isTop ? "40px" : "0",
+        }}
+      >
+        {hand.map((card, idx) => {
+          return (
+            <HandCard
+              key={card.id}
+              size={hand.length}
+              index={idx}
+              isTop={isTop}
+              card={card}
+            />
+          );
+        })}
       </div>
 
       <div className="flex w-full self-start justify-end items-center gap-2">

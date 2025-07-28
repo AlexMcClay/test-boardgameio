@@ -25,7 +25,7 @@ const setupData = (): GameState => {
             "0": [],
             "1": [],
         },
-        maxMana: 9,
+        maxMana: -1,
     };
 
     return G;
@@ -353,6 +353,7 @@ export const HeathStoneGame: Game<GameState> = {
                             }
                         }
                         player.deck = shuffleDeck(finalDeck);
+                        ctx.turn = 0; // Reset turn count when decks are set
                     } else {
                         console.warn(`Player ${playerID} not found.`);
                     }

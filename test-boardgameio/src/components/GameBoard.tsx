@@ -83,6 +83,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
               ctx={ctx}
               {...props}
               playerID={"1"}
+              isTop
             />
           </div>
 
