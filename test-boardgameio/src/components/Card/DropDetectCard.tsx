@@ -4,6 +4,7 @@ import type { Ctx, PlayerID } from "boardgame.io";
 import DragCard from "./DragCard";
 import { useDragStore } from "@/stores/dragStore";
 import { twMerge } from "tailwind-merge";
+import { motion } from "motion/react";
 
 interface Props extends CardProps {
   playerID: PlayerID;
@@ -24,13 +25,23 @@ const DropDetectCard = (props: Props) => {
   const isValid = isValidTarget("card", props.playerID, props.card.id);
 
   return (
-    <div
+    <motion.div
+      key={props.card.id}
       ref={setNodeRef}
+      layout
+      layoutId={`drop-${props.card.id}`}
       className={twMerge(
         isOver && "ring-2 ring-yellow-300",
         isValid &&
           "ring-yellow-500 rounded-2xl ring-2 shadow-yellow-400  shadow-[0px_0px_20px_rgba(0,0,0,0.5)]",
       )}
+      exit={{
+        opacity: 0,
+        scale: 0.3,
+        rotate: 20,
+        position: "absolute",
+        transition: { duration: 0.5 },
+      }}
     >
       <DragCard
         {...props}
@@ -38,7 +49,7 @@ const DropDetectCard = (props: Props) => {
         playerID={props.playerID}
         ctx={props.ctx}
       />
-    </div>
+    </motion.div>
   );
 };
 

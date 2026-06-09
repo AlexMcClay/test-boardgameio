@@ -2,6 +2,8 @@ import { useFitText } from "@/hooks";
 import type { CardProps } from "./types";
 import { motion } from "motion/react";
 import { twMerge } from "tailwind-merge";
+import { useAnimationStore } from "@/stores/animationStore";
+import { useEffect, useRef, useState } from "react";
 
 const cardBack = "src/assets/Card_Back.png";
 const mana_crystal = "src/assets/mana.png";
@@ -13,11 +15,84 @@ const minionTaunt = "src/assets/minion_taunt.png";
 interface Props extends CardProps {}
 
 const PlacedCard = ({ card, isDragging = false, playerID, ctx }: Props) => {
+  const currentAnimation = useAnimationStore((s) => s.currentAnimation);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Check if this card is attacking
+  const isAttacking =
+    currentAnimation?.type === "attack" &&
+    currentAnimation.attackerId === card.id;
+
+  // Calculate target position immediately when needed
+  const getTargetPosition = () => {
+    if (
+      !isAttacking ||
+      !currentAnimation ||
+      currentAnimation.type !== "attack"
+    ) {
+      return { x: 0, y: 0 };
+    }
+
+    const targetId = currentAnimation.targetId;
+    const targetType = currentAnimation.targetType;
+
+    // Get attacker position
+    const attackerElement = cardRef.current;
+    if (!attackerElement) return { x: 0, y: 0 };
+
+    const attackerRect = attackerElement.getBoundingClientRect();
+    const attackerCenterX = attackerRect.left + attackerRect.width / 2;
+    const attackerCenterY = attackerRect.top + attackerRect.height / 2;
+
+    // Get target position
+    let targetElement: HTMLElement | null = null;
+
+    if (targetType === "card") {
+      // Find target card by ID
+      targetElement = document.querySelector(`[data-card-id="${targetId}"]`);
+    } else if (targetType === "player") {
+      // Find player hero by ID
+      targetElement = document.querySelector(`[data-player-id="${targetId}"]`);
+    }
+
+    if (targetElement) {
+      const targetRect = targetElement.getBoundingClientRect();
+      const targetCenterX = targetRect.left + targetRect.width / 2;
+      const targetCenterY = targetRect.top + targetRect.height / 2;
+
+      // Calculate relative position
+      const deltaX = targetCenterX - attackerCenterX;
+      const deltaY = targetCenterY - attackerCenterY;
+
+      return { x: deltaX, y: deltaY };
+    }
+
+    return { x: 0, y: 0 };
+  };
+
+  const targetPosition = getTargetPosition();
+
   return (
     <motion.div
-      layout
+      ref={cardRef}
+      data-card-id={card.id}
+      layout={!isAttacking}
       layoutId={`card-${card.id}`}
       transition={isDragging ? { duration: 0 } : undefined}
+      animate={
+        isAttacking
+          ? {
+              x: [0, targetPosition.x, 0],
+              y: [0, targetPosition.y, 0],
+              scale: [1, 1.15, 1],
+              transition: {
+                duration: 0.5,
+                times: [0, 0.5, 1],
+                ease: "easeInOut",
+              },
+            }
+          : {}
+      }
       className={twMerge(
         // 1. Turned the card chassis into a distinctive Hearthstone Minion Oval
         "w-[130px] h-[175px] relative rounded-[50%/50%] flex flex-col items-center justify-center font-serif text-white",

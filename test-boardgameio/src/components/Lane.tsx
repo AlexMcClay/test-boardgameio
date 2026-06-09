@@ -3,6 +3,7 @@ import { useDroppable } from "@dnd-kit/core";
 import type { PlayerID } from "boardgame.io";
 import React from "react";
 import { twMerge } from "tailwind-merge";
+import { AnimatePresence } from "motion/react";
 
 type Props = {
   children: React.ReactNode;
@@ -25,12 +26,12 @@ const Lane = ({ children, playerID }: Props) => {
     <div
       ref={setNodeRef}
       className={twMerge(
-        `flex justify-center items-center gap-4 h-1/2  bg-[#00000075] w-full`,
+        `flex justify-center items-center gap-4 h-1/2  bg-[#00000075] w-full relative`,
         isOver && "ring-2 ring-yellow-300",
         isValid && "ring-2 ring-yellow-400 bg-yellow-400/10",
       )}
     >
-      {children}
+      <AnimatePresence mode="popLayout">{children}</AnimatePresence>
     </div>
   );
 };

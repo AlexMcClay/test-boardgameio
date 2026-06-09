@@ -42,6 +42,7 @@ const HeroSection = ({
     <div
       ref={setNodeRef}
       id="player-stats"
+      data-player-id={playerID}
       className={twMerge(
         `relative flex items-center gap-4 overflow-visible min-w-[160px]`,
         isOver && "ring-2 ring-yellow-300",

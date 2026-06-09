@@ -8,7 +8,7 @@ const DragCard = (props: Props) => {
   const disabled = props.card.isPlaced && props.card.hasAttacked; //
 
   const { isDragging, setNodeRef, listeners, transform } = useDraggable({
-    id: props.card.id,
+    id: `${props.card.id}`,
     data: {
       type: "card",
       card: props.card,

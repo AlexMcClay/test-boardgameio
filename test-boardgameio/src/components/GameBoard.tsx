@@ -12,8 +12,10 @@ import Lane from "./Lane";
 import DropDetectCard from "./Card/DropDetectCard";
 import Card from "./Card";
 import { useDragStore } from "@/stores/dragStore";
-import { useEffect } from "react";
+import { useAnimationStore } from "@/stores/animationStore";
+import { useEffect, useState } from "react";
 import { validateMove } from "@/utils/validateMove";
+import { detectDeaths } from "@/utils/detectAnimations";
 
 interface Props extends BoardProps<GameState> {}
 
@@ -25,6 +27,11 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   const setCurrentPlayer = useDragStore((state) => state.setCurrentPlayer);
   const setGameState = useDragStore((state) => state.setGameState);
 
+  const { queueAnimation, playAnimations, isAnimating } = useAnimationStore();
+
+  // Visual state buffer - keeps dead cards visible during animations
+  const [visualBoard, setVisualBoard] = useState(G.board);
+
   useEffect(() => {
     setCurrentPlayer(ctx.currentPlayer);
   }, [ctx.currentPlayer, setCurrentPlayer]);
@@ -33,10 +40,17 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     setGameState(G);
   }, [G, setGameState]);
 
+  // Only update visual board when not animating
+  useEffect(() => {
+    if (!isAnimating) {
+      setVisualBoard(G.board);
+    }
+  }, [G.board, isAnimating]);
+
   const p0 = G.players["0"];
   const p1 = G.players["1"];
-  const board0 = G.board["0"];
-  const board1 = G.board["1"];
+  const board0 = visualBoard["0"];
+  const board1 = visualBoard["1"];
 
   console.log(ctx.phase, "Current phase");
 
@@ -47,7 +61,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     setActiveCard(card || null);
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     console.log("Drag ended", event);
     const { active, over } = event;
     setActiveCard(null);
@@ -93,11 +107,46 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       return; // Don't animate or execute move
     }
 
-    // VALID MOVE - Now queue animations
-    // await addAnimation(...);
+    // VALID MOVE - Queue animations before executing move
 
-    // Then execute move
+    // 1. Snapshot current state (deep copy to compare later)
+    const stateBefore: GameState = JSON.parse(JSON.stringify(G));
+
+    // 2. Check if this is an attack action (placed card targeting something)
+    const isAttack =
+      active.data.current?.card?.isPlaced &&
+      target &&
+      (target.type === "card" || target.type === "player");
+
+    if (
+      isAttack &&
+      target &&
+      (target.type === "card" || target.type === "player")
+    ) {
+      // Queue attack animation
+      queueAnimation({
+        type: "attack",
+        attackerId: active.id as string,
+        targetId: target.id,
+        targetType: target.type,
+        targetPlayerId: target.player,
+        attackerPlayerId: ctx.currentPlayer,
+      });
+    }
+
+    // 3. Execute the move (this updates the game state immediately)
     moves.placeCard(active.id, location, target);
+
+    // 4. Detect deaths by comparing states
+    const deaths = detectDeaths(stateBefore, G);
+
+    // 5. Queue death animations
+    deaths.forEach((death) => {
+      queueAnimation(death);
+    });
+
+    // 6. Play all queued animations
+    await playAnimations();
   };
 
   const handleDragOver = (event: DragOverEvent) => {
