@@ -23,10 +23,15 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   const activeCard = useDragStore((state) => state.activeCard);
   const setActiveCard = useDragStore((state) => state.setActiveCard);
   const setCurrentPlayer = useDragStore((state) => state.setCurrentPlayer);
+  const setGameState = useDragStore((state) => state.setGameState);
 
   useEffect(() => {
     setCurrentPlayer(ctx.currentPlayer);
   }, [ctx.currentPlayer, setCurrentPlayer]);
+
+  useEffect(() => {
+    setGameState(G);
+  }, [G, setGameState]);
 
   const p0 = G.players["0"];
   const p1 = G.players["1"];

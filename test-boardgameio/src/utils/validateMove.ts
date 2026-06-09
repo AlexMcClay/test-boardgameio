@@ -11,11 +11,26 @@ export type MoveValidationError =
   | "invalid-target"
   | "already-attacked"
   | "no-active-card"
-  | "not-your-turn";
+  | "not-your-turn"
+  | "must-attack-taunt";
 
 export type MoveValidationResult =
   | { valid: true }
   | { valid: false; error: MoveValidationError };
+
+/**
+ * Helper: Check if a board has any taunt minions
+ */
+export function hasTauntMinions(board: Card[]): boolean {
+  return board.some((card) => card.taunt === true);
+}
+
+/**
+ * Helper: Check if a card can bypass taunt (spells can, minions cannot)
+ */
+export function isTauntBypassAllowed(card: Card): boolean {
+  return card.isSpell === true;
+}
 
 /**
  * Core validation: Check if target matches card's target types
@@ -119,6 +134,28 @@ export function validateMove(
     if (!validTarget) {
       return { valid: false, error: "invalid-target" };
     }
+
+    // TAUNT MECHANIC: Check if trying to bypass taunt
+    const isTargetingEnemy = target.player !== ctx.currentPlayer;
+    if (isTargetingEnemy && !isTauntBypassAllowed(card)) {
+      const enemyBoard = G.board[target.player];
+      const enemyHasTaunt = hasTauntMinions(enemyBoard);
+
+      if (enemyHasTaunt) {
+        // If targeting enemy hero, must attack taunt instead
+        if (target.type === "player") {
+          return { valid: false, error: "must-attack-taunt" };
+        }
+
+        // If targeting an enemy card, it must be a taunt minion
+        if (target.type === "card") {
+          const targetCard = enemyBoard.find((c) => c.id === target.id);
+          if (!targetCard || !targetCard.taunt) {
+            return { valid: false, error: "must-attack-taunt" };
+          }
+        }
+      }
+    }
   }
 
   // Card already attacked
@@ -138,6 +175,8 @@ export function canTargetHighlight(
   currentPlayer: PlayerID | null,
   targetType: "card" | "player" | "lane",
   targetPlayerID: PlayerID,
+  gameState: GameState | null,
+  targetCardId?: string,
 ): boolean {
   if (!activeCard || !currentPlayer) return false;
 
@@ -151,10 +190,39 @@ export function canTargetHighlight(
     return false;
   }
 
-  return isValidTargetType(
+  // Check basic target type validity
+  const isValidType = isValidTargetType(
     activeCard,
     targetType,
     targetPlayerID,
     currentPlayer,
   );
+
+  if (!isValidType) return false;
+
+  // TAUNT MECHANIC: Check if trying to bypass taunt in UI
+  if (gameState) {
+    const isTargetingEnemy = targetPlayerID !== currentPlayer;
+    if (isTargetingEnemy && !isTauntBypassAllowed(activeCard)) {
+      const enemyBoard = gameState.board[targetPlayerID];
+      const enemyHasTaunt = hasTauntMinions(enemyBoard);
+
+      if (enemyHasTaunt) {
+        // If targeting enemy hero, must attack taunt instead
+        if (targetType === "player") {
+          return false;
+        }
+
+        // If targeting an enemy card, it must be a taunt minion
+        if (targetType === "card" && targetCardId) {
+          const targetCard = enemyBoard.find((c) => c.id === targetCardId);
+          if (!targetCard || !targetCard.taunt) {
+            return false;
+          }
+        }
+      }
+    }
+  }
+
+  return true;
 }

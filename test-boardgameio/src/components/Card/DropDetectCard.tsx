@@ -21,7 +21,7 @@ const DropDetectCard = (props: Props) => {
   });
 
   const isValidTarget = useDragStore((state) => state.isValidTarget);
-  const isValid = isValidTarget("card", props.playerID);
+  const isValid = isValidTarget("card", props.playerID, props.card.id);
 
   return (
     <div
