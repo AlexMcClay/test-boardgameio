@@ -1,8 +1,10 @@
+import { useDragStore } from "@/stores/dragStore";
 import type { GameState, Player } from "@/types";
 import { useDroppable } from "@dnd-kit/core";
 import type { PlayerID } from "boardgame.io";
 import type { BoardProps } from "boardgame.io/dist/types/packages/react";
 import React from "react";
+import { twMerge } from "tailwind-merge";
 
 interface Props extends BoardProps<GameState> {
   isTop?: boolean; // true for player 1, false or undefined for player 0
@@ -31,15 +33,20 @@ const HeroSection = ({
     },
   });
 
+  const isValidTarget = useDragStore((state) => state.isValidTarget);
+  const isValid = isValidTarget("player", playerID);
+
   const heroPortrait = player.heroPortrait || "src/assets/default-hero.jpg";
 
   return (
     <div
       ref={setNodeRef}
       id="player-stats"
-      className={`relative flex items-center gap-4 overflow-visible min-w-[160px]
-        ${isOver ? "ring-2 ring-yellow-300" : ""}
-        `}
+      className={twMerge(
+        `relative flex items-center gap-4 overflow-visible min-w-[160px]`,
+        isOver && "ring-2 ring-yellow-300",
+        isValid && "ring-4 ring-yellow-400 shadow-xl shadow-yellow-400/50",
+      )}
       style={{ minHeight: "150px" }}
     >
       {/* Hero Portrait with overlayed stats */}

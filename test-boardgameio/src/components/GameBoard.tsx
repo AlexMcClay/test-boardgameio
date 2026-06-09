@@ -1,6 +1,6 @@
 import PlayerArea from "./PlayerArea";
 import type { BoardProps } from "boardgame.io/react";
-import type { Card as CardType, GameState } from "@/types";
+import type { GameState } from "@/types";
 import {
   DndContext,
   DragOverlay,
@@ -10,15 +10,22 @@ import {
 } from "@dnd-kit/core";
 import Lane from "./Lane";
 import DropDetectCard from "./Card/DropDetectCard";
-import { useState } from "react";
 import Card from "./Card";
+import { useDragStore } from "@/stores/dragStore";
+import { useEffect } from "react";
 
 interface Props extends BoardProps<GameState> {}
 
 const backgroundImage = "src/assets/wood.jpg"; // Path to your background image
 
 const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
-  const [activeCard, setActiveCard] = useState<CardType | null>(null);
+  const activeCard = useDragStore((state) => state.activeCard);
+  const setActiveCard = useDragStore((state) => state.setActiveCard);
+  const setCurrentPlayer = useDragStore((state) => state.setCurrentPlayer);
+
+  useEffect(() => {
+    setCurrentPlayer(ctx.currentPlayer);
+  }, [ctx.currentPlayer, setCurrentPlayer]);
 
   const p0 = G.players["0"];
   const p1 = G.players["1"];
@@ -35,9 +42,13 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    // console.log("Drag ended", event);
+    console.log("Drag ended", event);
     const { active, over } = event;
-    if (!over) return;
+    setActiveCard(null);
+
+    if (!over) {
+      return;
+    }
     console.log("Active card:", active);
     console.log("Over lane:", over);
     console.log(over.data.current);
@@ -66,8 +77,6 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
         player: over.data.current.player,
       });
     }
-
-    setActiveCard(null);
   };
 
   const handleDragOver = (event: DragOverEvent) => {

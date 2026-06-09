@@ -1,5 +1,4 @@
 import type { Card, TargetValue } from "@/types";
-import type { PlayerID } from "boardgame.io";
 
 export function handleValidTarget(ctx: any, card: Card, target: TargetValue) {
   return card.targets.some((t) => {

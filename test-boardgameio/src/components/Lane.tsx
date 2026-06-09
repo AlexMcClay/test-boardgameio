@@ -1,6 +1,8 @@
+import { useDragStore } from "@/stores/dragStore";
 import { useDroppable } from "@dnd-kit/core";
 import type { PlayerID } from "boardgame.io";
 import React from "react";
+import { twMerge } from "tailwind-merge";
 
 type Props = {
   children: React.ReactNode;
@@ -16,10 +18,17 @@ const Lane = ({ children, playerID }: Props) => {
     },
   });
 
+  const isValidTarget = useDragStore((state) => state.isValidTarget);
+  const isValid = isValidTarget("lane", playerID);
+
   return (
     <div
       ref={setNodeRef}
-      className={`flex justify-center items-center gap-4 h-1/2  bg-[#00000075] w-full ${isOver ? "ring-2 ring-yellow-300" : ""}`}
+      className={twMerge(
+        `flex justify-center items-center gap-4 h-1/2  bg-[#00000075] w-full`,
+        isOver && "ring-2 ring-yellow-300",
+        isValid && "ring-2 ring-yellow-400 bg-yellow-400/10",
+      )}
     >
       {children}
     </div>
