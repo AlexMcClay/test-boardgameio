@@ -1,15 +1,17 @@
 import React, { useState } from "react";
 import DragCard from "./DragCard";
 import type { Card } from "@/types";
+import type { Ctx } from "boardgame.io";
 
 type Props = {
   size: number; // Array of cards in hand
   index: number; // Index of the card in the hand
   isTop?: boolean; // Whether the player is on top (for styling)
   card: Card;
+  ctx: Ctx;
 };
 
-const HandCard = ({ size, index, isTop, card }: Props) => {
+const HandCard = ({ size, index, isTop, card, ctx }: Props) => {
   const [isHovered, setIsHovered] = useState(false);
 
   // Calculate the angle for fanning
@@ -44,7 +46,7 @@ const HandCard = ({ size, index, isTop, card }: Props) => {
         e.currentTarget.style.zIndex = (index + 1).toString();
       }}
     >
-      <DragCard card={card} />
+      <DragCard card={card} ctx={ctx} />
     </div>
   );
 };

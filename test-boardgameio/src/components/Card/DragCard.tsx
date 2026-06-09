@@ -21,11 +21,9 @@ const DragCard = (props: Props) => {
       ref={setNodeRef}
       className={`${!disabled && "cursor-grab"} ${isDragging ? " cursor-grabbing" : ""}`}
       style={{
-        transform: transform
-          ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
-          : undefined,
+        opacity: isDragging ? 0 : 1, // Hide original when dragging
+
         transition: "none",
-        zIndex: isDragging ? 1000 : "auto",
       }}
       {...listeners}
     >

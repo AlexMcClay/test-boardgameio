@@ -285,6 +285,7 @@ const doEffects = (
         if (summonedCard) {
           summonedCard.isPlaced = true; // Mark the summoned card as placed
           summonedCard.hasAttacked = true; // Reset attack status for summoned cards
+          summonedCard.summoningSickness = true; // Summoned minions have summoning sickness
           // check if the board can fit the summoned card
           if (G.board[ctx.currentPlayer].length >= 7) {
             console.warn("Cannot summon more than 7 cards on the board");

@@ -1,9 +1,7 @@
-import React from "react";
 import Card from "./Card";
-import type { Card as CardType, GameState, Player } from "@/types";
+import type { GameState, Player } from "@/types";
 import type { PlayerID } from "boardgame.io";
 import type { BoardProps } from "boardgame.io/dist/types/packages/react";
-import DragCard from "./Card/DragCard";
 import HeroSection from "./HeroSection";
 import HandCard from "./Card/HandCard";
 
@@ -28,16 +26,6 @@ const PlayerArea = ({
     if (events && events.endTurn) {
       // Call the endTurn event if available
       events.endTurn();
-    }
-  };
-
-  const handleDrawCard = () => {
-    // Ensure the current player can draw a card
-    if (ctx.currentPlayer !== playerID) return;
-    // Logic to draw a card, e.g., call a move to draw a card
-    if (moves && moves.drawCard) {
-      // Call the drawCard move if available
-      moves.drawCard();
     }
   };
 
@@ -73,6 +61,7 @@ const PlayerArea = ({
               index={idx}
               isTop={isTop}
               card={card}
+              ctx={ctx}
             />
           );
         })}
@@ -110,7 +99,7 @@ const PlayerArea = ({
                   top: `-${idx * 3}px`,
                 }}
               >
-                <Card back card={card} />
+                <Card back card={card} ctx={ctx} />
               </div>
             ))}
         </button>
