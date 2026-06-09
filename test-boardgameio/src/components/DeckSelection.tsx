@@ -1,7 +1,11 @@
 import { useState } from "react";
 import Card from "./Card";
-import { cardTemplates } from "@/utils/cards";
-import { druidDeckString, warriorDeckString } from "@/utils/decks";
+import { cardTemplates, type CardTemplateKey } from "@/utils/cards";
+import {
+  druidDeckString,
+  warriorDeckString,
+  type DeckString,
+} from "@/utils/decks";
 import type { Ctx } from "boardgame.io";
 
 interface DeckSelectionProps {
@@ -12,13 +16,15 @@ interface DeckSelectionProps {
 const backgroundImage = "src/assets/wood.jpg";
 
 const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
-  const [deck, setDeck] = useState<Record<string, number>>({});
+  const [deck, setDeck] = useState<Partial<Record<CardTemplateKey, number>>>(
+    {},
+  );
 
   function handleConfirmDeck() {
     moves.setDeck(ctx.currentPlayer, deck);
   }
 
-  function handleDeckChange(cardId: string, count: number) {
+  function handleDeckChange(cardId: CardTemplateKey, count: number) {
     setDeck((prevDeck) => {
       const newDeck = { ...prevDeck };
       if (count > 0) {
@@ -30,82 +36,189 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
     });
   }
 
-  function handleSetWholeDeck(deck: Record<string, number>) {
+  function handleSetWholeDeck(deck: DeckString) {
     setDeck(deck);
   }
 
+  function handleClearDeck() {
+    setDeck({});
+  }
+
+  const totalCards = Object.values(deck).reduce((sum, count) => sum + count, 0);
+  const maxCards = 30;
+
+  // Calculate mana curve
+  const manaCurve = Array.from({ length: 8 }, (_, i) => {
+    const manaCount = Object.entries(deck).reduce((sum, [cardId, count]) => {
+      const card = cardTemplates[cardId as CardTemplateKey];
+      if (card) {
+        const mana = card.mana ?? 0;
+        if (i === 7) {
+          // 7+ mana
+          return mana >= 7 ? sum + count : sum;
+        }
+        return mana === i ? sum + count : sum;
+      }
+      return sum;
+    }, 0);
+    return manaCount;
+  });
+
   return (
     <div
-      className="w-screen h-screen bg-[#1c1e22] flex items-center justify-center overflow-hidden relative flex-col"
+      className="deck-selection-container"
       style={{
         backgroundImage: `url(${backgroundImage})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundBlendMode: "multiply",
-        backgroundColor: "#00000099",
+        backgroundColor: "#1a0a05",
       }}
     >
-      <h2 className="text-white text-2xl mb-4">Set Your Deck</h2>
-      <div className="flex gap-4 h-[80%]">
-        <div className="flex gap-4 flex-wrap p-4 overflow-auto">
-          {Object.entries(cardTemplates)
-            .sort((a, b) => {
-              // sort by mana cost, then by name
-              return (a[1].mana || 0) - (b[1].mana || 0);
-            })
-            .map(([id, card]) => (
-              <div
-                className="relative"
-                key={id}
-                onClick={() => {
-                  const currentCount = deck[id] || 0;
-                  const newCount = currentCount + 1;
-                  handleDeckChange(id, newCount);
-                }}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  const currentCount = deck[id] || 0;
-                  const newCount = currentCount > 0 ? currentCount - 1 : 0;
-                  handleDeckChange(id, newCount);
-                }}
-              >
-                <Card
-                  key={id}
-                  card={{ ...card, id }}
-                  back={false}
-                  isDragging={false}
-                />
-                <div className="text-white absolute text-center mt-2 top-0 right-0">
-                  x{deck[id] || 0}
-                </div>
-              </div>
-            ))}
-        </div>
-        {/* display predefined decks and their number of cards */}
-        <div className="flex flex-col gap-2">
-          <h3 className="text-white text-lg">Predefined Decks</h3>
-          <button
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-            onClick={() => handleSetWholeDeck(warriorDeckString)}
+      {/* Header */}
+      <div className="deck-selection-header">
+        <h1 className="deck-selection-title">Deck Builder</h1>
+        <div className="deck-count-display">
+          <span
+            className={
+              totalCards > maxCards
+                ? "text-red-400"
+                : totalCards === maxCards
+                  ? "text-green-400"
+                  : "text-yellow-400"
+            }
           >
-            Warrior Deck
-          </button>
-          <button
-            className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-            onClick={() => handleSetWholeDeck(druidDeckString)}
-          >
-            Druid Deck
-          </button>
+            {totalCards}
+          </span>
+          <span className="text-gray-400"> / {maxCards}</span>
         </div>
       </div>
 
-      <button
-        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        onClick={handleConfirmDeck}
-      >
-        Confirm Deck, Total Cards:{" "}
-        {Object.values(deck).reduce((sum, count) => sum + count, 0)}
-      </button>
+      <div className="deck-selection-content">
+        {/* Left Panel - Card Collection */}
+        <div className="card-collection-panel">
+          <div className="panel-header">
+            <h2 className="panel-title">Card Collection</h2>
+            <p className="panel-subtitle">
+              Left click to add • Right click to remove
+            </p>
+          </div>
+          <div className="card-grid">
+            {Object.entries(cardTemplates)
+              .sort((a, b) => {
+                // sort by mana cost, then by name
+                return (a[1].mana ?? 0) - (b[1].mana ?? 0);
+              })
+              .map(([id, card]) => (
+                <div
+                  className="card-wrapper"
+                  key={id}
+                  onClick={() => {
+                    const currentCount = deck[id as CardTemplateKey] || 0;
+                    if (currentCount < 2 && totalCards < maxCards) {
+                      const newCount = currentCount + 1;
+                      handleDeckChange(id as CardTemplateKey, newCount);
+                    }
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    const currentCount = deck[id as CardTemplateKey] || 0;
+                    const newCount = currentCount > 0 ? currentCount - 1 : 0;
+                    handleDeckChange(id as CardTemplateKey, newCount);
+                  }}
+                >
+                  <div
+                    className={`card-container ${deck[id as CardTemplateKey] ? "card-selected" : ""}`}
+                  >
+                    <Card
+                      key={id}
+                      card={{ ...card, id }}
+                      back={false}
+                      isDragging={false}
+                      ctx={ctx}
+                    />
+                    {deck[id as CardTemplateKey] &&
+                      deck[id as CardTemplateKey]! > 0 && (
+                        <div className="card-count-badge">
+                          {deck[id as CardTemplateKey]}
+                        </div>
+                      )}
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+
+        {/* Right Panel - Deck Summary */}
+        <div className="deck-summary-panel">
+          <div className="panel-header">
+            <h2 className="panel-title">Your Deck</h2>
+          </div>
+
+          {/* Mana Curve */}
+          <div className="mana-curve-container">
+            <h3 className="mana-curve-title">Mana Curve</h3>
+            <div className="mana-curve">
+              {manaCurve.map((count, mana) => (
+                <div key={mana} className="mana-bar-container">
+                  <div
+                    className="mana-bar"
+                    style={{
+                      height:
+                        totalCards > 0
+                          ? `${(count / totalCards) * 100}%`
+                          : "0%",
+                      minHeight: count > 0 ? "20px" : "0px",
+                    }}
+                  >
+                    <span className="mana-bar-count">{count || ""}</span>
+                  </div>
+                  <div className="mana-bar-label">
+                    {mana === 7 ? "7+" : mana}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Predefined Decks */}
+          <div className="predefined-decks">
+            <h3 className="predefined-title">Quick Decks</h3>
+            <button
+              className="preset-deck-button warrior-button"
+              onClick={() => handleSetWholeDeck(warriorDeckString)}
+            >
+              <span className="preset-deck-icon">⚔️</span>
+              <span>Warrior</span>
+            </button>
+            <button
+              className="preset-deck-button druid-button"
+              onClick={() => handleSetWholeDeck(druidDeckString)}
+            >
+              <span className="preset-deck-icon">🌿</span>
+              <span>Druid</span>
+            </button>
+            <button className="clear-deck-button" onClick={handleClearDeck}>
+              Clear Deck
+            </button>
+          </div>
+
+          {/* Confirm Button */}
+          <button
+            className={`confirm-deck-button ${totalCards === maxCards ? "ready" : ""}`}
+            onClick={handleConfirmDeck}
+            disabled={totalCards === 0}
+          >
+            <span className="button-text">
+              {totalCards === 0
+                ? "Select Cards"
+                : totalCards === maxCards
+                  ? "Done!"
+                  : "Confirm Deck"}
+            </span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

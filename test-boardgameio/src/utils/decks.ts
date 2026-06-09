@@ -1,39 +1,13 @@
-import type { Card } from "@/types";
-import { createCardFromID } from ".";
-import type { cardTemplates } from "./cards";
+import type { CardTemplateKey, cardTemplates } from "./cards";
 
-export const warriorDeck = () => {
-  const deck = [];
-  deck.push(createCardFromID("charge"));
-  deck.push(createCardFromID("charge"));
-  deck.push(createCardFromID("flame-imp"));
-  deck.push(createCardFromID("flame-imp"));
-  deck.push(createCardFromID("murloc-raider"));
-  deck.push(createCardFromID("murloc-raider"));
-  deck.push(createCardFromID("frostwolf-grunt"));
-  deck.push(createCardFromID("frostwolf-grunt"));
-  deck.push(createCardFromID("wolfrider"));
-  deck.push(createCardFromID("wolfrider"));
-  deck.push(createCardFromID("murloc-tidehunter"));
-  deck.push(createCardFromID("murloc-tidehunter"));
-  deck.push(createCardFromID("razorfen-hunter"));
-  deck.push(createCardFromID("razorfen-hunter"));
-  deck.push(createCardFromID("dragonling-mechanic"));
-  deck.push(createCardFromID("dragonling-mechanic"));
-  deck.push(createCardFromID("senjin-shieldmasta"));
-  deck.push(createCardFromID("senjin-shieldmasta"));
-  deck.push(createCardFromID("boulderfist-ogre"));
-  deck.push(createCardFromID("boulderfist-ogre"));
+export type DeckString = Partial<Record<CardTemplateKey, number>>;
 
-  return deck.filter((card) => card !== null) as Card[];
-};
-
-export const warriorDeckString: Record<string, number> = {
-  "charge": 2,
+export const warriorDeckString: DeckString = {
+  charge: 2,
   "flame-imp": 2,
   "murloc-raider": 2,
   "frostwolf-grunt": 2,
-  "wolfrider": 2,
+  wolfrider: 2,
   "murloc-tidehunter": 2,
   "razorfen-hunter": 2,
   "dragonling-mechanic": 2,
@@ -41,40 +15,13 @@ export const warriorDeckString: Record<string, number> = {
   "boulderfist-ogre": 2,
 };
 
-export const druidDeck = () => {
-  const deck = [];
-  deck.push(createCardFromID("mark-of-the-wild"));
-  deck.push(createCardFromID("mark-of-the-wild"));
-  deck.push(createCardFromID("innervate"));
-  deck.push(createCardFromID("innervate"));
-  deck.push(createCardFromID("druid-of-the-claw"));
-  deck.push(createCardFromID("druid-of-the-claw"));
-  deck.push(createCardFromID("river-crocolisk"));
-  deck.push(createCardFromID("river-crocolisk"));
-  deck.push(createCardFromID("boulderfist-ogre"));
-  deck.push(createCardFromID("boulderfist-ogre"));
-  deck.push(createCardFromID("darkscale-healer"));
-  deck.push(createCardFromID("darkscale-healer"));
-  deck.push(createCardFromID("nightblade"));
-  deck.push(createCardFromID("nightblade"));
-  deck.push(createCardFromID("elven-archer"));
-  deck.push(createCardFromID("elven-archer"));
-  deck.push(createCardFromID("core-hound"));
-  deck.push(createCardFromID("core-hound"));
-  deck.push(createCardFromID("silverback-patriarch"));
-  deck.push(createCardFromID("silverback-patriarch"));
-
-  return deck.filter((card) => card !== null) as Card[];
-};
-
-export const druidDeckString: Record<string, number> = {
+export const druidDeckString: DeckString = {
   "mark-of-the-wild": 2,
-  "innervate": 2,
-  "druid-of-the-claw": 2,
+  innervate: 2,
   "river-crocolisk": 2,
   "boulderfist-ogre": 2,
   "darkscale-healer": 2,
-  "nightblade": 2,
+  nightblade: 2,
   "elven-archer": 2,
   "core-hound": 2,
   "silverback-patriarch": 2,

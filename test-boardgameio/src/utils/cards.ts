@@ -62,7 +62,7 @@ const summon = (cardID: string): EffectTypes => {
 };
 
 // cardTemplates.ts
-export const cardTemplates: Record<string, Omit<Card, "id">> = {
+export const cardTemplates = {
   "flame-imp": {
     title: "Flame Imp",
     description: "Deal 3 damage to your hero.",
@@ -473,4 +473,66 @@ export const cardTemplates: Record<string, Omit<Card, "id">> = {
     isMinnion: true,
     hasAttacked: false,
   },
-} as const;
+  "magma-rager": {
+    title: "Magma Rager",
+    description: "",
+    mana: 3,
+    attack: 5,
+    health: 1,
+    type: "Elemental",
+    imageUrl: "src/assets/Magma_Rager.jpg",
+    effects: [damage("attack")],
+    onPlace: [],
+    targets: ["card-opponent", "player-opponent"],
+    isMinnion: true,
+    hasAttacked: false,
+  },
+  "oasis-snapjaw": {
+    title: "Oasis Snapjaw",
+    description: "",
+    mana: 4,
+    attack: 2,
+    health: 7,
+    type: "Beast",
+    imageUrl: "src/assets/Oasis_Snapjaw.jpg",
+    effects: [damage("attack")],
+    onPlace: [],
+    targets: ["card-opponent", "player-opponent"],
+    isMinnion: true,
+    hasAttacked: false,
+  },
+  "silver-hand-knight": {
+    title: "Silver Hand Knight",
+    description: "Battlecry: Summon a 2/2 Squire.",
+    mana: 5,
+    attack: 4,
+    health: 4,
+    type: "Human",
+    imageUrl: "src/assets/Silver_Hand_Knight.jpg",
+    effects: [damage("attack")],
+    onPlace: [summon("squire")],
+    targets: ["card-opponent", "player-opponent"],
+    isMinnion: true,
+    hasAttacked: false,
+  },
+  squire: {
+    title: "Squire",
+    description: "Ready for battle.",
+    mana: 1,
+    attack: 2,
+    health: 2,
+    type: "Human",
+    imageUrl: "src/assets/Squire.jpg",
+    effects: [damage("attack")],
+    onPlace: [],
+    targets: ["card-opponent", "player-opponent"],
+    isMinnion: true,
+    hasAttacked: false,
+  },
+} satisfies Record<string, Omit<Card, "id">>;
+
+// 1. Automatically extracts: "flame-imp" | "chillwind-yeti" | ...
+export type CardTemplateKey = keyof typeof cardTemplates;
+
+// 2. An actual type-safe Record mapping your exact keys to cards
+export type CardTemplateRecord = typeof cardTemplates;

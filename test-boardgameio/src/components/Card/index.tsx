@@ -56,40 +56,46 @@ const PlacedCard = ({ card, isDragging = false, playerID, ctx }: Props) => {
       {/* Summoning Sickness Indicator (Zzz) */}
       {card.summoningSickness && (
         <motion.div
-          className="absolute inset-0 pointer-events-none z-20 overflow-hidden rounded-[50%/42%]"
+          className="absolute inset-0 pointer-events-none "
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <div className="absolute bottom-1/2 left-1/2 -translate-x-1/2 translate-y-1/2 w-10 h-10">
-            {["z", "Z", "Z"].map((letter, index) => (
+          {/* Relative wrapper centered on the card to host the floating letters */}
+          <div className="absolute top-12 right-12 ">
+            {["Z", "Z", "Z"].map((letter, index) => (
               <motion.span
                 key={index}
                 className="absolute font-bold select-none"
                 style={{
                   color: "#4ade80",
-                  fontSize:
-                    index === 0
-                      ? "1.25rem"
-                      : index === 1
-                        ? "1.75rem"
-                        : "2.5rem",
+                  // Dynamically increase font size for each consecutive Z
+
                   textShadow:
-                    "0 0 8px rgba(74, 222, 128, 0.9), 0 2px 4px rgba(0,0,0,0.9)",
+                    "0 0 10px rgba(74, 222, 128, 0.8), 0 2px 8px rgba(0,0,0,0.8)",
                 }}
-                initial={{ opacity: 0, scale: 0.6, y: 10, x: 0 }}
+                initial={{
+                  opacity: 0,
+                  scale: 0.6,
+                  y: 0,
+                  x: 0,
+                }}
                 animate={{
+                  // Fades in, stays visible, then vanishes at the top
                   opacity: [0, 1, 1, 0],
                   scale: [0.6, 1, 1.1, 1.2],
-                  y: [10, -25, -55, -85],
-                  x: [0, 12, 6, 18],
+                  // Floats upward
+                  y: [0, -30, -60, -90],
+                  // Gently drifts right and slightly left for a organic floating wave
+                  x: [0, 20, 40, 60],
                 }}
                 transition={{
-                  duration: 2.8,
-                  ease: "easeInOut",
+                  duration: 3,
+                  ease: "linear",
                   repeat: Infinity,
                   repeatType: "loop",
-                  delay: index * 0.9,
+                  // Staggers the letters 1 second apart
+                  delay: index * 1,
                 }}
               >
                 {letter}

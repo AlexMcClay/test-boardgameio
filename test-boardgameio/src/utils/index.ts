@@ -1,5 +1,5 @@
 import type { Card } from "@/types";
-import { cardTemplates } from "./cards";
+import { cardTemplates, type CardTemplateKey } from "./cards";
 
 export function shuffleDeck(deck: Card[]): Card[] {
   const copy = [...deck];
@@ -33,7 +33,7 @@ export function createDeck(count: number): Card[] {
   return shuffleDeck(deck);
 }
 
-export function createCardFromID(id: string): Card | null {
+export function createCardFromID(id: CardTemplateKey): Card | null {
   const cardTemplate = cardTemplates[id];
   if (!cardTemplate) {
     console.warn(`Card template with ID ${id} not found.`);

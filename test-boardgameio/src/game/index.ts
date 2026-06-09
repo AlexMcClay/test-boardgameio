@@ -4,8 +4,8 @@ import { Client } from "boardgame.io/react";
 import type { Card, GameState, Player, TargetValue } from "@/types";
 import { createCardFromID, createDeck, shuffleDeck } from "@/utils";
 import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
-import { druidDeck, warriorDeck } from "@/utils/decks";
 import { validateMove } from "@/utils/validateMove";
+import type { CardTemplateKey } from "@/utils/cards";
 
 export const isVictory = ({ G, ctx }: { G: GameState; ctx: Ctx }) => {
   if (G.players[0].hp <= 0) {
@@ -241,7 +241,7 @@ const doEffects = (
         }
         break;
       case "summon":
-        const summonedCard = createCardFromID(effect.cardID);
+        const summonedCard = createCardFromID(effect.cardID as CardTemplateKey);
         if (summonedCard) {
           summonedCard.isPlaced = true; // Mark the summoned card as placed
           summonedCard.hasAttacked = true; // Reset attack status for summoned cards
@@ -296,7 +296,7 @@ export const HeathStoneGame: Game<GameState> = {
             for (const cardId in deck) {
               const count = deck[cardId];
               for (let i = 0; i < count; i++) {
-                const card = createCardFromID(cardId);
+                const card = createCardFromID(cardId as CardTemplateKey);
                 if (card) {
                   finalDeck.push(card);
                 } else {
