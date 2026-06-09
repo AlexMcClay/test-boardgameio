@@ -90,9 +90,10 @@ const MinionCard = ({ card, playerID, ctx }: Props) => {
       animate={
         isAttacking
           ? {
-              y: -20,
-              scale: 1.05,
+              y: 0,
+              scale: 1.15,
               transition: { duration: 0.15, ease: "easeOut" },
+              filter: "drop-shadow(0px 0px 10px rgba(239, 68, 68, 0.7))",
             }
           : { y: 0, scale: 1 }
       }

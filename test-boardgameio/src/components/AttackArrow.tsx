@@ -57,6 +57,7 @@ const AttackArrow = () => {
         x2={lineEndX}
         y2={lineEndY}
         stroke="#ef4444"
+        strokeDasharray="10 5"
         strokeWidth="4"
         filter="url(#glow)"
       />
