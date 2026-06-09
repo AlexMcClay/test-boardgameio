@@ -15,3 +15,18 @@ code {
   font-family:
     source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
 }
+
+@keyframes shadowPulse {
+  0%,
+  100% {
+    filter: drop-shadow(0px 0px 10px rgba(0, 255, 55, 1));
+  }
+  50% {
+    filter: drop-shadow(0px 0px 15px rgba(0, 255, 0, 1));
+  }
+}
+
+.canAttack {
+  /* drop shadow */
+  animation: shadowPulse 1.5s ease-in-out infinite;
+}

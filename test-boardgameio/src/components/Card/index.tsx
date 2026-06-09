@@ -7,8 +7,145 @@ const cardBack = "src/assets/Card_Back.png";
 const mana_crystal = "src/assets/mana.png";
 const attackIcon = "src/assets/attack.png";
 const healthIcon = "src/assets/health.png";
+const minionFrame = "src/assets/minion_frame.png";
+const minionTaunt = "src/assets/minion_taunt.png";
 
 interface Props extends CardProps {}
+
+const PlacedCard = ({ card, isDragging = false, playerID, ctx }: Props) => {
+  return (
+    <motion.div
+      layout
+      layoutId={`card-${card.id}`}
+      transition={isDragging ? { duration: 0 } : undefined}
+      className={twMerge(
+        // 1. Turned the card chassis into a distinctive Hearthstone Minion Oval
+        "w-[130px] h-[175px] relative rounded-[50%/50%] flex flex-col items-center justify-center font-serif text-white",
+      )}
+    >
+      {/* Card Art - Clipped tightly inside the oval frame */}
+      <div
+        className={twMerge(
+          "w-full h-full",
+          !card.hasAttacked && ctx.currentPlayer === playerID && "canAttack",
+        )}
+      >
+        <div
+          className={twMerge(
+            "absolute top-1 left-2! h-[90%] w-[90%] inset-[2px] overflow-hidden rounded-[50%/50%]",
+            card.taunt && "top-4 left-2! w-[87%]",
+          )}
+        >
+          <img
+            src={card.imageUrl}
+            alt={card.title}
+            className="object-cover w-full h-full select-none scale-105"
+            draggable="false"
+          />
+        </div>
+        <div className={twMerge("absolute inset-[2px] rounded-[50%/50%] z-0")}>
+          <img
+            src={card.taunt ? minionTaunt : minionFrame}
+            alt={card.title}
+            className="object-cover w-full h-full select-none scale-105"
+            draggable="false"
+          />
+        </div>
+      </div>
+
+      {/* Summoning Sickness Indicator (Zzz) */}
+      {card.summoningSickness && (
+        <motion.div
+          className="absolute inset-0 pointer-events-none z-20 overflow-hidden rounded-[50%/42%]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <div className="absolute bottom-1/2 left-1/2 -translate-x-1/2 translate-y-1/2 w-10 h-10">
+            {["z", "Z", "Z"].map((letter, index) => (
+              <motion.span
+                key={index}
+                className="absolute font-bold select-none"
+                style={{
+                  color: "#4ade80",
+                  fontSize:
+                    index === 0
+                      ? "1.25rem"
+                      : index === 1
+                        ? "1.75rem"
+                        : "2.5rem",
+                  textShadow:
+                    "0 0 8px rgba(74, 222, 128, 0.9), 0 2px 4px rgba(0,0,0,0.9)",
+                }}
+                initial={{ opacity: 0, scale: 0.6, y: 10, x: 0 }}
+                animate={{
+                  opacity: [0, 1, 1, 0],
+                  scale: [0.6, 1, 1.1, 1.2],
+                  y: [10, -25, -55, -85],
+                  x: [0, 12, 6, 18],
+                }}
+                transition={{
+                  duration: 2.8,
+                  ease: "easeInOut",
+                  repeat: Infinity,
+                  repeatType: "loop",
+                  delay: index * 0.9,
+                }}
+              >
+                {letter}
+              </motion.span>
+            ))}
+          </div>
+        </motion.div>
+      )}
+      {/* Attack & Health */}
+      {(card.attack !== undefined || card.health !== undefined) && (
+        <>
+          {card.attack !== undefined && (
+            <div className="absolute select-none left-[0.75rem] -bottom-[-1rem]  rounded-full w-8 h-8 flex items-center justify-center text-xl font-bold shadow-lg">
+              <img
+                src={attackIcon}
+                alt="Card Back"
+                className="object-cover w-full h-full absolute scale-130 -left-1 bottom-1"
+                // no drag
+                draggable="false"
+              />
+              <span
+                style={{
+                  WebkitTextStroke: "0.5px black",
+                  textShadow: "0 1px 0px black",
+                }}
+                className="absolute"
+              >
+                {card.attack}
+              </span>
+            </div>
+          )}
+          {card.health !== undefined && (
+            <div className="absolute select-none right-[0.5rem] -bottom-[-1rem] rounded-full w-8 h-8 flex items-center justify-center text-xl font-bold  shadow-lg">
+              <img
+                src={healthIcon}
+                alt="Card Back"
+                className=" object-contain w-full h-full absolute scale-130  bottom-1"
+                // no drag
+                draggable="false"
+              />
+              <span
+                style={{
+                  WebkitTextStroke: "0.5px black",
+                  textShadow: "0 1px 0px black",
+                }}
+                className="absolute"
+              >
+                {card.health}
+              </span>
+            </div>
+          )}
+        </>
+      )}
+    </motion.div>
+  );
+};
 
 const Card = ({
   card,
@@ -33,6 +170,18 @@ const Card = ({
           draggable="false"
         />
       </motion.div>
+    );
+  }
+
+  // Use PlacedCard component when card is on the board
+  if (card.isPlaced) {
+    return (
+      <PlacedCard
+        card={card}
+        isDragging={isDragging}
+        playerID={playerID}
+        ctx={ctx}
+      />
     );
   }
 
@@ -78,58 +227,6 @@ const Card = ({
           className="object-cover w-full h-full select-none"
           draggable="false"
         />
-
-        {/* Summoning Sickness Indicator (Zzz) */}
-        {card.summoningSickness && (
-          <motion.div
-            className="absolute inset-0 pointer-events-none "
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            {/* Relative wrapper centered on the card to host the floating letters */}
-            <div className="absolute top-12 right-12 ">
-              {["Z", "Z", "Z"].map((letter, index) => (
-                <motion.span
-                  key={index}
-                  className="absolute font-bold select-none"
-                  style={{
-                    color: "#4ade80",
-                    // Dynamically increase font size for each consecutive Z
-
-                    textShadow:
-                      "0 0 10px rgba(74, 222, 128, 0.8), 0 2px 8px rgba(0,0,0,0.8)",
-                  }}
-                  initial={{
-                    opacity: 0,
-                    scale: 0.6,
-                    y: 0,
-                    x: 0,
-                  }}
-                  animate={{
-                    // Fades in, stays visible, then vanishes at the top
-                    opacity: [0, 1, 1, 0],
-                    scale: [0.6, 1, 1.1, 1.2],
-                    // Floats upward
-                    y: [0, -30, -60, -90],
-                    // Gently drifts right and slightly left for a organic floating wave
-                    x: [0, 20, 40, 60],
-                  }}
-                  transition={{
-                    duration: 3,
-                    ease: "linear",
-                    repeat: Infinity,
-                    repeatType: "loop",
-                    // Staggers the letters 1 second apart
-                    delay: index * 1,
-                  }}
-                >
-                  {letter}
-                </motion.span>
-              ))}
-            </div>
-          </motion.div>
-        )}
       </div>
 
       {/* Title */}
