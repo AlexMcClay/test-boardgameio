@@ -1,6 +1,6 @@
 import PlayerArea from "./PlayerArea";
 import type { BoardProps } from "boardgame.io/react";
-import type { GameState } from "@/types";
+import type { GameState, TargetValue } from "@/types";
 import {
   DndContext,
   DragOverlay,
@@ -13,6 +13,7 @@ import DropDetectCard from "./Card/DropDetectCard";
 import Card from "./Card";
 import { useDragStore } from "@/stores/dragStore";
 import { useEffect } from "react";
+import { validateMove } from "@/utils/validateMove";
 
 interface Props extends BoardProps<GameState> {}
 
@@ -49,34 +50,49 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     if (!over) {
       return;
     }
-    console.log("Active card:", active);
-    console.log("Over lane:", over);
-    console.log(over.data.current);
+    let target: TargetValue | undefined;
+    let location: "hand" | "board" = "hand";
+
+    // Determine target from drop data
     if (over.id === `lane-${ctx.currentPlayer}`) {
-      // place card
-      moves.placeCard(active.id, "hand", {
-        type: "lane",
-        id: over.id,
-        player: ctx.currentPlayer,
-      });
+      target = { type: "lane", id: over.id, player: ctx.currentPlayer };
     } else if (over.data.current?.type === "card") {
       if (over.data.current.id === active.id) return;
-      console.log("Placing card on another card");
-      const location = active.data.current?.card?.isPlaced ? "board" : "hand";
-      moves.placeCard(active.id, location, {
+      location = active.data.current?.card?.isPlaced ? "board" : "hand";
+      target = {
         type: "card",
         id: over.data.current.id,
         player: over.data.current.player,
-      });
+      };
     } else if (over.data.current?.type === "player") {
-      // place card on player
-      const location = active.data.current?.card?.isPlaced ? "board" : "hand";
-      moves.placeCard(active.id, location, {
+      location = active.data.current?.card?.isPlaced ? "board" : "hand";
+      target = {
         type: "player",
         id: over.data.current.id,
         player: over.data.current.player,
-      });
+      };
     }
+
+    // Validate BEFORE animating
+    const validation = validateMove(
+      G,
+      ctx,
+      active.id as string,
+      location,
+      target,
+    );
+
+    if (!validation.valid) {
+      console.warn(`Cannot perform move (UI): ${validation.error}`);
+      // Optionally show error toast/message to user
+      return; // Don't animate or execute move
+    }
+
+    // VALID MOVE - Now queue animations
+    // await addAnimation(...);
+
+    // Then execute move
+    moves.placeCard(active.id, location, target);
   };
 
   const handleDragOver = (event: DragOverEvent) => {

@@ -5,7 +5,7 @@ import type { Card, GameState, Player, TargetValue } from "@/types";
 import { createCardFromID, createDeck, shuffleDeck } from "@/utils";
 import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
 import { druidDeck, warriorDeck } from "@/utils/decks";
-import { handleValidTarget } from "./handleValidTarget";
+import { validateMove } from "@/utils/validateMove";
 
 export const isVictory = ({ G, ctx }: { G: GameState; ctx: Ctx }) => {
   if (G.players[0].hp <= 0) {
@@ -63,61 +63,21 @@ const placeCard: Move<GameState> = (
   location: "hand" | "board" = "hand",
   target?: TargetValue,
 ) => {
+  // Single validation call
+  const validation = validateMove(G, ctx, cardId, location, target);
+
+  if (!validation.valid) {
+    console.warn(`Invalid move: ${validation.error}`);
+    return;
+  }
+
   const player = G.players[ctx.currentPlayer];
   const card =
     location === "hand"
-      ? player.hand.find((c) => c.id === cardId)
-      : G.board[ctx.currentPlayer].find((c) => c.id === cardId);
-
-  if (!card) {
-    console.warn("Card not found in the specified location");
-    return; // Card not found in the specified location
-  }
-
-  // Minions must be placed on the board and not directly targeted
-  if (!card.isPlaced && card.isMinnion && target && target.type !== "lane") {
-    console.warn("Minions must be placed on the board");
-    return;
-  }
-
-  // Board limit for minions
-  if (
-    !card.isPlaced &&
-    card.isMinnion &&
-    G.board[ctx.currentPlayer].length >= 7
-  ) {
-    console.warn("Cannot place more than 7 cards on the board");
-    return;
-  }
-
-  // Mana check for unplaced cards
-  if (!card.isPlaced && player.mana < (card.mana || 0)) {
-    console.warn("Not enough mana to play the card");
-    return;
-  }
-
-  // Spell cards with required targets
-  if (card.isSpell && card.targets.length > 0 && !target) {
-    console.warn("Spell cards require a target");
-    return;
-  }
-
-  // check if valid target is provided
-  if (target && target.type !== "lane" && card.targets.length > 0) {
-    let valid = handleValidTarget(ctx, card, target);
-
-    if (!valid) {
-      console.warn("Invalid target for the card");
-      return; // Invalid target for the card
-    }
-  }
+      ? player.hand.find((c) => c.id === cardId)!
+      : G.board[ctx.currentPlayer].find((c) => c.id === cardId)!;
 
   player.mana -= !card.isPlaced ? card.mana || 0 : 0; // Deduct mana cost
-
-  if (card.isPlaced && card.hasAttacked) {
-    console.warn("Card has already attacked this turn");
-    return; // Card has already attacked this turn
-  }
 
   console.log(target);
 
