@@ -145,7 +145,6 @@ const PlacedCard = ({ card, isDragging = false, playerID, ctx }: Props) => {
                 style={{
                   color: "#4ade80",
                   // Dynamically increase font size for each consecutive Z
-
                   textShadow:
                     "0 0 10px rgba(74, 222, 128, 0.8), 0 2px 8px rgba(0,0,0,0.8)",
                 }}

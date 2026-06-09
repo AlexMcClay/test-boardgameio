@@ -31,6 +31,17 @@ code {
   animation: shadowPulse 1.5s ease-in-out infinite;
 }
 
+.animate-dash {
+  animation: dash 1s linear infinite;
+}
+
+@keyframes dash {
+  to {
+    /* Moving it by the total dash length makes it loop seamlessly */
+    stroke-dashoffset: -80;
+  }
+}
+
 /* ===== DECK SELECTION STYLING ===== */
 
 .deck-selection-container {

@@ -21,7 +21,7 @@ const AttackArrow = () => {
   }
 
   const angle = Math.atan2(dy, dx);
-  const arrowHeadSize = 15;
+  const arrowHeadSize = 40;
 
   // Arrow line end point (shortened for arrowhead)
   const lineEndX = cursorPosition.x - Math.cos(angle) * arrowHeadSize;
@@ -57,9 +57,10 @@ const AttackArrow = () => {
         x2={lineEndX}
         y2={lineEndY}
         stroke="#ef4444"
-        strokeDasharray="10 5"
-        strokeWidth="4"
+        strokeDasharray="20 20"
+        strokeWidth="24"
         filter="url(#glow)"
+        className="animate-dash"
       />
 
       {/* Arrowhead */}

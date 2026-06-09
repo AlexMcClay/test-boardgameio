@@ -93,7 +93,7 @@ const MinionCard = ({ card, playerID, ctx }: Props) => {
               y: 0,
               scale: 1.15,
               transition: { duration: 0.15, ease: "easeOut" },
-              filter: "drop-shadow(0px 0px 10px rgba(239, 68, 68, 0.7))",
+              // filter: "drop-shadow(0px 0px 10px rgba(239, 68, 68, 0.7))",
             }
           : { y: 0, scale: 1 }
       }
@@ -127,10 +127,14 @@ const DropDetectCard = (props: Props) => {
           "ring-yellow-500 rounded-2xl ring-2 shadow-yellow-400  shadow-[0px_0px_20px_rgba(0,0,0,0.5)]",
       )}
       exit={{
-        opacity: 0,
-        scale: 0.3,
-        rotate: 20,
-        transition: { duration: 0.5 },
+        opacity: [1, 1, 0], // Stays fully visible during the shake, then vanishes quickly
+        rotate: [0, -5, 5, -5, 5, 20], // Shakes back and forth rapidly before spinning away
+        // The Rapid Shake: Rapidly oscillates left and right
+        x: [0, -12, 12, -12, 12, -8, 8, -4, 4, 0],
+        transition: {
+          duration: 0.3, // Total animation time (keeps it fast and punchy)
+          ease: "easeInOut",
+        },
       }}
     >
       <MinionCard {...props} />
