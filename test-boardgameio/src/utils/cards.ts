@@ -219,7 +219,6 @@ export const cardTemplates: Record<string, Omit<Card, "id">> = {
     imageUrl: "src/assets/Charge.jpg",
     effects: [changeKey("hasAttacked", false)],
     onPlace: [],
-
     isSpell: true,
     isMinnion: false,
     targets: ["card-friendly"],
@@ -251,7 +250,6 @@ export const cardTemplates: Record<string, Omit<Card, "id">> = {
     imageUrl: "src/assets/Frostwolf_Grunt.jpg",
     effects: [damage("attack")],
     onPlace: [],
-
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
     hasAttacked: false,

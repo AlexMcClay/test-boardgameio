@@ -1,4 +1,3 @@
-import React from "react";
 import type { CardProps } from "./types";
 import { useDraggable } from "@dnd-kit/core";
 import Card from ".";
