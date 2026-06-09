@@ -1,7 +1,7 @@
 import { useFitText } from "@/hooks";
-import React from "react";
 import type { CardProps } from "./types";
 import { motion } from "motion/react";
+import { twMerge } from "tailwind-merge";
 
 const cardBack = "src/assets/Card_Back.png";
 const mana_crystal = "src/assets/mana.png";
@@ -39,7 +39,19 @@ const Card = ({
       layout
       layoutId={`card-${card.id}`}
       transition={isDragging ? { duration: 0 } : undefined}
-      className={`${isDragging && "ring ring-blue-500"} w-[150px] relative aspect-[5/7] bg-[#37373b] rounded-2xl border-4 border-[#54412e] flex-col flex gap-1 items-center shadow-xl text-white font-serif ${card.taunt ? "border-gray-500" : ""}`}
+      className={twMerge(
+        ` w-[150px] relative aspect-[5/7] bg-[#37373b] rounded-2xl border-4 border-[#54412e] flex-col flex gap-1 items-center shadow-xl text-white font-serif`,
+        isDragging &&
+          !card.isPlaced &&
+          " ring-blue-500 ring-2 shadow-blue-400  shadow-[0px_0px_60px_rgba(0,0,0,0.5)] ",
+        isDragging &&
+          card.isPlaced &&
+          "ring-green-500 ring-2 shadow-green-400  shadow-[0px_0px_60px_rgba(0,0,0,0.5)]",
+        !card.hasAttacked &&
+          card.isPlaced &&
+          "ring-green-500 ring-2 shadow-green-400  shadow-[0px_0px_20px_rgba(0,0,0,0.5)]",
+        card.taunt && "border-gray-500",
+      )}
     >
       {/* Mana Crystal */}
       {card.mana !== null && card.mana !== undefined && (
@@ -63,6 +75,58 @@ const Card = ({
           className="object-cover w-full h-full select-none"
           draggable="false"
         />
+
+        {/* Summoning Sickness Indicator (Zzz) */}
+        {card.summoningSickness && (
+          <motion.div
+            className="absolute inset-0 pointer-events-none "
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            {/* Relative wrapper centered on the card to host the floating letters */}
+            <div className="absolute top-12 right-12 ">
+              {["Z", "Z", "Z"].map((letter, index) => (
+                <motion.span
+                  key={index}
+                  className="absolute font-bold select-none"
+                  style={{
+                    color: "#4ade80",
+                    // Dynamically increase font size for each consecutive Z
+
+                    textShadow:
+                      "0 0 10px rgba(74, 222, 128, 0.8), 0 2px 8px rgba(0,0,0,0.8)",
+                  }}
+                  initial={{
+                    opacity: 0,
+                    scale: 0.6,
+                    y: 0,
+                    x: 0,
+                  }}
+                  animate={{
+                    // Fades in, stays visible, then vanishes at the top
+                    opacity: [0, 1, 1, 0],
+                    scale: [0.6, 1, 1.1, 1.2],
+                    // Floats upward
+                    y: [0, -30, -60, -90],
+                    // Gently drifts right and slightly left for a organic floating wave
+                    x: [0, 20, 40, 60],
+                  }}
+                  transition={{
+                    duration: 3,
+                    ease: "linear",
+                    repeat: Infinity,
+                    repeatType: "loop",
+                    // Staggers the letters 1 second apart
+                    delay: index * 1,
+                  }}
+                >
+                  {letter}
+                </motion.span>
+              ))}
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* Title */}

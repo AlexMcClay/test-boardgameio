@@ -13,6 +13,7 @@ export interface Card {
   onPlace: Array<EffectTypes>; // Effects that trigger when the card is placed
   isPlaced?: boolean; // Optional, to track if the card is placed on the board
   hasAttacked: boolean; // Optional, to track if the card has attacked this turn
+  summoningSickness?: boolean; // Optional, to track if minion was just placed (shows Zzz)
   isSpell?: boolean; // Optional, to indicate if the card is a spell
   isMinnion: boolean; // Optional, to indicate if the card is a minion
   taunt?: boolean; // Optional, to indicate if the card has taunt

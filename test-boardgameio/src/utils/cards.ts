@@ -146,7 +146,10 @@ export const cardTemplates: Record<string, Omit<Card, "id">> = {
     type: "Beast",
     imageUrl: "src/assets/Wolfrider.jpg",
     effects: [damage("attack")],
-    onPlace: [changeKey("hasAttacked", false, "self")],
+    onPlace: [
+      changeKey("hasAttacked", false, "self"),
+      changeKey("summoningSickness", false, "self"),
+    ],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
     hasAttacked: false,
@@ -217,7 +220,10 @@ export const cardTemplates: Record<string, Omit<Card, "id">> = {
     mana: 1,
     type: "Spell",
     imageUrl: "src/assets/Charge.jpg",
-    effects: [changeKey("hasAttacked", false)],
+    effects: [
+      changeKey("hasAttacked", false),
+      changeKey("summoningSickness", false),
+    ],
     onPlace: [],
     isSpell: true,
     isMinnion: false,
