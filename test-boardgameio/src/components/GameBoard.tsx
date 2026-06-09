@@ -16,6 +16,7 @@ import { useAnimationStore } from "@/stores/animationStore";
 import { useEffect, useState } from "react";
 import { validateMove } from "@/utils/validateMove";
 import { detectDeaths } from "@/utils/detectAnimations";
+import AttackArrow from "./AttackArrow";
 
 interface Props extends BoardProps<GameState> {}
 
@@ -92,18 +93,25 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       };
     }
 
+    // Execute the move with validation and animations
+    await executeMove(active.id as string, location, target);
+  };
+
+  const handleDragOver = (_event: DragOverEvent) => {
+    // console.log("Drag over", event);
+  };
+
+  // Shared function to execute a move with validation, animation, and state updates
+  const executeMove = async (
+    cardId: string,
+    location: "hand" | "board",
+    target?: TargetValue,
+  ) => {
     // Validate BEFORE animating
-    const validation = validateMove(
-      G,
-      ctx,
-      active.id as string,
-      location,
-      target,
-    );
+    const validation = validateMove(G, ctx, cardId, location, target);
 
     if (!validation.valid) {
       console.warn(`Cannot perform move (UI): ${validation.error}`);
-      // Optionally show error toast/message to user
       return; // Don't animate or execute move
     }
 
@@ -114,19 +122,13 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
 
     // 2. Check if this is an attack action (placed card targeting something)
     const isAttack =
-      active.data.current?.card?.isPlaced &&
-      target &&
-      (target.type === "card" || target.type === "player");
+      target && (target.type === "card" || target.type === "player");
 
-    if (
-      isAttack &&
-      target &&
-      (target.type === "card" || target.type === "player")
-    ) {
+    if (isAttack && (target.type === "card" || target.type === "player")) {
       // Queue attack animation
       queueAnimation({
         type: "attack",
-        attackerId: active.id as string,
+        attackerId: cardId,
         targetId: target.id,
         targetType: target.type,
         targetPlayerId: target.player,
@@ -135,7 +137,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     }
 
     // 3. Execute the move (this updates the game state immediately)
-    moves.placeCard(active.id, location, target);
+    moves.placeCard(cardId, location, target);
 
     // 4. Detect deaths by comparing states
     const deaths = detectDeaths(stateBefore, G);
@@ -149,9 +151,45 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     await playAnimations();
   };
 
-  const handleDragOver = (event: DragOverEvent) => {
-    // console.log("Drag over", event);
-  };
+  // Handle attack arrow target selection
+  useEffect(() => {
+    const handleAttackTarget = async (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { attackerId, targetCardId, targetPlayerId } = customEvent.detail;
+
+      let target: TargetValue | undefined;
+      const location: "hand" | "board" = "board";
+
+      if (targetCardId) {
+        // Find which player owns this card
+        const player0HasCard = G.board["0"].some((c) => c.id === targetCardId);
+        const targetPlayer = player0HasCard ? "0" : "1";
+
+        target = {
+          type: "card",
+          id: targetCardId,
+          player: targetPlayer,
+        };
+      } else if (targetPlayerId) {
+        target = {
+          type: "player",
+          id: targetPlayerId,
+          player: targetPlayerId,
+        };
+      }
+
+      if (!target) return;
+
+      // Execute the move with validation and animations
+      await executeMove(attackerId, location, target);
+    };
+
+    window.addEventListener("attack-target", handleAttackTarget);
+
+    return () => {
+      window.removeEventListener("attack-target", handleAttackTarget);
+    };
+  }, [G, ctx, moves, queueAnimation, detectDeaths, playAnimations]);
 
   return (
     <div
@@ -189,20 +227,20 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           <div className="flex flex-col gap-2 items-center justify-center h-[50%] border-y-4 bg border-yellow-800 py-2">
             {/* Player 1 Board */}
             <Lane playerID="1">
-              {board1.map((card, idx) => (
+              {board1.map((card) => (
                 <DropDetectCard
                   playerID="1"
-                  key={`p1-board-${idx}`}
+                  key={card.id}
                   card={card}
                   ctx={ctx}
                 />
               ))}
             </Lane>
             <Lane playerID="0">
-              {board0.map((card, idx) => (
+              {board0.map((card) => (
                 <DropDetectCard
                   playerID="0"
-                  key={`p0-board-${idx}`}
+                  key={card.id}
                   card={card}
                   ctx={ctx}
                 />
@@ -220,7 +258,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
             playerID="0"
           />
           <DragOverlay>
-            {activeCard ? (
+            {activeCard && !activeCard.isPlaced ? (
               <Card
                 card={activeCard}
                 isDragging={true}
@@ -238,6 +276,9 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           </div>
         </div>
       )}
+
+      {/* Attack Arrow Overlay */}
+      <AttackArrow />
     </div>
   );
 };

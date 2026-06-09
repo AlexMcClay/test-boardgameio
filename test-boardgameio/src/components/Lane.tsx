@@ -31,7 +31,7 @@ const Lane = ({ children, playerID }: Props) => {
         isValid && "ring-2 ring-yellow-400 bg-yellow-400/10",
       )}
     >
-      <AnimatePresence mode="popLayout">{children}</AnimatePresence>
+      <AnimatePresence initial={false}>{children}</AnimatePresence>
     </div>
   );
 };

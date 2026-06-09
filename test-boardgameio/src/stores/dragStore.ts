@@ -16,6 +16,18 @@ type DragStore = {
     playerID: PlayerID,
     targetCardId?: string,
   ) => boolean;
+
+  // Attack arrow state
+  attackingCardId: string | null;
+  attackOrigin: { x: number; y: number } | null;
+  cursorPosition: { x: number; y: number } | null;
+  startAttack: (
+    cardId: string,
+    origin: { x: number; y: number },
+    card: Card,
+  ) => void;
+  updateAttackCursor: (position: { x: number; y: number }) => void;
+  endAttack: () => void;
 };
 
 export const useDragStore = create<DragStore>((set, get) => ({
@@ -37,5 +49,32 @@ export const useDragStore = create<DragStore>((set, get) => ({
       gameState,
       targetCardId,
     );
+  },
+
+  // Attack arrow state
+  attackingCardId: null,
+  attackOrigin: null,
+  cursorPosition: null,
+
+  startAttack: (cardId, origin, card) => {
+    set({
+      attackingCardId: cardId,
+      attackOrigin: origin,
+      cursorPosition: origin,
+      activeCard: card, // Set activeCard for validation and highlighting
+    });
+  },
+
+  updateAttackCursor: (position) => {
+    set({ cursorPosition: position });
+  },
+
+  endAttack: () => {
+    set({
+      attackingCardId: null,
+      attackOrigin: null,
+      cursorPosition: null,
+      activeCard: null, // Clear activeCard when attack ends
+    });
   },
 }));
