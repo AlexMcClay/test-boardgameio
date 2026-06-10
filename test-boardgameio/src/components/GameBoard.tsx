@@ -45,6 +45,21 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
 
   // State-based animation detection with visual board management
   const prevGameStateRef = useRef<GameState | null>(null);
+  const lastProcessedTimestamp = useRef<number>(0);
+
+  // add useEffect event listenr for tilde to log G.eventHistory
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "`") {
+        console.log("Event History:", G.gameEvents);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [G.gameEvents]);
 
   useEffect(() => {
     const handleAnimationsAndVisualBoard = async () => {
@@ -55,12 +70,26 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
         return;
       }
 
-      // Detect all animations by comparing states
-      const animations = detectAllAnimations(
-        prevGameStateRef.current,
-        G,
-        ctx.currentPlayer,
+      // Only process new events (by timestamp)
+      const currentEvents = G.gameEvents || [];
+      const newEvents = currentEvents.filter(
+        (e) => e.timestamp > lastProcessedTimestamp.current,
       );
+
+      // Skip if no new events to process
+      if (newEvents.length === 0) {
+        return;
+      }
+
+      // Detect all animations from event log
+      const animations = detectAllAnimations(G);
+
+      // Update tracking timestamp
+      if (currentEvents.length > 0) {
+        lastProcessedTimestamp.current = Math.max(
+          ...currentEvents.map((e) => e.timestamp),
+        );
+      }
 
       // Update ref immediately
       prevGameStateRef.current = structuredClone(G);

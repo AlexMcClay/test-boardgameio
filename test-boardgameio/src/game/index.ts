@@ -1,11 +1,20 @@
 import Board from "@/components/Board";
 import { Client } from "boardgame.io/react";
 
-import type { Card, GameState, Player, TargetValue } from "@/types";
+import type { Card, GameState, Player, TargetValue, GameEvent } from "@/types";
 import { createCardFromID, createDeck, shuffleDeck } from "@/utils";
 import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
 import { validateMove } from "@/utils/validateMove";
 import type { CardTemplateKey } from "@/utils/cards";
+
+// Helper function to record game events
+function recordEvent(G: GameState, event: GameEvent) {
+  // Add to current move events
+  G.gameEvents.push(event);
+
+  // Also add to persistent history for debugging
+  G.eventHistory.push(event);
+}
 
 export const isVictory = ({ G, ctx }: { G: GameState; ctx: Ctx }) => {
   if (G.players[0].hp <= 0) {
@@ -26,6 +35,8 @@ const setupData = (): GameState => {
       "1": [],
     },
     maxMana: -1,
+    gameEvents: [],
+    eventHistory: [],
   };
 
   return G;
@@ -71,6 +82,9 @@ const placeCard: Move<GameState> = (
     return;
   }
 
+  // Clear current move events (history is kept for debugging)
+  G.gameEvents = [];
+
   // Track move metadata for animation detection
   G.lastMove = {
     cardId,
@@ -99,6 +113,21 @@ const placeCard: Move<GameState> = (
     card.summoningSickness = true; // Minion has summoning sickness
     doEffects({ G, ctx }, cardId, "onPlace", location, target);
     G.board[ctx.currentPlayer].push(card);
+    recordEvent(G, {
+      type: "minionPlaced",
+      cardId: card.id,
+      playerId: ctx.currentPlayer,
+      timestamp: Date.now(),
+    });
+  }
+
+  if (card.isSpell) {
+    recordEvent(G, {
+      type: "spellCast",
+      cardId: card.id,
+      playerId: ctx.currentPlayer,
+      timestamp: Date.now(),
+    });
   }
 
   if (location === "hand") {
@@ -143,30 +172,96 @@ const doEffects = (
             : effect.value;
         if (target && effect.target === "user-select") {
           const targetPlayer = G.players[target.player];
+
+          // Record attack event (for attack animation)
+          if (location === "board" && target.player !== ctx.currentPlayer) {
+            recordEvent(G, {
+              type: "attack",
+              attackerId: cardId,
+              targetId: target.id,
+              targetType: target.type === "player" ? "player" : "card",
+              targetPlayerId: target.player,
+              attackerPlayerId: ctx.currentPlayer,
+              sourceId: cardId,
+              timestamp: Date.now(),
+            });
+          }
+
           if (target.type === "player") {
             targetPlayer.hp -= damage;
+
+            // Record damage event
+            recordEvent(G, {
+              type: "damage",
+              sourceId: cardId,
+              targetId: target.player,
+              targetType: "player",
+              playerId: target.player,
+              value: damage,
+              timestamp: Date.now(),
+            });
           }
+
           // Minion Attack
           if (target.type === "card") {
             const targetCard = G.board[target.player].find(
               (c) => c.id === target.id,
             );
             if (targetCard && targetCard.health) {
+              // Record damage event BEFORE removing card
+              recordEvent(G, {
+                type: "damage",
+                sourceId: cardId,
+                targetId: targetCard.id,
+                targetType: "card",
+                playerId: target.player,
+                value: damage,
+                timestamp: Date.now(),
+              });
+
               targetCard.health -= damage;
               if (targetCard.health <= 0) {
+                // Record death event
+                recordEvent(G, {
+                  type: "death",
+                  cardId: targetCard.id,
+                  playerId: target.player,
+                  timestamp: Date.now(),
+                });
+
                 // Remove the card from the board immediately
                 G.board[target.player] = G.board[target.player].filter(
                   (c) => c.id !== targetCard.id,
                 );
               }
-              // check damage to self card
+
+              // check damage to self card (counter-attack)
               const damageEnemy =
                 typeof effect.value === "string"
                   ? (card[effect.value] as number)
                   : effect.value;
               if (card.health) {
+                // Record counter-attack damage
+                recordEvent(G, {
+                  type: "damage",
+                  sourceId: targetCard.id,
+                  targetId: card.id,
+                  targetType: "card",
+                  playerId: ctx.currentPlayer,
+                  value: damageEnemy,
+                  timestamp: Date.now(),
+                });
+
                 card.health -= damageEnemy;
                 if (card.health <= 0) {
+                  // Record death event
+                  recordEvent(G, {
+                    type: "death",
+                    cardId: card.id,
+                    playerId: ctx.currentPlayer,
+                    timestamp: Date.now(),
+                  });
+
                   // Remove the card from the board immediately
                   G.board[ctx.currentPlayer] = G.board[
                     ctx.currentPlayer
@@ -178,9 +273,32 @@ const doEffects = (
         } else if (effect.target === "self-hero") {
           const currentPlayer = G.players[ctx.currentPlayer];
           currentPlayer.hp -= damage;
+
+          // Record damage event
+          recordEvent(G, {
+            type: "damage",
+            sourceId: cardId,
+            targetId: ctx.currentPlayer,
+            targetType: "player",
+            playerId: ctx.currentPlayer,
+            value: damage,
+            timestamp: Date.now(),
+          });
         } else if (effect.target === "enemy-hero") {
-          const enemyPlayer = G.players[ctx.currentPlayer === "0" ? "1" : "0"];
+          const enemyPlayerId = ctx.currentPlayer === "0" ? "1" : "0";
+          const enemyPlayer = G.players[enemyPlayerId];
           enemyPlayer.hp -= damage;
+
+          // Record damage event
+          recordEvent(G, {
+            type: "damage",
+            sourceId: cardId,
+            targetId: enemyPlayerId,
+            targetType: "player",
+            playerId: enemyPlayerId,
+            value: damage,
+            timestamp: Date.now(),
+          });
         }
         break;
       case "incrementValue":
@@ -205,6 +323,17 @@ const doEffects = (
         if (target) {
           if (target.type === "player") {
             G.players[target.player].hp += effect.value;
+
+            // Record heal event
+            recordEvent(G, {
+              type: "heal",
+              sourceId: cardId,
+              targetId: target.player,
+              targetType: "player",
+              playerId: target.player,
+              value: effect.value,
+              timestamp: Date.now(),
+            });
           }
           if (target.type === "card") {
             const targetCard = G.board[target.player].find(
@@ -212,6 +341,17 @@ const doEffects = (
             );
             if (targetCard && targetCard.health) {
               targetCard.health += effect.value;
+
+              // Record heal event
+              recordEvent(G, {
+                type: "heal",
+                sourceId: cardId,
+                targetId: targetCard.id,
+                targetType: "card",
+                playerId: target.player,
+                value: effect.value,
+                timestamp: Date.now(),
+              });
             }
           }
           if (target.type === "lane") {
@@ -219,6 +359,17 @@ const doEffects = (
             G.board[target.player].forEach((c) => {
               if (c.health) {
                 c.health += effect.value;
+
+                // Record heal event for each card
+                recordEvent(G, {
+                  type: "heal",
+                  sourceId: cardId,
+                  targetId: c.id,
+                  targetType: "card",
+                  playerId: target.player,
+                  value: effect.value,
+                  timestamp: Date.now(),
+                });
               }
             });
           }
@@ -337,6 +488,16 @@ export const HeathStoneGame: Game<GameState> = {
     },
   },
   turn: {
+    onEnd: ({ G, ctx }) => {
+      // Clear last move metadata at the end of the turn
+      console.log("Ending turn, clearing last move metadata");
+      G.gameEvents = [];
+      recordEvent(G, {
+        type: "endTurn",
+        playerId: ctx.currentPlayer,
+        timestamp: Date.now(),
+      });
+    },
     onBegin: ({ G, ctx }) => {
       // Reset mana at the start of each turn
       // Draw a card at the start of the turn

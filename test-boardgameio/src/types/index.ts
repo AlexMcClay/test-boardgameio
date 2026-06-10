@@ -107,9 +107,79 @@ export type MoveMetadata = {
   timestamp: number;
 };
 
+// Game event types for comprehensive event tracking
+export type GameEvent =
+  | AttackEvent
+  | DamageEvent
+  | HealEvent
+  | DeathEvent
+  | MinionPlacedEvent
+  | EndTurnEvent
+  | SpellEvent;
+
+export type SpellEvent = {
+  type: "spellCast";
+  cardId: string;
+  playerId: PlayerID;
+  timestamp: number;
+};
+
+export type EndTurnEvent = {
+  type: "endTurn";
+  playerId: PlayerID;
+  timestamp: number;
+};
+
+export type MinionPlacedEvent = {
+  type: "minionPlaced";
+  cardId: string;
+  playerId: PlayerID;
+  timestamp: number;
+};
+
+export type AttackEvent = {
+  type: "attack";
+  attackerId: string;
+  targetId: string;
+  targetType: "card" | "player";
+  targetPlayerId: PlayerID;
+  attackerPlayerId: PlayerID;
+  sourceId?: string; // Optional for extensibility
+  timestamp: number;
+};
+
+export type DamageEvent = {
+  type: "damage";
+  sourceId?: string; // Card/effect that caused damage
+  targetId: string;
+  targetType: "card" | "player";
+  playerId: PlayerID;
+  value: number;
+  timestamp: number;
+};
+
+export type HealEvent = {
+  type: "heal";
+  sourceId?: string; // Card/effect that caused healing
+  targetId: string;
+  targetType: "card" | "player";
+  playerId: PlayerID;
+  value: number;
+  timestamp: number;
+};
+
+export type DeathEvent = {
+  type: "death";
+  cardId: string;
+  playerId: PlayerID;
+  timestamp: number;
+};
+
 export interface GameState {
   players: Record<PlayerID, Player>;
   board: Record<PlayerID, Card[]>;
   maxMana: number; // Optional, if you want to track max mana globally
   lastMove?: MoveMetadata; // Track last move for animation detection
+  gameEvents: GameEvent[]; // Current move events (cleared each move)
+  eventHistory: GameEvent[]; // Full game history (debug log)
 }

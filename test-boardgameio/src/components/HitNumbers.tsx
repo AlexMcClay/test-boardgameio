@@ -1,7 +1,7 @@
 import { useAnimationStore } from "@/stores/animationStore";
 import type { HitNumberAnimation } from "@/types/animations";
 import { motion, AnimatePresence } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 interface HitNumberPosition {
   id: string;
@@ -16,6 +16,7 @@ const damage_icon = "assets/damage_icon.png"; // Path to your damage icon
 const HitNumbers = () => {
   const activeAnimations = useAnimationStore((s) => s.activeAnimations);
   const [positions, setPositions] = useState<HitNumberPosition[]>([]);
+  const processedAnimations = useRef<Set<string>>(new Set());
 
   // Filter only hit number animations
   const hitNumberAnimations = activeAnimations.filter(
@@ -23,56 +24,85 @@ const HitNumbers = () => {
   );
 
   useEffect(() => {
-    // Calculate positions for all active hit numbers
-    const newPositions: HitNumberPosition[] = hitNumberAnimations.map(
-      (anim) => {
-        const targetId = anim.targetId;
-        const targetType = anim.targetType;
+    // Only process animations we haven't seen before
+    const newAnimations = hitNumberAnimations.filter((anim) => {
+      const animKey = `${anim.targetId}-${anim.damageType}-${anim.value}-${anim.startTime}`;
+      return !processedAnimations.current.has(animKey);
+    });
 
-        // Find target element
-        let targetElement: HTMLElement | null = null;
+    if (newAnimations.length === 0) return; // No new animations to process
 
-        if (targetType === "card") {
-          targetElement = document.querySelector(
-            `[data-card-id="${targetId}"]`,
-          );
-        } else if (targetType === "player") {
-          targetElement = document.querySelector(
-            `[data-player-id="${targetId}"]`,
-          );
-        }
+    console.log("Processing NEW hit number animations:", newAnimations);
 
-        if (targetElement) {
-          const rect = targetElement.getBoundingClientRect();
-          const centerX = rect.left + rect.width / 2;
-          const centerY = rect.top + rect.height / 2;
+    // Calculate positions for new hit numbers only
+    const newPositions: HitNumberPosition[] = newAnimations.map((anim) => {
+      const animKey = `${anim.targetId}-${anim.damageType}-${anim.value}-${anim.startTime}`;
+      processedAnimations.current.add(animKey);
 
-          return {
-            id: `${anim.targetId}-${anim.damageType}-${Date.now()}`,
-            x: centerX,
-            y: centerY,
-            value: anim.value,
-            damageType: anim.damageType,
-          };
-        } else {
-          console.warn(
-            `Target element not found for hit number animation: ${targetType} with ID ${targetId}`,
-          );
-        }
+      const targetId = anim.targetId;
+      const targetType = anim.targetType;
 
-        // Fallback position if element not found
+      // Find target element
+      let targetElement: HTMLElement | null = null;
+
+      if (targetType === "card") {
+        targetElement = document.querySelector(`[data-card-id="${targetId}"]`);
+      } else if (targetType === "player") {
+        targetElement = document.querySelector(
+          `[data-player-id="${targetId}"]`,
+        );
+      }
+
+      if (targetElement) {
+        const rect = targetElement.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
         return {
-          id: `${anim.targetId}-${anim.damageType}-${Date.now()}`,
-          x: window.innerWidth / 2,
-          y: window.innerHeight / 2,
+          id: animKey,
+          x: centerX,
+          y: centerY,
           value: anim.value,
           damageType: anim.damageType,
         };
-      },
-    );
+      } else {
+        console.warn(
+          `Target element not found for hit number animation: ${targetType} with ID ${targetId}`,
+        );
+      }
 
-    setPositions(newPositions);
-  }, [hitNumberAnimations.length]);
+      // Fallback position if element not found
+      return {
+        id: animKey,
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+        value: anim.value,
+        damageType: anim.damageType,
+      };
+    });
+
+    // Add new positions to existing ones (don't replace!)
+    setPositions((prev) => [...prev, ...newPositions]);
+  }, [hitNumberAnimations]);
+
+  // Clean up processed animations tracking when all animations finish
+  useEffect(() => {
+    if (hitNumberAnimations.length === 0 && positions.length === 0) {
+      processedAnimations.current.clear();
+    }
+  }, [hitNumberAnimations.length, positions.length]);
+
+  // Remove positions that have finished animating
+  useEffect(() => {
+    if (positions.length === 0) return;
+
+    const timer = setTimeout(() => {
+      // Remove positions after animation duration (800ms)
+      setPositions([]);
+    }, 850); // Slightly longer than animation duration
+
+    return () => clearTimeout(timer);
+  }, [positions.length]);
 
   return (
     <div className="fixed inset-0 pointer-events-none z-40">
