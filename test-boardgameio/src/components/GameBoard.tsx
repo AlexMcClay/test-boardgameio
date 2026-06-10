@@ -17,7 +17,6 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { validateMove } from "@/utils/validateMove";
 import { detectAllAnimations } from "@/utils/detectAnimations";
 import AttackArrow from "./AttackArrow";
-import { ATTACK_ANIMATION } from "@/utils/animationDurations";
 
 interface Props extends BoardProps<GameState> {}
 
