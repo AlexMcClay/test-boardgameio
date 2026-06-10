@@ -1,8 +1,6 @@
 import type { CardProps } from "./types";
 import { motion } from "motion/react";
 import { twMerge } from "tailwind-merge";
-import { useAnimationStore } from "@/stores/animationStore";
-import { useRef } from "react";
 import { ATTACK_ANIMATION } from "@/utils/animationDurations";
 
 const attackIcon = "assets/attack.png";
@@ -10,63 +8,21 @@ const healthIcon = "assets/health.png";
 const minionFrame = "assets/minion_frame.png";
 const minionTaunt = "assets/minion_taunt.png";
 
-interface Props extends CardProps {}
+interface Props extends CardProps {
+  isAttacking?: boolean;
+  targetPosition?: { x: number; y: number };
+  cardRef?: React.RefObject<HTMLDivElement | null>;
+}
 
-const PlacedCard = ({ card, isDragging = false, playerID, ctx }: Props) => {
-  const activeAnimations = useAnimationStore((s) => s.activeAnimations);
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  // Check if this card is attacking (find attack animation for this card)
-  const attackAnimation = activeAnimations.find(
-    (anim) => anim.type === "attack" && anim.attackerId === card.id,
-  );
-  const isAttacking = !!attackAnimation;
-
-  // Calculate target position immediately when needed
-  const getTargetPosition = () => {
-    if (!isAttacking || !attackAnimation || attackAnimation.type !== "attack") {
-      return { x: 0, y: 0 };
-    }
-
-    const targetId = attackAnimation.targetId;
-    const targetType = attackAnimation.targetType;
-
-    // Get attacker position
-    const attackerElement = cardRef.current;
-    if (!attackerElement) return { x: 0, y: 0 };
-
-    const attackerRect = attackerElement.getBoundingClientRect();
-    const attackerCenterX = attackerRect.left + attackerRect.width / 2;
-    const attackerCenterY = attackerRect.top + attackerRect.height / 2;
-
-    // Get target position
-    let targetElement: HTMLElement | null = null;
-
-    if (targetType === "card") {
-      // Find target card by ID
-      targetElement = document.querySelector(`[data-card-id="${targetId}"]`);
-    } else if (targetType === "player") {
-      // Find player hero by ID
-      targetElement = document.querySelector(`[data-player-id="${targetId}"]`);
-    }
-
-    if (targetElement) {
-      const targetRect = targetElement.getBoundingClientRect();
-      const targetCenterX = targetRect.left + targetRect.width / 2;
-      const targetCenterY = targetRect.top + targetRect.height / 2;
-
-      // Calculate relative position
-      const deltaX = targetCenterX - attackerCenterX;
-      const deltaY = targetCenterY - attackerCenterY;
-
-      return { x: deltaX, y: deltaY };
-    }
-
-    return { x: 0, y: 0 };
-  };
-
-  const targetPosition = getTargetPosition();
-
+const PlacedCard = ({
+  card,
+  isDragging = false,
+  playerID,
+  ctx,
+  isAttacking = false,
+  targetPosition = { x: 0, y: 0 },
+  cardRef,
+}: Props) => {
   return (
     <motion.div
       ref={cardRef}
