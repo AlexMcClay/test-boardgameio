@@ -12,26 +12,23 @@ const minionTaunt = "assets/minion_taunt.png";
 interface Props extends CardProps {}
 
 const PlacedCard = ({ card, isDragging = false, playerID, ctx }: Props) => {
-  const currentAnimation = useAnimationStore((s) => s.currentAnimation);
+  const activeAnimations = useAnimationStore((s) => s.activeAnimations);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  // Check if this card is attacking
-  const isAttacking =
-    currentAnimation?.type === "attack" &&
-    currentAnimation.attackerId === card.id;
+  // Check if this card is attacking (find attack animation for this card)
+  const attackAnimation = activeAnimations.find(
+    (anim) => anim.type === "attack" && anim.attackerId === card.id,
+  );
+  const isAttacking = !!attackAnimation;
 
   // Calculate target position immediately when needed
   const getTargetPosition = () => {
-    if (
-      !isAttacking ||
-      !currentAnimation ||
-      currentAnimation.type !== "attack"
-    ) {
+    if (!isAttacking || !attackAnimation || attackAnimation.type !== "attack") {
       return { x: 0, y: 0 };
     }
 
-    const targetId = currentAnimation.targetId;
-    const targetType = currentAnimation.targetType;
+    const targetId = attackAnimation.targetId;
+    const targetType = attackAnimation.targetType;
 
     // Get attacker position
     const attackerElement = cardRef.current;
@@ -83,12 +80,16 @@ const PlacedCard = ({ card, isDragging = false, playerID, ctx }: Props) => {
               y: [0, targetPosition.y, 0],
               scale: [1, 1.15, 1],
               transition: {
-                duration: 0.5,
+                duration: 0.4, // Match animation duration from store (400ms)
                 times: [0, 0.5, 1],
                 ease: "easeInOut",
               },
             }
-          : {}
+          : {
+              x: 0,
+              y: 0,
+              scale: 1,
+            }
       }
       className={twMerge(
         // 1. Turned the card chassis into a distinctive Hearthstone Minion Oval

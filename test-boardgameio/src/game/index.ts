@@ -26,6 +26,7 @@ const setupData = (): GameState => {
       "1": [],
     },
     maxMana: -1,
+    dyingCards: [], // Initialize empty dying cards array
   };
 
   return G;
@@ -70,6 +71,14 @@ const placeCard: Move<GameState> = (
     console.warn(`Invalid move: ${validation.error}`);
     return;
   }
+
+  // Track move metadata for animation detection
+  G.lastMove = {
+    cardId,
+    location,
+    target,
+    timestamp: Date.now(),
+  };
 
   const player = G.players[ctx.currentPlayer];
   const card =
@@ -146,10 +155,10 @@ const doEffects = (
             if (targetCard && targetCard.health) {
               targetCard.health -= damage;
               if (targetCard.health <= 0) {
-                // Remove the card from the board if it has no HP left
-                G.board[target.player] = G.board[target.player].filter(
-                  (c) => c.id !== targetCard.id,
-                );
+                // Mark card for removal after animations (don't remove immediately)
+                if (!G.dyingCards.includes(targetCard.id)) {
+                  G.dyingCards.push(targetCard.id);
+                }
               }
               // check damage to self card
               const damageEnemy =
@@ -159,10 +168,10 @@ const doEffects = (
               if (card.health) {
                 card.health -= damageEnemy;
                 if (card.health <= 0) {
-                  // Remove the card from the board if it has no HP left
-                  G.board[ctx.currentPlayer] = G.board[
-                    ctx.currentPlayer
-                  ].filter((c) => c.id !== card.id);
+                  // Mark card for removal after animations (don't remove immediately)
+                  if (!G.dyingCards.includes(card.id)) {
+                    G.dyingCards.push(card.id);
+                  }
                 }
               }
             }

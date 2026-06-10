@@ -132,7 +132,7 @@ const DropDetectCard = (props: Props) => {
         // The Rapid Shake: Rapidly oscillates left and right
         x: [0, -12, 12, -12, 12, -8, 8, -4, 4, 0],
         transition: {
-          duration: 0.3, // Total animation time (keeps it fast and punchy)
+          duration: 0.3, // Match death animation duration from timeline (300ms)
           ease: "easeInOut",
         },
       }}

@@ -99,8 +99,18 @@ export interface Player {
   deck: Card[];
 }
 
+// Move metadata for animation detection
+export type MoveMetadata = {
+  cardId: string;
+  location: "hand" | "board";
+  target?: TargetValue;
+  timestamp: number;
+};
+
 export interface GameState {
   players: Record<PlayerID, Player>;
   board: Record<PlayerID, Card[]>;
   maxMana: number; // Optional, if you want to track max mana globally
+  lastMove?: MoveMetadata; // Track last move for animation detection
+  dyingCards: string[]; // Track cards marked for removal after animations
 }

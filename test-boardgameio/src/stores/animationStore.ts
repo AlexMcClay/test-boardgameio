@@ -6,20 +6,21 @@ type AnimationStore = {
   // State
   queue: AnimationEvent[];
   isAnimating: boolean;
-  currentAnimation: AnimationEvent | null;
+  activeAnimations: AnimationEvent[]; // Track multiple simultaneous animations
 
   // Actions
   queueAnimation: (event: AnimationEvent) => void;
+  startAnimating: () => void;
   playAnimations: () => Promise<void>;
   clearQueue: () => void;
-  setCurrentAnimation: (event: AnimationEvent | null) => void;
-  completeCurrentAnimation: () => void;
+  addActiveAnimation: (event: AnimationEvent) => void;
+  removeActiveAnimation: (event: AnimationEvent) => void;
 };
 
 export const useAnimationStore = create<AnimationStore>((set, get) => ({
   queue: [],
   isAnimating: false,
-  currentAnimation: null,
+  activeAnimations: [],
 
   queueAnimation: (event) => {
     set((state) => ({
@@ -27,16 +28,32 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
     }));
   },
 
+  startAnimating: () => {
+    set({ isAnimating: true });
+  },
+
   clearQueue: () => {
-    set({ queue: [], isAnimating: false, currentAnimation: null });
+    set({ queue: [], isAnimating: false, activeAnimations: [] });
   },
 
-  setCurrentAnimation: (event) => {
-    set({ currentAnimation: event });
+  addActiveAnimation: (event) => {
+    set((state) => ({
+      activeAnimations: [...state.activeAnimations, event],
+    }));
   },
 
-  completeCurrentAnimation: () => {
-    set({ currentAnimation: null });
+  removeActiveAnimation: (event) => {
+    set((state) => ({
+      activeAnimations: state.activeAnimations.filter(
+        (anim) =>
+          !(
+            anim.type === event.type &&
+            (anim.type === "attack"
+              ? anim.attackerId === (event as any).attackerId
+              : anim.cardId === (event as any).cardId)
+          ),
+      ),
+    }));
   },
 
   playAnimations: async () => {
@@ -44,28 +61,35 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
 
     if (queue.length === 0) return;
 
+    // isAnimating should already be set by startAnimating(), but ensure it's true
     set({ isAnimating: true });
 
-    // Wait for drag state to settle before starting animations
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // Calculate total timeline duration
+    const timelineEnd = Math.max(
+      ...queue.map((anim) => anim.startTime + anim.duration),
+    );
 
-    // Process animations sequentially
-    for (const animation of queue) {
-      set({ currentAnimation: animation });
+    // Play all animations on their timeline (can overlap!)
+    const animationPromises = queue.map((animation) => {
+      return new Promise<void>((resolve) => {
+        // Wait for animation's startTime, then trigger it
+        setTimeout(() => {
+          get().addActiveAnimation(animation);
 
-      // Wait for animation duration
-      // Attack: 500ms total (250ms to target, 250ms back)
-      // Death: 500ms
-      const duration = animation.type === "attack" ? 500 : 500;
-      await new Promise((resolve) => setTimeout(resolve, duration));
+          // Remove animation after its duration
+          setTimeout(() => {
+            get().removeActiveAnimation(animation);
+            resolve();
+          }, animation.duration);
+        }, animation.startTime);
+      });
+    });
 
-      set({ currentAnimation: null });
-
-      // Small delay between animations for clarity
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+    // Wait for the entire timeline to complete
+    await Promise.all(animationPromises);
 
     // Clear queue and reset state
-    set({ queue: [], isAnimating: false, currentAnimation: null });
+    // Note: Don't force-clear activeAnimations - they remove themselves after their duration
+    set({ queue: [], isAnimating: false });
   },
 }));
