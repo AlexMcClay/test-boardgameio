@@ -238,7 +238,7 @@ const doEffects = (
               // check damage to self card (counter-attack)
               const damageEnemy =
                 typeof effect.value === "string"
-                  ? (card[effect.value] as number)
+                  ? (targetCard[effect.value] as number)
                   : effect.value;
               if (card.health) {
                 // Record counter-attack damage
@@ -322,7 +322,15 @@ const doEffects = (
       case "heal":
         if (target) {
           if (target.type === "player") {
-            G.players[target.player].hp += effect.value;
+            const targetPlayer = G.players[target.player];
+            const actualHeal = Math.min(
+              effect.value,
+              targetPlayer.maxHp - targetPlayer.hp,
+            );
+            targetPlayer.hp = Math.min(
+              targetPlayer.hp + effect.value,
+              targetPlayer.maxHp,
+            );
 
             // Record heal event
             recordEvent(G, {
@@ -331,7 +339,7 @@ const doEffects = (
               targetId: target.player,
               targetType: "player",
               playerId: target.player,
-              value: effect.value,
+              value: actualHeal,
               timestamp: Date.now(),
             });
           }
@@ -339,8 +347,19 @@ const doEffects = (
             const targetCard = G.board[target.player].find(
               (c) => c.id === target.id,
             );
-            if (targetCard && targetCard.health) {
-              targetCard.health += effect.value;
+            if (
+              targetCard &&
+              targetCard.health !== undefined &&
+              targetCard.maxHealth !== undefined
+            ) {
+              const actualHeal = Math.min(
+                effect.value,
+                targetCard.maxHealth - targetCard.health,
+              );
+              targetCard.health = Math.min(
+                targetCard.health + effect.value,
+                targetCard.maxHealth,
+              );
 
               // Record heal event
               recordEvent(G, {
@@ -349,7 +368,7 @@ const doEffects = (
                 targetId: targetCard.id,
                 targetType: "card",
                 playerId: target.player,
-                value: effect.value,
+                value: actualHeal,
                 timestamp: Date.now(),
               });
             }
@@ -357,8 +376,12 @@ const doEffects = (
           if (target.type === "lane") {
             // all cards in the lane are healed
             G.board[target.player].forEach((c) => {
-              if (c.health) {
-                c.health += effect.value;
+              if (c.health !== undefined && c.maxHealth !== undefined) {
+                const actualHeal = Math.min(
+                  effect.value,
+                  c.maxHealth - c.health,
+                );
+                c.health = Math.min(c.health + effect.value, c.maxHealth);
 
                 // Record heal event for each card
                 recordEvent(G, {
@@ -367,7 +390,7 @@ const doEffects = (
                   targetId: c.id,
                   targetType: "card",
                   playerId: target.player,
-                  value: effect.value,
+                  value: actualHeal,
                   timestamp: Date.now(),
                 });
               }

@@ -16,6 +16,9 @@ export function createCardInstance(template: Omit<Card, "id">): Card {
   return {
     ...template,
     id: self.crypto.randomUUID(),
+    maxAttack: template.attack,
+    maxHealth: template.health,
+    hasAttacked: false,
   };
 }
 
@@ -23,10 +26,12 @@ export function createDeck(count: number): Card[] {
   const deck: Card[] = [];
   while (deck.length < count) {
     // Randomly select a card template
-    const card =
-      Object.values(cardTemplates)[
-        Math.floor(Math.random() * Object.keys(cardTemplates).length)
-      ];
+    const card = Object.values(cardTemplates)[
+      Math.floor(Math.random() * Object.keys(cardTemplates).length)
+    ] as Omit<Card, "id">;
+    if (card.isUncollectible) {
+      continue; // Skip adding this card if it is uncollectible
+    }
     // check if there are already 2 copies of this card in the deck
     const existingCount = deck.filter((c) => c.title === card.title).length;
     if (existingCount >= 2) {

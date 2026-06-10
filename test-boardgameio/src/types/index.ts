@@ -7,15 +7,18 @@ export interface Card {
   mana: number | null;
   attack?: number;
   health?: number;
+  maxAttack?: number;
+  maxHealth?: number;
   type?: string; // e.g., "Spell", "Beast", "Demon", etc.
   imageUrl?: string; // URL to the card image
   effects: Array<EffectTypes>;
   onPlace: Array<EffectTypes>; // Effects that trigger when the card is placed
   isPlaced?: boolean; // Optional, to track if the card is placed on the board
-  hasAttacked: boolean; // Optional, to track if the card has attacked this turn
+  hasAttacked?: boolean; // Optional, to track if the card has attacked this turn
   summoningSickness?: boolean; // Optional, to track if minion was just placed (shows Zzz)
   isSpell?: boolean; // Optional, to indicate if the card is a spell
   isMinnion: boolean; // Optional, to indicate if the card is a minion
+  isUncollectible?: boolean; // Optional, to indicate if the card is uncollectible (like tokens)
   taunt?: boolean; // Optional, to indicate if the card has taunt
   targets: TargetTypes[]; // Optional, to specify valid targets for the card
 }

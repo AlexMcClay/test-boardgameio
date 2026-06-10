@@ -75,7 +75,6 @@ export const cardTemplates = {
     onPlace: [damage(3, "self-hero")],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "chillwind-yeti": {
     title: "Chillwind Yeti",
@@ -90,7 +89,6 @@ export const cardTemplates = {
 
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   fireball: {
     title: "Fireball",
@@ -106,7 +104,6 @@ export const cardTemplates = {
     isSpell: true,
     targets: ["card", "player"],
     isMinnion: false,
-    hasAttacked: false,
   },
   "arcane-intellect": {
     title: "Arcane Intellect",
@@ -120,7 +117,6 @@ export const cardTemplates = {
     isSpell: true,
     targets: [], // Can target the player to draw cards
     isMinnion: false,
-    hasAttacked: false,
   },
   "boulderfist-ogre": {
     title: "Boulderfist Ogre",
@@ -135,7 +131,6 @@ export const cardTemplates = {
 
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   wolfrider: {
     title: "Wolfrider",
@@ -152,7 +147,6 @@ export const cardTemplates = {
     ],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   frostbolt: {
     title: "Frostbolt",
@@ -166,7 +160,6 @@ export const cardTemplates = {
     isSpell: true,
     targets: ["card", "player"],
     isMinnion: false,
-    hasAttacked: false,
   },
   "bloodfen-raptor": {
     title: "Bloodfen Raptor",
@@ -181,7 +174,6 @@ export const cardTemplates = {
 
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "river-crocolisk": {
     title: "River Crocolisk",
@@ -193,10 +185,8 @@ export const cardTemplates = {
     imageUrl: "assets/cards/River_Crocolisk.jpg",
     effects: [damage("attack")],
     onPlace: [],
-
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "ironfur-grizzly": {
     title: "Ironfur Grizzly",
@@ -209,10 +199,8 @@ export const cardTemplates = {
     imageUrl: "assets/cards/Ironfur_Grizzly.jpg",
     effects: [damage("attack")],
     onPlace: [],
-
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   charge: {
     title: "Charge",
@@ -228,7 +216,6 @@ export const cardTemplates = {
     isSpell: true,
     isMinnion: false,
     targets: ["card-friendly"],
-    hasAttacked: false,
   },
   "murloc-raider": {
     title: "Murloc Raider",
@@ -240,10 +227,8 @@ export const cardTemplates = {
     imageUrl: "assets/cards/Murloc_Raider.jpg",
     effects: [damage("attack")],
     onPlace: [],
-
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "frostwolf-grunt": {
     title: "Frostwolf Grunt",
@@ -258,7 +243,6 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "murloc-tidehunter": {
     title: "Murloc Tidehunter",
@@ -272,7 +256,6 @@ export const cardTemplates = {
     onPlace: [summon("murloc-scout")],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "murloc-scout": {
     title: "Murloc Scout",
@@ -286,7 +269,7 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
+    isUncollectible: true,
   },
   "razorfen-hunter": {
     title: "Razorfen Hunter",
@@ -300,7 +283,6 @@ export const cardTemplates = {
     onPlace: [summon("boar")],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   boar: {
     title: "Boar",
@@ -314,7 +296,7 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
+    isUncollectible: true,
   },
   "dragonling-mechanic": {
     title: "Dragonling Mechanic",
@@ -328,7 +310,6 @@ export const cardTemplates = {
     onPlace: [summon("mechanical-dragonling")],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "mechanical-dragonling": {
     title: "Mechanical Dragonling",
@@ -342,7 +323,7 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
+    isUncollectible: true,
   },
   "senjin-shieldmasta": {
     title: "Sen'jin Shieldmasta",
@@ -357,7 +338,6 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   innervate: {
     title: "Innervate",
@@ -370,7 +350,6 @@ export const cardTemplates = {
     isSpell: true,
     targets: [],
     isMinnion: false,
-    hasAttacked: false,
   },
   "mark-of-the-wild": {
     title: "Mark of the Wild",
@@ -380,14 +359,15 @@ export const cardTemplates = {
     imageUrl: "assets/cards/Mark_of_the_Wild.jpg",
     effects: [
       incrementValue("attack", 2),
+      incrementValue("maxAttack", 2),
       incrementValue("health", 3),
+      incrementValue("maxHealth", 3),
       changeKey("taunt", true),
     ],
     onPlace: [],
     isSpell: true,
     targets: ["card-friendly"],
     isMinnion: false,
-    hasAttacked: false,
   },
   "healing-touch": {
     title: "Healing Touch",
@@ -400,7 +380,6 @@ export const cardTemplates = {
     isSpell: true,
     targets: ["card-friendly", "player-friendly"],
     isMinnion: false,
-    hasAttacked: false,
   },
   "darkscale-healer": {
     title: "Darkscale Healer",
@@ -414,7 +393,6 @@ export const cardTemplates = {
     onPlace: [heal(2)],
     targets: ["lane-friendly", "card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   nightblade: {
     title: "Nightblade",
@@ -428,7 +406,6 @@ export const cardTemplates = {
     onPlace: [damage(3, "enemy-hero")],
     targets: ["player-opponent", "card-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "elven-archer": {
     title: "Elven Archer",
@@ -442,7 +419,6 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "core-hound": {
     title: "Core Hound",
@@ -456,7 +432,6 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "silverback-patriarch": {
     title: "Silverback Patriarch",
@@ -471,7 +446,6 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "magma-rager": {
     title: "Magma Rager",
@@ -485,7 +459,6 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "oasis-snapjaw": {
     title: "Oasis Snapjaw",
@@ -499,7 +472,6 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "silver-hand-knight": {
     title: "Silver Hand Knight",
@@ -513,7 +485,6 @@ export const cardTemplates = {
     onPlace: [summon("squire")],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   squire: {
     title: "Squire",
@@ -527,7 +498,7 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
+    isUncollectible: true,
   },
 } satisfies Record<string, Omit<Card, "id">>;
 

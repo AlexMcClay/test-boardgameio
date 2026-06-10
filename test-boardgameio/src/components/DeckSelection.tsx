@@ -7,6 +7,7 @@ import {
   type DeckString,
 } from "@/utils/decks";
 import type { Ctx } from "boardgame.io";
+import type { Card as CardType } from "@/types";
 
 interface DeckSelectionProps {
   ctx: Ctx;
@@ -109,6 +110,9 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
                 // sort by mana cost, then by name
                 return (a[1].mana ?? 0) - (b[1].mana ?? 0);
               })
+              .filter(
+                ([_, card]) => !(card as Omit<CardType, "id">).isUncollectible,
+              )
               .map(([id, card]) => (
                 <div
                   className="card-wrapper"
