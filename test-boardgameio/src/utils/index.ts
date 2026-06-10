@@ -21,12 +21,17 @@ export function createCardInstance(template: Omit<Card, "id">): Card {
 
 export function createDeck(count: number): Card[] {
   const deck: Card[] = [];
-  for (let i = 0; i < count; i++) {
+  while (deck.length < count) {
     // Randomly select a card template
     const card =
       Object.values(cardTemplates)[
         Math.floor(Math.random() * Object.keys(cardTemplates).length)
       ];
+    // check if there are already 2 copies of this card in the deck
+    const existingCount = deck.filter((c) => c.title === card.title).length;
+    if (existingCount >= 2) {
+      continue; // Skip adding this card if there are already 2 copies
+    }
     // Create a card instance from the template
     deck.push(createCardInstance(card));
   }

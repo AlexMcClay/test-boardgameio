@@ -101,6 +101,11 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
         return;
       }
 
+      // If a minion was placed, update visual board immediately to show it (before animations)
+      if (newEvents.find((e) => e.type === "minionPlaced")) {
+        setVisualBoard(G.board);
+      }
+
       // If animations exist, play them BEFORE updating visual board
       if (animations.length > 0) {
         console.log("Starting animations:", animations);
