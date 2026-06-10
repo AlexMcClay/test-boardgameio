@@ -1,37 +1,102 @@
-// Utility to detect animation events by comparing game states
+// Utility to detect animation events from game event log
 import type { GameState } from "@/types";
-import type { DeathAnimation } from "@/types/animations";
-import type { PlayerID } from "boardgame.io";
+import type { AnimationEvent } from "@/types/animations";
+import {
+  ATTACK_ANIMATION,
+  DEATH_ANIMATION,
+  HIT_NUMBER_ANIMATION,
+} from "./animationDurations";
 
 /**
- * Compares two game states and detects which cards died
- * @param stateBefore - Game state before the move
- * @param stateAfter - Game state after the move
- * @returns Array of death animations for cards that were removed
+ * Detects all animations by reading from game event log
+ * @param stateAfter - Game state after the move (contains gameEvents)
+ * @returns Array of all animation events with timeline positions
  */
-export function detectDeaths(
-  stateBefore: GameState,
-  stateAfter: GameState,
-): DeathAnimation[] {
-  const deaths: DeathAnimation[] = [];
+export function detectAllAnimations(stateAfter: GameState): AnimationEvent[] {
+  const animations: AnimationEvent[] = [];
+  const events = stateAfter.gameEvents || [];
 
-  // Check both players' boards
-  (["0", "1"] as PlayerID[]).forEach((playerId) => {
-    const boardBefore = stateBefore.board[playerId];
-    const boardAfter = stateAfter.board[playerId];
+  // Separate events by type for timeline management
+  const attackEvents = events.filter((e) => e.type === "attack");
+  const damageEvents = events.filter((e) => e.type === "damage");
+  const healEvents = events.filter((e) => e.type === "heal");
+  const deathEvents = events.filter((e) => e.type === "death");
 
-    // Find cards that existed before but not after
-    boardBefore.forEach((card) => {
-      const stillExists = boardAfter.some((c) => c.id === card.id);
-      if (!stillExists) {
-        deaths.push({
-          type: "death",
-          cardId: card.id,
-          playerId,
+  // Timeline: attacks first, then deaths
+  if (attackEvents.length > 0) {
+    // Add attack animations (start at 0ms)
+    attackEvents.forEach((event) => {
+      if (event.type === "attack") {
+        animations.push({
+          type: "attack",
+          attackerId: event.attackerId,
+          targetId: event.targetId,
+          targetType: event.targetType,
+          targetPlayerId: event.targetPlayerId,
+          attackerPlayerId: event.attackerPlayerId,
+          startTime: 0,
+          duration: ATTACK_ANIMATION.duration,
         });
       }
     });
-  });
 
-  return deaths;
+    // Hit numbers appear with attack (0ms)
+    [...damageEvents, ...healEvents].forEach((event) => {
+      if (event.type === "damage" || event.type === "heal") {
+        animations.push({
+          type: "hitNumber",
+          targetId: event.targetId,
+          targetType: event.targetType,
+          playerId: event.playerId,
+          value: event.value,
+          damageType: event.type === "damage" ? "damage" : "heal",
+          startTime: 0,
+          duration: HIT_NUMBER_ANIMATION.duration,
+        });
+      }
+    });
+
+    // Deaths happen after attack (450ms)
+    deathEvents.forEach((event) => {
+      if (event.type === "death") {
+        animations.push({
+          type: "death",
+          cardId: event.cardId,
+          playerId: event.playerId,
+          startTime: ATTACK_ANIMATION.duration + 50,
+          duration: DEATH_ANIMATION.duration,
+        });
+      }
+    });
+  } else {
+    // No attacks - all events start immediately
+    [...damageEvents, ...healEvents].forEach((event) => {
+      if (event.type === "damage" || event.type === "heal") {
+        animations.push({
+          type: "hitNumber",
+          targetId: event.targetId,
+          targetType: event.targetType,
+          playerId: event.playerId,
+          value: event.value,
+          damageType: event.type === "damage" ? "damage" : "heal",
+          startTime: 0,
+          duration: HIT_NUMBER_ANIMATION.duration,
+        });
+      }
+    });
+
+    deathEvents.forEach((event) => {
+      if (event.type === "death") {
+        animations.push({
+          type: "death",
+          cardId: event.cardId,
+          playerId: event.playerId,
+          startTime: 0,
+          duration: DEATH_ANIMATION.duration,
+        });
+      }
+    });
+  }
+
+  return animations;
 }

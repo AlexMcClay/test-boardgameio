@@ -7,6 +7,8 @@ import {
   type DeckString,
 } from "@/utils/decks";
 import type { Ctx } from "boardgame.io";
+import type { Card as CardType } from "@/types";
+import { createRandomDeckString } from "@/utils";
 
 interface DeckSelectionProps {
   ctx: Ctx;
@@ -109,6 +111,9 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
                 // sort by mana cost, then by name
                 return (a[1].mana ?? 0) - (b[1].mana ?? 0);
               })
+              .filter(
+                ([_, card]) => !(card as Omit<CardType, "id">).isUncollectible,
+              )
               .map(([id, card]) => (
                 <div
                   className="card-wrapper"
@@ -158,15 +163,18 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
           {/* Mana Curve */}
           <div className="mana-curve-container">
             <h3 className="mana-curve-title">Mana Curve</h3>
-            <div className="mana-curve">
+            <div className="h-[100px] gap-1 flex items-end">
               {manaCurve.map((count, mana) => (
-                <div key={mana} className="mana-bar-container">
+                <div
+                  key={mana}
+                  className="mana-bar-container h-full justify-end"
+                >
                   <div
                     className="mana-bar"
                     style={{
                       height:
                         totalCards > 0
-                          ? `${(count / totalCards) * 100}%`
+                          ? `${(count / totalCards) * 2 * 100}%`
                           : "0%",
                       minHeight: count > 0 ? "20px" : "0px",
                     }}
@@ -197,6 +205,13 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
             >
               <span className="preset-deck-icon">🌿</span>
               <span>Druid</span>
+            </button>
+            <button
+              className="preset-deck-button druid-button"
+              onClick={() => handleSetWholeDeck(createRandomDeckString(30))}
+            >
+              <span className="preset-deck-icon">�</span>
+              <span>Random Deck</span>
             </button>
             <button className="clear-deck-button" onClick={handleClearDeck}>
               Clear Deck

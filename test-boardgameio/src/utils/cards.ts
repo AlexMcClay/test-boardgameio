@@ -3,21 +3,45 @@ import type { Card, EffectTypes } from "@/types";
 const damage = (
   value: number | keyof Card,
   target: "user-select" | "self-hero" | "enemy-hero" = "user-select",
+  battlecry: boolean = false,
 ): EffectTypes => {
   return {
     type: "damage",
     value: value,
     target: target,
+    battlecry: battlecry,
+  };
+};
+
+const destroy = (
+  target: "user-select" | "self" | "enemy",
+  battlecry: boolean = false,
+): EffectTypes => {
+  return {
+    type: "destroy",
+    target: target,
+    battlecry: battlecry,
   };
 };
 
 const mana = (value: number): EffectTypes => {
   return { type: "mana", value: value };
 };
-const heal = (value: number): EffectTypes => {
+const heal = (
+  value: number,
+  target:
+    | "user-select"
+    | "self-hero"
+    | "friendly-hero"
+    | "all-friendly"
+    | "friendly-board" = "user-select",
+  battlecry: boolean = false,
+): EffectTypes => {
   return {
     type: "heal",
     value: value,
+    target: target,
+    battlecry: battlecry,
   };
 };
 
@@ -75,7 +99,6 @@ export const cardTemplates = {
     onPlace: [damage(3, "self-hero")],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "chillwind-yeti": {
     title: "Chillwind Yeti",
@@ -90,7 +113,6 @@ export const cardTemplates = {
 
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   fireball: {
     title: "Fireball",
@@ -106,7 +128,6 @@ export const cardTemplates = {
     isSpell: true,
     targets: ["card", "player"],
     isMinnion: false,
-    hasAttacked: false,
   },
   "arcane-intellect": {
     title: "Arcane Intellect",
@@ -120,7 +141,6 @@ export const cardTemplates = {
     isSpell: true,
     targets: [], // Can target the player to draw cards
     isMinnion: false,
-    hasAttacked: false,
   },
   "boulderfist-ogre": {
     title: "Boulderfist Ogre",
@@ -135,7 +155,6 @@ export const cardTemplates = {
 
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   wolfrider: {
     title: "Wolfrider",
@@ -152,7 +171,6 @@ export const cardTemplates = {
     ],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   frostbolt: {
     title: "Frostbolt",
@@ -166,7 +184,6 @@ export const cardTemplates = {
     isSpell: true,
     targets: ["card", "player"],
     isMinnion: false,
-    hasAttacked: false,
   },
   "bloodfen-raptor": {
     title: "Bloodfen Raptor",
@@ -181,7 +198,6 @@ export const cardTemplates = {
 
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "river-crocolisk": {
     title: "River Crocolisk",
@@ -193,10 +209,8 @@ export const cardTemplates = {
     imageUrl: "assets/cards/River_Crocolisk.jpg",
     effects: [damage("attack")],
     onPlace: [],
-
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "ironfur-grizzly": {
     title: "Ironfur Grizzly",
@@ -209,10 +223,8 @@ export const cardTemplates = {
     imageUrl: "assets/cards/Ironfur_Grizzly.jpg",
     effects: [damage("attack")],
     onPlace: [],
-
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   charge: {
     title: "Charge",
@@ -228,7 +240,6 @@ export const cardTemplates = {
     isSpell: true,
     isMinnion: false,
     targets: ["card-friendly"],
-    hasAttacked: false,
   },
   "murloc-raider": {
     title: "Murloc Raider",
@@ -240,10 +251,8 @@ export const cardTemplates = {
     imageUrl: "assets/cards/Murloc_Raider.jpg",
     effects: [damage("attack")],
     onPlace: [],
-
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "frostwolf-grunt": {
     title: "Frostwolf Grunt",
@@ -258,7 +267,6 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "murloc-tidehunter": {
     title: "Murloc Tidehunter",
@@ -272,7 +280,6 @@ export const cardTemplates = {
     onPlace: [summon("murloc-scout")],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "murloc-scout": {
     title: "Murloc Scout",
@@ -286,7 +293,7 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
+    isUncollectible: true,
   },
   "razorfen-hunter": {
     title: "Razorfen Hunter",
@@ -300,7 +307,6 @@ export const cardTemplates = {
     onPlace: [summon("boar")],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   boar: {
     title: "Boar",
@@ -314,7 +320,7 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
+    isUncollectible: true,
   },
   "dragonling-mechanic": {
     title: "Dragonling Mechanic",
@@ -328,7 +334,6 @@ export const cardTemplates = {
     onPlace: [summon("mechanical-dragonling")],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "mechanical-dragonling": {
     title: "Mechanical Dragonling",
@@ -342,7 +347,7 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
+    isUncollectible: true,
   },
   "senjin-shieldmasta": {
     title: "Sen'jin Shieldmasta",
@@ -357,7 +362,6 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   innervate: {
     title: "Innervate",
@@ -370,7 +374,6 @@ export const cardTemplates = {
     isSpell: true,
     targets: [],
     isMinnion: false,
-    hasAttacked: false,
   },
   "mark-of-the-wild": {
     title: "Mark of the Wild",
@@ -380,14 +383,15 @@ export const cardTemplates = {
     imageUrl: "assets/cards/Mark_of_the_Wild.jpg",
     effects: [
       incrementValue("attack", 2),
+      incrementValue("maxAttack", 2),
       incrementValue("health", 3),
+      incrementValue("maxHealth", 3),
       changeKey("taunt", true),
     ],
     onPlace: [],
     isSpell: true,
     targets: ["card-friendly"],
     isMinnion: false,
-    hasAttacked: false,
   },
   "healing-touch": {
     title: "Healing Touch",
@@ -400,21 +404,19 @@ export const cardTemplates = {
     isSpell: true,
     targets: ["card-friendly", "player-friendly"],
     isMinnion: false,
-    hasAttacked: false,
   },
   "darkscale-healer": {
     title: "Darkscale Healer",
-    description: "Battlecry: Restore 2 Health.",
-    attack: 3,
-    health: 4,
-    mana: 3,
+    description: "Battlecry: Restore 2 Health to all friendly characters.",
+    attack: 4,
+    health: 5,
+    mana: 5,
     type: "Naga",
     imageUrl: "assets/cards/Darkscale_Healer.jpg",
     effects: [damage("attack")],
-    onPlace: [heal(2)],
-    targets: ["lane-friendly", "card-opponent", "player-opponent"],
+    onPlace: [heal(2, "all-friendly", true)],
+    targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   nightblade: {
     title: "Nightblade",
@@ -428,7 +430,6 @@ export const cardTemplates = {
     onPlace: [damage(3, "enemy-hero")],
     targets: ["player-opponent", "card-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "elven-archer": {
     title: "Elven Archer",
@@ -439,10 +440,10 @@ export const cardTemplates = {
     type: "Elf",
     imageUrl: "assets/cards/Elven_Archer.jpg",
     effects: [damage("attack")],
-    onPlace: [],
+    onPlace: [damage(1, "user-select", true)], // Battlecry damage that can target any character, bypassing taunt
     targets: ["card-opponent", "player-opponent"],
+    battlecryTargets: ["card-opponent", "player-opponent"], // Can target any character for battlecry damage
     isMinnion: true,
-    hasAttacked: false,
   },
   "core-hound": {
     title: "Core Hound",
@@ -456,7 +457,6 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "silverback-patriarch": {
     title: "Silverback Patriarch",
@@ -471,7 +471,6 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "magma-rager": {
     title: "Magma Rager",
@@ -485,7 +484,6 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "oasis-snapjaw": {
     title: "Oasis Snapjaw",
@@ -499,7 +497,6 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   "silver-hand-knight": {
     title: "Silver Hand Knight",
@@ -513,7 +510,6 @@ export const cardTemplates = {
     onPlace: [summon("squire")],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
-    hasAttacked: false,
   },
   squire: {
     title: "Squire",
@@ -527,7 +523,155 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
+    isUncollectible: true,
+  },
+  "voodoo-doctor": {
+    title: "Voodoo Doctor",
+    description: "Battlecry: Restore 2 Health.",
+    mana: 1,
+    attack: 2,
+    health: 1,
+    type: "Troll",
+    imageUrl: "assets/cards/Voodoo_Doctor.jpg",
+    effects: [damage("attack")],
+    onPlace: [heal(2)], // Reuses your healing-touch payload architecture on a targeted entity
+    battlecryTargets: ["card-friendly", "player-friendly"], // Can target friendly characters for battlecry healing
+    targets: ["card-opponent", "player-opponent"],
+    isMinnion: true,
     hasAttacked: false,
+  },
+  "novice-engineer": {
+    title: "Novice Engineer",
+    description: "Battlecry: Draw a card.",
+    mana: 2,
+    attack: 1,
+    health: 1,
+    imageUrl: "assets/cards/Novice_Engineer.jpg",
+    effects: [damage("attack")],
+    onPlace: [draw(1)], // Draw a card when placed
+    targets: ["card-opponent", "player-opponent"],
+    isMinnion: true,
+  },
+  "stormpike-commando": {
+    title: "Stormpike Commando",
+    description: "Battlecry: Deal 2 damage.",
+    mana: 5,
+    attack: 4,
+    health: 2,
+    imageUrl: "assets/cards/Stormpike_Commando.jpg",
+    effects: [damage("attack")],
+    onPlace: [damage(2, "user-select", true)], // Uses elven archer battlecry logic scaled to 2
+    targets: ["card-opponent", "player-opponent"],
+    isMinnion: true,
+    hasAttacked: false,
+  },
+  "gnomish-inventor": {
+    title: "Gnomish Inventor",
+    description: "Battlecry: Draw a card.",
+    mana: 4,
+    attack: 2,
+    health: 4,
+    imageUrl: "assets/cards/Gnomish_Inventor.jpg",
+    effects: [damage("attack")],
+    onPlace: [draw(1)], // Draw a card when placed
+    battlecryTargets: [],
+    targets: ["card-opponent", "player-opponent"],
+    isMinnion: true,
+  },
+  "arcane-shot": {
+    title: "Arcane Shot",
+    description: "Deal 2 damage.",
+    mana: 1,
+    effects: [damage(2)],
+    onPlace: [],
+    targets: ["card-opponent", "player-opponent"],
+    isSpell: true,
+    isMinnion: false,
+    imageUrl: "assets/cards/Arcane_Shot.jpg",
+  },
+  assassinate: {
+    title: "Assassinate",
+    description: "Destroy an enemy minion.",
+    mana: 5,
+    effects: [destroy("user-select")], // Targeted destroy effect that can target any minion, bypassing taunt
+    onPlace: [],
+    targets: ["card-opponent"], // Can only target opponent minions
+    isSpell: true,
+    isMinnion: false,
+    imageUrl: "assets/cards/Assassinate.jpg",
+  },
+  "blessing-of-kings": {
+    title: "Blessing of Kings",
+    description: "Give a minion +4/+4.",
+    mana: 4,
+    type: "Holy",
+    imageUrl: "assets/cards/Blessing_of_Kings.jpg",
+    effects: [
+      incrementValue("attack", 4),
+      incrementValue("maxAttack", 4),
+      incrementValue("health", 4),
+      incrementValue("maxHealth", 4),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targets: ["card-friendly"],
+    isMinnion: false,
+  },
+  "goldshire-footman": {
+    title: "Goldshire Footman",
+    description: "Taunt.",
+    taunt: true,
+    attack: 1,
+    health: 2,
+    mana: 1,
+    imageUrl: "assets/cards/Goldshire_Footman.jpg",
+    effects: [damage("attack")],
+    onPlace: [],
+    targets: ["card-opponent", "player-opponent"],
+    isMinnion: true,
+  },
+  "booty-bay-bodyguard": {
+    title: "Booty Bay Bodyguard",
+    description: "Taunt.",
+    taunt: true,
+    attack: 5,
+    health: 4,
+    mana: 5,
+    imageUrl: "assets/cards/Booty_Bay_Bodyguard.jpg",
+    effects: [damage("attack")],
+    onPlace: [],
+    targets: ["card-opponent", "player-opponent"],
+    isMinnion: true,
+  },
+  "reckless-rocketeer": {
+    title: "Reckless Rocketeer",
+    description: "Charge.",
+    mana: 6,
+    attack: 5,
+    health: 2,
+    imageUrl: "assets/cards/Reckless_Rocketeer.jpg",
+    effects: [damage("attack")],
+    onPlace: [
+      changeKey("hasAttacked", false, "self"),
+      changeKey("summoningSickness", false, "self"),
+    ],
+    targets: ["card-opponent", "player-opponent"],
+    isMinnion: true,
+  },
+  "inner-rage": {
+    title: "Inner Rage",
+    imageUrl: "assets/cards/Inner_Rage.jpg",
+    description: "Deal 1 damage to a minion and give it +2 Attack.",
+    mana: 0,
+    effects: [
+      damage(1),
+      incrementValue("attack", 2),
+      incrementValue("maxAttack", 2),
+    ],
+    onPlace: [],
+    targets: ["card-friendly", "card-opponent"],
+    isSpell: true,
+    isMinnion: false,
   },
 } satisfies Record<string, Omit<Card, "id">>;
 

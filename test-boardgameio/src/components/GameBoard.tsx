@@ -13,10 +13,11 @@ import DropDetectCard from "./Card/DropDetectCard";
 import Card from "./Card";
 import { useDragStore } from "@/stores/dragStore";
 import { useAnimationStore } from "@/stores/animationStore";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { validateMove } from "@/utils/validateMove";
-import { detectDeaths } from "@/utils/detectAnimations";
+import { detectAllAnimations } from "@/utils/detectAnimations";
 import AttackArrow from "./AttackArrow";
+import HitNumbers from "./HitNumbers";
 
 interface Props extends BoardProps<GameState> {}
 
@@ -28,7 +29,8 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   const setCurrentPlayer = useDragStore((state) => state.setCurrentPlayer);
   const setGameState = useDragStore((state) => state.setGameState);
 
-  const { queueAnimation, playAnimations, isAnimating } = useAnimationStore();
+  const { queueAnimation, startAnimating, playAnimations, isAnimating } =
+    useAnimationStore();
 
   // Visual state buffer - keeps dead cards visible during animations
   const [visualBoard, setVisualBoard] = useState(G.board);
@@ -41,19 +43,117 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     setGameState(G);
   }, [G, setGameState]);
 
-  // Only update visual board when not animating
+  // State-based animation detection with visual board management
+  const prevGameStateRef = useRef<GameState | null>(null);
+  const lastProcessedTimestamp = useRef<number>(0);
+
+  // add useEffect event listenr for tilde to log G.eventHistory
   useEffect(() => {
-    if (!isAnimating) {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "`") {
+        console.log("Event History:", G.gameEvents);
+        console.log("Full Game History:", G.eventHistory);
+        console.log("Active Battlecry Minion:", G.activeBattlecryMinion);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [G.gameEvents]);
+
+  // ESC handler for canceling battlecry
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && G.activeBattlecryMinion) {
+        console.log("Canceling battlecry with ESC");
+        moves.cancelBattlecry();
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [G.activeBattlecryMinion, moves]);
+
+  useEffect(() => {
+    const handleAnimationsAndVisualBoard = async () => {
+      // Skip on initial mount
+      if (!prevGameStateRef.current) {
+        prevGameStateRef.current = structuredClone(G);
+        setVisualBoard(G.board);
+        return;
+      }
+
+      // Only process new events (by timestamp)
+      const currentEvents = G.gameEvents || [];
+      const newEvents = currentEvents.filter(
+        (e) => e.timestamp > lastProcessedTimestamp.current,
+      );
+
+      // Skip if no new events to process
+      if (newEvents.length === 0) {
+        return;
+      }
+
+      // Detect all animations from event log
+      const animations = detectAllAnimations(G);
+
+      // Update tracking timestamp
+      if (currentEvents.length > 0) {
+        lastProcessedTimestamp.current = Math.max(
+          ...currentEvents.map((e) => e.timestamp),
+        );
+      }
+
+      // Update ref immediately
+      prevGameStateRef.current = structuredClone(G);
+
+      // Skip if already animating - just update the ref but don't process animations
+      // This prevents the rapid attack bug while keeping state in sync
+      if (isAnimating) {
+        console.log("Currently animating, deferring state update");
+        return;
+      }
+
+      // If a minion was placed, update visual board immediately to show it (before animations)
+      if (newEvents.find((e) => e.type === "minionPlaced")) {
+        setVisualBoard(G.board);
+      }
+
+      // If animations exist, play them BEFORE updating visual board
+      if (animations.length > 0) {
+        console.log("Starting animations:", animations);
+        startAnimating();
+        animations.forEach((animation) => queueAnimation(animation));
+        await playAnimations(); // Wait for all animations to complete
+        console.log("Animations complete, updating visual board");
+
+        // Visual board will update below (dead cards removed from display)
+      }
+
+      // Update visual board after animations complete (or immediately if no animations)
       setVisualBoard(G.board);
-    }
-  }, [G.board, isAnimating]);
+    };
+
+    handleAnimationsAndVisualBoard();
+  }, [
+    G,
+    ctx.currentPlayer,
+    isAnimating,
+    startAnimating,
+    queueAnimation,
+    playAnimations,
+  ]);
 
   const p0 = G.players["0"];
   const p1 = G.players["1"];
   const board0 = visualBoard["0"];
   const board1 = visualBoard["1"];
 
-  console.log(ctx.phase, "Current phase");
+  // console.log(ctx.phase, "Current phase");
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
@@ -101,55 +201,26 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     // console.log("Drag over", event);
   };
 
-  // Shared function to execute a move with validation, animation, and state updates
-  const executeMove = async (
-    cardId: string,
-    location: "hand" | "board",
-    target?: TargetValue,
-  ) => {
-    // Validate BEFORE animating
-    const validation = validateMove(G, ctx, cardId, location, target);
+  // Simplified move execution - animations now handled by state-driven hook
+  const executeMove = useCallback(
+    async (
+      cardId: string,
+      location: "hand" | "board",
+      target?: TargetValue,
+    ) => {
+      // Validate BEFORE executing move
+      const validation = validateMove(G, ctx, cardId, location, target);
 
-    if (!validation.valid) {
-      console.warn(`Cannot perform move (UI): ${validation.error}`);
-      return; // Don't animate or execute move
-    }
+      if (!validation.valid) {
+        console.warn(`Cannot perform move (UI): ${validation.error}`);
+        return; // Don't execute invalid move
+      }
 
-    // VALID MOVE - Queue animations before executing move
-
-    // 1. Snapshot current state (deep copy to compare later)
-    const stateBefore: GameState = JSON.parse(JSON.stringify(G));
-
-    // 2. Check if this is an attack action (placed card targeting something)
-    const isAttack =
-      target && (target.type === "card" || target.type === "player");
-
-    if (isAttack && (target.type === "card" || target.type === "player")) {
-      // Queue attack animation
-      queueAnimation({
-        type: "attack",
-        attackerId: cardId,
-        targetId: target.id,
-        targetType: target.type,
-        targetPlayerId: target.player,
-        attackerPlayerId: ctx.currentPlayer,
-      });
-    }
-
-    // 3. Execute the move (this updates the game state immediately)
-    moves.placeCard(cardId, location, target);
-
-    // 4. Detect deaths by comparing states
-    const deaths = detectDeaths(stateBefore, G);
-
-    // 5. Queue death animations
-    deaths.forEach((death) => {
-      queueAnimation(death);
-    });
-
-    // 6. Play all queued animations
-    await playAnimations();
-  };
+      // Execute the move - animations will be detected and played by useEffect
+      moves.placeCard(cardId, location, target);
+    },
+    [G, ctx, moves],
+  );
 
   // Handle attack arrow target selection
   useEffect(() => {
@@ -189,7 +260,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     return () => {
       window.removeEventListener("attack-target", handleAttackTarget);
     };
-  }, [G, ctx, moves, queueAnimation, detectDeaths, playAnimations]);
+  }, [executeMove]);
 
   return (
     <div
@@ -279,6 +350,9 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
 
       {/* Attack Arrow Overlay */}
       <AttackArrow />
+
+      {/* Hit Numbers Overlay */}
+      <HitNumbers />
     </div>
   );
 };
