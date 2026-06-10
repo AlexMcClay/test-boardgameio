@@ -3,6 +3,7 @@ import type { CardProps } from "./types";
 import { motion } from "motion/react";
 import { twMerge } from "tailwind-merge";
 import PlacedCard from "./PlacedCard";
+import { useMemo } from "react";
 
 const cardBack = "assets/Card_Back.png";
 const mana_crystal = "assets/mana.png";
@@ -48,6 +49,30 @@ const Card = ({
       />
     );
   }
+
+  const text = useMemo(() => {
+    // parse description and wrap keywords in spans
+    const keywords = [
+      "Charge",
+      "Taunt",
+      "Battlecry",
+      "Deathrattle",
+      "Divine Shield",
+      "Windfury",
+      "Lifesteal",
+      "Rush",
+      "Overkill",
+    ];
+    let parsedDescription = card.description;
+    keywords.forEach((keyword) => {
+      const regex = new RegExp(`\\b${keyword}\\b`, "g");
+      parsedDescription = parsedDescription.replace(
+        regex,
+        `<span class=" font-extrabold text-black">${keyword}</span>`,
+      );
+    });
+    return parsedDescription;
+  }, [card.description]);
 
   return (
     <motion.div
@@ -118,8 +143,9 @@ const Card = ({
         </span>
       </div>
       {/* Description */}
-      <div className="select-none text-xs w-full text-black px-3 py-2 grow mb-1 bg-[#a58f79] border-2 border-[#f1ce8d] text-center font-medium">
-        {card.description}
+      {/* Highlight Keywords Charge, Taunt, Battlecry */}
+      <div className="select-none text-xs w-full text-black px-3 py-2 grow mb-1 bg-[#a58f79] border-2 border-[#f1ce8d] text-center font-medium ">
+        <span className="" dangerouslySetInnerHTML={{ __html: text }} />
       </div>
 
       {/* Type */}
