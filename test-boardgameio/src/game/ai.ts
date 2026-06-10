@@ -15,18 +15,6 @@ export type AIMove = {
  */
 export function enumerateAIMoves(G: GameState, ctx: Ctx): AIMove[] {
   // Check move count limit - if exceeded 100 moves, return empty to end turn
-  if (G.aiMoveCount && G.aiMoveCount >= 100) {
-    // console.log("AI move limit reached (100), ending turn");
-    // return end turn move instead of empty array to ensure AI ends turn
-    return [
-      {
-        move: "endTurn",
-        args: [],
-        score: 0,
-        description: "End turn due to AI move limit",
-      },
-    ];
-  }
 
   const moves: AIMove[] = [];
   const player = G.players[ctx.currentPlayer];

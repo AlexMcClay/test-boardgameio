@@ -562,6 +562,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [damage(2, "user-select", true)], // Uses elven archer battlecry logic scaled to 2
     targets: ["card-opponent", "player-opponent"],
+    battlecryTargets: ["card-opponent", "player-opponent"], // Can target any character for battlecry damage
     isMinnion: true,
     hasAttacked: false,
   },

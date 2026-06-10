@@ -39,7 +39,6 @@ const setupData = (): GameState => {
     gameEvents: [],
     eventHistory: [],
     activeBattlecryMinion: null,
-    aiMoveCount: 0,
   };
 
   return G;
@@ -77,10 +76,6 @@ const placeCard: Move<GameState> = (
   location: "hand" | "board" = "hand",
   target?: TargetValue,
 ) => {
-  // Increment AI move counter
-  if (!G.aiMoveCount) G.aiMoveCount = 0;
-  G.aiMoveCount++;
-
   // console.log(
   //   `Attempting to place card ${cardId} from ${location} (AI Move #${G.aiMoveCount}) with target:`,
   //   target,
@@ -699,9 +694,6 @@ export const HeathStoneGame: Game<GameState> = {
       });
     },
     onBegin: ({ G, ctx }) => {
-      // Reset AI move counter at start of turn
-      G.aiMoveCount = 0;
-
       // Reset mana at the start of each turn
       // Draw a card at the start of the turn
       if (ctx.turn % 2) {
