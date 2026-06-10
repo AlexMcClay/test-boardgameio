@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import { twMerge } from "tailwind-merge";
 import { useAnimationStore } from "@/stores/animationStore";
 import { useRef } from "react";
+import { ATTACK_ANIMATION } from "@/utils/animationDurations";
 
 const attackIcon = "assets/attack.png";
 const healthIcon = "assets/health.png";
@@ -80,7 +81,7 @@ const PlacedCard = ({ card, isDragging = false, playerID, ctx }: Props) => {
               y: [0, targetPosition.y, 0],
               scale: [1, 1.15, 1],
               transition: {
-                duration: 0.4, // Match animation duration from store (400ms)
+                duration: ATTACK_ANIMATION.duration / 1000,
                 times: [0, 0.5, 1],
                 ease: "easeInOut",
               },

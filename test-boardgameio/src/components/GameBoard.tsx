@@ -17,6 +17,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { validateMove } from "@/utils/validateMove";
 import { detectAllAnimations } from "@/utils/detectAnimations";
 import AttackArrow from "./AttackArrow";
+import { ATTACK_ANIMATION } from "@/utils/animationDurations";
 
 interface Props extends BoardProps<GameState> {}
 
@@ -79,16 +80,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
         await playAnimations(); // Wait for all animations to complete
         console.log("Animations complete, updating visual board");
 
-        // Clean up: Remove all dying cards from the game board
-        if (G.dyingCards.length > 0) {
-          console.log("Removing dying cards:", G.dyingCards);
-          ["0", "1"].forEach((playerId) => {
-            G.board[playerId] = G.board[playerId].filter(
-              (card) => !G.dyingCards.includes(card.id),
-            );
-          });
-          G.dyingCards = []; // Clear the dying cards list
-        }
+        // Visual board will update below (dead cards removed from display)
       }
 
       // Update visual board after animations complete (or immediately if no animations)

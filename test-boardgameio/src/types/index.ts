@@ -112,5 +112,4 @@ export interface GameState {
   board: Record<PlayerID, Card[]>;
   maxMana: number; // Optional, if you want to track max mana globally
   lastMove?: MoveMetadata; // Track last move for animation detection
-  dyingCards: string[]; // Track cards marked for removal after animations
 }

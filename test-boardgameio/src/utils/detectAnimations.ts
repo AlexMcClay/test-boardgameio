@@ -6,6 +6,7 @@ import type {
   AnimationEvent,
 } from "@/types/animations";
 import type { PlayerID } from "boardgame.io";
+import { ATTACK_ANIMATION, DEATH_ANIMATION } from "./animationDurations";
 
 /**
  * Compares two game states and detects which cards died
@@ -24,23 +25,19 @@ export function detectDeaths(
     const boardBefore = stateBefore.board[playerId];
     const boardAfter = stateAfter.board[playerId];
 
-    // Find cards that existed before but not after OR are marked as dying
+    // Find cards that existed before but not after
     boardBefore.forEach((card) => {
       const stillExists = boardAfter.some((c) => c.id === card.id);
-      const isDying = stateAfter.dyingCards.includes(card.id);
 
-      // Card died if it no longer exists OR is marked for death
-      if (!stillExists || isDying) {
-        // Only add if not already in deaths array
-        if (!deaths.some((d) => d.cardId === card.id)) {
-          deaths.push({
-            type: "death",
-            cardId: card.id,
-            playerId,
-            startTime: 0, // Default, will be overridden by detectAllAnimations
-            duration: 300, // Default duration
-          });
-        }
+      // Card died if it no longer exists
+      if (!stillExists) {
+        deaths.push({
+          type: "death",
+          cardId: card.id,
+          playerId,
+          startTime: 0, // Default, will be overridden by detectAllAnimations
+          duration: DEATH_ANIMATION.duration, // Default duration
+        });
       }
     });
   });
@@ -115,7 +112,7 @@ export function detectAttacks(
       targetPlayerId: target.player,
       attackerPlayerId: currentPlayer,
       startTime: 0, // Default, will be overridden by detectAllAnimations
-      duration: 400, // Default duration
+      duration: ATTACK_ANIMATION.duration,
     });
   }
 
@@ -153,24 +150,12 @@ export function detectAllAnimations(
 
     // Attack starts immediately and lasts 400ms
     attack.startTime = 0;
-    attack.duration = 400;
+    attack.duration = ATTACK_ANIMATION.duration;
     animations.push(attack);
 
     deaths.forEach((death) => {
-      death.duration = 300; // Death animations last 300ms
-
-      // Target death starts at 200ms (during attack animation, before attacker returns)
-      if (death.cardId === attack.targetId) {
-        death.startTime = 200;
-      }
-      // Attacker death (from counterattack) starts at 450ms (after attack fully completes and returns)
-      else if (death.cardId === attack.attackerId) {
-        death.startTime = 450;
-      }
-      // Other deaths (e.g., AoE) start immediately
-      else {
-        death.startTime = 0;
-      }
+      death.duration = DEATH_ANIMATION.duration; // Death animations last 300ms
+      death.startTime = ATTACK_ANIMATION.duration + 50;
     });
 
     animations.push(...deaths);
@@ -179,7 +164,7 @@ export function detectAllAnimations(
     // All deaths happen immediately
     deaths.forEach((death) => {
       death.startTime = 0;
-      death.duration = 300;
+      death.duration = DEATH_ANIMATION.duration;
     });
     animations.push(...deaths);
   }

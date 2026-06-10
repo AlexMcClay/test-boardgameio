@@ -6,6 +6,7 @@ import { twMerge } from "tailwind-merge";
 import { motion } from "motion/react";
 import Card from "./index";
 import { useRef, useEffect } from "react";
+import { DEATH_ANIMATION } from "@/utils/animationDurations";
 
 interface Props extends CardProps {
   playerID: PlayerID;
@@ -132,7 +133,7 @@ const DropDetectCard = (props: Props) => {
         // The Rapid Shake: Rapidly oscillates left and right
         x: [0, -12, 12, -12, 12, -8, 8, -4, 4, 0],
         transition: {
-          duration: 0.3, // Match death animation duration from timeline (300ms)
+          duration: DEATH_ANIMATION.duration / 1000, // Total duration of the animation
           ease: "easeInOut",
         },
       }}
