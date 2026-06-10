@@ -3,6 +3,7 @@ import Card from "./Card";
 import { cardTemplates, type CardTemplateKey } from "@/utils/cards";
 import {
   druidDeckString,
+  premadeDecks,
   warriorDeckString,
   type DeckString,
 } from "@/utils/decks";
@@ -192,27 +193,19 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
           {/* Predefined Decks */}
           <div className="predefined-decks">
             <h3 className="predefined-title">Quick Decks</h3>
-            <button
-              className="preset-deck-button warrior-button"
-              onClick={() => handleSetWholeDeck(warriorDeckString)}
-            >
-              <span className="preset-deck-icon">⚔️</span>
-              <span>Warrior</span>
-            </button>
-            <button
-              className="preset-deck-button druid-button"
-              onClick={() => handleSetWholeDeck(druidDeckString)}
-            >
-              <span className="preset-deck-icon">🌿</span>
-              <span>Druid</span>
-            </button>
-            <button
-              className="preset-deck-button druid-button"
-              onClick={() => handleSetWholeDeck(createRandomDeckString(30))}
-            >
-              <span className="preset-deck-icon">�</span>
-              <span>Random Deck</span>
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              {premadeDecks.map(({ name, deckString }) => (
+                <button
+                  key={name}
+                  className="preset-deck-button warrior-button"
+                  onClick={() => handleSetWholeDeck(deckString)}
+                >
+                  <span className="preset-deck-icon">📂</span>
+                  <span>{name}</span>
+                </button>
+              ))}
+            </div>
+
             <button className="clear-deck-button" onClick={handleClearDeck}>
               Clear Deck
             </button>
