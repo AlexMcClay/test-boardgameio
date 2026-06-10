@@ -1,5 +1,6 @@
 import type { Card } from "@/types";
 import { cardTemplates, type CardTemplateKey } from "./cards";
+import type { DeckString } from "./decks";
 
 export function shuffleDeck(deck: Card[]): Card[] {
   const copy = [...deck];
@@ -50,4 +51,33 @@ export function createCardFromID(id: CardTemplateKey): Card | null {
     return null;
   }
   return createCardInstance(cardTemplate);
+}
+
+export function createRandomDeckString(count: number): DeckString {
+  const deckString: DeckString = {};
+  const cardKeys = Object.keys(cardTemplates) as CardTemplateKey[];
+
+  let totalCards = 0;
+
+  while (totalCards < count) {
+    // Randomly select a card template key
+    const randomKey = cardKeys[Math.floor(Math.random() * cardKeys.length)];
+    const card = cardTemplates[randomKey] as Omit<Card, "id">;
+
+    if (card.isUncollectible) {
+      continue; // Skip uncollectible cards
+    }
+
+    // Check if there are already 2 copies of this card
+    const currentCount = deckString[randomKey] || 0;
+    if (currentCount >= 2) {
+      continue; // Skip if already 2 copies
+    }
+
+    // Add the card to the deck string
+    deckString[randomKey] = currentCount + 1;
+    totalCards++;
+  }
+
+  return deckString;
 }
