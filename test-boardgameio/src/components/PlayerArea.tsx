@@ -25,7 +25,7 @@ const PlayerArea = ({
     // Logic to end the turn, e.g., call a move to end the turn
     if (events && events.endTurn) {
       // Call the endTurn event if available
-      events.endTurn();
+      moves.endTurn();
     }
   };
 

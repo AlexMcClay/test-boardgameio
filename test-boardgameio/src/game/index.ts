@@ -6,6 +6,7 @@ import { createCardFromID, createDeck, shuffleDeck } from "@/utils";
 import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
 import { validateMove } from "@/utils/validateMove";
 import type { CardTemplateKey } from "@/utils/cards";
+import { enumerateAIMoves } from "./ai";
 
 // Helper function to record game events
 function recordEvent(G: GameState, event: GameEvent) {
@@ -38,6 +39,7 @@ const setupData = (): GameState => {
     gameEvents: [],
     eventHistory: [],
     activeBattlecryMinion: null,
+    aiMoveCount: 0,
   };
 
   return G;
@@ -75,6 +77,14 @@ const placeCard: Move<GameState> = (
   location: "hand" | "board" = "hand",
   target?: TargetValue,
 ) => {
+  // Increment AI move counter
+  if (!G.aiMoveCount) G.aiMoveCount = 0;
+  G.aiMoveCount++;
+
+  // console.log(
+  //   `Attempting to place card ${cardId} from ${location} (AI Move #${G.aiMoveCount}) with target:`,
+  //   target,
+  // );
   // Check if this is a battlecry resolution
   const isResolvingBattlecry =
     G.activeBattlecryMinion?.cardId === cardId &&
@@ -82,7 +92,7 @@ const placeCard: Move<GameState> = (
     target;
 
   if (isResolvingBattlecry) {
-    console.log("Resolving battlecry for card:", cardId);
+    // console.log("Resolving battlecry for card:", cardId);
     // Execute the battlecry onPlace effects with target
     doEffects({ G, ctx }, cardId, "onPlace", "board", target);
     // Clear the battlecry state
@@ -117,13 +127,11 @@ const placeCard: Move<GameState> = (
 
   player.mana -= !card.isPlaced ? card.mana || 0 : 0; // Deduct mana cost
 
-  console.log(target);
-
   doEffects({ G, ctx }, cardId, "effects", location, target);
 
   // See if the card can be placed on the board
   if (card.isMinnion && !card.isPlaced) {
-    console.log("Placing minion on the board");
+    // console.log("Placing minion on the board");
     card.isPlaced = true; // Mark the card as placed
     card.hasAttacked = true;
     card.summoningSickness = true; // Minion has summoning sickness
@@ -139,7 +147,7 @@ const placeCard: Move<GameState> = (
       );
 
     if (needsTargetedBattlecry) {
-      console.log("Setting pending battlecry for card:", card.id);
+      // console.log("Setting pending battlecry for card:", card.id);
       // Set pending battlecry, DON'T execute onPlace yet
       G.activeBattlecryMinion = {
         cardId: card.id,
@@ -556,14 +564,12 @@ const doEffects = (
             const targetCard = G.board[target.player].find(
               (c) => c.id === target.id,
             );
-            console.log(effect.key);
             if (targetCard) {
               // @ts-ignore
               targetCard[effect.key] = effect.value;
             }
           }
         } else if (effect.target == "self") {
-          console.log("Changing key on self card:");
           if (card[effect.key] !== undefined) {
             // @ts-ignore
             card[effect.key] = effect.value;
@@ -596,12 +602,18 @@ const doEffects = (
 };
 
 const cancelBattlecry: Move<GameState> = ({ G }) => {
-  console.log("Canceling battlecry");
   G.activeBattlecryMinion = null;
 };
 
 const drawCard: Move<GameState> = ({ G, ctx }) => {
   handleDrawCard(G, ctx);
+};
+
+const endTurn: Move<GameState> = ({ G, ctx, events }) => {
+  // Clear last move metadata at the end of the turn
+  G.gameEvents = [];
+  G.activeBattlecryMinion = null;
+  events.endTurn();
 };
 
 function handleDrawCard(G: GameState, ctx: Ctx, playerID?: PlayerID) {
@@ -620,6 +632,18 @@ function handleDrawCard(G: GameState, ctx: Ctx, playerID?: PlayerID) {
 export const HeathStoneGame: Game<GameState> = {
   name: "hearthstone",
   setup: setupData,
+  minPlayers: 2,
+  maxPlayers: 2,
+  ai: {
+    enumerate: (G, ctx) => {
+      const moves = enumerateAIMoves(G, ctx);
+      // Convert AIMove format to boardgame.io format and return all moves
+      return moves.map((aiMove) => ({
+        move: aiMove.move,
+        args: aiMove.args,
+      }));
+    },
+  },
   phases: {
     setDeck: {
       start: true,
@@ -653,7 +677,7 @@ export const HeathStoneGame: Game<GameState> = {
       },
     },
     playGame: {
-      moves: { drawCard, placeCard, cancelBattlecry },
+      moves: { drawCard, placeCard, cancelBattlecry, endTurn },
       onBegin: ({ G, ctx }) => {
         // Draw 3 cards for the first turn
         for (let i = 0; i < 5; i++) {
@@ -666,7 +690,6 @@ export const HeathStoneGame: Game<GameState> = {
   turn: {
     onEnd: ({ G, ctx }) => {
       // Clear last move metadata at the end of the turn
-      console.log("Ending turn, clearing last move metadata");
       G.gameEvents = [];
       G.activeBattlecryMinion = null;
       recordEvent(G, {
@@ -676,6 +699,9 @@ export const HeathStoneGame: Game<GameState> = {
       });
     },
     onBegin: ({ G, ctx }) => {
+      // Reset AI move counter at start of turn
+      G.aiMoveCount = 0;
+
       // Reset mana at the start of each turn
       // Draw a card at the start of the turn
       if (ctx.turn % 2) {

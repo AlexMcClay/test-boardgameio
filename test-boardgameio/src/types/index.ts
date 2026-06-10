@@ -203,4 +203,5 @@ export interface GameState {
   gameEvents: GameEvent[]; // Current move events (cleared each move)
   eventHistory: GameEvent[]; // Full game history (debug log)
   activeBattlecryMinion?: { cardId: string; playerId: PlayerID } | null; // Tracks minion waiting to resolve targeted battlecry
+  aiMoveCount?: number; // Track AI moves per turn to prevent infinite loops
 }
