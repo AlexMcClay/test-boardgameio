@@ -17,6 +17,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { validateMove } from "@/utils/validateMove";
 import { detectAllAnimations } from "@/utils/detectAnimations";
 import AttackArrow from "./AttackArrow";
+import HitNumbers from "./HitNumbers";
 
 interface Props extends BoardProps<GameState> {}
 
@@ -298,6 +299,9 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
 
       {/* Attack Arrow Overlay */}
       <AttackArrow />
+
+      {/* Hit Numbers Overlay */}
+      <HitNumbers />
     </div>
   );
 };

@@ -20,4 +20,18 @@ export type DeathAnimation = {
   duration: number; // How long the animation lasts (ms)
 };
 
-export type AnimationEvent = AttackAnimation | DeathAnimation;
+export type HitNumberAnimation = {
+  type: "hitNumber";
+  targetId: string; // card ID or player ID
+  targetType: "card" | "player";
+  playerId: PlayerID;
+  value: number; // Amount (positive value)
+  damageType: "damage" | "heal"; // To determine color
+  startTime: number; // When to start on the timeline (ms from animation sequence start)
+  duration: number; // How long the animation lasts (ms)
+};
+
+export type AnimationEvent =
+  | AttackAnimation
+  | DeathAnimation
+  | HitNumberAnimation;

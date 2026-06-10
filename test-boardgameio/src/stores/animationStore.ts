@@ -44,15 +44,22 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
 
   removeActiveAnimation: (event) => {
     set((state) => ({
-      activeAnimations: state.activeAnimations.filter(
-        (anim) =>
-          !(
-            anim.type === event.type &&
-            (anim.type === "attack"
-              ? anim.attackerId === (event as any).attackerId
-              : anim.cardId === (event as any).cardId)
-          ),
-      ),
+      activeAnimations: state.activeAnimations.filter((anim) => {
+        if (anim.type !== event.type) return true;
+
+        // Match by type-specific identifiers
+        if (anim.type === "attack" && event.type === "attack") {
+          return anim.attackerId !== event.attackerId;
+        } else if (anim.type === "death" && event.type === "death") {
+          return anim.cardId !== event.cardId;
+        } else if (anim.type === "hitNumber" && event.type === "hitNumber") {
+          return (
+            anim.targetId !== event.targetId ||
+            anim.damageType !== event.damageType
+          );
+        }
+        return true;
+      }),
     }));
   },
 

@@ -3,10 +3,15 @@ import type { GameState, MoveMetadata } from "@/types";
 import type {
   AttackAnimation,
   DeathAnimation,
+  HitNumberAnimation,
   AnimationEvent,
 } from "@/types/animations";
 import type { PlayerID } from "boardgame.io";
-import { ATTACK_ANIMATION, DEATH_ANIMATION } from "./animationDurations";
+import {
+  ATTACK_ANIMATION,
+  DEATH_ANIMATION,
+  HIT_NUMBER_ANIMATION,
+} from "./animationDurations";
 
 /**
  * Compares two game states and detects which cards died
@@ -120,6 +125,74 @@ export function detectAttacks(
 }
 
 /**
+ * Detects hit number animations by comparing health values
+ * @param stateBefore - Game state before the move
+ * @param stateAfter - Game state after the move
+ * @returns Array of hit number animations for damage/healing
+ */
+export function detectHitNumbers(
+  stateBefore: GameState,
+  stateAfter: GameState,
+): HitNumberAnimation[] {
+  const hitNumbers: HitNumberAnimation[] = [];
+
+  // Check player health changes
+  (["0", "1"] as PlayerID[]).forEach((playerId) => {
+    const hpBefore = stateBefore.players[playerId].hp;
+    const hpAfter = stateAfter.players[playerId].hp;
+
+    if (hpBefore !== hpAfter) {
+      const difference = hpBefore - hpAfter;
+
+      hitNumbers.push({
+        type: "hitNumber",
+        targetId: playerId,
+        targetType: "player",
+        playerId,
+        value: Math.abs(difference),
+        damageType: difference > 0 ? "damage" : "heal",
+        startTime: 0, // Will be overridden by detectAllAnimations
+        duration: HIT_NUMBER_ANIMATION.duration,
+      });
+    }
+  });
+
+  // Check card health changes
+  (["0", "1"] as PlayerID[]).forEach((playerId) => {
+    const boardBefore = stateBefore.board[playerId];
+    const boardAfter = stateAfter.board[playerId];
+
+    boardBefore.forEach((cardBefore) => {
+      const cardAfter = boardAfter.find((c) => c.id === cardBefore.id);
+
+      // Only check if card still exists and has health
+      if (
+        cardAfter &&
+        cardBefore.health !== undefined &&
+        cardAfter.health !== undefined
+      ) {
+        const difference = cardBefore.health - cardAfter.health;
+
+        if (difference !== 0) {
+          hitNumbers.push({
+            type: "hitNumber",
+            targetId: cardBefore.id,
+            targetType: "card",
+            playerId,
+            value: Math.abs(difference),
+            damageType: difference > 0 ? "damage" : "heal",
+            startTime: 0, // Will be overridden by detectAllAnimations
+            duration: HIT_NUMBER_ANIMATION.duration,
+          });
+        }
+      }
+    });
+  });
+
+  return hitNumbers;
+}
+
+/**
  * Detects all animations by comparing game states
  * @param stateBefore - Game state before the move
  * @param stateAfter - Game state after the move
@@ -134,6 +207,9 @@ export function detectAllAnimations(
   const animations: AnimationEvent[] = [];
 
   // Detect attacks first (they happen before deaths)
+
+  // Detect hit numbers
+  const hitNumbers = detectHitNumbers(stateBefore, stateAfter);
   const attacks = detectAttacks(
     stateBefore,
     stateAfter,
@@ -148,6 +224,13 @@ export function detectAllAnimations(
   if (attacks.length > 0) {
     const attack = attacks[0];
 
+    // Hit numbers appear simultaneously with the attack
+    hitNumbers.forEach((hitNumber) => {
+      hitNumber.startTime = 0;
+      hitNumber.duration = HIT_NUMBER_ANIMATION.duration;
+    });
+    animations.push(...hitNumbers);
+
     // Attack starts immediately and lasts 400ms
     attack.startTime = 0;
     attack.duration = ATTACK_ANIMATION.duration;
@@ -160,13 +243,19 @@ export function detectAllAnimations(
 
     animations.push(...deaths);
   } else {
-    // No attacks, just deaths (e.g., spell damage)
-    // All deaths happen immediately
+    // No attacks, just deaths/damage (e.g., spell damage)
+    // All deaths and hit numbers happen immediately
     deaths.forEach((death) => {
       death.startTime = 0;
       death.duration = DEATH_ANIMATION.duration;
     });
     animations.push(...deaths);
+
+    hitNumbers.forEach((hitNumber) => {
+      hitNumber.startTime = 0;
+      hitNumber.duration = HIT_NUMBER_ANIMATION.duration;
+    });
+    animations.push(...hitNumbers);
   }
 
   return animations;
