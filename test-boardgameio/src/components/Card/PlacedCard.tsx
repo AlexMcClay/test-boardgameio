@@ -4,10 +4,10 @@ import { twMerge } from "tailwind-merge";
 import { useAnimationStore } from "@/stores/animationStore";
 import { useRef } from "react";
 
-const attackIcon = "src/assets/attack.png";
-const healthIcon = "src/assets/health.png";
-const minionFrame = "src/assets/minion_frame.png";
-const minionTaunt = "src/assets/minion_taunt.png";
+const attackIcon = "assets/attack.png";
+const healthIcon = "assets/health.png";
+const minionFrame = "assets/minion_frame.png";
+const minionTaunt = "assets/minion_taunt.png";
 
 interface Props extends CardProps {}
 

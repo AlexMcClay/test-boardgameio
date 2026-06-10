@@ -3,7 +3,6 @@ import type { GameState, Player } from "@/types";
 import { useDroppable } from "@dnd-kit/core";
 import type { PlayerID } from "boardgame.io";
 import type { BoardProps } from "boardgame.io/dist/types/packages/react";
-import React from "react";
 import { twMerge } from "tailwind-merge";
 
 interface Props extends BoardProps<GameState> {
@@ -12,8 +11,8 @@ interface Props extends BoardProps<GameState> {
   playerID: PlayerID; // Added playerID to match the Board component
 }
 
-const mana_crystal = "src/assets/mana.png";
-const healthIcon = "src/assets/health.png";
+const mana_crystal = "assets/mana.png";
+const healthIcon = "assets/health.png";
 
 const HeroSection = ({
   player,

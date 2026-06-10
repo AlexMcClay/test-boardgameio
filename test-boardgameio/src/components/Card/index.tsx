@@ -4,10 +4,10 @@ import { motion } from "motion/react";
 import { twMerge } from "tailwind-merge";
 import PlacedCard from "./PlacedCard";
 
-const cardBack = "src/assets/Card_Back.png";
-const mana_crystal = "src/assets/mana.png";
-const attackIcon = "src/assets/attack.png";
-const healthIcon = "src/assets/health.png";
+const cardBack = "assets/Card_Back.png";
+const mana_crystal = "assets/mana.png";
+const attackIcon = "assets/attack.png";
+const healthIcon = "assets/health.png";
 
 interface Props extends CardProps {}
 

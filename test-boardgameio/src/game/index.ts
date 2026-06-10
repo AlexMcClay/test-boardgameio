@@ -34,7 +34,7 @@ const setupData = (): GameState => {
 const p0: Player = {
   id: "0",
   name: "Arthas",
-  heroPortrait: "src/assets/Arthas.jpg", // Optional, if you want to display a hero portrait
+  heroPortrait: "assets/Arthas.jpg", // Optional, if you want to display a hero portrait
   maxHp: 30,
   hp: 30,
   maxArmor: 0,
@@ -47,7 +47,7 @@ const p0: Player = {
 const p1: Player = {
   id: "1",
   name: "Illidan",
-  heroPortrait: "src/assets/Illidan_Stormrage.jpg", // Optional, if you want to display a hero portrait
+  heroPortrait: "assets/Illidan_Stormrage.jpg", // Optional, if you want to display a hero portrait
   maxHp: 30,
   hp: 30,
   maxArmor: 0,

@@ -20,7 +20,7 @@ import AttackArrow from "./AttackArrow";
 
 interface Props extends BoardProps<GameState> {}
 
-const backgroundImage = "src/assets/wood.jpg"; // Path to your background image
+const backgroundImage = "assets/wood.jpg"; // Path to your background image
 
 const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   const activeCard = useDragStore((state) => state.activeCard);
