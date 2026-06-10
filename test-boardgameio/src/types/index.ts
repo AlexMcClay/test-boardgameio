@@ -21,6 +21,7 @@ export interface Card {
   isUncollectible?: boolean; // Optional, to indicate if the card is uncollectible (like tokens)
   taunt?: boolean; // Optional, to indicate if the card has taunt
   targets: TargetTypes[]; // Optional, to specify valid targets for the card
+  battlecryTargets?: TargetTypes[]; // Optional, valid targets for battlecry (bypasses taunt)
 }
 
 export type TargetValue = {
@@ -37,7 +38,9 @@ type TargetTypes =
   | "player-friendly"
   | "player-opponent"
   | "lane-friendly"
-  | "lane-opponent";
+  | "lane-opponent"
+  | "friendly"
+  | "opponent"; // Added more specific target types for validation
 
 export type EffectTypes =
   | DamageEffect
@@ -45,19 +48,33 @@ export type EffectTypes =
   | DrawEffect
   | ChangeKeyEffect
   | SummonEffect
+  | DestroyEffect
   | ManaEffect
   | IncrementValueEffect;
 
 type DamageEffect = {
   type: "damage";
   value: number | keyof Card;
-
+  battlecry?: boolean; // Indicates if this damage is part of a battlecry (bypasses taunt)
   target: "user-select" | "self-hero" | "enemy-hero"; // Target can be user-select, self-hero, enemy-hero, or hero
+};
+
+type DestroyEffect = {
+  type: "destroy";
+  target: "user-select" | "self" | "enemy"; // Target can be user-select, self, or enemy
+  battlecry?: boolean; // Indicates if this destroy effect is part of a battlecry (bypasses taunt)
 };
 
 type HealEffect = {
   type: "heal";
   value: number;
+  target?:
+    | "user-select"
+    | "self-hero"
+    | "friendly-hero"
+    | "all-friendly"
+    | "friendly-board";
+  battlecry?: boolean;
 };
 
 type DrawEffect = {
@@ -185,4 +202,5 @@ export interface GameState {
   lastMove?: MoveMetadata; // Track last move for animation detection
   gameEvents: GameEvent[]; // Current move events (cleared each move)
   eventHistory: GameEvent[]; // Full game history (debug log)
+  activeBattlecryMinion?: { cardId: string; playerId: PlayerID } | null; // Tracks minion waiting to resolve targeted battlecry
 }

@@ -52,6 +52,8 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "`") {
         console.log("Event History:", G.gameEvents);
+        console.log("Full Game History:", G.eventHistory);
+        console.log("Active Battlecry Minion:", G.activeBattlecryMinion);
       }
     };
 
@@ -60,6 +62,21 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [G.gameEvents]);
+
+  // ESC handler for canceling battlecry
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && G.activeBattlecryMinion) {
+        console.log("Canceling battlecry with ESC");
+        moves.cancelBattlecry();
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [G.activeBattlecryMinion, moves]);
 
   useEffect(() => {
     const handleAnimationsAndVisualBoard = async () => {

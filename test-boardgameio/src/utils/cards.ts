@@ -3,21 +3,45 @@ import type { Card, EffectTypes } from "@/types";
 const damage = (
   value: number | keyof Card,
   target: "user-select" | "self-hero" | "enemy-hero" = "user-select",
+  battlecry: boolean = false,
 ): EffectTypes => {
   return {
     type: "damage",
     value: value,
     target: target,
+    battlecry: battlecry,
+  };
+};
+
+const destroy = (
+  target: "user-select" | "self" | "enemy",
+  battlecry: boolean = false,
+): EffectTypes => {
+  return {
+    type: "destroy",
+    target: target,
+    battlecry: battlecry,
   };
 };
 
 const mana = (value: number): EffectTypes => {
   return { type: "mana", value: value };
 };
-const heal = (value: number): EffectTypes => {
+const heal = (
+  value: number,
+  target:
+    | "user-select"
+    | "self-hero"
+    | "friendly-hero"
+    | "all-friendly"
+    | "friendly-board" = "user-select",
+  battlecry: boolean = false,
+): EffectTypes => {
   return {
     type: "heal",
     value: value,
+    target: target,
+    battlecry: battlecry,
   };
 };
 
@@ -383,15 +407,15 @@ export const cardTemplates = {
   },
   "darkscale-healer": {
     title: "Darkscale Healer",
-    description: "Battlecry: Restore 2 Health.",
-    attack: 3,
-    health: 4,
-    mana: 3,
+    description: "Battlecry: Restore 2 Health to all friendly characters.",
+    attack: 4,
+    health: 5,
+    mana: 5,
     type: "Naga",
     imageUrl: "assets/cards/Darkscale_Healer.jpg",
     effects: [damage("attack")],
-    onPlace: [heal(2)],
-    targets: ["lane-friendly", "card-opponent", "player-opponent"],
+    onPlace: [heal(2, "all-friendly", true)],
+    targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
   },
   nightblade: {
@@ -416,8 +440,9 @@ export const cardTemplates = {
     type: "Elf",
     imageUrl: "assets/cards/Elven_Archer.jpg",
     effects: [damage("attack")],
-    onPlace: [],
+    onPlace: [damage(1, "user-select", true)], // Battlecry damage that can target any character, bypassing taunt
     targets: ["card-opponent", "player-opponent"],
+    battlecryTargets: ["card-opponent", "player-opponent"], // Can target any character for battlecry damage
     isMinnion: true,
   },
   "core-hound": {
@@ -499,6 +524,98 @@ export const cardTemplates = {
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
     isUncollectible: true,
+  },
+  "voodoo-doctor": {
+    title: "Voodoo Doctor",
+    description: "Battlecry: Restore 2 Health.",
+    mana: 1,
+    attack: 2,
+    health: 1,
+    type: "Troll",
+    imageUrl: "assets/cards/Voodoo_Doctor.jpg",
+    effects: [damage("attack")],
+    onPlace: [heal(2)], // Reuses your healing-touch payload architecture on a targeted entity
+    battlecryTargets: ["card-friendly", "player-friendly"], // Can target friendly characters for battlecry healing
+    targets: ["card-opponent", "player-opponent"],
+    isMinnion: true,
+    hasAttacked: false,
+  },
+  "novice-engineer": {
+    title: "Novice Engineer",
+    description: "Battlecry: Draw a card.",
+    mana: 2,
+    attack: 1,
+    health: 1,
+    imageUrl: "assets/cards/Novice_Engineer.jpg",
+    effects: [damage("attack")],
+    onPlace: [draw(1)], // Draw a card when placed
+    targets: ["card-opponent", "player-opponent"],
+    isMinnion: true,
+  },
+  "stormpike-commando": {
+    title: "Stormpike Commando",
+    description: "Battlecry: Deal 2 damage.",
+    mana: 5,
+    attack: 4,
+    health: 2,
+    imageUrl: "assets/cards/Stormpike_Commando.jpg",
+    effects: [damage("attack")],
+    onPlace: [damage(2, "user-select", true)], // Uses elven archer battlecry logic scaled to 2
+    targets: ["card-opponent", "player-opponent"],
+    isMinnion: true,
+    hasAttacked: false,
+  },
+  "gnomish-inventor": {
+    title: "Gnomish Inventor",
+    description: "Battlecry: Draw a card.",
+    mana: 4,
+    attack: 2,
+    health: 4,
+    imageUrl: "assets/cards/Gnomish_Inventor.jpg",
+    effects: [damage("attack")],
+    onPlace: [draw(1)], // Draw a card when placed
+    battlecryTargets: [],
+    targets: ["card-opponent", "player-opponent"],
+    isMinnion: true,
+  },
+  "arcane-shot": {
+    title: "Arcane Shot",
+    description: "Deal 2 damage.",
+    mana: 1,
+    effects: [damage(2)],
+    onPlace: [],
+    targets: ["card-opponent", "player-opponent"],
+    isSpell: true,
+    isMinnion: false,
+    imageUrl: "assets/cards/Arcane_Shot.jpg",
+  },
+  assassinate: {
+    title: "Assassinate",
+    description: "Destroy an enemy minion.",
+    mana: 5,
+    effects: [destroy("user-select")], // Targeted destroy effect that can target any minion, bypassing taunt
+    onPlace: [],
+    targets: ["card-opponent"], // Can only target opponent minions
+    isSpell: true,
+    isMinnion: false,
+    imageUrl: "assets/cards/Assassinate.jpg",
+  },
+  "blessing-of-kings": {
+    title: "Blessing of Kings",
+    description: "Give a minion +4/+4.",
+    mana: 4,
+    type: "Holy",
+    imageUrl: "assets/cards/Blessing_of_Kings.jpg",
+    effects: [
+      incrementValue("attack", 4),
+      incrementValue("maxAttack", 4),
+      incrementValue("health", 4),
+      incrementValue("maxHealth", 4),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targets: ["card-friendly"],
+    isMinnion: false,
   },
 } satisfies Record<string, Omit<Card, "id">>;
 

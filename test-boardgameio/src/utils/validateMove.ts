@@ -68,6 +68,45 @@ export function isValidTargetType(
 }
 
 /**
+ * Battlecry validation: Check if target matches card's battlecryTargets (bypasses taunt)
+ */
+export function isValidTargetTypeForBattlecry(
+  card: Card,
+  targetType: "card" | "player" | "lane",
+  targetPlayerID: PlayerID,
+  currentPlayerID: PlayerID,
+): boolean {
+  if (!card.battlecryTargets || card.battlecryTargets.length === 0) {
+    return false;
+  }
+
+  const isFriendly = targetPlayerID === currentPlayerID;
+
+  return card.battlecryTargets.some((validTarget) => {
+    switch (validTarget) {
+      case "card":
+        return targetType === "card";
+      case "player":
+        return targetType === "player";
+      case "card-friendly":
+        return targetType === "card" && isFriendly;
+      case "card-opponent":
+        return targetType === "card" && !isFriendly;
+      case "player-friendly":
+        return targetType === "player" && isFriendly;
+      case "player-opponent":
+        return targetType === "player" && !isFriendly;
+      case "lane-friendly":
+        return targetType === "lane" && isFriendly;
+      case "lane-opponent":
+        return targetType === "lane" && !isFriendly;
+      default:
+        return false;
+    }
+  });
+}
+
+/**
  * Full move validation for game logic
  * Used in placeCard move function
  */
@@ -86,6 +125,44 @@ export function validateMove(
 
   if (!card) {
     return { valid: false, error: "card-not-found" };
+  }
+
+  // Check if there's a pending battlecry
+  if (G.activeBattlecryMinion) {
+    // Only allow the battlecry minion to act or allow other moves if it's a different card being placed
+    if (
+      G.activeBattlecryMinion.cardId !== cardId &&
+      location === "hand" &&
+      !card.isPlaced
+    ) {
+      // Allow placing new cards even with pending battlecry (player can play other cards first)
+      // Continue with normal validation
+    } else if (
+      G.activeBattlecryMinion.cardId === cardId &&
+      location === "board" &&
+      target
+    ) {
+      // This is the battlecry resolution - use battlecryTargets for validation
+      const validTarget = isValidTargetTypeForBattlecry(
+        card,
+        target.type,
+        target.player,
+        ctx.currentPlayer,
+      );
+
+      if (!validTarget) {
+        return { valid: false, error: "invalid-target" };
+      }
+
+      // Battlecries bypass taunt - no taunt check needed
+      return { valid: true };
+    } else if (
+      G.activeBattlecryMinion.cardId !== cardId &&
+      location === "board"
+    ) {
+      // Trying to use a different placed card while battlecry is pending
+      return { valid: false, error: "must-attack-taunt" }; // Reusing error code
+    }
   }
 
   // Minions must be placed on the board (not directly targeted)
@@ -185,9 +262,26 @@ export function canTargetHighlight(
     return targetType === "lane" && targetPlayerID === currentPlayer;
   }
 
-  // Placed cards that already attacked can't target anything
-  if (activeCard.isPlaced && activeCard.hasAttacked) {
+  // Check if this is a battlecry minion
+  const isBattlecryMinion =
+    gameState?.activeBattlecryMinion?.cardId === activeCard.id;
+
+  // Placed cards that already attacked can't target anything (unless battlecry)
+  if (activeCard.isPlaced && activeCard.hasAttacked && !isBattlecryMinion) {
     return false;
+  }
+
+  // For battlecry minions, use battlecryTargets for validation
+  if (isBattlecryMinion) {
+    const isValidType = isValidTargetTypeForBattlecry(
+      activeCard,
+      targetType,
+      targetPlayerID,
+      currentPlayer,
+    );
+
+    // Battlecries bypass taunt, so return immediately
+    return isValidType;
   }
 
   // Check basic target type validity

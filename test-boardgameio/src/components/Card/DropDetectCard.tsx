@@ -23,9 +23,13 @@ const MinionCard = ({ card, playerID, ctx }: Props) => {
   const endAttack = useDragStore((s) => s.endAttack);
   const attackingCardId = useDragStore((s) => s.attackingCardId);
   const activeAnimations = useAnimationStore((s) => s.activeAnimations);
+  const gameState = useDragStore((s) => s.gameState);
 
   const isAttackingWithArrow = attackingCardId === card.id;
-  const disabled = card.hasAttacked; // Can't attack if already attacked
+  const disabled = card.hasAttacked && !gameState?.activeBattlecryMinion; // Can't attack if already attacked (unless battlecry)
+  const isBattlecryMinion =
+    gameState?.activeBattlecryMinion?.cardId === card.id;
+  const prevIsBattlecryRef = useRef(isBattlecryMinion);
 
   // Check if this card is performing an attack animation
   const attackAnimation = activeAnimations.find(
@@ -83,7 +87,7 @@ const MinionCard = ({ card, playerID, ctx }: Props) => {
   const targetPosition = getTargetPosition();
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (disabled) return;
+    if (disabled && !isBattlecryMinion) return;
 
     // Get card center position
     const rect = wrapperRef.current?.getBoundingClientRect();
@@ -96,6 +100,56 @@ const MinionCard = ({ card, playerID, ctx }: Props) => {
 
     startAttack(card.id, origin, card);
   };
+
+  // Auto-trigger attack mode for battlecry minions
+  useEffect(() => {
+    if (
+      isBattlecryMinion &&
+      !isAttackingWithArrow &&
+      playerID === ctx.currentPlayer
+    ) {
+      console.log("Auto-triggering battlecry attack for:", card.id);
+      const rect = wrapperRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const origin = {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      };
+
+      startAttack(card.id, origin, card);
+    }
+  }, [
+    isBattlecryMinion,
+    isAttackingWithArrow,
+    card.id,
+    playerID,
+    ctx.currentPlayer,
+    startAttack,
+    card,
+  ]);
+
+  // Clear attack arrow when battlecry is resolved or cancelled
+  useEffect(() => {
+    // If this card was the battlecry minion and now it's not, clear the attack
+    const wasBattlecry = prevIsBattlecryRef.current;
+    prevIsBattlecryRef.current = isBattlecryMinion;
+    if (
+      isAttackingWithArrow &&
+      wasBattlecry &&
+      !isBattlecryMinion &&
+      attackingCardId === card.id
+    ) {
+      console.log("Battlecry resolved, clearing attack arrow for:", card.id);
+      endAttack();
+    }
+  }, [
+    isBattlecryMinion,
+    isAttackingWithArrow,
+    attackingCardId,
+    card.id,
+    endAttack,
+  ]);
 
   useEffect(() => {
     if (!isAttackingWithArrow) return;
