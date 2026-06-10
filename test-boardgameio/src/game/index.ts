@@ -7,6 +7,7 @@ import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
 import { validateMove } from "@/utils/validateMove";
 import type { CardTemplateKey } from "@/utils/cards";
 import { enumerateAIMoves } from "./ai";
+import { premadeDecks } from "@/utils/decks";
 
 // Helper function to record game events
 function recordEvent(G: GameState, event: GameEvent) {
@@ -67,7 +68,7 @@ const p1: Player = {
   armor: 0,
   mana: 10,
   hand: [],
-  deck: shuffleDeck(createDeck(20)),
+  deck: shuffleDeck(randomPremadeDeck()),
 };
 
 const placeCard: Move<GameState> = (
@@ -572,16 +573,22 @@ const doEffects = (
         }
         break;
       case "summon":
+        // check if the board can fit the summoned card
+        if (G.board[ctx.currentPlayer].length >= 7) {
+          console.warn("Cannot summon more than 7 cards on the board");
+          break; // Cannot summon more than 7 cards on the board
+        }
         const summonedCard = createCardFromID(effect.cardID as CardTemplateKey);
         if (summonedCard) {
           summonedCard.isPlaced = true; // Mark the summoned card as placed
           summonedCard.hasAttacked = true; // Reset attack status for summoned cards
           summonedCard.summoningSickness = true; // Summoned minions have summoning sickness
-          // check if the board can fit the summoned card
-          if (G.board[ctx.currentPlayer].length >= 7) {
-            console.warn("Cannot summon more than 7 cards on the board");
-            break; // Cannot summon more than 7 cards on the board
-          }
+          recordEvent(G, {
+            type: "summon",
+            cardId: summonedCard.id,
+            playerId: ctx.currentPlayer,
+            timestamp: Date.now(),
+          });
           G.board[ctx.currentPlayer].push(summonedCard);
         } else {
           console.warn(`Card with ID ${effect.cardID} not found.`);
@@ -624,6 +631,30 @@ function handleDrawCard(G: GameState, ctx: Ctx, playerID?: PlayerID) {
   }
 }
 
+function randomPremadeDeck() {
+  return createDeckFromPremadeDeck(
+    premadeDecks[Math.floor(Math.random() * premadeDecks.length)].deckString,
+  );
+}
+
+function createDeckFromPremadeDeck(
+  premadeDeck: Record<string, number>,
+): Card[] {
+  const deck: Card[] = [];
+  for (const cardId in premadeDeck) {
+    const count = premadeDeck[cardId];
+    for (let i = 0; i < count; i++) {
+      const card = createCardFromID(cardId as CardTemplateKey);
+      if (card) {
+        deck.push(card);
+      } else {
+        console.warn(`Card with ID ${cardId} not found.`);
+      }
+    }
+  }
+  return deck;
+}
+
 export const HeathStoneGame: Game<GameState> = {
   name: "hearthstone",
   setup: setupData,
@@ -646,18 +677,7 @@ export const HeathStoneGame: Game<GameState> = {
         setDeck({ G, ctx }, playerID: PlayerID, deck: Record<string, number>) {
           const player = G.players[playerID];
           if (player) {
-            const finalDeck: Card[] = [];
-            for (const cardId in deck) {
-              const count = deck[cardId];
-              for (let i = 0; i < count; i++) {
-                const card = createCardFromID(cardId as CardTemplateKey);
-                if (card) {
-                  finalDeck.push(card);
-                } else {
-                  console.warn(`Card with ID ${cardId} not found.`);
-                }
-              }
-            }
+            const finalDeck = createDeckFromPremadeDeck(deck);
             player.deck = shuffleDeck(finalDeck);
             ctx.turn = 0; // Reset turn count when decks are set
           } else {

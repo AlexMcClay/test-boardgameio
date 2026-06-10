@@ -19,8 +19,8 @@ class FastMCTSBot extends MCTSBot {
   constructor(config: any) {
     super({
       ...config,
-      iterations: 50, // Your custom iterations count
-      playoutDepth: 10, // Your custom depth
+      iterations: 80, // Your custom iterations count
+      playoutDepth: 15, // Your custom depth
       enumerate: enumerateAIMoves,
       game: HeathStoneGame,
     });

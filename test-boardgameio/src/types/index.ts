@@ -134,8 +134,16 @@ export type GameEvent =
   | HealEvent
   | DeathEvent
   | MinionPlacedEvent
+  | SummonEvent
   | EndTurnEvent
   | SpellEvent;
+
+export type SummonEvent = {
+  type: "summon";
+  cardId: string;
+  playerId: PlayerID;
+  timestamp: number;
+};
 
 export type SpellEvent = {
   type: "spellCast";
