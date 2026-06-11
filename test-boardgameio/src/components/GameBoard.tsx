@@ -21,7 +21,7 @@ import HitNumbers from "./HitNumbers";
 
 interface Props extends BoardProps<GameState> {}
 
-const backgroundImage = "assets/wood.jpg"; // Path to your background image
+const backgroundImage = "assets/board.png"; // Path to your background image
 
 const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   const activeCard = useDragStore((state) => state.activeCard);
@@ -264,25 +264,33 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
 
   return (
     <div
-      className="w-screen h-screen bg-[#1c1e22] flex items-center justify-center overflow-hidden relative"
+      className="w-screen h-screen  flex items-center justify-center overflow-hidden relative"
       style={{
-        backgroundImage: `url(${backgroundImage})`,
+        // backgroundImage: `url(${backgroundImage})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         // filter: "brightness(0.2)",
         // darken background with filter
         backgroundBlendMode: "multiply",
-        backgroundColor: "#00000099",
       }}
     >
-      <div className="aspect-[16/9] w-full max-h-screen  flex flex-col text-white px-6 py-4 gap-2">
+      <div
+        className="aspect-[16/9] w-full max-h-screen  flex flex-col text-white px-6 py-4 gap-2"
+        style={{
+          backgroundImage: `url(${backgroundImage})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          // filter: "brightness(0.2)",
+          // darken background with filter
+        }}
+      >
         <DndContext
           onDragEnd={handleDragEnd}
           onDragOver={handleDragOver}
           onDragStart={handleDragStart}
         >
           {/* Player 1 Hand */}
-          <div className="h-1/4 flex flex-col justify-end">
+          <div className=" absolute w-full h-1/4 flex flex-col justify-end">
             <PlayerArea
               moves={moves}
               player={p1}
@@ -295,7 +303,12 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           </div>
 
           {/* Board Area */}
-          <div className="flex flex-col gap-2 items-center justify-center h-[50%] border-y-4 bg border-yellow-800 py-2">
+          <div
+            className="absolute left-0 w-full h-1/2 flex flex-col gap-2 items-center justify-center py-2"
+            style={{
+              top: "calc(25% - 27px)",
+            }}
+          >
             {/* Player 1 Board */}
             <Lane playerID="1">
               {board1.map((card) => (
@@ -320,14 +333,16 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           </div>
 
           {/* Player 0 Hand */}
-          <PlayerArea
-            player={p0}
-            G={G}
-            ctx={ctx}
-            {...props}
-            moves={moves}
-            playerID="0"
-          />
+          <div className="absolute bottom-0 w-full h-1/4 flex flex-col justify-start">
+            <PlayerArea
+              player={p0}
+              G={G}
+              ctx={ctx}
+              {...props}
+              moves={moves}
+              playerID="0"
+            />
+          </div>
           <DragOverlay>
             {activeCard && !activeCard.isPlaced ? (
               <Card

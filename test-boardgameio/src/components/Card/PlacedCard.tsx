@@ -50,7 +50,7 @@ const PlacedCard = ({
       }
       className={twMerge(
         // 1. Turned the card chassis into a distinctive Hearthstone Minion Oval
-        "w-[130px] h-[175px] relative rounded-[50%/50%] flex flex-col items-center justify-center font-serif text-white",
+        "w-[116px] h-[157px] relative rounded-[50%/50%] flex flex-col items-center justify-center font-serif text-white",
       )}
     >
       {/* Card Art - Clipped tightly inside the oval frame */}

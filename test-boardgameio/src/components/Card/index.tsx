@@ -171,7 +171,7 @@ const Card = ({
       </div>
       {/* Description */}
       {/* Highlight Keywords Charge, Taunt, Battlecry */}
-      <div className="select-none text-[11px] w-full relative text-black px-4 py-2 pt-3 grow mb-1  text-center font-medium ">
+      <div className="select-none text-[11px] w-full relative text-black px-4.5 py-2 pt-3 grow mb-1  text-center font-medium ">
         <span className="" dangerouslySetInnerHTML={{ __html: text }} />
       </div>
 

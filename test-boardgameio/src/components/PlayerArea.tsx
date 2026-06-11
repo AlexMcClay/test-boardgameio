@@ -4,6 +4,7 @@ import type { PlayerID } from "boardgame.io";
 import type { BoardProps } from "boardgame.io/dist/types/packages/react";
 import HeroSection from "./HeroSection";
 import HandCard from "./Card/HandCard";
+import { twMerge } from "tailwind-merge";
 
 interface Props extends BoardProps<GameState> {
   isTop?: boolean; // true for player 1, false or undefined for player 0
@@ -32,7 +33,7 @@ const PlayerArea = ({
   const { hand, deck } = player;
   return (
     <div
-      className={`grid grid-cols-3 justify-between items-${isTop ? "end" : "start"} `}
+      className={`grid grid-cols-3 h-full justify-between items-${isTop ? "end" : "start"} `}
     >
       {/* HERO STATS */}
       <HeroSection
@@ -46,12 +47,13 @@ const PlayerArea = ({
         {...props}
       />
 
+      {/* HAND CARDS */}
       <div
-        className="flex relative self-center justify-center w-full"
-        style={{
-          height: "180px",
-          marginBottom: isTop ? "40px" : "0",
-        }}
+        className={twMerge(
+          "flex relative self-center justify-center w-full ",
+          !isTop && "translate-y-[35%]",
+          isTop && "translate-y-[-70%]",
+        )}
       >
         {hand.map((card, idx) => {
           return (

@@ -26,10 +26,14 @@ const Lane = ({ children, playerID }: Props) => {
     <div
       ref={setNodeRef}
       className={twMerge(
-        `flex justify-center items-center gap-4 h-1/2 w-4/5  bg-black/40  relative`,
+        `flex justify-center items-center gap-4  bg-black/40  relative`,
         isOver && "ring-2 ring-yellow-300",
         isValid && "ring-2 ring-yellow-400 bg-yellow-400/10",
       )}
+      style={{
+        height: "calc(36%)", // Adjust height to account for gap
+        width: "calc(55%)", // Adjust width to account for gap
+      }}
     >
       <AnimatePresence initial={false}>{children}</AnimatePresence>
     </div>
