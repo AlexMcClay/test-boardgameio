@@ -97,6 +97,7 @@ const Card = ({
           ctx.currentPlayer === playerID &&
           "ring-green-500 ring-2 shadow-green-400  shadow-[0px_0px_20px_rgba(0,0,0,0.5)]",
         card.taunt && "border-gray-500",
+        isDragging && "cursor-grabbing dragging-card scale-110",
       )}
     >
       {/* Art */}
@@ -119,18 +120,18 @@ const Card = ({
 
       {/* Mana Crystal */}
       {card.mana !== null && card.mana !== undefined && (
-        <div className=" select-none absolute text-lg top-[-0.7rem] left-[-0.7rem]  w-8 h-8 flex items-center justify-center font-bold  shadow-md z-10">
+        <div className=" select-none absolute text-lg top-[-0.7rem] left-[-0.7rem]  w-8 h-8 flex items-center justify-center font-bold  shadow-md z-10 ">
           <img
             src={mana_crystal}
             alt="Card Back"
-            className="object-cover w-full h-full absolute scale-100"
+            className="object-cover w-full h-full absolute scale-100 brightness-90"
             // no drag
             draggable="false"
           />
           <span
-            className="relative z-20 text-xl font-extrabold"
+            className="relative z-20 text-xl font-extrabold font-belwe  scale-160 translate-y-[-10%] translate-x-[-5%]"
             style={{
-              WebkitTextStroke: "1px black",
+              WebkitTextStroke: "0.5px black",
               textShadow: "0 1px 0px black",
             }}
           >
@@ -183,6 +184,7 @@ const Card = ({
               WebkitTextStroke: "0.5px black",
               textShadow: "0 1px 0px black",
             }}
+            className="relative z-10 font-belwe  scale-130  translate-y-[-5%] translate-x-[-5%]"
           >
             {card.type}
           </span>
@@ -206,7 +208,7 @@ const Card = ({
                   WebkitTextStroke: "0.5px black",
                   textShadow: "0 1px 0px black",
                 }}
-                className="absolute"
+                className="absolute font-belwe  scale-130  translate-y-[-5%] translate-x-[-20%]"
               >
                 {card.attack}
               </span>
@@ -226,7 +228,7 @@ const Card = ({
                   WebkitTextStroke: "0.5px black",
                   textShadow: "0 1px 0px black",
                 }}
-                className="absolute"
+                className="absolute font-belwe  scale-140 translate-y-[-10%] translate-x-[-20%]"
               >
                 {card.health}
               </span>

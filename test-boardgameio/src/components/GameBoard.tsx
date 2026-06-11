@@ -18,6 +18,7 @@ import { validateMove } from "@/utils/validateMove";
 import { detectAllAnimations } from "@/utils/detectAnimations";
 import AttackArrow from "./AttackArrow";
 import HitNumbers from "./HitNumbers";
+import { motion } from "motion/react";
 
 interface Props extends BoardProps<GameState> {}
 
@@ -306,7 +307,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           <div
             className="absolute left-0 w-full h-1/2 flex flex-col gap-2 items-center justify-center py-2"
             style={{
-              top: "calc(25% - 27px)",
+              top: "calc(22.2%)",
             }}
           >
             {/* Player 1 Board */}

@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import DragCard from "./DragCard";
-import type { Card } from "@/types";
+import type { Card, Player } from "@/types";
 import type { Ctx } from "boardgame.io";
+import { twMerge } from "tailwind-merge";
 
 type Props = {
   size: number; // Array of cards in hand
@@ -9,9 +10,10 @@ type Props = {
   isTop?: boolean; // Whether the player is on top (for styling)
   card: Card;
   ctx: Ctx;
+  player: Player;
 };
 
-const HandCard = ({ size, index, isTop, card, ctx }: Props) => {
+const HandCard = ({ size, index, isTop, card, ctx, player }: Props) => {
   const [isHovered, setIsHovered] = useState(false);
 
   // Calculate the angle for fanning
@@ -29,7 +31,15 @@ const HandCard = ({ size, index, isTop, card, ctx }: Props) => {
   return (
     <div
       key={`${isTop ? "p1" : "p0"}-hand-${card.id}`}
-      className="relative transition-all duration-300 ease-in-out hover:scale-110 hover:z-50"
+      className={twMerge(
+        "relative transition-all duration-300 ease-in-out hover:z-50",
+        player.mana >= (card?.mana ?? 0) && ctx.currentPlayer === player.id
+          ? "canPlayCard"
+          : "",
+        isHovered ? "z-50  scale-[200%] self-center justify-center" : "",
+        isHovered && isTop ? "translate-y-[120%]" : "",
+        isHovered && !isTop ? "translate-y-[-100%]" : "",
+      )}
       style={{
         marginLeft: index > 0 ? `-${size * 9}px` : "0",
         zIndex: index + 1,

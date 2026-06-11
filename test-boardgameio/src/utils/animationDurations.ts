@@ -11,5 +11,5 @@ export const DEATH_ANIMATION: AnimationData = {
 };
 
 export const HIT_NUMBER_ANIMATION: AnimationData = {
-  duration: 800,
+  duration: 400,
 };

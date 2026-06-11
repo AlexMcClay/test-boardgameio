@@ -11,7 +11,6 @@ interface Props extends BoardProps<GameState> {
   playerID: PlayerID; // Added playerID to match the Board component
 }
 
-const mana_crystal = "assets/mana.png";
 const healthIcon = "assets/health.png";
 
 const HeroSection = ({
@@ -37,56 +36,86 @@ const HeroSection = ({
 
   const heroPortrait = player.heroPortrait || "src/assets/default-hero.jpg";
 
+  const archClipPath = `polygon(
+    0% 100%, 
+    0% 50%, 
+    3% 40%, 
+    6% 32%, 
+    12% 24%, 
+    22% 16%, 
+    36% 8%, 
+    50% 1%, 
+    64% 8%, 
+    78% 16%, 
+    88% 24%,
+    94% 32%,
+    97% 40%, 
+    100% 50%, 
+    100% 100%
+  )`;
+
   return (
     <div
       ref={setNodeRef}
       id="player-stats"
       data-player-id={playerID}
       className={twMerge(
-        `relative flex items-center gap-4 overflow-visible min-w-[160px]`,
-        isOver && "ring-2 ring-yellow-300",
-        isValid && "ring-4 ring-yellow-400 shadow-xl shadow-yellow-400/50",
+        // 1. Set a percentage width, use aspect-square to guarantee a perfect 1:1 box
+        `flex items-center w-[7%]  pointer-events-auto relative transition-all duration-100 no-shadow`,
+        (isOver || isValid) && "highlight-shadow ",
       )}
-      style={{ minHeight: "150px" }}
+      style={{
+        aspectRatio: "1 / 1.06", // Ensure the container is always a square
+      }}
     >
-      {/* Hero Portrait with overlayed stats */}
-      <div className="relative w-44 h-44">
+      <div
+        className="relative h-full w-full overflow-hidden"
+        style={{ clipPath: archClipPath }}
+      >
+        {/* The Hero Image */}
         <img
           src={heroPortrait}
           alt={`${player.name} portrait`}
-          className="w-44 h-44 rounded-full border-4 border-gray-300 object-cover shadow-lg"
+          className="h-full w-full object-cover opacity-100"
           draggable="false"
         />
+
+        {/* Conforming Inset Shadow Overlay */}
+        <div
+          className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-100 border border-black"
+          style={{
+            boxShadow: "inset 0px 0px 20px 8px rgba(0, 0, 0, 1)",
+            clipPath: archClipPath,
+          }}
+        />
+
+        {/* Top Arc Inset Shadow Correction (Enhances darkness at the very top curve) */}
+        <div
+          className="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/80 via-transparent to-transparent"
+          style={{ clipPath: archClipPath }}
+        />
       </div>
-      {/* Name */}
-      <div className="flex flex-col gap-2">
-        <div className="text-xl font-bold whitespace-nowrap">{player.name}</div>
-        <div className="flex items-center bg-black/70 px-2 py-1 rounded-lg">
-          <img
-            src={healthIcon}
-            alt="HP"
-            className="w-7 h-7 object-contain mr-2"
-            draggable="false"
-          />
-          <span className="font-semibold text-white">{player.hp}</span>
-          <span className="text-gray-300 ml-1">/ {player.maxHp}</span>
-        </div>
-        <div className="flex items-center bg-blue-900/70 px-2 py-1 rounded-lg">
-          <img
-            src={mana_crystal}
-            alt="Mana"
-            className="w-6 h-6 object-contain mr-2"
-            draggable="false"
-          />
-          <span className="font-semibold text-blue-200">{player.mana}</span>
-          <span className="text-gray-300 ml-1">/ {G.maxMana}</span>
-        </div>
+      {/* Health */}
+      <div className="absolute bottom-[-10%] right-[-20%] z-30 w-[40%] aspect-square flex items-center justify-center">
+        {/* The Health Icon - Now fits perfectly as the structural background */}
+        <img
+          src={healthIcon}
+          alt="HP"
+          className="w-full h-full object-contain  inset-0"
+          draggable="false"
+        />
+
+        {/* The HP Text - Centers perfectly without needing complex math transforms */}
+        <span
+          className="text-red-500 z-10 text-[175%] absolute font-extrabold  text-center leading-none font-belwe  scale-140  "
+          style={{
+            WebkitTextStroke: "1px black",
+            textShadow: "0 1px 0px black",
+          }}
+        >
+          {player.hp}
+        </span>
       </div>
-      {ctx.currentPlayer === playerID && (
-        <div className="flex items-center bg-blue-800/70 px-2 py-1 rounded-lg">
-          Active Player
-        </div>
-      )}
     </div>
   );
 };

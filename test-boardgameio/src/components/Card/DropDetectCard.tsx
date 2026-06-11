@@ -241,11 +241,7 @@ const DropDetectCard = (props: Props) => {
       key={props.card.id}
       ref={setNodeRef}
       layoutId={`drop-${props.card.id}`}
-      className={twMerge(
-        isOver && "ring-2 ring-yellow-300",
-        isValid &&
-          "ring-yellow-500 rounded-2xl ring-2 shadow-yellow-400  shadow-[0px_0px_20px_rgba(0,0,0,0.5)]",
-      )}
+      className={twMerge("minion-shadow")}
       exit={{
         opacity: [1, 1, 0], // Stays fully visible during the shake, then vanishes quickly
         rotate: [0, -5, 5, -5, 5, 20], // Shakes back and forth rapidly before spinning away
@@ -257,7 +253,9 @@ const DropDetectCard = (props: Props) => {
         },
       }}
     >
-      <MinionCard {...props} />
+      <div className={twMerge((isOver || isValid) && "highlight-shadow ")}>
+        <MinionCard {...props} />
+      </div>
     </motion.div>
   );
 };

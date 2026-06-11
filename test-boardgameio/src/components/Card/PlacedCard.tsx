@@ -150,7 +150,7 @@ const PlacedCard = ({
                   WebkitTextStroke: "0.5px black",
                   textShadow: "0 1px 0px black",
                 }}
-                className="absolute"
+                className="absolute font-belwe  scale-140 translate-y-[-4%] translate-x-[-20%]"
               >
                 {card.attack}
               </span>
@@ -170,7 +170,7 @@ const PlacedCard = ({
                   WebkitTextStroke: "0.5px black",
                   textShadow: "0 1px 0px black",
                 }}
-                className="absolute"
+                className="absolute font-belwe  scale-130 translate-y-[-4%] translate-x-[-20%]"
               >
                 {card.health}
               </span>

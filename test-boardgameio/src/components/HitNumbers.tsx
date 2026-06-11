@@ -131,18 +131,19 @@ const HitNumber = ({ x, y, value, damageType }: HitNumberProps) => {
     <motion.div
       initial={{
         opacity: 1,
-        scale: 0.5,
-        x: x,
-        y: y,
+        scale: 0.7,
+        x: `calc(${x}px - 50%)`, // Start slightly left of the target
+        y: `calc(${y}px - 50%)`, // Start slightly above the target,
       }}
       animate={{
-        opacity: [1, 1, 1, 0],
-        scale: [0.5, 1.3, 1.2, 1.2],
-        y: y - 80,
+        opacity: [1, 1, 1, 1, 1, 1, 1, 1, 0],
+        scale: [0.8, 1.3, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2],
+        y: `calc(${y}px - 50%)`, // Start slightly above the target,
+        x: `calc(${x}px - 50%)`, // Start slightly left of the target
       }}
       exit={{ opacity: 0 }}
       transition={{
-        duration: 0.8,
+        duration: 1.5,
         ease: "easeOut",
       }}
       className="absolute"
@@ -169,8 +170,8 @@ const HitNumber = ({ x, y, value, damageType }: HitNumberProps) => {
 
         {/* Number Text */}
         <motion.div
-          initial={{ scale: 0.5 }}
-          animate={{ scale: [0.5, 1.2, 1] }}
+          initial={{ scale: 0.7 }}
+          animate={{ scale: [0.7, 1.2, 1] }}
           transition={{ duration: 0.2, ease: "easeOut" }}
           className={`relative z-10 font-black text-4xl pointer-events-none select-none -top-1 -left-1 ${
             isDamage ? "text-white" : "text-green-500"
