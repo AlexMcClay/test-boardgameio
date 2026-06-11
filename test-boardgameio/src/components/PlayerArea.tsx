@@ -1,9 +1,7 @@
-import Card from "./Card";
 import type { GameState, Player } from "@/types";
 import type { PlayerID } from "boardgame.io";
 import type { BoardProps } from "boardgame.io/dist/types/packages/react";
 import HeroSection from "./HeroSection";
-import HandCard from "./Card/HandCard";
 import { twMerge } from "tailwind-merge";
 import PlayerHand from "./PlayerHand";
 

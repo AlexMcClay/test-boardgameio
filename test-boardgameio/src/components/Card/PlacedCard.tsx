@@ -50,7 +50,7 @@ const PlacedCard = ({
       }
       className={twMerge(
         // 1. Turned the card chassis into a distinctive Hearthstone Minion Oval
-        "w-[116px] h-[157px] relative rounded-[50%/50%] flex flex-col items-center justify-center font-serif text-white",
+        "w-[6.15vw] h-[8.32vw] relative rounded-[50%/50%] flex flex-col items-center justify-center font-serif text-white",
       )}
     >
       {/* Card Art - Clipped tightly inside the oval frame */}
@@ -132,7 +132,7 @@ const PlacedCard = ({
       {(card.attack !== undefined || card.health !== undefined) && (
         <>
           {card.attack !== undefined && (
-            <div className="absolute select-none left-[0.75rem] -bottom-[-1rem]  rounded-full w-8 h-8 flex items-center justify-center text-xl font-bold shadow-lg">
+            <div className="absolute select-none text-[1.1vw] left-[0.5vw] bottom-[0.6vw]  rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center font-bold shadow-lg">
               <img
                 src={attackIcon}
                 alt="Card Back"
@@ -145,18 +145,18 @@ const PlacedCard = ({
                   WebkitTextStroke: "0.5px black",
                   textShadow: "0 1px 0px black",
                 }}
-                className="absolute font-belwe  scale-140 translate-y-[-4%] translate-x-[-20%]"
+                className="absolute font-belwe   scale-130  translate-y-[-5%] translate-x-[-5%]"
               >
                 {card.attack}
               </span>
             </div>
           )}
           {card.health !== undefined && (
-            <div className="absolute select-none right-[0.5rem] -bottom-[-1rem] rounded-full w-8 h-8 flex items-center justify-center text-xl font-bold  shadow-lg">
+            <div className="absolute select-none text-[1.1vw] right-[0.3vw] bottom-[0.5vw]  rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center font-bold  shadow-lg">
               <img
                 src={healthIcon}
                 alt="Card Back"
-                className=" object-contain w-full h-full absolute scale-130  bottom-1"
+                className=" object-contain w-full h-full absolute scale-130  bottom-[0.25vw]"
                 // no drag
                 draggable="false"
               />
@@ -165,7 +165,7 @@ const PlacedCard = ({
                   WebkitTextStroke: "0.5px black",
                   textShadow: "0 1px 0px black",
                 }}
-                className="absolute font-belwe  scale-130 translate-y-[-4%] translate-x-[-20%]"
+                className="absolute font-belwe  scale-140 translate-y-[-5%] translate-x-[4%]"
               >
                 {card.health}
               </span>
