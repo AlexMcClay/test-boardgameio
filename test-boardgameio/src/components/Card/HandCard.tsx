@@ -41,15 +41,26 @@ const HandCard = ({
     };
   }, [card.id, onCardRef]);
 
+  // Only fan if more than 3 cards
+  const shouldFan = size > 3;
+
   // Calculate the angle for fanning
   const maxFanAngle = 30; // degrees, total spread
   const angleStep = size > 1 ? maxFanAngle / (size - 1) : 0;
-  const angle = -maxFanAngle / 2 + index * angleStep;
+  const baseAngle = -maxFanAngle / 2 + index * angleStep;
+  // Reverse angle direction for top player
+  const angle = shouldFan ? (isTop ? -baseAngle : baseAngle) : 0;
 
-  // Calculate vertical offset for fanning
-  const verticalOffset = 10; // Adjust this value for how much the cards should be pushed down
-  const middle = Math.floor(size / 2);
-  const translateY = size > 1 ? Math.abs(middle - index) * verticalOffset : 0;
+  // Calculate vertical offset for arch effect
+  const verticalOffset = 15 - size; // Adjust this value for how much the cards should be pushed down
+  const middle = (size - 1) / 2; // Use floating point for smooth arch
+  const distanceFromCenter = Math.abs(middle - index);
+  const translateY = shouldFan ? distanceFromCenter * verticalOffset : 0;
+
+  // Calculate overlap - more cards = more overlap
+  const baseOverlap = 40;
+  const additionalOverlap = Math.max(0, (size - 4) * (25 - size * 1.4)); // Extra overlap for hands > 4 cards
+  const totalOverlap = baseOverlap + additionalOverlap;
 
   return (
     <div
@@ -64,11 +75,11 @@ const HandCard = ({
         isHovered && !isTop ? "translate-y-[-100%]" : "",
       )}
       style={{
-        marginLeft: index > 0 ? `-${size * 9}px` : "0",
+        marginLeft: index > 0 ? `-${(totalOverlap / 100) * 5.2}vw` : "0",
         zIndex: isHovered ? 999 : index + 1,
-        // transform: isHovered
-        //   ? "none"
-        //   : `rotate(${angle}deg) translateY(${isTop ? -translateY : translateY}px)`,
+        transform: isHovered
+          ? "none"
+          : `rotate(${angle}deg) translateY(${isTop ? -translateY : translateY}px)`,
       }}
       onMouseEnter={(e) => {
         if (cardRef.current) {

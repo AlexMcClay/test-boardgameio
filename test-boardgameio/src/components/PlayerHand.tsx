@@ -113,8 +113,8 @@ const PlayerHand = ({ isTop, G, ctx, player }: Props) => {
     <div
       className={twMerge(
         "flex absolute self-center justify-center w-full z-50 ",
-        !isTop && "translate-y-[45%]",
-        isTop && "translate-y-[-70%]",
+        !isTop && "translate-y-[44%] translate-x-[-1%]",
+        isTop && "translate-y-[-70%] translate-x-[-2%]",
       )}
     >
       {player.hand.map((card, idx) => {

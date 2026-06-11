@@ -59,7 +59,12 @@ const PlayerArea = ({
       />
 
       {/* Mana */}
-      <div className="absolute z-10 top-[53.5%] left-[63vw] flex items-center pointer-events-none">
+      <div
+        className={twMerge(
+          "absolute z-10 top-[53.5%] left-[63vw] flex items-center pointer-events-none ",
+          isTop && "top-[24.5%] left-[61vw]",
+        )}
+      >
         <div
           className="flex items-center justify-center bg-blue-900/50 px-[0.5vw] py-[0.1vw] rounded-full w-[4.5vw] text-center"
           title={`${player.mana} / ${G.maxMana} Mana`}
