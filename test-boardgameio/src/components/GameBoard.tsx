@@ -18,6 +18,7 @@ import { validateMove } from "@/utils/validateMove";
 import { detectAllAnimations } from "@/utils/detectAnimations";
 import AttackArrow from "./AttackArrow";
 import HitNumbers from "./HitNumbers";
+import { pointerWithSmallBuffer } from "@/utils/customCollisionDetection";
 
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
 
@@ -315,6 +316,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           onDragEnd={handleDragEnd}
           onDragOver={handleDragOver}
           onDragStart={handleDragStart}
+          collisionDetection={pointerWithSmallBuffer}
         >
           {/* Player 1 Hand */}
           <div className=" absolute w-full h-1/4 flex flex-col justify-end">
