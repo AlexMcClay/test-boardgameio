@@ -369,7 +369,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
                   style={{
                     left: "0",
                     top: "0",
-                    transform: `rotateY(-72deg) rotateX(0deg) rotateZ(90deg) translateZ(${idx * 4}px)`,
+                    transform: `rotateY(-72deg) rotateX(-2deg) rotateZ(90deg) translateZ(${idx * 4}px)`,
                     transformOrigin: "center center",
 
                     // --- THE NEW FIXED COMPONENT CLIP ---
