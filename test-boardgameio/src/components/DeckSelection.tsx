@@ -91,16 +91,16 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
         </div>
       </div>
 
-      <div className="flex gap-[2vw] p-[1.5vw] overflow-hidden">
+      <div className="flex gap-[2vw] p-[1.5vw] overflow-hidden justify-center">
         {/* Left Panel - Card Collection */}
-        <div className="flex flex-col w-[80%] bg-[#2a1c12]/80 rounded-lg shadow-lg p-[1vw] overflow-hidden">
+        <div className="flex flex-col w-[60%] bg-[#2a1c12]/80 rounded-lg shadow-lg p-[1vw] px-[0.5vw] overflow-hidden">
           <div>
             <h2 className="text-[1.25vw] text-amber-300">Card Collection</h2>
             <p className="text-[0.8vw] text-amber-200">
               Left click to add • Right click to remove
             </p>
           </div>
-          <div className="card-grid flex flex-wrap gap-[1vw] p-[1vw] overflow-y-auto">
+          <div className="card-grid grid grid-cols-4 gap-[1.75vw] gap-y-[4vw] p-[1vw] overflow-y-auto items-center justify-center overflow-x-hidden">
             {Object.entries(cardTemplates)
               .sort((a, b) => {
                 // sort by mana cost, then by name
@@ -111,7 +111,7 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
               )
               .map(([id, card]) => (
                 <div
-                  className=" cursor-pointer z-10 transition-transform duration-200 hover:scale-105"
+                  className="cursor-pointer z-10 transition-transform duration-200 hover:scale-105"
                   key={id}
                   onClick={() => {
                     const currentCount = deck[id as CardTemplateKey] || 0;
@@ -128,21 +128,23 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
                   }}
                 >
                   <div
-                    className={` relative transition-all ease-in  ${deck[id as CardTemplateKey] ? "card-selected" : ""}`}
+                    className={` w-[11.7vw] aspect-[5/7] items-center justify-center relative transition-all ease-in  ${deck[id as CardTemplateKey] ? "card-selected" : ""}`}
                   >
-                    <Card
-                      key={id}
-                      card={{ ...card, id }}
-                      back={false}
-                      isDragging={false}
-                      ctx={ctx}
-                    />
-                    {deck[id as CardTemplateKey] &&
-                      deck[id as CardTemplateKey]! > 0 && (
-                        <div className="bg-amber-300 absolute top-[-0.5vw] right-[-0.5vw]  text-[1vw]  font-bold rounded-full w-[1.25vw] h-[1.25vw] flex items-center justify-center">
-                          {deck[id as CardTemplateKey]}
-                        </div>
-                      )}
+                    <div className="scale-150 absolute origin-top-left">
+                      <Card
+                        key={id}
+                        card={{ ...card, id }}
+                        back={false}
+                        isDragging={false}
+                        ctx={ctx}
+                      />
+                      {deck[id as CardTemplateKey] &&
+                        deck[id as CardTemplateKey]! > 0 && (
+                          <div className="bg-amber-300 absolute top-[-0.5vw] right-[-0.5vw]  text-[1vw]  font-bold rounded-full w-[1.25vw] h-[1.25vw] flex items-center justify-center">
+                            {deck[id as CardTemplateKey]}
+                          </div>
+                        )}
+                    </div>
                   </div>
                 </div>
               ))}
