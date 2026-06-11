@@ -1,14 +1,16 @@
-import React, { useState } from "react";
-import DragCard from "./DragCard";
-import type { Card, Player } from "@/types";
+import { useState } from "react";
+import type { Card as CardType, Player } from "@/types";
 import type { Ctx } from "boardgame.io";
 import { twMerge } from "tailwind-merge";
+import { useDraggable } from "@dnd-kit/core";
+import type { CardProps } from "./types";
+import Card from ".";
 
 type Props = {
   size: number; // Array of cards in hand
   index: number; // Index of the card in the hand
   isTop?: boolean; // Whether the player is on top (for styling)
-  card: Card;
+  card: CardType;
   ctx: Ctx;
   player: Player;
 };
@@ -57,6 +59,36 @@ const HandCard = ({ size, index, isTop, card, ctx, player }: Props) => {
       }}
     >
       <DragCard card={card} ctx={ctx} />
+    </div>
+  );
+};
+
+interface DargCardProps extends CardProps {}
+
+const DragCard = (props: DargCardProps) => {
+  const disabled = props.card.isPlaced && props.card.hasAttacked; //
+
+  const { isDragging, setNodeRef, listeners, transform } = useDraggable({
+    id: `${props.card.id}`,
+    data: {
+      type: "card",
+      card: props.card,
+    },
+    disabled: disabled, // Disable dragging if the card has attacked or was just placed
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`${!disabled && "cursor-grab"} ${isDragging ? " cursor-grabbing" : ""}`}
+      style={{
+        opacity: isDragging ? 0 : 1, // Hide original when dragging
+
+        transition: "none",
+      }}
+      {...listeners}
+    >
+      <Card {...props} isDragging={isDragging} />
     </div>
   );
 };
