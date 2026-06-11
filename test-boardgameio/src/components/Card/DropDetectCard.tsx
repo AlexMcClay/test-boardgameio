@@ -108,7 +108,7 @@ const MinionCard = ({ card, playerID, ctx }: Props) => {
       !isAttackingWithArrow &&
       playerID === ctx.currentPlayer
     ) {
-      console.log("Auto-triggering battlecry attack for:", card.id);
+      // console.debug("Auto-triggering battlecry attack for:", card.id);
       const rect = wrapperRef.current?.getBoundingClientRect();
       if (!rect) return;
 
@@ -140,7 +140,7 @@ const MinionCard = ({ card, playerID, ctx }: Props) => {
       !isBattlecryMinion &&
       attackingCardId === card.id
     ) {
-      console.log("Battlecry resolved, clearing attack arrow for:", card.id);
+      // console.debug("Battlecry resolved, clearing attack arrow for:", card.id);
       endAttack();
     }
   }, [

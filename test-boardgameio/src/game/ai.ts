@@ -40,13 +40,14 @@ export function enumerateAIMoves(G: GameState, ctx: Ctx): AIMove[] {
   const attackMoves = enumerateAttacks(G, ctx);
   moves.push(...attackMoves);
 
-  // Always add endTurn as a fallback option with low priority
-  moves.push({
-    move: "endTurn",
-    args: [],
-    score: -100, // Very low priority - only use if no other moves available
-    description: "End turn",
-  });
+  if (moves.length === 0) {
+    moves.push({
+      move: "endTurn",
+      args: [],
+      score: -100, // Very low priority - only use if no other moves available
+      description: "End turn",
+    });
+  }
 
   // Score all moves and sort by score (highest first)
   const scoredMoves = moves.map((move) => ({
@@ -58,7 +59,6 @@ export function enumerateAIMoves(G: GameState, ctx: Ctx): AIMove[] {
   scoredMoves.sort((a, b) => b.score - a.score);
 
   // Return only top 10 moves to prevent infinite loops
-  // This ensures endTurn is always available if AI has no good moves
   // console.log("SCORE MOVES", scoredMoves);
   return scoredMoves.slice(0, 10);
 }
@@ -612,7 +612,21 @@ function evaluateEffect(
         const missingHp = player.maxHp - player.hp;
         score += Math.min(missingHp, effect.value) * 3;
       } else if (effect.target === "all-friendly") {
-        score += effect.value * 5; // Healing all is valuable
+        score += effect.value * (G.board[ctx.currentPlayer].length + 1) * 2; // Heal on multiple minions is good
+      } else if (effect.target === "user-select" && target) {
+        if (target.type === "player") {
+          const targetPlayer = G.players[target.player];
+          const missingHp = targetPlayer.maxHp - targetPlayer.hp;
+          score += Math.min(missingHp, effect.value) * 3;
+        } else if (target.type === "card") {
+          const targetCard = G.board[target.player].find(
+            (c) => c.id === target.id,
+          );
+          if (targetCard && targetCard.health && targetCard.maxHealth) {
+            const missingHealth = targetCard.maxHealth - targetCard.health;
+            score += Math.min(missingHealth, effect.value) * 3;
+          }
+        }
       }
       break;
 

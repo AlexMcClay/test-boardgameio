@@ -32,8 +32,6 @@ const HitNumbers = () => {
 
     if (newAnimations.length === 0) return; // No new animations to process
 
-    console.log("Processing NEW hit number animations:", newAnimations);
-
     // Calculate positions for new hit numbers only
     const newPositions: HitNumberPosition[] = newAnimations
       .map((anim) => {

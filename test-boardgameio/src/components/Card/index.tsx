@@ -100,11 +100,19 @@ const Card = ({
           <img
             src={mana_crystal}
             alt="Card Back"
-            className="object-cover w-full h-full absolute scale-130"
+            className="object-cover w-full h-full absolute scale-100"
             // no drag
             draggable="false"
           />
-          <span className="relative z-20">{card.mana}</span>
+          <span
+            className="relative z-20 text-xl font-extrabold"
+            style={{
+              WebkitTextStroke: "1px black",
+              textShadow: "0 1px 0px black",
+            }}
+          >
+            {card.mana}
+          </span>
         </div>
       )}
 

@@ -9,8 +9,9 @@ import { Client } from "boardgame.io/react";
 import { Local } from "boardgame.io/multiplayer";
 import Board from "@/components/Board";
 import { HeathStoneGame } from "./index";
-import { MCTSBot, RandomBot } from "boardgame.io/ai";
+import { MCTSBot } from "boardgame.io/ai";
 import { enumerateAIMoves } from "./ai";
+import type { State } from "boardgame.io";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -27,7 +28,14 @@ class FastMCTSBot extends MCTSBot {
   }
 
   // Override the internal play method to add a delay
-  async play(state: any, playerID: any) {
+  async play(state: State, playerID: any) {
+    const allPossibleOptions = enumerateAIMoves(state.G, state.ctx);
+
+    console.log(
+      `All available legal moves (${allPossibleOptions.length}):`,
+      allPossibleOptions,
+    );
+
     // 1. Let the original MCTS algorithm instantly calculate the best move
     const action = await super.play(state, playerID);
 
@@ -35,6 +43,7 @@ class FastMCTSBot extends MCTSBot {
     await delay(750);
 
     // 3. Return the move to boardgame.io to be executed
+    console.log("AI chose action:", action.action.payload);
     return action;
   }
 }
