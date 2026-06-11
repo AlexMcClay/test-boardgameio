@@ -18,7 +18,8 @@ import { validateMove } from "@/utils/validateMove";
 import { detectAllAnimations } from "@/utils/detectAnimations";
 import AttackArrow from "./AttackArrow";
 import HitNumbers from "./HitNumbers";
-import { motion } from "motion/react";
+
+import { snapCenterToCursor } from "@dnd-kit/modifiers";
 
 interface Props extends BoardProps<GameState> {}
 
@@ -36,6 +37,9 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
 
   // Visual state buffer - keeps dead cards visible during animations
   const [visualBoard, setVisualBoard] = useState(G.board);
+
+  // Track if the dragged card was hovered
+  const [wasHovered, setWasHovered] = useState(false);
 
   useEffect(() => {
     setCurrentPlayer(ctx.currentPlayer);
@@ -163,13 +167,16 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     const { active } = event;
     // Get the card being dragged from active.data
     const card = active.data.current?.card;
+    const wasHoveredOnDrag = active.data.current?.wasHovered || false;
     setActiveCard(card || null);
+    setWasHovered(wasHoveredOnDrag);
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     console.log("Drag ended", event);
     const { active, over } = event;
     setActiveCard(null);
+    setWasHovered(false);
 
     if (!over) {
       return;
@@ -423,9 +430,11 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
               playerID="0"
             />
           </div>
-          <DragOverlay>
+          <DragOverlay modifiers={[snapCenterToCursor]}>
             {activeCard && !activeCard.isPlaced ? (
               <Card
+                animate="normal"
+                initial={wasHovered ? "play-hover" : "normal"}
                 card={activeCard}
                 isDragging={true}
                 ctx={ctx}

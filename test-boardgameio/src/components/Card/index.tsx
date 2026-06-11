@@ -19,6 +19,8 @@ const Card = ({
   isDragging = false, // Default to false if not provided
   playerID,
   ctx,
+  animate,
+  initial,
 }: Props) => {
   // Parameters are now multipliers of container height (viewport-scaled)
   // maxFont: 0.8 = 80% of container height, minFont: 0.4 = 40% of container height
@@ -82,11 +84,23 @@ const Card = ({
     return parsedDescription;
   }, [card.description]);
 
+  const variants = {
+    normal: {
+      scale: 1,
+    },
+    "play-hover": {
+      scale: 2,
+    },
+  };
+
   return (
     <motion.div
-      layout
-      layoutId={`card-${card.id}`}
-      transition={isDragging ? { duration: 0 } : undefined}
+      layout={!isDragging}
+      layoutId={!isDragging ? `card-${card.id}` : undefined}
+      variants={variants}
+      transition={isDragging ? { layout: { duration: 0 } } : undefined}
+      initial={initial}
+      animate={animate}
       className={twMerge(
         ` w-[7.8vw] relative aspect-[5/7] bg-[#37373b] rounded-2xl flex-col flex gap-0 items-center shadow-xl text-white font-serif`,
         isDragging &&

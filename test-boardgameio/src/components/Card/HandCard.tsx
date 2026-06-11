@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Card as CardType, Player } from "@/types";
 import type { Ctx } from "boardgame.io";
 import { twMerge } from "tailwind-merge";
@@ -38,7 +38,6 @@ const HandCard = ({ size, index, isTop, card, ctx, player }: Props) => {
         player.mana >= (card?.mana ?? 0) && ctx.currentPlayer === player.id
           ? "canPlayCard"
           : "",
-        isHovered ? "z-50  scale-[200%] self-center justify-center" : "",
         isHovered && isTop ? "translate-y-[120%]" : "",
         isHovered && !isTop ? "translate-y-[-100%]" : "",
       )}
@@ -58,12 +57,21 @@ const HandCard = ({ size, index, isTop, card, ctx, player }: Props) => {
         e.currentTarget.style.zIndex = (index + 1).toString();
       }}
     >
-      <DragCard card={card} ctx={ctx} />
+      <DragCard
+        card={card}
+        ctx={ctx}
+        animate={isHovered ? "play-hover" : "normal"}
+        onDragStart={() => setIsHovered(false)}
+        isHovered={isHovered}
+      />
     </div>
   );
 };
 
-interface DargCardProps extends CardProps {}
+interface DargCardProps extends CardProps {
+  onDragStart?: () => void;
+  isHovered?: boolean;
+}
 
 const DragCard = (props: DargCardProps) => {
   const disabled = props.card.isPlaced && props.card.hasAttacked; //
@@ -73,9 +81,17 @@ const DragCard = (props: DargCardProps) => {
     data: {
       type: "card",
       card: props.card,
+      wasHovered: props.isHovered, // Track if card was hovered when drag started
     },
     disabled: disabled, // Disable dragging if the card has attacked or was just placed
   });
+
+  // Notify parent when drag starts to reset hover state
+  useEffect(() => {
+    if (isDragging && props.onDragStart) {
+      props.onDragStart();
+    }
+  }, [isDragging, props.onDragStart]);
 
   return (
     <div
@@ -83,8 +99,7 @@ const DragCard = (props: DargCardProps) => {
       className={`${!disabled && "cursor-grab"} ${isDragging ? " cursor-grabbing" : ""}`}
       style={{
         opacity: isDragging ? 0 : 1, // Hide original when dragging
-
-        transition: "none",
+        transition: "none", // Delay opacity to allow scale animation
       }}
       {...listeners}
     >
