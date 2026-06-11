@@ -54,12 +54,7 @@ const PlacedCard = ({
       )}
     >
       {/* Card Art - Clipped tightly inside the oval frame */}
-      <div
-        className={twMerge(
-          "w-full h-full",
-          !card.hasAttacked && ctx.currentPlayer === playerID && "canAttack",
-        )}
-      >
+      <div className={twMerge("w-full h-full")}>
         <div
           className={twMerge(
             "absolute top-1 left-2! h-[90%] w-[90%] inset-[2px] overflow-hidden rounded-[50%/50%]",

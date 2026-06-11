@@ -54,6 +54,38 @@ code {
   animation: shadowPulse 1.5s ease-in-out infinite;
 }
 
+.canAttack:hover {
+  animation: canAttackHover 1.5s ease-in-out infinite;
+}
+
+@keyframes canAttackHover {
+  0%,
+  100% {
+    filter: 
+      /* --- INNER GLOW: Sharp, solid white core --- */ drop-shadow(
+        0 0 2px oklch(100% 0 0)
+      )
+      drop-shadow(0 0 3px oklch(100% 0 0))
+      /* --- OUTER BORDER: Heavy, stacked green layers for a solid look --- */
+      drop-shadow(0 0 5px oklch(87.481% 0.24568 148.025))
+      drop-shadow(0 0 5px oklch(87.481% 0.24568 148.025))
+      drop-shadow(0 0 6px oklch(87.481% 0.24568 148.025))
+      drop-shadow(0 0 8px oklch(92.831% 0.11804 154.485 / 0.6));
+  }
+
+  50% {
+    filter: 
+      /* --- PULSING DOWN: White dims slightly --- */ drop-shadow(
+        0 0 1px oklch(100% 0 0 / 0.7)
+      )
+      drop-shadow(0 0 2px oklch(100% 0 0 / 0.5))
+      /* --- PULSING DOWN: Green remains relatively dense but shrinks slightly --- */
+      drop-shadow(0 0 4px oklch(87.481% 0.24568 148.025))
+      drop-shadow(0 0 4px oklch(87.481% 0.24568 148.025))
+      drop-shadow(0 0 5px oklch(87.481% 0.24568 148.025 / 0.5));
+  }
+}
+
 .animate-dash {
   animation: dash 1s linear infinite;
 }

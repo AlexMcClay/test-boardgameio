@@ -199,7 +199,6 @@ const MinionCard = ({ card, playerID, ctx }: Props) => {
     <motion.div
       ref={wrapperRef}
       onMouseDown={handleMouseDown}
-      className={`${!disabled && "cursor-pointer"}`}
       animate={
         isAttackingWithArrow
           ? {
@@ -210,6 +209,13 @@ const MinionCard = ({ card, playerID, ctx }: Props) => {
             }
           : { y: 0, scale: 1 }
       }
+      className={twMerge(
+        !disabled && "cursor-pointer",
+        !card.hasAttacked &&
+          ctx.currentPlayer === playerID &&
+          !isAttackingWithArrow &&
+          "canAttack",
+      )}
     >
       <PlacedCard
         card={{ ...card, mana: null }}
