@@ -24,4 +24,9 @@ export interface CardProps {
     | VariantLabels
     | LegacyAnimationControls
     | undefined;
+  exit?:
+    | TargetAndTransition
+    | VariantLabels
+    | LegacyAnimationControls
+    | undefined;
 }

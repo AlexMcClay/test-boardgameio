@@ -10,7 +10,8 @@ interface Props extends BoardProps<GameState> {
 }
 
 // Configurable hover exit threshold
-const HOVER_EXIT_THRESHOLD = 0.85;
+const HOVER_EXIT_THRESHOLD_X = 0.85;
+const HOVER_EXIT_THRESHOLD_Y = 1.2;
 
 const PlayerHand = ({ isTop, G, ctx, player, playerID }: Props) => {
   const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
@@ -34,8 +35,8 @@ const PlayerHand = ({ isTop, G, ctx, player, playerID }: Props) => {
       const distanceX = Math.abs(e.clientX - centerX);
       const distanceY = Math.abs(e.clientY - centerY);
 
-      const sizeWidthCheck = hoverOrigin.width * HOVER_EXIT_THRESHOLD - 20;
-      const sizeHeightCheck = hoverOrigin.height * HOVER_EXIT_THRESHOLD - 20;
+      const sizeWidthCheck = hoverOrigin.width * HOVER_EXIT_THRESHOLD_X - 20;
+      const sizeHeightCheck = hoverOrigin.height * HOVER_EXIT_THRESHOLD_Y - 20;
 
       if (distanceX > sizeWidthCheck || distanceY > sizeHeightCheck) {
         setHoveredCardId(null);

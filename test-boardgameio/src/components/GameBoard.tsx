@@ -21,6 +21,8 @@ import HitNumbers from "./HitNumbers";
 import { pointerWithSmallBuffer } from "@/utils/customCollisionDetection";
 
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
+import { twMerge } from "tailwind-merge";
+import { AnimatePresence } from "motion/react";
 
 interface Props extends BoardProps<GameState> {}
 
@@ -297,20 +299,27 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
         }}
       >
         <button
-          className={` rounded-[50%/25%] absolute top-[44.5vh] h-[4vh] left-[79.2vw] w-[6.6vw] text-[1vw] uppercase font-belwe text-black scale-105   cursor-pointer z-50 brightness-80
+          className={twMerge(
+            ` rounded-[50%/25%] absolute top-[44.5vh] h-[4vh] left-[79.2vw] w-[6.6vw] text-[1vw] uppercase font-belwe text-black scale-105   cursor-pointer z-50 brightness-80
            hover:scale-110 active:scale-100 transition-all duration-150 hue-rotate-[-10deg] 
-            `}
+            `,
+            props?.playerID != ctx.currentPlayer ? "text-[0.8vw]" : ``,
+          )}
           onClick={() => {
             moves.endTurn();
           }}
+          disabled={
+            props.playerID ? props.playerID != ctx.currentPlayer : false
+          }
           style={{
-            backgroundImage: `url(${exit_button})`,
+            backgroundImage:
+              props?.playerID != ctx.currentPlayer ? "" : `url(${exit_button})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
             // darken background with filter
           }}
         >
-          End Turn
+          {props?.playerID != ctx.currentPlayer ? "Enemy Turn" : "End Turn"}
         </button>
         <DndContext
           onDragEnd={handleDragEnd}
@@ -432,16 +441,23 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
             />
           </div>
           <DragOverlay modifiers={[snapCenterToCursor]}>
-            {activeCard && !activeCard.isPlaced ? (
-              <Card
-                animate="normal"
-                initial={wasHovered ? "play-hover" : "normal"}
-                card={activeCard}
-                isDragging={true}
-                ctx={ctx}
-                playerID={""}
-              />
-            ) : null}
+            <AnimatePresence>
+              {activeCard && !activeCard.isPlaced && (
+                <Card
+                  animate="normal"
+                  initial={wasHovered ? "play-hover" : "normal"}
+                  card={activeCard}
+                  isDragging={true}
+                  ctx={ctx}
+                  playerID={""}
+                  exit={{
+                    opacity: 0,
+                    scale: 0.5,
+                    transition: { duration: 0.2 },
+                  }}
+                />
+              )}
+            </AnimatePresence>
           </DragOverlay>
         </DndContext>
       </div>

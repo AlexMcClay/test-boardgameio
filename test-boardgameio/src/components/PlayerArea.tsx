@@ -55,6 +55,19 @@ const PlayerArea = ({
         {...props}
       />
 
+      {/* Name */}
+
+      <div
+        className={twMerge(
+          "absolute z-10 top-[23.5%] left-[0vw] flex items-center pointer-events-none ",
+          isTop && "top-[29.5%] left-[0vw]",
+        )}
+      >
+        <div className="text-[1.2vw] text-center font-extrabold text-white font-belwe bg-black/60 pl-[0.5vw] pr-[2vw] py-[0.6vw]">
+          {player.name}
+        </div>
+      </div>
+
       {/* Mana */}
       <div
         className={twMerge(
