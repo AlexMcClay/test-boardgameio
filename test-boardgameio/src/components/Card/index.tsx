@@ -20,13 +20,14 @@ const Card = ({
   playerID,
   ctx,
 }: Props) => {
-  const { fontSize, containerRef } = useFitText(card.title, 2, 1); // You can lower minFont further if needed
+  // Parameters are now multipliers of container height (viewport-scaled)
+  // maxFont: 0.8 = 80% of container height, minFont: 0.4 = 40% of container height
+  // archCompensation: 0.82 = 18% cushion for arched text (default)
+  const { fontSize, containerRef } = useFitText(card.title, 6, 2);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Use the arched text hook with the container ref for dynamic width measurement
   useArchedText(card.title, fontSize, canvasRef, containerRef);
-
-  console.log(fontSize);
 
   if (back) {
     return (

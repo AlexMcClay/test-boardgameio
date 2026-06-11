@@ -1,15 +1,9 @@
 import { useState } from "react";
 import Card from "./Card";
 import { cardTemplates, type CardTemplateKey } from "@/utils/cards";
-import {
-  druidDeckString,
-  premadeDecks,
-  warriorDeckString,
-  type DeckString,
-} from "@/utils/decks";
+import { premadeDecks, type DeckString } from "@/utils/decks";
 import type { Ctx } from "boardgame.io";
 import type { Card as CardType } from "@/types";
-import { createRandomDeckString } from "@/utils";
 
 interface DeckSelectionProps {
   ctx: Ctx;
@@ -69,7 +63,7 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
 
   return (
     <div
-      className="deck-selection-container"
+      className="w-screen h-screen flex flex-col overflow-hidden relative"
       style={{
         backgroundImage: `url(${backgroundImage})`,
         backgroundSize: "cover",
@@ -79,9 +73,9 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
       }}
     >
       {/* Header */}
-      <div className="deck-selection-header">
-        <h1 className="deck-selection-title">Deck Builder</h1>
-        <div className="deck-count-display">
+      <div className="px-[1vw] py-[0.5vw] border-b-4 border-[#8d7037] bg-[#1a0a05]/80 flex items-center justify-between">
+        <h1 className="text-[1.5vw] font-bold text-amber-300">Deck Builder</h1>
+        <div className="text-[1.25vw] font-bold bg-black/60 px-[0.5vw] py-[0.25vw] rounded-lg border border-amber-900">
           <span
             className={
               totalCards > maxCards
@@ -97,16 +91,16 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
         </div>
       </div>
 
-      <div className="deck-selection-content">
+      <div className="flex gap-[2vw] p-[1.5vw] overflow-hidden">
         {/* Left Panel - Card Collection */}
-        <div className="card-collection-panel">
-          <div className="panel-header">
-            <h2 className="panel-title">Card Collection</h2>
-            <p className="panel-subtitle">
+        <div className="flex flex-col w-[80%] bg-[#2a1c12]/80 rounded-lg shadow-lg p-[1vw] overflow-hidden">
+          <div>
+            <h2 className="text-[1.25vw] text-amber-300">Card Collection</h2>
+            <p className="text-[0.8vw] text-amber-200">
               Left click to add • Right click to remove
             </p>
           </div>
-          <div className="card-grid">
+          <div className="card-grid flex flex-wrap gap-[1vw] p-[1vw] overflow-y-auto">
             {Object.entries(cardTemplates)
               .sort((a, b) => {
                 // sort by mana cost, then by name
@@ -117,7 +111,7 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
               )
               .map(([id, card]) => (
                 <div
-                  className="card-wrapper"
+                  className=" cursor-pointer z-10 transition-transform duration-200 hover:scale-105"
                   key={id}
                   onClick={() => {
                     const currentCount = deck[id as CardTemplateKey] || 0;
@@ -134,7 +128,7 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
                   }}
                 >
                   <div
-                    className={`card-container ${deck[id as CardTemplateKey] ? "card-selected" : ""}`}
+                    className={` relative transition-all ease-in  ${deck[id as CardTemplateKey] ? "card-selected" : ""}`}
                   >
                     <Card
                       key={id}
@@ -145,7 +139,7 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
                     />
                     {deck[id as CardTemplateKey] &&
                       deck[id as CardTemplateKey]! > 0 && (
-                        <div className="bg-amber-300 absolute -top-2 right-6  text-xl  font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                        <div className="bg-amber-300 absolute top-[-0.5vw] right-[-0.5vw]  text-[1vw]  font-bold rounded-full w-[1.25vw] h-[1.25vw] flex items-center justify-center">
                           {deck[id as CardTemplateKey]}
                         </div>
                       )}
@@ -156,19 +150,19 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
         </div>
 
         {/* Right Panel - Deck Summary */}
-        <div className="deck-summary-panel">
-          <div className="panel-header">
-            <h2 className="panel-title">Your Deck</h2>
-          </div>
+        <div className="w-[20vw] bg-[#2a1c12]/80 rounded-lg shadow-lg p-[1vw] flex flex-col items-center gap-[1vw]">
+          <h2 className="text-[1.25vw] text-amber-300">Your Deck</h2>
 
           {/* Mana Curve */}
-          <div className="mana-curve-container">
-            <h3 className="mana-curve-title">Mana Curve</h3>
-            <div className="h-[100px] gap-1 flex items-end">
+          <div className=" w-full bg-black/20 rounded-lg p-[1vw] border border-amber-900">
+            <h3 className="text-[1vw] text-amber-300 text-center">
+              Mana Curve
+            </h3>
+            <div className="h-[10vw] gap-1 flex items-end">
               {manaCurve.map((count, mana) => (
                 <div
                   key={mana}
-                  className="mana-bar-container h-full justify-end"
+                  className=" flex flex-col items-center w-full h-full justify-end"
                 >
                   <div
                     className="mana-bar"
@@ -180,9 +174,11 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
                       minHeight: count > 0 ? "20px" : "0px",
                     }}
                   >
-                    <span className="mana-bar-count">{count || ""}</span>
+                    <span className="text-[0.8vw] text-white font-bold">
+                      {count || ""}
+                    </span>
                   </div>
-                  <div className="mana-bar-label">
+                  <div className="text-[0.8vw] text-gray-400 mt-1">
                     {mana === 7 ? "7+" : mana}
                   </div>
                 </div>
@@ -191,17 +187,18 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
           </div>
 
           {/* Predefined Decks */}
-          <div className="predefined-decks">
-            <h3 className="predefined-title">Quick Decks</h3>
-            <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-[0.5vw] w-full">
+            <h3 className="text-[0.8vw] text-amber-300 font-bold">
+              Quick Decks
+            </h3>
+            <div className="grid grid-cols-2 gap-[0.2vw] w-full">
               {premadeDecks.map(({ name, deckString }) => (
                 <button
                   key={name}
-                  className="preset-deck-button warrior-button"
+                  className="rounded w-full text-[0.8vw] warrior-button transition-all duration-200 flex items-center gap-[0.2vw] justify-center p-[0.5vw]"
                   onClick={() => handleSetWholeDeck(deckString)}
                 >
-                  <span className="preset-deck-icon">📂</span>
-                  <span>{name}</span>
+                  <span className="text-[1vw] text-amber-200">{name}</span>
                 </button>
               ))}
             </div>

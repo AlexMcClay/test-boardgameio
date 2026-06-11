@@ -11,6 +11,7 @@ export function useFitText(
   minFont = 0.3,
   precision = 0.01,
   listen: DependencyList = [],
+  archCompensation = 0.82, // Reduce available width by 18% to account for arched text
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [fontSize, setFontSize] = useState(maxFont);
@@ -22,26 +23,30 @@ export function useFitText(
     const testDiv = document.createElement("div");
     const computedStyle = getComputedStyle(container);
 
+    // Get actual container dimensions
+    const containerWidth = container.offsetWidth;
+    const containerHeight = container.offsetHeight;
+
+    // Apply arch compensation - reduce available width for curved text
+    const effectiveWidth = containerWidth * archCompensation;
+
     // Copy styles for accurate measurement
     testDiv.style.position = "absolute";
     testDiv.style.visibility = "hidden";
-    testDiv.style.whiteSpace = "normal"; // allow wrapping
-    testDiv.style.wordBreak = "break-word";
+    testDiv.style.whiteSpace = "nowrap"; // Single line for title
     testDiv.style.padding = computedStyle.padding;
-    testDiv.style.width = `${container.offsetWidth}px`;
+    testDiv.style.width = `${effectiveWidth}px`;
     testDiv.style.fontFamily = computedStyle.fontFamily;
     testDiv.style.fontWeight = computedStyle.fontWeight;
     testDiv.style.lineHeight = computedStyle.lineHeight;
 
     document.body.appendChild(testDiv);
 
-    // Convert rem limits to pixels based on actual viewport dimensions
-    const rootFontSize = parseFloat(
-      getComputedStyle(document.documentElement).fontSize,
-    );
-    const maxFontPx = maxFont * rootFontSize;
-    const minFontPx = minFont * rootFontSize;
-    const precisionPx = precision * rootFontSize;
+    // Calculate font size limits based on container height (viewport-scaled)
+    // This ensures consistent sizing across different resolutions
+    const maxFontPx = containerHeight * maxFont;
+    const minFontPx = containerHeight * minFont;
+    const precisionPx = 0.5; // Use fixed precision in pixels
 
     let low = minFontPx;
     let high = maxFontPx;
@@ -53,8 +58,8 @@ export function useFitText(
       testDiv.innerText = text;
 
       if (
-        testDiv.scrollWidth <= container.offsetWidth &&
-        testDiv.scrollHeight <= container.offsetHeight
+        testDiv.scrollWidth <= effectiveWidth &&
+        testDiv.scrollHeight <= containerHeight
       ) {
         best = mid;
         low = mid;
@@ -65,7 +70,7 @@ export function useFitText(
 
     setFontSize(parseFloat(best.toFixed(3)));
     document.body.removeChild(testDiv);
-  }, [text, maxFont, minFont, precision, ...listen]);
+  }, [text, maxFont, minFont, precision, archCompensation, ...listen]);
 
   return { fontSize, containerRef };
 }
