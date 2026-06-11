@@ -119,7 +119,7 @@ const Card = ({
 
       {/* Mana Crystal */}
       {card.mana !== null && card.mana !== undefined && (
-        <div className=" select-none absolute text-lg top-[-1rem] left-[-1rem]  w-8 h-8 flex items-center justify-center font-bold  shadow-md z-10">
+        <div className=" select-none absolute text-lg top-[-0.7rem] left-[-0.7rem]  w-8 h-8 flex items-center justify-center font-bold  shadow-md z-10">
           <img
             src={mana_crystal}
             alt="Card Back"

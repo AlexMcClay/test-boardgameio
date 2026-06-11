@@ -145,7 +145,7 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
                     />
                     {deck[id as CardTemplateKey] &&
                       deck[id as CardTemplateKey]! > 0 && (
-                        <div className="card-count-badge">
+                        <div className="bg-amber-300 absolute -top-2 right-6  text-xl  font-bold rounded-full w-5 h-5 flex items-center justify-center">
                           {deck[id as CardTemplateKey]}
                         </div>
                       )}
