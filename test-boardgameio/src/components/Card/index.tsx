@@ -1,9 +1,9 @@
-import { useFitText } from "@/hooks";
+import { useFitText, useArchedText } from "@/hooks";
 import type { CardProps } from "./types";
 import { motion } from "motion/react";
 import { twMerge } from "tailwind-merge";
 import PlacedCard from "./PlacedCard";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 
 const cardBack = "assets/Card_Back.png";
 const mana_crystal = "assets/mana.png";
@@ -21,6 +21,10 @@ const Card = ({
   ctx,
 }: Props) => {
   const { fontSize, containerRef } = useFitText(card.title, 1, 0.1); // You can lower minFont further if needed
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Use the arched text hook with container width (150px card width minus padding)
+  useArchedText(card.title, fontSize, canvasRef, 150 - 16); // 150px width - 2*8px padding
 
   if (back) {
     return (
@@ -96,11 +100,11 @@ const Card = ({
       )}
     >
       {/* Art */}
-      <div className="h-[45%] relative rounded-t-2xl bg-transparent overflow-hidden w-full">
+      <div className="h-[42%] relative rounded-t-2xl bg-transparent  w-full">
         <img
           src={card.imageUrl}
           // alt={title}
-          className="object-cover w-[95%] h-[95%] top-2 left-0.5 select-none absolute z-0"
+          className="object-cover w-[95%] h-[100%] top-2 left-0.5 select-none absolute z-0"
           draggable="false"
         />
       </div>
@@ -137,28 +141,33 @@ const Card = ({
 
       {/* Title */}
       <div
-        ref={containerRef}
-        className="text-center relative w-full font-extrabold text-white py-0 inset-shadow-sm  overflow-hidden whitespace-nowrap px-2"
+        className="text-center relative w-full font-extrabold text-white py-0 inset-shadow-sm overflow-hidden px-2"
         title={card.title}
         style={{
-          fontSize: `${fontSize}rem`,
           minHeight: "2rem",
           overflow: "hidden",
         }}
       >
+        {/* Hidden span for font size calculation */}
         <span
-          className=" select-none  inline-block align-middle whitespace-nowrap overflow-hidden text-ellipsis"
+          ref={containerRef}
+          className="invisible absolute inline-block whitespace-nowrap"
           style={{
-            WebkitTextStroke: "0.5px black",
-            textShadow: "0 1px 0px black",
-            maxWidth: "100%",
             fontSize: `${fontSize}rem`,
             lineHeight: "1.2",
-            // arc text
           }}
         >
           {card.title}
         </span>
+        {/* Canvas for arched text rendering */}
+        <canvas
+          ref={canvasRef}
+          className="select-none mx-auto"
+          style={{
+            display: "block",
+            height: "2rem",
+          }}
+        />
       </div>
       {/* Description */}
       {/* Highlight Keywords Charge, Taunt, Battlecry */}

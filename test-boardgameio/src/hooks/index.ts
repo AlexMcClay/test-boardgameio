@@ -61,3 +61,83 @@ export function useFitText(
 
   return { fontSize, containerRef };
 }
+
+export function useArchedText(
+  text: string,
+  fontSize: number,
+  canvasRef: React.RefObject<HTMLCanvasElement | null>,
+  containerWidth: number,
+) {
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !text) return;
+
+    fontSize = fontSize * 0.9;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Set canvas size based on container
+    const dpr = 2;
+    const width = containerWidth;
+    const height = 40; // Fixed height for title area
+
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, width, height);
+
+    // Set font and styling
+    const fontSizeInPx = fontSize * 16; // Convert rem to px (assuming 1rem = 16px)
+    ctx.font = `900 ${fontSizeInPx}px serif`; // 900 is extrabold
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    // Calculate total text width
+    const textWidth = ctx.measureText(text).width;
+
+    // Calculate arc parameters - subtle arch
+    const arcAngle = Math.PI / (text.length > 10 ? 6 : 8); // ~20 degrees total arc (10 degrees each side)
+    const radius = textWidth / (2 * Math.sin(arcAngle / 2)); // Calculate radius based on text width
+
+    // Starting position
+    const centerX = width / 2;
+    const centerY = height / 2 + radius - fontSizeInPx / 3; // Adjust vertical position
+
+    // Calculate individual character widths and positions
+    const chars = text.split("");
+    const charWidths = chars.map((char) => ctx.measureText(char).width);
+    const totalWidth = charWidths.reduce((sum, w) => sum + w, 0);
+
+    // Starting angle (left side of arc)
+    let currentAngle = -arcAngle / 2;
+    const angleStep = arcAngle / totalWidth;
+
+    // Draw each character along the arc
+    chars.forEach((char, i) => {
+      const charWidth = charWidths[i];
+      const charAngle = currentAngle + (angleStep * charWidth) / 2;
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(charAngle);
+      ctx.translate(0, -radius);
+
+      // Draw text stroke (black outline)
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 2.5;
+      ctx.strokeText(char, 0, 0);
+
+      // Draw text fill (white)
+      ctx.fillStyle = "white";
+      ctx.fillText(char, 0, 0);
+
+      ctx.restore();
+
+      currentAngle += angleStep * charWidth;
+    });
+  }, [text, fontSize, canvasRef, containerWidth]);
+}
