@@ -143,6 +143,7 @@ export type SummonEvent = {
   cardId: string;
   playerId: PlayerID;
   timestamp: number;
+  card: Card; // Include full card data for easier animation handling
 };
 
 export type SpellEvent = {
@@ -150,6 +151,7 @@ export type SpellEvent = {
   cardId: string;
   playerId: PlayerID;
   timestamp: number;
+  card: Card; // Include full card data for easier animation handling
 };
 
 export type EndTurnEvent = {
@@ -163,6 +165,7 @@ export type MinionPlacedEvent = {
   cardId: string;
   playerId: PlayerID;
   timestamp: number;
+  card: Card; // Include full card data for easier animation handling
 };
 
 export type AttackEvent = {

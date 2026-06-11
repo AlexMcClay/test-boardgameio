@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Card as CardType, Player } from "@/types";
 import type { Ctx } from "boardgame.io";
 import { twMerge } from "tailwind-merge";
@@ -108,19 +108,38 @@ interface DargCardProps extends CardProps {
 }
 
 const DragCard = (props: DargCardProps) => {
-  const disabled = props.card.isPlaced && props.card.hasAttacked; //
+  const disabled = props.card.isPlaced && props.card.hasAttacked;
 
-  const { isDragging, setNodeRef, listeners, transform } = useDraggable({
+  const { isDragging, setNodeRef, listeners } = useDraggable({
     id: `${props.card.id}`,
     data: {
       type: "card",
       card: props.card,
-      wasHovered: props.isHovered, // Track if card was hovered when drag started
+      wasHovered: props.isHovered,
     },
-    disabled: disabled || props.back, // Disable dragging if the card has attacked or was just placed
+    disabled: disabled || props.back,
   });
 
-  // Notify parent when drag starts to reset hover state
+  // FIX 1: Initialize this to false (since we aren't dragging on mount)
+  const [delayedDrag, setDelayedDrag] = useState(false);
+  const isFirstRender = useRef(true);
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    // FIX 2: Set the state to exactly match isDragging after the delay
+    const timer = setTimeout(() => {
+      console.log("Setting delayedDrag to:", isDragging);
+      setDelayedDrag(isDragging);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [isDragging]);
+
+  // Notify parent when drag starts
   useEffect(() => {
     if (isDragging && props.onDragStart) {
       props.onDragStart();
@@ -130,14 +149,16 @@ const DragCard = (props: DargCardProps) => {
   return (
     <div
       ref={setNodeRef}
-      className={`${!disabled && "cursor-grab"} ${isDragging ? " cursor-grabbing" : ""}`}
-      style={{
-        opacity: isDragging ? 0 : 1, // Hide original when dragging
-        transition: "none", // Delay opacity to allow scale animation
-      }}
+      className={`${!disabled ? "cursor-grab" : ""} ${isDragging ? "cursor-grabbing" : ""}`}
       {...listeners}
     >
-      <Card {...props} isDragging={isDragging} back={props.back} />
+      {/* FIX 3: Clean, readable condition. If delayedDrag is true, hide it. */}
+
+      {!isDragging ? (
+        <Card {...props} isDragging={isDragging} back={props.back} />
+      ) : (
+        <div className="w-[7.8vw] relative aspect-[5/7] bg-[#37373b00]  opacity-0 rounded-2xl flex-col flex gap-1 items-center shadow-xl overflow-hidden"></div>
+      )}
     </div>
   );
 };

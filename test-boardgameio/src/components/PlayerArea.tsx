@@ -11,6 +11,7 @@ interface Props extends BoardProps<GameState> {
 }
 
 const mana_crystal = "assets/mana.png";
+const mana_bar = "assets/mana_bar.png";
 
 const PlayerArea = ({
   player,
@@ -71,15 +72,15 @@ const PlayerArea = ({
       {/* Mana */}
       <div
         className={twMerge(
-          "absolute z-10 top-[53.5%] left-[64.2vw] flex items-center pointer-events-none ",
-          isTop && "top-[29.5%] left-[62vw]",
+          "absolute z-10 top-[53.5%] left-[64.1vw] flex items-center pointer-events-none ",
+          isTop && "top-[30%] left-[62vw]",
         )}
       >
         <div
-          className="flex items-center justify-center bg-blue-900/50 px-[0.5vw] py-[0.1vw] rounded-full w-[4.5vw] text-center"
+          className="flex items-center justify-center  px-[0.5vw] py-[0.1vw] rounded-full w-[4.5vw] text-center "
           title={`${player.mana} / ${G.maxMana} Mana`}
           style={{
-            backgroundImage: `url(${mana_crystal})`,
+            backgroundImage: `url(${mana_bar})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
             // darken background with filter
@@ -90,7 +91,7 @@ const PlayerArea = ({
           }}
         >
           <span
-            className="text-[1.2vw] scale-140 text-center font-extrabold text-white font-belwe"
+            className="text-[1.1vw] scale-150 text-center font-extrabold text-white font-belwe"
             style={{
               WebkitTextStroke: "1px black",
               textShadow: "0 1px 0px black",
@@ -100,7 +101,7 @@ const PlayerArea = ({
           </span>
         </div>
         {!isTop && (
-          <div className="ml-[0.5vw] flex items-center justify-center">
+          <div className="ml-[0.5vw] mt-[0.05vw] flex items-center justify-center">
             {Array.from({ length: G.maxMana }, (_, i) => (
               <img
                 key={i}
@@ -108,7 +109,7 @@ const PlayerArea = ({
                 alt="Mana"
                 // darken the crystal if it's above the player's current mana
                 className={twMerge(
-                  " aspect-square w-[2vw] object-contain ",
+                  "  w-[1.81vw] h-[2vw] object-contain shadow-lg ",
 
                   i < player.mana ? "brightness-150" : "brightness-50",
                 )}

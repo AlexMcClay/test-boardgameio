@@ -22,13 +22,14 @@ const PlacedCard = ({
   isAttacking = false,
   targetPosition = { x: 0, y: 0 },
   cardRef,
+  ...props
 }: Props) => {
   return (
     <motion.div
       ref={cardRef}
       data-card-id={card.id}
       layout={!isAttacking}
-      layoutId={`card-${card.id}`}
+      layoutId={`card-${card.id}-minon`}
       transition={isDragging ? { duration: 0 } : undefined}
       animate={
         isAttacking
@@ -36,17 +37,25 @@ const PlacedCard = ({
               x: [0, targetPosition.x, 0],
               y: [0, targetPosition.y, 0],
               scale: [1, 1.15, 1],
+              opacity: [1, 1, 1],
               transition: {
                 duration: ATTACK_ANIMATION.duration / 1000,
                 times: [0, 0.5, 1],
                 ease: "easeInOut",
               },
             }
-          : {
-              x: 0,
-              y: 0,
-              scale: 1,
-            }
+          : props.animate
+            ? props.animate
+            : {
+                opacity: 1,
+                scale: 1,
+                x: 0,
+                y: 0,
+                // transition: {
+                //   duration: 0.3,
+                //   ease: "easeInOut",
+                // },
+              }
       }
       className={twMerge(
         // 1. Turned the card chassis into a distinctive Hearthstone Minion Oval

@@ -70,8 +70,8 @@ export const HearthstoneWithAI = Client({
 
   // Keep debug panel visible to see AI thinking
   debug: {
-    collapseOnLoad: false,
-    hideToggleButton: false,
+    collapseOnLoad: true,
+    hideToggleButton: true,
   },
 });
 

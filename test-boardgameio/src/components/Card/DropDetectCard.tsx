@@ -232,6 +232,14 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
 };
 
 const DropDetectCard = (props: Omit<Props, "isValid">) => {
+  const isFirstRender = useRef(true);
+  const isValidTarget = useDragStore((state) => state.isValidTarget);
+  const isValid = isValidTarget("card", props.playerID, props.card.id);
+
+  useEffect(() => {
+    isFirstRender.current = false;
+  }, []);
+
   const { setNodeRef, isOver } = useDroppable({
     id: props.card.id,
     data: {
@@ -241,15 +249,21 @@ const DropDetectCard = (props: Omit<Props, "isValid">) => {
     },
   });
 
-  const isValidTarget = useDragStore((state) => state.isValidTarget);
-  const isValid = isValidTarget("card", props.playerID, props.card.id);
-
   return (
     <motion.div
       key={props.card.id}
       ref={setNodeRef}
       layoutId={`drop-${props.card.id}`}
       className={twMerge("minion-shadow")}
+      initial={
+        isFirstRender.current
+          ? {
+              opacity: 0,
+              scale: 0.8,
+            }
+          : undefined
+      }
+      animate={{ opacity: 1, scale: 1 }}
       exit={{
         opacity: [1, 1, 0], // Stays fully visible during the shake, then vanishes quickly
         rotate: [0, -5, 5, -5, 5, 20], // Shakes back and forth rapidly before spinning away

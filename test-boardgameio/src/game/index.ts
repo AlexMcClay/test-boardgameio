@@ -90,7 +90,14 @@ const placeCard: Move<GameState> = (
   if (isResolvingBattlecry) {
     // console.log("Resolving battlecry for card:", cardId);
     // Execute the battlecry onPlace effects with target
-    doEffects({ G, ctx }, cardId, "onPlace", "board", target);
+    doEffects(
+      { G, ctx },
+      cardId,
+      "onPlace",
+      "board",
+      ctx.currentPlayer,
+      target,
+    );
     // Clear the battlecry state
     G.activeBattlecryMinion = null;
     return;
@@ -123,7 +130,7 @@ const placeCard: Move<GameState> = (
 
   player.mana -= !card.isPlaced ? card.mana || 0 : 0; // Deduct mana cost
 
-  doEffects({ G, ctx }, cardId, "effects", location, target);
+  doEffects({ G, ctx }, cardId, "effects", location, ctx.currentPlayer, target);
 
   // See if the card can be placed on the board
   if (card.isMinnion && !card.isPlaced) {
@@ -151,7 +158,14 @@ const placeCard: Move<GameState> = (
       };
     } else {
       // Execute onPlace immediately for non-targeted battlecries
-      doEffects({ G, ctx }, cardId, "onPlace", location, target);
+      doEffects(
+        { G, ctx },
+        cardId,
+        "onPlace",
+        location,
+        ctx.currentPlayer,
+        target,
+      );
     }
 
     G.board[ctx.currentPlayer].push(card);
@@ -160,6 +174,7 @@ const placeCard: Move<GameState> = (
       cardId: card.id,
       playerId: ctx.currentPlayer,
       timestamp: Date.now(),
+      card, // Include full card data for animation
     });
   }
 
@@ -169,6 +184,7 @@ const placeCard: Move<GameState> = (
       cardId: card.id,
       playerId: ctx.currentPlayer,
       timestamp: Date.now(),
+      card,
     });
   }
 
@@ -189,13 +205,14 @@ const doEffects = (
   cardId: string,
   key: "effects" | "onPlace" = "effects",
   location: "hand" | "board",
+  playerID: PlayerID,
   target?: TargetValue,
 ) => {
-  const player = G.players[ctx.currentPlayer];
+  const player = G.players[playerID];
   const card =
     location === "hand"
       ? player.hand.find((c) => c.id === cardId)
-      : G.board[ctx.currentPlayer].find((c) => c.id === cardId);
+      : G.board[playerID].find((c) => c.id === cardId);
   if (!card) {
     console.warn("Card not found in the specified location");
     return; // Card not found in the specified location
@@ -216,14 +233,14 @@ const doEffects = (
           }
 
           // Record attack event (for attack animation)
-          if (location === "board" && target.player !== ctx.currentPlayer) {
+          if (location === "board" && target.player !== playerID) {
             recordEvent(G, {
               type: "attack",
               attackerId: cardId,
               targetId: target.id,
               targetType: target.type === "player" ? "player" : "card",
               targetPlayerId: target.player,
-              attackerPlayerId: ctx.currentPlayer,
+              attackerPlayerId: playerID,
               sourceId: cardId,
               timestamp: Date.now(),
             });
@@ -290,7 +307,7 @@ const doEffects = (
                     sourceId: targetCard.id,
                     targetId: card.id,
                     targetType: "card",
-                    playerId: ctx.currentPlayer,
+                    playerId: playerID,
                     value: damageEnemy,
                     timestamp: Date.now(),
                   });
@@ -301,35 +318,35 @@ const doEffects = (
                     recordEvent(G, {
                       type: "death",
                       cardId: card.id,
-                      playerId: ctx.currentPlayer,
+                      playerId: playerID,
                       timestamp: Date.now(),
                     });
 
                     // Remove the card from the board immediately
-                    G.board[ctx.currentPlayer] = G.board[
-                      ctx.currentPlayer
-                    ].filter((c) => c.id !== card.id);
+                    G.board[playerID] = G.board[playerID].filter(
+                      (c) => c.id !== card.id,
+                    );
                   }
                 }
               }
             }
           }
         } else if (effect.target === "self-hero") {
-          const currentPlayer = G.players[ctx.currentPlayer];
+          const currentPlayer = G.players[playerID];
           currentPlayer.hp -= damage;
 
           // Record damage event
           recordEvent(G, {
             type: "damage",
             sourceId: cardId,
-            targetId: ctx.currentPlayer,
+            targetId: playerID,
             targetType: "player",
-            playerId: ctx.currentPlayer,
+            playerId: playerID,
             value: damage,
             timestamp: Date.now(),
           });
         } else if (effect.target === "enemy-hero") {
-          const enemyPlayerId = ctx.currentPlayer === "0" ? "1" : "0";
+          const enemyPlayerId = playerID === "0" ? "1" : "0";
           const enemyPlayer = G.players[enemyPlayerId];
           enemyPlayer.hp -= damage;
 
@@ -444,7 +461,7 @@ const doEffects = (
           }
         } else if (effect.target === "all-friendly") {
           // Heal all friendly minions + hero
-          const currentPlayer = G.players[ctx.currentPlayer];
+          const currentPlayer = G.players[playerID];
 
           // Heal hero
           const heroActualHeal = Math.min(
@@ -459,16 +476,16 @@ const doEffects = (
             recordEvent(G, {
               type: "heal",
               sourceId: cardId,
-              targetId: ctx.currentPlayer,
+              targetId: playerID,
               targetType: "player",
-              playerId: ctx.currentPlayer,
+              playerId: playerID,
               value: heroActualHeal,
               timestamp: Date.now(),
             });
           }
 
           // Heal all friendly minions
-          G.board[ctx.currentPlayer].forEach((c) => {
+          G.board[playerID].forEach((c) => {
             if (c.health !== undefined && c.maxHealth !== undefined) {
               const actualHeal = Math.min(effect.value, c.maxHealth - c.health);
               c.health = Math.min(c.health + effect.value, c.maxHealth);
@@ -478,7 +495,7 @@ const doEffects = (
                   sourceId: cardId,
                   targetId: c.id,
                   targetType: "card",
-                  playerId: ctx.currentPlayer,
+                  playerId: playerID,
                   value: actualHeal,
                   timestamp: Date.now(),
                 });
@@ -487,7 +504,7 @@ const doEffects = (
           });
         } else if (effect.target === "friendly-hero") {
           // Heal only friendly hero
-          const currentPlayer = G.players[ctx.currentPlayer];
+          const currentPlayer = G.players[playerID];
           const actualHeal = Math.min(
             effect.value,
             currentPlayer.maxHp - currentPlayer.hp,
@@ -500,16 +517,16 @@ const doEffects = (
             recordEvent(G, {
               type: "heal",
               sourceId: cardId,
-              targetId: ctx.currentPlayer,
+              targetId: playerID,
               targetType: "player",
-              playerId: ctx.currentPlayer,
+              playerId: playerID,
               value: actualHeal,
               timestamp: Date.now(),
             });
           }
         } else if (effect.target === "friendly-board") {
           // Heal only friendly minions
-          G.board[ctx.currentPlayer].forEach((c) => {
+          G.board[playerID].forEach((c) => {
             if (c.health !== undefined && c.maxHealth !== undefined) {
               const actualHeal = Math.min(effect.value, c.maxHealth - c.health);
               c.health = Math.min(c.health + effect.value, c.maxHealth);
@@ -519,7 +536,7 @@ const doEffects = (
                   sourceId: cardId,
                   targetId: c.id,
                   targetType: "card",
-                  playerId: ctx.currentPlayer,
+                  playerId: playerID,
                   value: actualHeal,
                   timestamp: Date.now(),
                 });
@@ -528,7 +545,7 @@ const doEffects = (
           });
         } else if (effect.target === "self-hero") {
           // Heal own hero
-          const currentPlayer = G.players[ctx.currentPlayer];
+          const currentPlayer = G.players[playerID];
           const actualHeal = Math.min(
             effect.value,
             currentPlayer.maxHp - currentPlayer.hp,
@@ -541,9 +558,9 @@ const doEffects = (
             recordEvent(G, {
               type: "heal",
               sourceId: cardId,
-              targetId: ctx.currentPlayer,
+              targetId: playerID,
               targetType: "player",
-              playerId: ctx.currentPlayer,
+              playerId: playerID,
               value: actualHeal,
               timestamp: Date.now(),
             });
@@ -552,7 +569,7 @@ const doEffects = (
         break;
       case "mana":
         // increment current   player's mana
-        G.players[ctx.currentPlayer].mana += effect.value;
+        G.players[playerID].mana += effect.value;
         break;
       case "changeKey":
         if (target && effect.target == "other") {
@@ -574,7 +591,7 @@ const doEffects = (
         break;
       case "summon":
         // check if the board can fit the summoned card
-        if (G.board[ctx.currentPlayer].length >= 7) {
+        if (G.board[playerID].length >= 7) {
           console.warn("Cannot summon more than 7 cards on the board");
           break; // Cannot summon more than 7 cards on the board
         }
@@ -586,10 +603,11 @@ const doEffects = (
           recordEvent(G, {
             type: "summon",
             cardId: summonedCard.id,
-            playerId: ctx.currentPlayer,
+            playerId: playerID,
             timestamp: Date.now(),
+            card: summonedCard,
           });
-          G.board[ctx.currentPlayer].push(summonedCard);
+          G.board[playerID].push(summonedCard);
         } else {
           console.warn(`Card with ID ${effect.cardID} not found.`);
         }

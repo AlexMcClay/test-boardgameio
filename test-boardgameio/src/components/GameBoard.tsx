@@ -22,7 +22,7 @@ import { pointerWithSmallBuffer } from "@/utils/customCollisionDetection";
 
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
 import { twMerge } from "tailwind-merge";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 
 interface Props extends BoardProps<GameState> {}
 
@@ -303,7 +303,11 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
             ` rounded-[50%/25%] absolute top-[44.5vh] h-[4vh] left-[79.2vw] w-[6.6vw] text-[1vw] uppercase font-belwe text-black scale-105   cursor-pointer z-50 brightness-80
            hover:scale-110 active:scale-100 transition-all duration-150 hue-rotate-[-10deg] 
             `,
-            props?.playerID != ctx.currentPlayer ? "text-[0.8vw]" : ``,
+            props?.playerID
+              ? props?.playerID != ctx.currentPlayer
+                ? "text-[0.8vw]"
+                : ``
+              : "",
           )}
           onClick={() => {
             moves.endTurn();
@@ -312,14 +316,21 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
             props.playerID ? props.playerID != ctx.currentPlayer : false
           }
           style={{
-            backgroundImage:
-              props?.playerID != ctx.currentPlayer ? "" : `url(${exit_button})`,
+            backgroundImage: props?.playerID
+              ? props?.playerID != ctx.currentPlayer
+                ? ""
+                : `url(${exit_button})`
+              : `url(${exit_button})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
             // darken background with filter
           }}
         >
-          {props?.playerID != ctx.currentPlayer ? "Enemy Turn" : "End Turn"}
+          {props?.playerID
+            ? props?.playerID != ctx.currentPlayer
+              ? "Enemy Turn"
+              : "End Turn"
+            : "End Turn"}
         </button>
         <DndContext
           onDragEnd={handleDragEnd}
@@ -440,25 +451,42 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
               playerID="0"
             />
           </div>
-          <DragOverlay modifiers={[snapCenterToCursor]}>
-            <AnimatePresence>
-              {activeCard && !activeCard.isPlaced && (
-                <Card
-                  animate="normal"
-                  initial={wasHovered ? "play-hover" : "normal"}
-                  card={activeCard}
-                  isDragging={true}
-                  ctx={ctx}
-                  playerID={""}
+          <AnimatePresence
+            onExitComplete={() => {
+              console.log("exit complete");
+            }}
+          >
+            {activeCard && !activeCard.isPlaced ? (
+              // 1. DragOverlay must be the DIRECT child of AnimatePresence
+              <DragOverlay
+                key={`overlay-${activeCard.id}`}
+                modifiers={[snapCenterToCursor]}
+              >
+                <motion.div
+                  key={`overlay-${activeCard.id}`}
+                  initial={{ opacity: 1, scale: 1 }}
+                  animate={{ opacity: 1, scale: 1 }}
                   exit={{
                     opacity: 0,
                     scale: 0.5,
-                    transition: { duration: 0.2 },
+                    transition: { duration: 3, ease: "easeInOut" },
                   }}
-                />
-              )}
-            </AnimatePresence>
-          </DragOverlay>
+                  transition={{
+                    duration: 2,
+                  }}
+                >
+                  <Card
+                    animate="normal"
+                    initial={wasHovered ? "play-hover" : "normal"}
+                    card={activeCard}
+                    isDragging={true}
+                    ctx={ctx}
+                    playerID={""}
+                  />
+                </motion.div>
+              </DragOverlay>
+            ) : null}
+          </AnimatePresence>
         </DndContext>
       </div>
       {ctx?.gameover?.winner && (
