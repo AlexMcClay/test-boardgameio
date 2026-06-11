@@ -5,6 +5,7 @@ import type { BoardProps } from "boardgame.io/dist/types/packages/react";
 import HeroSection from "./HeroSection";
 import HandCard from "./Card/HandCard";
 import { twMerge } from "tailwind-merge";
+import PlayerHand from "./PlayerHand";
 
 interface Props extends BoardProps<GameState> {
   isTop?: boolean; // true for player 1, false or undefined for player 0
@@ -24,7 +25,6 @@ const PlayerArea = ({
   moves,
   ...props
 }: Props) => {
-  const { hand, deck } = player;
   return (
     <div
       className={` h-full w-screen flex justify-between items-${isTop ? "end" : "start"} `}
@@ -49,28 +49,16 @@ const PlayerArea = ({
         />
       </div>
 
-      {/* HAND CARDS */}
-      <div
-        className={twMerge(
-          "flex absolute self-center justify-center w-full z-50 ",
-          !isTop && "translate-y-[45%]",
-          isTop && "translate-y-[-70%]",
-        )}
-      >
-        {hand.map((card, idx) => {
-          return (
-            <HandCard
-              key={card.id}
-              size={hand.length}
-              index={idx}
-              isTop={isTop}
-              card={card}
-              ctx={ctx}
-              player={player}
-            />
-          );
-        })}
-      </div>
+      <PlayerHand
+        player={player}
+        isTop={isTop}
+        G={G}
+        playerID={playerID}
+        ctx={ctx}
+        events={events}
+        moves={moves}
+        {...props}
+      />
 
       {/* Mana */}
       <div className="absolute z-10 top-[53.5%] left-[63vw] flex items-center pointer-events-none">
