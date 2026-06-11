@@ -26,7 +26,7 @@ const Lane = ({ children, playerID }: Props) => {
     <div
       ref={setNodeRef}
       className={twMerge(
-        `flex justify-center items-center gap-4  relative`,
+        `flex justify-center items-center gap-[0.8vw] relative`,
         isOver && "ring-2 ring-yellow-300",
         isValid && "ring-2 ring-yellow-400 bg-yellow-400/10",
       )}

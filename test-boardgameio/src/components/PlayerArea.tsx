@@ -31,8 +31,8 @@ const PlayerArea = ({
       <div
         className={twMerge(
           "absolute z-0 self-center justify-center w-full flex items-center pointer-events-none",
-          !isTop && "translate-y-[-97%] translate-x-[-1.25%]",
-          isTop && "translate-y-[45%] translate-x-[-1.2%]",
+          !isTop && "translate-y-[-97%] translate-x-[-0.1%]",
+          isTop && "translate-y-[57%] translate-x-[0]",
         )}
       >
         <HeroSection
@@ -61,8 +61,8 @@ const PlayerArea = ({
       {/* Mana */}
       <div
         className={twMerge(
-          "absolute z-10 top-[53.5%] left-[63vw] flex items-center pointer-events-none ",
-          isTop && "top-[24.5%] left-[61vw]",
+          "absolute z-10 top-[53.5%] left-[64.2vw] flex items-center pointer-events-none ",
+          isTop && "top-[29.5%] left-[62vw]",
         )}
       >
         <div

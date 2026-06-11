@@ -12,10 +12,11 @@ import PlacedCard from "./PlacedCard";
 interface Props extends CardProps {
   playerID: PlayerID;
   ctx: Ctx;
+  isValid: boolean;
 }
 
 // MinionCard component with attack arrow behavior and attack animations
-const MinionCard = ({ card, playerID, ctx }: Props) => {
+const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
   const placedCardRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const startAttack = useDragStore((s) => s.startAttack);
@@ -214,6 +215,7 @@ const MinionCard = ({ card, playerID, ctx }: Props) => {
         !card.hasAttacked &&
           ctx.currentPlayer === playerID &&
           !isAttackingWithArrow &&
+          !isValid &&
           "canAttack",
       )}
     >
@@ -229,7 +231,7 @@ const MinionCard = ({ card, playerID, ctx }: Props) => {
   );
 };
 
-const DropDetectCard = (props: Props) => {
+const DropDetectCard = (props: Omit<Props, "isValid">) => {
   const { setNodeRef, isOver } = useDroppable({
     id: props.card.id,
     data: {
@@ -259,8 +261,8 @@ const DropDetectCard = (props: Props) => {
         },
       }}
     >
-      <div className={twMerge((isOver || isValid) && "highlight-shadow ")}>
-        <MinionCard {...props} />
+      <div className={twMerge(isValid && !isOver && "highlight-shadow ")}>
+        <MinionCard {...props} isValid={isValid} />
       </div>
     </motion.div>
   );

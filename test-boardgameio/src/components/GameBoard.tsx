@@ -286,7 +286,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       }}
     >
       <div
-        className="aspect-[16/9] w-full max-h-screen  flex flex-col text-white px-6 py-4 gap-2"
+        className="aspect-[16/9] w-full max-h-screen  flex flex-col text-white "
         style={{
           backgroundImage: `url(${backgroundImage})`,
           backgroundSize: "cover",
