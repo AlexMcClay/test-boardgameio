@@ -9,6 +9,7 @@ const cardBack = "assets/Card_Back.png";
 const mana_crystal = "assets/mana.png";
 const attackIcon = "assets/attack.png";
 const healthIcon = "assets/health.png";
+const cardBackground = "assets/card_parts/card.png";
 
 interface Props extends CardProps {}
 
@@ -80,7 +81,7 @@ const Card = ({
       layoutId={`card-${card.id}`}
       transition={isDragging ? { duration: 0 } : undefined}
       className={twMerge(
-        ` w-[150px] relative aspect-[5/7] bg-[#37373b] rounded-2xl border-4 border-[#54412e] flex-col flex gap-1 items-center shadow-xl text-white font-serif`,
+        ` w-[150px] relative aspect-[5/7] bg-[#37373b] rounded-2xl flex-col flex gap-0 items-center shadow-xl text-white font-serif`,
         isDragging &&
           !card.isPlaced &&
           " ring-blue-500 ring-2 shadow-blue-400  shadow-[0px_0px_60px_rgba(0,0,0,0.5)] ",
@@ -94,6 +95,24 @@ const Card = ({
         card.taunt && "border-gray-500",
       )}
     >
+      {/* Art */}
+      <div className="h-[45%] relative rounded-t-2xl bg-transparent overflow-hidden w-full">
+        <img
+          src={card.imageUrl}
+          // alt={title}
+          className="object-cover w-[95%] h-[95%] top-2 left-0.5 select-none absolute z-0"
+          draggable="false"
+        />
+      </div>
+
+      {/* Card Background */}
+      <img
+        src={cardBackground}
+        alt="Card Background"
+        className="object-cover w-full h-full absolute rounded-2xl z-0"
+        draggable="false"
+      />
+
       {/* Mana Crystal */}
       {card.mana !== null && card.mana !== undefined && (
         <div className=" select-none absolute text-lg top-[-1rem] left-[-1rem]  w-8 h-8 flex items-center justify-center font-bold  shadow-md z-10">
@@ -116,20 +135,10 @@ const Card = ({
         </div>
       )}
 
-      {/* Art */}
-      <div className="h-[45%] rounded-t-2xl bg-black overflow-hidden w-full">
-        <img
-          src={card.imageUrl}
-          // alt={title}
-          className="object-cover w-full h-full select-none"
-          draggable="false"
-        />
-      </div>
-
       {/* Title */}
       <div
         ref={containerRef}
-        className="text-center w-full font-extrabold text-white py-1 bg-[#f1ce8d] inset-shadow-sm inset-shadow-black overflow-hidden whitespace-nowrap px-2"
+        className="text-center relative w-full font-extrabold text-white py-0 inset-shadow-sm  overflow-hidden whitespace-nowrap px-2"
         title={card.title}
         style={{
           fontSize: `${fontSize}rem`,
@@ -138,13 +147,14 @@ const Card = ({
         }}
       >
         <span
-          className=" select-none inline-block align-middle whitespace-nowrap overflow-hidden text-ellipsis"
+          className=" select-none  inline-block align-middle whitespace-nowrap overflow-hidden text-ellipsis"
           style={{
             WebkitTextStroke: "0.5px black",
             textShadow: "0 1px 0px black",
             maxWidth: "100%",
             fontSize: `${fontSize}rem`,
             lineHeight: "1.2",
+            // arc text
           }}
         >
           {card.title}
@@ -152,13 +162,13 @@ const Card = ({
       </div>
       {/* Description */}
       {/* Highlight Keywords Charge, Taunt, Battlecry */}
-      <div className="select-none text-xs w-full text-black px-3 py-2 grow mb-1 bg-[#a58f79] border-2 border-[#f1ce8d] text-center font-medium ">
+      <div className="select-none text-[11px] w-full relative text-black px-4 py-2 pt-3 grow mb-1  text-center font-medium ">
         <span className="" dangerouslySetInnerHTML={{ __html: text }} />
       </div>
 
       {/* Type */}
       {card.type && (
-        <div className="absolute select-none -bottom-2 text-sm w-fit px-6 text-center font-extrabold text-white shadow-md rounded bg-[#f1ce8d]">
+        <div className="absolute select-none -bottom-1 text-sm w-fit px-6 text-center font-extrabold text-white shadow-md rounded bg-[#f1ce8d] ">
           <span
             style={{
               WebkitTextStroke: "0.5px black",
