@@ -16,6 +16,7 @@ type Props = {
   isHovered: boolean; // Controlled by parent
   onHoverEnter: (cardId: string, rect: DOMRect) => void;
   onCardRef: (cardId: string, ref: HTMLDivElement | null) => void;
+  back?: boolean;
 };
 
 const HandCard = ({
@@ -28,6 +29,7 @@ const HandCard = ({
   isHovered,
   onHoverEnter,
   onCardRef,
+  back,
 }: Props) => {
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -71,7 +73,7 @@ const HandCard = ({
         player.mana >= (card?.mana ?? 0) && ctx.currentPlayer === player.id
           ? "canPlayCard"
           : "",
-        isHovered && isTop ? "translate-y-[120%]" : "",
+        isHovered && isTop && !back ? "translate-y-[120%]" : "",
         isHovered && !isTop ? "translate-y-[-100%]" : "",
       )}
       style={{
@@ -91,9 +93,10 @@ const HandCard = ({
       <DragCard
         card={card}
         ctx={ctx}
-        animate={isHovered ? "play-hover" : "normal"}
+        animate={isHovered && !back ? "play-hover" : "normal"}
         onDragStart={() => {}}
         isHovered={isHovered}
+        back={back}
       />
     </div>
   );
@@ -114,7 +117,7 @@ const DragCard = (props: DargCardProps) => {
       card: props.card,
       wasHovered: props.isHovered, // Track if card was hovered when drag started
     },
-    disabled: disabled, // Disable dragging if the card has attacked or was just placed
+    disabled: disabled || props.back, // Disable dragging if the card has attacked or was just placed
   });
 
   // Notify parent when drag starts to reset hover state
@@ -134,7 +137,7 @@ const DragCard = (props: DargCardProps) => {
       }}
       {...listeners}
     >
-      <Card {...props} isDragging={isDragging} />
+      <Card {...props} isDragging={isDragging} back={props.back} />
     </div>
   );
 };

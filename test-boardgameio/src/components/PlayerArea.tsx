@@ -8,7 +8,6 @@ import PlayerHand from "./PlayerHand";
 interface Props extends BoardProps<GameState> {
   isTop?: boolean; // true for player 1, false or undefined for player 0
   player: Player;
-  playerID: PlayerID; // Added playerID to match the Board component
 }
 
 const mana_crystal = "assets/mana.png";
@@ -16,11 +15,11 @@ const mana_crystal = "assets/mana.png";
 const PlayerArea = ({
   player,
   isTop,
-  playerID,
   G,
   ctx,
   events,
   moves,
+
   ...props
 }: Props) => {
   return (
@@ -38,7 +37,6 @@ const PlayerArea = ({
         <HeroSection
           player={player}
           isTop={isTop}
-          playerID={playerID}
           G={G}
           ctx={ctx}
           events={events}
@@ -51,7 +49,6 @@ const PlayerArea = ({
         player={player}
         isTop={isTop}
         G={G}
-        playerID={playerID}
         ctx={ctx}
         events={events}
         moves={moves}

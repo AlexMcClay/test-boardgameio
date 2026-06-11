@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import type { GameState, Player } from "@/types";
-import type { PlayerID } from "boardgame.io";
 import type { BoardProps } from "boardgame.io/dist/types/packages/react";
 import { twMerge } from "tailwind-merge";
 import HandCard from "./Card/HandCard";
@@ -8,13 +7,12 @@ import HandCard from "./Card/HandCard";
 interface Props extends BoardProps<GameState> {
   isTop?: boolean; // true for player 1, false or undefined for player 0
   player: Player;
-  playerID: PlayerID; // Added playerID to match the Board component
 }
 
 // Configurable hover exit threshold
 const HOVER_EXIT_THRESHOLD = 0.85;
 
-const PlayerHand = ({ isTop, G, ctx, player }: Props) => {
+const PlayerHand = ({ isTop, G, ctx, player, playerID }: Props) => {
   const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
   const [hoverOrigin, setHoverOrigin] = useState<{
     x: number;
@@ -127,6 +125,7 @@ const PlayerHand = ({ isTop, G, ctx, player }: Props) => {
             card={card}
             ctx={ctx}
             player={player}
+            // back={playerID ? playerID !== player.id : false}
             isHovered={hoveredCardId === card.id}
             onHoverEnter={handleCardHoverEnter}
             onCardRef={setCardRef}

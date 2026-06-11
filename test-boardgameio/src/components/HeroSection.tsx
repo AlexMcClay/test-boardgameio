@@ -1,38 +1,28 @@
 import { useDragStore } from "@/stores/dragStore";
 import type { GameState, Player } from "@/types";
 import { useDroppable } from "@dnd-kit/core";
-import type { PlayerID } from "boardgame.io";
 import type { BoardProps } from "boardgame.io/dist/types/packages/react";
 import { twMerge } from "tailwind-merge";
 
 interface Props extends BoardProps<GameState> {
   isTop?: boolean; // true for player 1, false or undefined for player 0
   player: Player;
-  playerID: PlayerID; // Added playerID to match the Board component
 }
 
 const healthIcon = "assets/health.png";
 
-const HeroSection = ({
-  player,
-  isTop,
-  playerID,
-  G,
-  ctx,
-  events,
-  moves,
-}: Props) => {
+const HeroSection = ({ player, isTop, G, ctx, events, moves }: Props) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `player-${player.id}`,
     data: {
       type: "player",
-      player: playerID, // Include playerID to match the Lane component
-      id: playerID,
+      player: player.id, // Include playerID to match the Lane component
+      id: player.id,
     },
   });
 
   const isValidTarget = useDragStore((state) => state.isValidTarget);
-  const isValid = isValidTarget("player", playerID);
+  const isValid = isValidTarget("player", player.id);
 
   const heroPortrait = player.heroPortrait || "src/assets/default-hero.jpg";
 
@@ -58,7 +48,7 @@ const HeroSection = ({
     <div
       ref={setNodeRef}
       id="player-stats"
-      data-player-id={playerID}
+      data-player-id={player.id}
       className={twMerge(
         // 1. Set a percentage width, use aspect-square to guarantee a perfect 1:1 box
         `flex items-center w-[7%]  pointer-events-auto relative transition-all duration-100 no-shadow`,
