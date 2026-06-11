@@ -13,7 +13,7 @@ import DropDetectCard from "./Card/DropDetectCard";
 import Card from "./Card";
 import { useDragStore } from "@/stores/dragStore";
 import { useAnimationStore } from "@/stores/animationStore";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { validateMove } from "@/utils/validateMove";
 import { detectAllAnimations } from "@/utils/detectAnimations";
 import AttackArrow from "./AttackArrow";
@@ -23,17 +23,37 @@ import { pointerWithSmallBuffer } from "@/utils/customCollisionDetection";
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
 import { twMerge } from "tailwind-merge";
 import { AnimatePresence, motion } from "motion/react";
+import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 
 interface Props extends BoardProps<GameState> {}
 
 const backgroundImage = "assets/board.png"; // Path to your background image
 const exit_button = "assets/exit_button.png"; // Path to your exit button image
 
+const moltenCoreMusic = "assets/audio/music/05_Molten_Core.mp3";
+const arenaMusic = "assets/audio/music/05_Arena.mp3";
+
 const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   const activeCard = useDragStore((state) => state.activeCard);
   const setActiveCard = useDragStore((state) => state.setActiveCard);
   const setCurrentPlayer = useDragStore((state) => state.setCurrentPlayer);
   const setGameState = useDragStore((state) => state.setGameState);
+
+  const backgroundMusic = useMemo(() => {
+    // Choose Music Randomly on Game Start
+    const tracks = [moltenCoreMusic, arenaMusic];
+    return tracks[Math.floor(Math.random() * tracks.length)];
+  }, []);
+
+  const { play } = useBackgroundMusic(backgroundMusic);
+
+  useEffect(() => {
+    // play on timeout to ensure it doesn't get blocked by browser autoplay policies (since it's not triggered directly by user interaction)
+    const timeout = setTimeout(() => {
+      play();
+    }, 1000);
+    return () => clearTimeout(timeout);
+  }, [play]);
 
   const { queueAnimation, startAnimating, playAnimations, isAnimating } =
     useAnimationStore();
