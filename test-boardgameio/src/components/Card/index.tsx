@@ -20,11 +20,13 @@ const Card = ({
   playerID,
   ctx,
 }: Props) => {
-  const { fontSize, containerRef } = useFitText(card.title, 1, 0.1); // You can lower minFont further if needed
+  const { fontSize, containerRef } = useFitText(card.title, 2, 1); // You can lower minFont further if needed
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Use the arched text hook with container width (150px card width minus padding)
-  useArchedText(card.title, fontSize, canvasRef, 150 - 16); // 150px width - 2*8px padding
+  // Use the arched text hook with the container ref for dynamic width measurement
+  useArchedText(card.title, fontSize, canvasRef, containerRef);
+
+  console.log(fontSize);
 
   if (back) {
     return (
@@ -142,7 +144,7 @@ const Card = ({
 
       {/* Title */}
       <div
-        className="text-center relative w-full font-extrabold text-white inset-shadow-sm overflow-hidden px-2
+        className="text-center relative w-full font-extrabold text-white inset-shadow-sm overflow-hidden flex  justify-center
         h-[3vh]
         "
         title={card.title}
@@ -152,7 +154,7 @@ const Card = ({
           ref={containerRef}
           className="invisible absolute inline-block whitespace-nowrap"
           style={{
-            fontSize: `${fontSize}rem`,
+            fontSize: `${fontSize}px`,
             lineHeight: "1.2",
           }}
         >

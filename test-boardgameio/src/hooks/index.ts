@@ -35,13 +35,21 @@ export function useFitText(
 
     document.body.appendChild(testDiv);
 
-    let low = minFont;
-    let high = maxFont;
-    let best = minFont;
+    // Convert rem limits to pixels based on actual viewport dimensions
+    const rootFontSize = parseFloat(
+      getComputedStyle(document.documentElement).fontSize,
+    );
+    const maxFontPx = maxFont * rootFontSize;
+    const minFontPx = minFont * rootFontSize;
+    const precisionPx = precision * rootFontSize;
 
-    while (high - low > precision) {
+    let low = minFontPx;
+    let high = maxFontPx;
+    let best = minFontPx;
+
+    while (high - low > precisionPx) {
       const mid = (low + high) / 2;
-      testDiv.style.fontSize = `${mid}rem`;
+      testDiv.style.fontSize = `${mid}px`;
       testDiv.innerText = text;
 
       if (
@@ -66,18 +74,21 @@ export function useArchedText(
   text: string,
   fontSize: number,
   canvasRef: React.RefObject<HTMLCanvasElement | null>,
-  containerWidth: number,
+  containerRef: React.RefObject<HTMLElement | null>,
 ) {
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !text) return;
-
-    fontSize = fontSize * 0.9;
+    const container = containerRef.current;
+    if (!canvas || !text || !container) return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Set canvas size based on container
+    // Get actual container width from the DOM (accounts for viewport scaling)
+    const containerWidth = container.offsetWidth;
+    const fontSizeInPx = fontSize * 0.9; // fontSize is already in pixels
+
+    // Set canvas size based on actual container dimensions
     const dpr = 2;
     const width = containerWidth;
     const height = 40; // Fixed height for title area
@@ -90,8 +101,7 @@ export function useArchedText(
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, height);
 
-    // Set font and styling
-    const fontSizeInPx = fontSize * 16; // Convert rem to px (assuming 1rem = 16px)
+    // Set font and styling - fontSize is already in pixels
     ctx.font = `900 ${fontSizeInPx}px serif`; // 900 is extrabold
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -139,5 +149,5 @@ export function useArchedText(
 
       currentAngle += angleStep * charWidth;
     });
-  }, [text, fontSize, canvasRef, containerWidth]);
+  }, [text, fontSize, canvasRef, containerRef]);
 }
