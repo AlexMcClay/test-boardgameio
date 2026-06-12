@@ -53,7 +53,7 @@ const p0: Player = {
   hp: 30,
   maxArmor: 0,
   armor: 0,
-  mana: 10,
+  mana: 1,
   hand: [],
   deck: [],
 };
@@ -66,7 +66,7 @@ const p1: Player = {
   hp: 30,
   maxArmor: 0,
   armor: 0,
-  mana: 10,
+  mana: 1,
   hand: [],
   deck: shuffleDeck(randomPremadeDeck()),
 };

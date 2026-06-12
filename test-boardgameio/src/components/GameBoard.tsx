@@ -25,6 +25,7 @@ import { twMerge } from "tailwind-merge";
 import { AnimatePresence, motion } from "motion/react";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { useAudioStore } from "@/stores/audioStore";
+import { hasToEndTurn } from "@/utils";
 
 interface Props extends BoardProps<GameState> {}
 
@@ -181,6 +182,12 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   const p0Deck = p0.deck;
   const p1Deck = p1.deck;
 
+  const playerHasToEndTurn = useMemo(() => {
+    if (props.playerID && props.playerID === ctx.currentPlayer)
+      return hasToEndTurn(props.playerID, G);
+    return false;
+  }, [ctx.currentPlayer, G, props.playerID]);
+
   // console.log(ctx.phase, "Current phase");
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -318,13 +325,14 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
         <button
           className={twMerge(
             ` rounded-[50%/25%] absolute top-[44.5vh] h-[4vh] left-[79.2vw] w-[6.6vw] text-[1vw] uppercase font-belwe text-black scale-105   cursor-pointer z-50 brightness-80
-           hover:scale-110 active:scale-100 transition-all duration-150 hue-rotate-[-10deg] 
+           hover:scale-110 active:scale-100 transition-all duration-150 hue-rotate-[-10deg]
             `,
             props?.playerID
               ? props?.playerID != ctx.currentPlayer
                 ? "text-[0.8vw]"
                 : ``
               : "",
+            playerHasToEndTurn && "canPlayCard",
           )}
           onClick={() => {
             moves.endTurn();
@@ -515,7 +523,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       )}
 
       {/* Attack Arrow Overlay */}
-      <AttackArrow />
+      <AttackArrow ctx={ctx} playerID={props.playerID} />
 
       {/* Hit Numbers Overlay */}
       <HitNumbers />

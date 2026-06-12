@@ -1,4 +1,4 @@
-import type { Card } from "@/types";
+import type { Card, GameState } from "@/types";
 import { cardTemplates, type CardTemplateKey } from "./cards";
 import type { DeckString } from "./decks";
 
@@ -80,4 +80,16 @@ export function createRandomDeckString(count: number): DeckString {
   }
 
   return deckString;
+}
+
+export function hasToEndTurn(playedID: string, gameState: GameState): boolean {
+  // check if the player can play any cards, and check if any minnions can attack, some cards have 0 mana cost so we have to check for that as well
+  const player = gameState.players[playedID];
+  const canPlayCards = player.hand.some(
+    (card) => card.mana !== null && card.mana <= player.mana,
+  );
+  const canAttack = gameState.board[playedID].some(
+    (card) => !card.summoningSickness && !card.hasAttacked,
+  );
+  return !canPlayCards && !canAttack;
 }

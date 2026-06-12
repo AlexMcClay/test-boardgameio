@@ -1,6 +1,12 @@
 import { useDragStore } from "@/stores/dragStore";
+import type { Ctx } from "boardgame.io";
 
-const AttackArrow = () => {
+interface Props {
+  playerID: string | null;
+  ctx: Ctx;
+}
+
+const AttackArrow = ({ playerID, ctx }: Props) => {
   const attackingCardId = useDragStore((s) => s.attackingCardId);
   const attackOrigin = useDragStore((s) => s.attackOrigin);
   const cursorPosition = useDragStore((s) => s.cursorPosition);
@@ -34,6 +40,10 @@ const AttackArrow = () => {
   const head1Y = cursorPosition.y + Math.sin(headAngle1) * arrowHeadSize;
   const head2X = cursorPosition.x + Math.cos(headAngle2) * arrowHeadSize;
   const head2Y = cursorPosition.y + Math.sin(headAngle2) * arrowHeadSize;
+
+  if (playerID && ctx.currentPlayer !== playerID) {
+    return null;
+  }
 
   return (
     <svg
