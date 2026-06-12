@@ -21,17 +21,16 @@ import HitNumbers from "./HitNumbers";
 import { pointerWithSmallBuffer } from "@/utils/customCollisionDetection";
 
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
-import { twMerge } from "tailwind-merge";
 import { AnimatePresence, motion } from "motion/react";
 import { useAudioStore } from "@/stores/audioStore";
-import { hasToEndTurn } from "@/utils";
 import CardPlayed from "./CardPlayed";
+import EndTurnButton from "./Board/EndTurnButton";
+import BoardCardDeckTop from "./Board/BoardCardDeckTop";
+import BoardCardDeckBottom from "./Board/BoardCardDeckBottom";
 
 interface Props extends BoardProps<GameState> {}
 
 const backgroundImage = "assets/board.png"; // Path to your background image
-const exit_button = "assets/exit_button.png"; // Path to your exit button image
-
 const moltenCoreMusic = "assets/audio/music/05_Molten_Core.mp3";
 const arenaMusic = "assets/audio/music/05_Arena.mp3";
 
@@ -196,12 +195,6 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   const p0Deck = p0.deck;
   const p1Deck = p1.deck;
 
-  const playerHasToEndTurn = useMemo(() => {
-    if (props.playerID && props.playerID === visualCtx.currentPlayer)
-      return hasToEndTurn(props.playerID, visualGameState);
-    return false;
-  }, [visualCtx.currentPlayer, visualGameState, props.playerID]);
-
   // console.log(ctx.phase, "Current phase");
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -336,41 +329,12 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           // darken background with filter
         }}
       >
-        <button
-          className={twMerge(
-            ` rounded-[50%/25%] absolute top-[44.5vh] h-[4vh] left-[79.2vw] w-[6.6vw] text-[1vw] uppercase font-belwe text-black scale-105   cursor-pointer z-50 brightness-80
-           hover:scale-110 active:scale-100 transition-all duration-150 hue-rotate-[-10deg]
-            `,
-            props?.playerID
-              ? props?.playerID != visualCtx.currentPlayer
-                ? "text-[0.8vw]"
-                : ``
-              : "",
-            playerHasToEndTurn && "canPlayCard",
-          )}
-          onClick={() => {
-            moves.endTurn();
-          }}
-          disabled={
-            props.playerID ? props.playerID != visualCtx.currentPlayer : false
-          }
-          style={{
-            backgroundImage: props?.playerID
-              ? props?.playerID != visualCtx.currentPlayer
-                ? ""
-                : `url(${exit_button})`
-              : `url(${exit_button})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            // darken background with filter
-          }}
-        >
-          {props?.playerID
-            ? props?.playerID != visualCtx.currentPlayer
-              ? "Enemy Turn"
-              : "End Turn"
-            : "End Turn"}
-        </button>
+        <EndTurnButton
+          ctx={visualCtx}
+          G={visualGameState}
+          moves={moves}
+          {...props}
+        />
         <DndContext
           onDragEnd={handleDragEnd}
           onDragOver={handleDragOver}
@@ -388,13 +352,6 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
               isTop
             />
           </div>
-
-          <CardPlayed
-            {...props}
-            ctx={visualCtx}
-            G={visualGameState}
-            moves={moves}
-          />
 
           {/* Board Area */}
           <div
@@ -427,64 +384,8 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           </div>
 
           {/* Decks */}
-          <div
-            className="absolute z-50 top-[49.4%] left-[83.7vw] flex items-center pointer-events-none minion-shadow"
-            style={{
-              perspective: "1200px",
-              transformStyle: "preserve-3d",
-            }}
-          >
-            {p0Deck
-              .slice(Math.max(0, p0Deck.length - 8), p0Deck.length)
-              .map((card, idx) => (
-                <div
-                  key={card.id}
-                  className="absolute transition-transform z-50"
-                  style={{
-                    left: "0",
-                    top: "0",
-                    transform: `rotateY(-72deg) rotateX(-2deg) rotateZ(90deg) translateZ(${idx * 4}px)`,
-                    transformOrigin: "center center",
-
-                    // --- THE NEW FIXED COMPONENT CLIP ---
-                    // This crops from the local vertical edge, which matches your layout's horizontal line
-                    clipPath: "polygon(0% 0%, 100% 0%, 100% 65%, 0% 65%)",
-                  }}
-                  title={` ${p0Deck.length} cards`}
-                >
-                  <Card back card={card} ctx={ctx} />
-                </div>
-              ))}
-          </div>
-          <div
-            className="absolute z-50 top-[23.4%] left-[83.4vw] flex items-center pointer-events-none minion-shadow"
-            style={{
-              perspective: "1200px",
-              transformStyle: "preserve-3d",
-            }}
-          >
-            {p1Deck
-              .slice(Math.max(0, p1Deck.length - 8), p1Deck.length)
-              .map((card, idx) => (
-                <div
-                  key={card.id}
-                  className="absolute transition-transform z-50"
-                  style={{
-                    left: "0",
-                    top: "0",
-                    transform: `rotateY(-72deg) rotateX(2deg) rotateZ(76deg) translateZ(${idx * 4}px)`,
-                    transformOrigin: "center center",
-
-                    // --- THE NEW FIXED COMPONENT CLIP ---
-                    // This crops from the local vertical edge, which matches your layout's horizontal line
-                    clipPath: "polygon(0% 0%, 100% 0%, 100% 65%, 0% 65%)",
-                  }}
-                  title={` ${p1Deck.length} cards`}
-                >
-                  <Card back card={card} ctx={ctx} />
-                </div>
-              ))}
-          </div>
+          <BoardCardDeckTop deck={p1Deck} ctx={visualCtx} />
+          <BoardCardDeckBottom deck={p0Deck} ctx={visualCtx} />
 
           {/* Player 0 Hand */}
           <div className="absolute bottom-0 w-full h-1/4 flex flex-col justify-start">
@@ -542,10 +443,15 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           </div>
         </div>
       )}
-
+      {/* CardPlayed Overlay */}
+      <CardPlayed
+        {...props}
+        ctx={visualCtx}
+        G={visualGameState}
+        moves={moves}
+      />
       {/* Attack Arrow Overlay */}
       <AttackArrow ctx={ctx} playerID={props.playerID} />
-
       {/* Hit Numbers Overlay */}
       <HitNumbers />
     </div>

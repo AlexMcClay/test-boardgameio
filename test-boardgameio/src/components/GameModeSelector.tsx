@@ -1,3 +1,4 @@
+import { useAudioStore } from "@/stores/audioStore";
 import { useState } from "react";
 
 interface GameModeSelectorProps {
@@ -8,6 +9,8 @@ const backgroundImage = "assets/menu/main_menu.png";
 
 const GameModeSelector = ({ onModeSelect }: GameModeSelectorProps) => {
   const [hoveredMode, setHoveredMode] = useState<"pvp" | "ai" | null>(null);
+
+  const playSfx = useAudioStore((state) => state.playSfx);
 
   return (
     <div
@@ -23,8 +26,14 @@ const GameModeSelector = ({ onModeSelect }: GameModeSelectorProps) => {
         <div className="relative z-10 flex flex-col items-center gap-6 w-[400px] font-belwe">
           {/* Play Button */}
           <button
-            onClick={() => onModeSelect("pvp")}
-            onMouseEnter={() => setHoveredMode("pvp")}
+            onClick={() => {
+              playSfx("button-click");
+              onModeSelect("pvp");
+            }}
+            onMouseEnter={() => {
+              setHoveredMode("pvp");
+              playSfx("button-over");
+            }}
             onMouseLeave={() => setHoveredMode(null)}
             className={`
               relative w-full py-6 px-8
@@ -47,8 +56,14 @@ const GameModeSelector = ({ onModeSelect }: GameModeSelectorProps) => {
 
           {/* Play vs AI Button */}
           <button
-            onClick={() => onModeSelect("ai")}
-            onMouseEnter={() => setHoveredMode("ai")}
+            onClick={() => {
+              playSfx("button-click");
+              onModeSelect("ai");
+            }}
+            onMouseEnter={() => {
+              playSfx("button-over");
+              setHoveredMode("ai");
+            }}
             onMouseLeave={() => setHoveredMode(null)}
             className={`
               relative w-full py-6 px-8

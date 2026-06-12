@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createMusicSlice, type MusicSlice } from "./musicSlice";
+import { createSfxSlice, type SfxSlice } from "./sfxSlice";
 
 interface BaseAudioState {
   musicVolume: number;
@@ -14,8 +15,8 @@ interface BaseAudioState {
   toggleMute: () => void;
 }
 
-// Combine the global master configurations and the split slice interface
-export type AudioState = BaseAudioState & MusicSlice;
+// Combine the global master configurations and the split slice interfaces
+export type AudioState = BaseAudioState & MusicSlice & SfxSlice;
 
 export const useAudioStore = create<AudioState>()((set, get, ...a) => ({
   // --- Core State Variables ---
@@ -31,13 +32,17 @@ export const useAudioStore = create<AudioState>()((set, get, ...a) => ({
     const AudioContextClass =
       window.AudioContext || (window as any).webkitAudioContext;
     const ctx = new AudioContextClass();
-    const masterGain = ctx.createGain();
-    masterGain.gain.setValueAtTime(
+    const masterMusicGain = ctx.createGain();
+    masterMusicGain.gain.setValueAtTime(
       get().isMuted ? 0 : get().musicVolume,
       ctx.currentTime,
     );
-    masterGain.connect(ctx.destination);
-    set({ audioContext: ctx, masterMusicGain: masterGain });
+    masterMusicGain.connect(ctx.destination);
+
+    set({
+      audioContext: ctx,
+      masterMusicGain: masterMusicGain,
+    });
   },
 
   setMusicVolume: (volume) => {
@@ -52,17 +57,37 @@ export const useAudioStore = create<AudioState>()((set, get, ...a) => ({
     }
   },
 
-  setSfxVolume: (volume) =>
-    set({ sfxVolume: Math.max(0, Math.min(1, volume)) }),
+  setSfxVolume: (volume) => {
+    const validVolume = Math.max(0, Math.min(1, volume));
+    set({ sfxVolume: validVolume });
+    // Update the SFX gain node if it exists (managed by sfxSlice)
+    const state = get();
+    if (state.masterSfxGain && state.audioContext) {
+      state.masterSfxGain.gain.setValueAtTime(
+        state.isMuted ? 0 : validVolume,
+        state.audioContext.currentTime,
+      );
+    }
+  },
 
   toggleMute: () =>
     set((state) => {
       const nextMuted = !state.isMuted;
-      if (state.masterMusicGain && state.audioContext) {
-        state.masterMusicGain.gain.setValueAtTime(
-          nextMuted ? 0 : state.musicVolume,
-          state.audioContext.currentTime,
-        );
+      if (state.audioContext) {
+        // Update music gain
+        if (state.masterMusicGain) {
+          state.masterMusicGain.gain.setValueAtTime(
+            nextMuted ? 0 : state.musicVolume,
+            state.audioContext.currentTime,
+          );
+        }
+        // Update SFX gain
+        if (state.masterSfxGain) {
+          state.masterSfxGain.gain.setValueAtTime(
+            nextMuted ? 0 : state.sfxVolume,
+            state.audioContext.currentTime,
+          );
+        }
       }
       return { isMuted: nextMuted };
     }),
@@ -70,4 +95,5 @@ export const useAudioStore = create<AudioState>()((set, get, ...a) => ({
   // --- Injecting Slices ---
   // Using the rest operator arrays (...a) bridges Zustand's configuration arguments seamlessly
   ...createMusicSlice(set, get, ...a),
+  ...createSfxSlice(set, get, ...a),
 }));

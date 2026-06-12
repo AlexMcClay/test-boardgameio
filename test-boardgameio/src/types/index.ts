@@ -22,6 +22,11 @@ export interface Card {
   taunt?: boolean; // Optional, to indicate if the card has taunt
   targets: TargetTypes[]; // Optional, to specify valid targets for the card
   battlecryTargets?: TargetTypes[]; // Optional, valid targets for battlecry (bypasses taunt)
+  sfx?: {
+    death?: string[];
+    drop?: string[];
+    attack?: string[];
+  };
 }
 
 export type TargetValue = {

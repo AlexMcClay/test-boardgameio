@@ -4,6 +4,7 @@ import { cardTemplates, type CardTemplateKey } from "@/utils/cards";
 import { premadeDecks, type DeckString } from "@/utils/decks";
 import type { Ctx } from "boardgame.io";
 import type { Card as CardType } from "@/types";
+import { useAudioStore } from "@/stores/audioStore";
 
 interface DeckSelectionProps {
   ctx: Ctx;
@@ -16,6 +17,7 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
   const [deck, setDeck] = useState<Partial<Record<CardTemplateKey, number>>>(
     {},
   );
+  const playSfx = useAudioStore((state) => state.playSfx);
 
   function handleConfirmDeck() {
     moves.setDeck(ctx.currentPlayer, deck);
@@ -198,7 +200,13 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
                 <button
                   key={name}
                   className="rounded w-full text-[0.8vw] warrior-button transition-all duration-200 flex items-center gap-[0.2vw] justify-center p-[0.5vw]"
-                  onClick={() => handleSetWholeDeck(deckString)}
+                  onClick={() => {
+                    playSfx("button-click");
+                    handleSetWholeDeck(deckString);
+                  }}
+                  onMouseEnter={() => {
+                    playSfx("button-over");
+                  }}
                 >
                   <span className="text-[1vw] text-amber-200">{name}</span>
                 </button>

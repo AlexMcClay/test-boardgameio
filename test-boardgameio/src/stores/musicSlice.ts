@@ -66,6 +66,7 @@ export const createMusicSlice: StateCreator<
 
   executePlay: async (fadeDuration) => {
     get().initAudio();
+    get().preloadSfxSounds();
     const ctx = get().audioContext!;
     const masterGain = get().masterMusicGain!;
 
