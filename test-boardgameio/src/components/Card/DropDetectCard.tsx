@@ -8,6 +8,7 @@ import { motion } from "motion/react";
 import { useRef, useEffect } from "react";
 import { DEATH_ANIMATION } from "@/utils/animationDurations";
 import PlacedCard from "./PlacedCard";
+import { useAudioStore } from "@/stores/audioStore";
 
 interface Props extends CardProps {
   playerID: PlayerID;
@@ -235,9 +236,14 @@ const DropDetectCard = (props: Omit<Props, "isValid">) => {
   const isFirstRender = useRef(true);
   const isValidTarget = useDragStore((state) => state.isValidTarget);
   const isValid = isValidTarget("card", props.playerID, props.card.id);
+  const playSfx = useAudioStore((state) => state.playSfx);
 
   useEffect(() => {
-    isFirstRender.current = false;
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      playSfx("minion-drop-med");
+      return;
+    }
   }, []);
 
   const { setNodeRef, isOver } = useDroppable({

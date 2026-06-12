@@ -10,21 +10,28 @@ export const SFX_MANIFEST = {
   // === UI Sounds (Preloaded) ===
   "button-click": { path: "/ui/button_click.ogg", preload: true },
   "button-over": { path: "/ui/button_over.ogg", preload: true },
-  "card-select": { path: "/ui/card-select.ogg", preload: true },
+  "card-over": {
+    path: "/ui/collection_manager_card_mouse_over.ogg",
+    preload: true,
+  },
 
   // === Gameplay Sounds (Preloaded) ===
   "card-play": { path: "/gameplay/card-play.ogg", preload: true },
-  "card-draw": { path: "/gameplay/draw_card_1.ogg", preload: true },
-  "your-turn": { path: "/gameplay/your-turn.ogg", preload: true },
+  "card-draw": { path: "/ui/draw_card_1.ogg", preload: true },
+  "your-turn": { path: "/ui/your-turn.ogg", preload: true },
+  "card-magic-loop": {
+    path: "/ui/card_motion_loop_magical.ogg",
+    preload: true,
+  },
 
   // Basic minion
   "minion-attack": {
-    path: "/gameplay/minion_attack_impact.ogg",
+    path: "/ui/minion_attack_impact.ogg",
     preload: false,
   },
-  "minion-death": { path: "/gameplay/Minion_Deat_01.ogg", preload: true },
+  "minion-death": { path: "/ui/Minion_Deat_01.ogg", preload: true },
   "minion-drop-med": {
-    path: "/gameplay/Minion_Drop_Medium.ogg",
+    path: "/ui/Minion_Drop_Medium.ogg",
     preload: true,
   },
 

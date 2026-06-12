@@ -20,6 +20,7 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
   const playSfx = useAudioStore((state) => state.playSfx);
 
   function handleConfirmDeck() {
+    playSfx("button-click");
     moves.setDeck(ctx.currentPlayer, deck);
   }
 
@@ -40,6 +41,7 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
   }
 
   function handleClearDeck() {
+    playSfx("button-click");
     setDeck({});
   }
 
@@ -121,6 +123,9 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
                       const newCount = currentCount + 1;
                       handleDeckChange(id as CardTemplateKey, newCount);
                     }
+                  }}
+                  onMouseEnter={() => {
+                    playSfx("card-over");
                   }}
                   onContextMenu={(e) => {
                     e.preventDefault();
@@ -213,13 +218,22 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
               ))}
             </div>
 
-            <button className="clear-deck-button" onClick={handleClearDeck}>
+            <button
+              onMouseEnter={() => {
+                playSfx("button-over");
+              }}
+              className="clear-deck-button"
+              onClick={handleClearDeck}
+            >
               Clear Deck
             </button>
           </div>
 
           {/* Confirm Button */}
           <button
+            onMouseEnter={() => {
+              playSfx("button-over");
+            }}
             className={`confirm-deck-button ${totalCards === maxCards ? "ready" : ""}`}
             onClick={handleConfirmDeck}
             disabled={totalCards === 0}

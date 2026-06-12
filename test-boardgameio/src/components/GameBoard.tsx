@@ -27,6 +27,7 @@ import CardPlayed from "./CardPlayed";
 import EndTurnButton from "./Board/EndTurnButton";
 import BoardCardDeckTop from "./Board/BoardCardDeckTop";
 import BoardCardDeckBottom from "./Board/BoardCardDeckBottom";
+import DragCard from "./Board/DragCard";
 
 interface Props extends BoardProps<GameState> {}
 
@@ -409,28 +410,11 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
                 key={`overlay-${activeCard.id}`}
                 modifiers={[snapCenterToCursor]}
               >
-                <motion.div
-                  key={`overlay-${activeCard.id}`}
-                  initial={{ opacity: 1, scale: 1 }}
-                  animate={{ opacity: activeCard.isSpell ? 0.45 : 1, scale: 1 }}
-                  exit={{
-                    opacity: 0,
-                    scale: 0.5,
-                    transition: { duration: 3, ease: "easeInOut" },
-                  }}
-                  transition={{
-                    duration: 2,
-                  }}
-                >
-                  <Card
-                    animate="normal"
-                    initial={wasHovered ? "play-hover" : "normal"}
-                    card={activeCard}
-                    isDragging={true}
-                    ctx={ctx}
-                    playerID={""}
-                  />
-                </motion.div>
+                <DragCard
+                  ctx={visualCtx}
+                  activeCard={activeCard}
+                  wasHovered={wasHovered}
+                />
               </DragOverlay>
             ) : null}
           </AnimatePresence>

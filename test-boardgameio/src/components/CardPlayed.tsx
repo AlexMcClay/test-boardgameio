@@ -5,6 +5,7 @@ import { useAnimationStore } from "@/stores/animationStore";
 import { useEffect, useState, useRef } from "react";
 import type { CardPlayedAnimation } from "@/types/animations";
 import { AnimatePresence, motion } from "motion/react";
+import { useAudioStore } from "@/stores/audioStore";
 
 interface Props extends BoardProps<GameState> {}
 
@@ -13,6 +14,8 @@ const CardPlayed = ({ ctx, playerID }: Props) => {
   const [activeCard, setActiveCard] = useState<CardPlayedAnimation | null>(
     null,
   );
+  const playSfx = useAudioStore((state) => state.playSfx);
+
   const processedAnimationTime = useRef<number>(-1);
 
   // 1. Get ALL cardPlayed animations that belong to the ENEMY
@@ -45,6 +48,7 @@ const CardPlayed = ({ ctx, playerID }: Props) => {
     // 3. Update the display instantly if a newer animation timestamp is found
     if (latestPlayAnim.startTime >= processedAnimationTime.current) {
       processedAnimationTime.current = latestPlayAnim.startTime;
+      playSfx("card-draw");
       setActiveCard(latestPlayAnim);
     } else {
       console.log(

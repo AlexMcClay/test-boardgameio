@@ -251,10 +251,31 @@ Loads all sounds marked with `preload: true`. Call once during initialization.
 
 #### `playSfx(soundId: string, volume?: number): Promise<void>`
 
-Plays a sound effect.
+Plays a sound effect once.
 
 - `soundId`: Manifest ID or custom path
 - `volume`: Optional multiplier (0.0-1.0), default 1.0
+
+#### `playSfxLoop(soundId: string, volume?: number): Promise<void>`
+
+Plays a looping sound effect that continues until stopped.
+
+- `soundId`: Manifest ID or custom path
+- `volume`: Optional multiplier (0.0-1.0), default 1.0
+
+**Important:** Automatically stops any existing loop with the same soundId before starting.
+
+#### `stopSfxLoop(soundId: string): void`
+
+Stops a specific looping sound.
+
+- `soundId`: The sound ID to stop
+
+Safe to call even if the loop doesn't exist (no-op).
+
+#### `stopAllLoops(): void`
+
+Stops all active looping sounds. Useful for scene transitions or cleanup.
 
 #### `clearSfxCache(): void`
 
@@ -278,7 +299,71 @@ Preloaded sound buffers (always in memory)
 
 Runtime-loaded sounds (LRU cache with 30-sound limit)
 
+#### `activeLoops: Map<string, { source, gainNode }>`
+
+Currently playing looping sounds
+
 ## Examples
+
+### Looping Sound with Component Lifecycle
+
+Perfect for sounds that should play while a component is mounted:
+
+```typescript
+import { useEffect } from 'react';
+import { useAudioStore } from '@/stores/audioStore';
+
+function DragCard({ card }) {
+  const playSfxLoop = useAudioStore((state) => state.playSfxLoop);
+  const stopSfxLoop = useAudioStore((state) => state.stopSfxLoop);
+
+  useEffect(() => {
+    // Start loop on mount
+    playSfxLoop("card-magic-loop", 0.1);
+
+    // Stop loop on unmount
+    return () => {
+      stopSfxLoop("card-magic-loop");
+    };
+  }, [playSfxLoop, stopSfxLoop]);
+
+  return <div>Dragging {card.name}</div>;
+}
+```
+
+### Conditional Looping
+
+```typescript
+function BattleScene({ isInCombat }) {
+  const playSfxLoop = useAudioStore((state) => state.playSfxLoop);
+  const stopSfxLoop = useAudioStore((state) => state.stopSfxLoop);
+
+  useEffect(() => {
+    if (isInCombat) {
+      playSfxLoop("battle-ambient", 0.3);
+    } else {
+      stopSfxLoop("battle-ambient");
+    }
+  }, [isInCombat, playSfxLoop, stopSfxLoop]);
+
+  return <div>/* ... */</div>;
+}
+```
+
+### Stop All Loops on Scene Change
+
+```typescript
+function GameBoard() {
+  const stopAllLoops = useAudioStore((state) => state.stopAllLoops);
+
+  const handleSceneTransition = () => {
+    stopAllLoops(); // Clean up all looping sounds
+    // Navigate to new scene...
+  };
+
+  return <button onClick={handleSceneTransition}>Next Scene</button>;
+}
+```
 
 ### Button with Hover Sound
 
@@ -338,6 +423,9 @@ function EndTurnButton() {
 4. **File Sizes**: Keep individual SFX under 100KB when possible
 5. **Testing**: Use `clearSfxCache()` to test on-demand loading behavior
 6. **Animation Integration**: Wait until you're happy with animations, then add sounds
+7. **Looping Sounds**: Always clean up loops in useEffect return or component unmount
+8. **Loop Volume**: Looping ambient sounds typically work best at low volumes (0.1-0.3)
+9. **Prevent Duplicates**: `playSfxLoop` auto-stops existing loops with the same ID
 
 ## Troubleshooting
 
