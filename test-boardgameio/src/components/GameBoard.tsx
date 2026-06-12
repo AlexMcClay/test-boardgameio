@@ -511,7 +511,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
                 <motion.div
                   key={`overlay-${activeCard.id}`}
                   initial={{ opacity: 1, scale: 1 }}
-                  animate={{ opacity: 1, scale: 1 }}
+                  animate={{ opacity: activeCard.isSpell ? 0.45 : 1, scale: 1 }}
                   exit={{
                     opacity: 0,
                     scale: 0.5,

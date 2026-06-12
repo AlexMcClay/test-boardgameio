@@ -34,14 +34,27 @@ const PlacedCard = ({
       animate={
         isAttacking
           ? {
-              x: [0, targetPosition.x, 0],
-              y: [0, targetPosition.y, 0],
-              scale: [1, 1.15, 1],
-              opacity: [1, 1, 1],
+              x: [
+                0,
+                -targetPosition.x * 0.08,
+                targetPosition.x,
+                targetPosition.x,
+                0,
+              ],
+              y: [
+                0,
+                -targetPosition.y * 0.08,
+                targetPosition.y,
+                targetPosition.y,
+                0,
+              ],
+              scale: [1, 1.08, 1.18, 1.15, 1],
+              rotate: [0, -3, 6, 4, 0],
+              zIndex: 999,
+
               transition: {
                 duration: ATTACK_ANIMATION.duration / 1000,
-                times: [0, 0.5, 1],
-                ease: "easeInOut",
+                times: [0, 0.18, 0.58, 0.68, 1],
               },
             }
           : props.animate
@@ -51,10 +64,7 @@ const PlacedCard = ({
                 scale: 1,
                 x: 0,
                 y: 0,
-                // transition: {
-                //   duration: 0.3,
-                //   ease: "easeInOut",
-                // },
+                zIndex: 10,
               }
       }
       className={twMerge(

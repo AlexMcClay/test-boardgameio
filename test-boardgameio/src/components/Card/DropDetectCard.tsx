@@ -263,7 +263,6 @@ const DropDetectCard = (props: Omit<Props, "isValid">) => {
               y: -90, // Started higher up to clear the board beautifully
               rotateX: 35, // Tilted back in hand perspective
               rotate: -5, // Slight natural hand tilt before dropping
-              filter: "drop-shadow(0 50px 25px rgba(0,0,0,0.3))",
             }
           : undefined
       }
@@ -285,14 +284,6 @@ const DropDetectCard = (props: Omit<Props, "isValid">) => {
 
               // 5. The Ground Vibrations: Subtle micro-shakes left & right post-impact
               x: [0, 6, -5, 3, -1.5, 0],
-
-              // 6. Shadow snaps tight to the card as it connects with the surface
-              filter: [
-                "drop-shadow(0 50px 25px rgba(0,0,0,0.3))",
-                "drop-shadow(0 4px 6px rgba(0,0,0,0.2))",
-                "drop-shadow(0 6px 10px rgba(0,0,0,0.15))",
-                "drop-shadow(0 4px 6px rgba(0,0,0,0.2))",
-              ],
             }
           : { opacity: 1, scale: 1, y: 0, rotateX: 0, rotate: 0, x: 0 }
       }
