@@ -1,17 +1,23 @@
 // Animation queue store for managing card animations
 import { create } from "zustand";
-import type { AnimationEvent } from "@/types/animations";
+import type { AnimationEvent, AnimationQueueItem } from "@/types/animations";
 
 type AnimationStore = {
   // State
-  queue: AnimationEvent[];
+  queue: AnimationQueueItem[]; // Queue of animation batches with their game states
   isAnimating: boolean;
   activeAnimations: AnimationEvent[]; // Track multiple simultaneous animations
 
   // Actions
-  queueAnimation: (event: AnimationEvent) => void;
+  queueAnimationBatch: (
+    animations: AnimationEvent[],
+    gameState: any,
+    ctx: any,
+  ) => void; // Queue animations with game state and ctx
   startAnimating: () => void;
-  playAnimations: () => Promise<void>;
+  playAnimations: (
+    onBatchComplete?: (gameState: any, ctx: any) => void,
+  ) => Promise<void>;
   clearQueue: () => void;
   addActiveAnimation: (event: AnimationEvent) => void;
   removeActiveAnimation: (event: AnimationEvent) => void;
@@ -22,9 +28,16 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
   isAnimating: false,
   activeAnimations: [],
 
-  queueAnimation: (event) => {
+  queueAnimationBatch: (animations, gameState, ctx) => {
     set((state) => ({
-      queue: [...state.queue, event],
+      queue: [
+        ...state.queue,
+        {
+          animations,
+          gameState: structuredClone(gameState), // Deep clone to prevent reference issues
+          ctx: structuredClone(ctx), // Deep clone ctx as well
+        },
+      ],
     }));
   },
 
@@ -63,40 +76,76 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
     }));
   },
 
-  playAnimations: async () => {
-    const { queue } = get();
+  playAnimations: async (onBatchComplete) => {
+    // Process queue items sequentially
+    // Note: Always get fresh queue reference in case new items are added during processing
+    while (get().queue.length > 0) {
+      const currentBatch = get().queue[0];
 
-    if (queue.length === 0) return;
+      if (!currentBatch || currentBatch.animations.length === 0) {
+        // Empty batch - still need to update visual state with this snapshot
+        console.log("Processing state update batch (no animations)");
 
-    // isAnimating should already be set by startAnimating(), but ensure it's true
-    set({ isAnimating: true });
+        // Call the callback to update visual state
+        if (onBatchComplete && currentBatch) {
+          onBatchComplete(currentBatch.gameState, currentBatch.ctx);
+        }
 
-    // Calculate total timeline duration
-    const timelineEnd = Math.max(
-      ...queue.map((anim) => anim.startTime + anim.duration),
-    );
+        // Remove empty batch and continue
+        set((state) => ({
+          queue: state.queue.slice(1),
+        }));
+        continue;
+      }
 
-    // Play all animations on their timeline (can overlap!)
-    const animationPromises = queue.map((animation) => {
-      return new Promise<void>((resolve) => {
-        // Wait for animation's startTime, then trigger it
-        setTimeout(() => {
-          get().addActiveAnimation(animation);
+      console.log(
+        `Playing animation batch with ${currentBatch.animations.length} animations`,
+      );
 
-          // Remove animation after its duration
+      // Set animating flag
+      set({ isAnimating: true });
+
+      // Calculate total timeline duration for this batch
+      const timelineEnd = Math.max(
+        ...currentBatch.animations.map(
+          (anim) => anim.startTime + anim.duration,
+        ),
+      );
+
+      // Play all animations in this batch on their timeline (can overlap!)
+      const animationPromises = currentBatch.animations.map((animation) => {
+        return new Promise<void>((resolve) => {
+          // Wait for animation's startTime, then trigger it
           setTimeout(() => {
-            get().removeActiveAnimation(animation);
-            resolve();
-          }, animation.duration);
-        }, animation.startTime);
+            get().addActiveAnimation(animation);
+
+            // Remove animation after its duration
+            setTimeout(() => {
+              get().removeActiveAnimation(animation);
+              resolve();
+            }, animation.duration);
+          }, animation.startTime);
+        });
       });
-    });
 
-    // Wait for the entire timeline to complete
-    await Promise.all(animationPromises);
+      // Wait for the entire batch timeline to complete
+      await Promise.all(animationPromises);
 
-    // Clear queue and reset state
-    // Note: Don't force-clear activeAnimations - they remove themselves after their duration
-    set({ queue: [], isAnimating: false });
+      console.log("Animation batch complete");
+
+      // Remove the completed batch from queue
+      set((state) => ({
+        queue: state.queue.slice(1),
+      }));
+
+      // Call the callback with this batch's game state and ctx so visual state can update
+      if (onBatchComplete) {
+        onBatchComplete(currentBatch.gameState, currentBatch.ctx);
+      }
+    }
+
+    // All batches complete - reset state
+    set({ isAnimating: false, activeAnimations: [] });
+    console.log("All animation batches complete");
   },
 }));

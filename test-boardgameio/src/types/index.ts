@@ -136,7 +136,11 @@ export type GameEvent =
   | MinionPlacedEvent
   | SummonEvent
   | EndTurnEvent
-  | SpellEvent;
+  | SpellEvent
+  | DrawCardEvent
+  | BeginTurnEvent
+  | ChangeKeyEvent
+  | ManaEvent;
 
 export type SummonEvent = {
   type: "summon";
@@ -154,8 +158,36 @@ export type SpellEvent = {
   card: Card; // Include full card data for easier animation handling
 };
 
+export type ManaEvent = {
+  type: "mana";
+  playerId: PlayerID;
+  timestamp: number;
+};
+
 export type EndTurnEvent = {
   type: "endTurn";
+  playerId: PlayerID;
+  timestamp: number;
+};
+
+export type BeginTurnEvent = {
+  type: "beginTurn";
+  playerId: PlayerID;
+  timestamp: number;
+};
+
+export type DrawCardEvent = {
+  type: "drawCard";
+  playerId: PlayerID;
+  timestamp: number;
+  cardId: string;
+};
+
+export type ChangeKeyEvent = {
+  type: "changeKey";
+  key: string;
+  value: any;
+  cardId: string;
   playerId: PlayerID;
   timestamp: number;
 };

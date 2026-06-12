@@ -371,12 +371,28 @@ const doEffects = (
             if (targetCard && targetCard[effect.key] !== undefined) {
               // @ts-ignore
               targetCard[effect.key] += effect.value;
+              recordEvent(G, {
+                type: "changeKey",
+                playerId: ctx.currentPlayer,
+                timestamp: Date.now(),
+                cardId: targetCard.id,
+                key: effect.key,
+                value: effect.value,
+              });
             }
           }
         } else if (effect.target === "self") {
           if (card[effect.key] !== undefined) {
             // @ts-ignore
             card[effect.key] += effect.value;
+            recordEvent(G, {
+              type: "changeKey",
+              playerId: ctx.currentPlayer,
+              timestamp: Date.now(),
+              cardId: card.id,
+              key: effect.key,
+              value: effect.value,
+            });
           }
         }
         break;
@@ -570,6 +586,11 @@ const doEffects = (
       case "mana":
         // increment current   player's mana
         G.players[playerID].mana += effect.value;
+        recordEvent(G, {
+          type: "mana",
+          playerId: ctx.currentPlayer,
+          timestamp: Date.now(),
+        });
         break;
       case "changeKey":
         if (target && effect.target == "other") {
@@ -580,12 +601,28 @@ const doEffects = (
             if (targetCard) {
               // @ts-ignore
               targetCard[effect.key] = effect.value;
+              recordEvent(G, {
+                type: "changeKey",
+                playerId: ctx.currentPlayer,
+                timestamp: Date.now(),
+                cardId: targetCard.id,
+                key: effect.key,
+                value: effect.value,
+              });
             }
           }
         } else if (effect.target == "self") {
           if (card[effect.key] !== undefined) {
             // @ts-ignore
             card[effect.key] = effect.value;
+            recordEvent(G, {
+              type: "changeKey",
+              playerId: ctx.currentPlayer,
+              timestamp: Date.now(),
+              cardId: card.id,
+              key: effect.key,
+              value: effect.value,
+            });
           }
         }
         break;
@@ -642,6 +679,12 @@ function handleDrawCard(G: GameState, ctx: Ctx, playerID?: PlayerID) {
     const drawnCard = player.deck.pop();
     if (drawnCard) {
       player.hand.push(drawnCard);
+      recordEvent(G, {
+        type: "drawCard",
+        cardId: drawnCard.id,
+        playerId: playerID || ctx.currentPlayer,
+        timestamp: Date.now(),
+      });
     }
   } else {
     // Handle case when deck is empty, e.g., damage player or reshuffle
@@ -748,6 +791,11 @@ export const HeathStoneGame: Game<GameState> = {
       G.board[ctx.currentPlayer].forEach((card) => {
         card.hasAttacked = false; // Reset attack status for all cards
         card.summoningSickness = false; // Remove summoning sickness
+      });
+      recordEvent(G, {
+        type: "beginTurn",
+        playerId: ctx.currentPlayer,
+        timestamp: Date.now(),
       });
     },
   },

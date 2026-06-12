@@ -1,6 +1,6 @@
 // Animation event types for the animation queue system
 import type { PlayerID } from "boardgame.io";
-import type { Card } from ".";
+import type { Card, GameState } from ".";
 
 export type AttackAnimation = {
   type: "attack";
@@ -45,3 +45,10 @@ export type AnimationEvent =
   | DeathAnimation
   | HitNumberAnimation
   | CardPlayedAnimation;
+
+// Queue item that pairs animations with their game state and context
+export type AnimationQueueItem = {
+  animations: AnimationEvent[];
+  gameState: GameState; // Full game state snapshot for this animation batch
+  ctx: any; // Context snapshot (currentPlayer, phase, etc.)
+};

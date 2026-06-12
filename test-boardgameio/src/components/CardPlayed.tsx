@@ -62,26 +62,20 @@ const CardPlayed = ({ ctx, playerID }: Props) => {
     const timer = setTimeout(() => {
       // Only clear if another rapid card animation hasn't already taken over the ref tracker
       if (processedAnimationTime.current === activeCard.startTime) {
-        console.log("CLEAR DURATION", activeCard.duration);
+        console.log("CLEAR DURATION", activeCard.duration + 2000);
         setActiveCard(null);
       }
-    }, activeCard.duration);
+    }, activeCard.duration + 2000);
 
     return () => clearTimeout(timer);
   }, [activeCard]);
 
-  // 5. Global reset hook when animation store clears out completely
-  useEffect(() => {
-    if (activeAnimations.length === 0) {
-      console.log("RESETTING");
-      processedAnimationTime.current = -1;
-      setActiveCard(null);
-    }
-  }, [activeAnimations.length]);
-
   return (
     // Keep your vital positioning container untouched
-    <div className="absolute top-[35vh] left-[21vw] scale-175 pointer-events-none z-50">
+    <div
+      className="absolute top-[35vh] left-[21vw] scale-175 pointer-events-none z-50"
+      key={activeCard?.card.id}
+    >
       {activeCard && <CardComponent card={activeCard.card} ctx={ctx} />}
     </div>
   );

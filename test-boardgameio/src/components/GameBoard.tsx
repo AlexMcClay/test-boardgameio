@@ -23,7 +23,6 @@ import { pointerWithSmallBuffer } from "@/utils/customCollisionDetection";
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
 import { twMerge } from "tailwind-merge";
 import { AnimatePresence, motion } from "motion/react";
-import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { useAudioStore } from "@/stores/audioStore";
 import { hasToEndTurn } from "@/utils";
 import CardPlayed from "./CardPlayed";
@@ -54,11 +53,12 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     setGlobalTrack(backgroundMusic);
   }, [setGlobalTrack]);
 
-  const { queueAnimation, startAnimating, playAnimations, isAnimating } =
+  const { queueAnimationBatch, playAnimations, isAnimating } =
     useAnimationStore();
 
   // Visual state buffer - keeps dead cards visible during animations
-  const [visualBoard, setVisualBoard] = useState(G.board);
+  const [visualGameState, setVisualGameState] = useState<GameState>(G);
+  const [visualCtx, setVisualCtx] = useState(ctx);
 
   // Track if the dragged card was hovered
   const [wasHovered, setWasHovered] = useState(false);
@@ -104,14 +104,15 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     return () => {
       window.removeEventListener("keydown", handleEscape);
     };
-  }, [G.activeBattlecryMinion, moves]);
+  }, [visualGameState.activeBattlecryMinion, moves]);
 
   useEffect(() => {
     const handleAnimationsAndVisualBoard = async () => {
       // Skip on initial mount
       if (!prevGameStateRef.current) {
         prevGameStateRef.current = structuredClone(G);
-        setVisualBoard(G.board);
+        setVisualGameState(G);
+        setVisualCtx(ctx);
         return;
       }
 
@@ -144,55 +145,62 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       // Update ref immediately
       prevGameStateRef.current = structuredClone(G);
 
-      // Skip if already animating - just update the ref but don't process animations
-      // This prevents the rapid attack bug while keeping state in sync
-      if (isAnimating) {
-        console.log("Currently animating, deferring state update");
-        return;
-      }
-
-      // If a minion was placed, update visual board immediately to show it (before animations)
-      if (newEvents.find((e) => e.type === "minionPlaced")) {
-        setVisualBoard(G.board);
-      }
-
-      // If animations exist, play them BEFORE updating visual board
+      // If animations exist, add them to queue with current game state and ctx
       if (animations.length > 0) {
-        console.log("Starting animations:", animations);
-        startAnimating();
-        animations.forEach((animation) => queueAnimation(animation));
-        await playAnimations(); // Wait for all animations to complete
-        console.log("Animations complete, updating visual board");
+        console.log("Queueing animation batch:", animations);
 
-        // Visual board will update below (dead cards removed from display)
+        // Queue this batch of animations with the full game state and ctx
+        queueAnimationBatch(animations, G, ctx);
+
+        // If not currently animating, start playing the queue
+        if (!isAnimating) {
+          console.log("Starting animation queue");
+
+          // Callback to update visual state after each batch completes
+          const onBatchComplete = (gameState: GameState, batchCtx: any) => {
+            console.log("Batch complete, updating visual state");
+            setVisualGameState(gameState);
+            setVisualCtx(batchCtx);
+          };
+
+          await playAnimations(onBatchComplete);
+          console.log("All animations complete, syncing to current state");
+
+          // After all animations complete, sync visual state to actual current state
+          // setVisualGameState(G);
+          // setVisualCtx(ctx);
+        }
+        // If already animating, the batch is queued and will play automatically
+        // when the current batch finishes (handled by playAnimations loop)
+      } else {
+        // No animations detected
+        if (isAnimating) {
+          // Queue an empty batch so state updates after current animations finish
+          console.log("Queueing state update (no animations)");
+          queueAnimationBatch([], G, ctx);
+        } else {
+          // Not animating, update immediately
+          setVisualGameState(G);
+          setVisualCtx(ctx);
+        }
       }
-
-      // Update visual board after animations complete (or immediately if no animations)
-      setVisualBoard(G.board);
     };
 
     handleAnimationsAndVisualBoard();
-  }, [
-    G,
-    ctx.currentPlayer,
-    isAnimating,
-    startAnimating,
-    queueAnimation,
-    playAnimations,
-  ]);
+  }, [G, ctx, isAnimating, queueAnimationBatch, playAnimations]);
 
-  const p0 = G.players["0"];
-  const p1 = G.players["1"];
-  const board0 = visualBoard["0"];
-  const board1 = visualBoard["1"];
+  const p0 = visualGameState.players["0"];
+  const p1 = visualGameState.players["1"];
+  const board0 = visualGameState.board["0"];
+  const board1 = visualGameState.board["1"];
   const p0Deck = p0.deck;
   const p1Deck = p1.deck;
 
   const playerHasToEndTurn = useMemo(() => {
-    if (props.playerID && props.playerID === ctx.currentPlayer)
-      return hasToEndTurn(props.playerID, G);
+    if (props.playerID && props.playerID === visualCtx.currentPlayer)
+      return hasToEndTurn(props.playerID, visualGameState);
     return false;
-  }, [ctx.currentPlayer, G, props.playerID]);
+  }, [visualCtx.currentPlayer, visualGameState, props.playerID]);
 
   // console.log(ctx.phase, "Current phase");
 
@@ -217,7 +225,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     let target: TargetValue | undefined;
     let location: "hand" | "board" = "hand";
 
-    // Determine target from drop data
+    // Determine target from drop data (use actual ctx, not visual)
     if (over.id === `lane-${ctx.currentPlayer}`) {
       target = { type: "lane", id: over.id, player: ctx.currentPlayer };
     } else if (over.data.current?.type === "card") {
@@ -334,7 +342,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
            hover:scale-110 active:scale-100 transition-all duration-150 hue-rotate-[-10deg]
             `,
             props?.playerID
-              ? props?.playerID != ctx.currentPlayer
+              ? props?.playerID != visualCtx.currentPlayer
                 ? "text-[0.8vw]"
                 : ``
               : "",
@@ -344,11 +352,11 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
             moves.endTurn();
           }}
           disabled={
-            props.playerID ? props.playerID != ctx.currentPlayer : false
+            props.playerID ? props.playerID != visualCtx.currentPlayer : false
           }
           style={{
             backgroundImage: props?.playerID
-              ? props?.playerID != ctx.currentPlayer
+              ? props?.playerID != visualCtx.currentPlayer
                 ? ""
                 : `url(${exit_button})`
               : `url(${exit_button})`,
@@ -358,7 +366,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           }}
         >
           {props?.playerID
-            ? props?.playerID != ctx.currentPlayer
+            ? props?.playerID != visualCtx.currentPlayer
               ? "Enemy Turn"
               : "End Turn"
             : "End Turn"}
@@ -374,14 +382,19 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
             <PlayerArea
               moves={moves}
               player={p1}
-              G={G}
-              ctx={ctx}
+              G={visualGameState}
+              ctx={visualCtx}
               {...props}
               isTop
             />
           </div>
 
-          <CardPlayed {...props} ctx={ctx} G={G} moves={moves} />
+          <CardPlayed
+            {...props}
+            ctx={visualCtx}
+            G={visualGameState}
+            moves={moves}
+          />
 
           {/* Board Area */}
           <div
@@ -397,7 +410,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
                   playerID="1"
                   key={card.id}
                   card={card}
-                  ctx={ctx}
+                  ctx={visualCtx}
                 />
               ))}
             </Lane>
@@ -407,7 +420,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
                   playerID="0"
                   key={card.id}
                   card={card}
-                  ctx={ctx}
+                  ctx={visualCtx}
                 />
               ))}
             </Lane>
@@ -477,8 +490,8 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           <div className="absolute bottom-0 w-full h-1/4 flex flex-col justify-start">
             <PlayerArea
               player={p0}
-              G={G}
-              ctx={ctx}
+              G={visualGameState}
+              ctx={visualCtx}
               {...props}
               moves={moves}
               playerID="0"
@@ -522,10 +535,10 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           </AnimatePresence>
         </DndContext>
       </div>
-      {ctx?.gameover?.winner && (
+      {visualCtx?.gameover?.winner && (
         <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black/60 z-50">
           <div className="text-4xl text-white bg-black/90 px-6 py-4 rounded-lg shadow-lg">
-            {`${G.players[ctx.gameover.winner].name} wins!`}
+            {`${visualGameState.players[visualCtx.gameover.winner].name} wins!`}
           </div>
         </div>
       )}

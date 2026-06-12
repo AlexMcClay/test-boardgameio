@@ -1,5 +1,4 @@
 import type { GameState, Player } from "@/types";
-import type { PlayerID } from "boardgame.io";
 import type { BoardProps } from "boardgame.io/dist/types/packages/react";
 import HeroSection from "./HeroSection";
 import { twMerge } from "tailwind-merge";
@@ -20,7 +19,6 @@ const PlayerArea = ({
   ctx,
   events,
   moves,
-
   ...props
 }: Props) => {
   return (
