@@ -26,6 +26,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { useAudioStore } from "@/stores/audioStore";
 import { hasToEndTurn } from "@/utils";
+import CardPlayed from "./CardPlayed";
 
 interface Props extends BoardProps<GameState> {}
 
@@ -126,7 +127,12 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       }
 
       // Detect all animations from event log
-      const animations = detectAllAnimations(G);
+      // filter out all cardPlayed animations that belong to the player
+      const animations = detectAllAnimations(G).filter((a) => {
+        const isMyTurn = props.playerID && ctx.currentPlayer === props.playerID;
+        // Read as: "Keep this if it's NOT (a card played by me)"
+        return !(isMyTurn && a.type === "cardPlayed");
+      });
 
       // Update tracking timestamp
       if (currentEvents.length > 0) {
@@ -374,6 +380,8 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
               isTop
             />
           </div>
+
+          <CardPlayed {...props} ctx={ctx} G={G} moves={moves} />
 
           {/* Board Area */}
           <div

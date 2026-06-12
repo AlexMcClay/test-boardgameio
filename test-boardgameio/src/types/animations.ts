@@ -1,5 +1,6 @@
 // Animation event types for the animation queue system
 import type { PlayerID } from "boardgame.io";
+import type { Card } from ".";
 
 export type AttackAnimation = {
   type: "attack";
@@ -31,7 +32,16 @@ export type HitNumberAnimation = {
   duration: number; // How long the animation lasts (ms)
 };
 
+export type CardPlayedAnimation = {
+  type: "cardPlayed";
+  card: Card;
+  duration: number;
+  startTime: number;
+  playerId: PlayerID;
+};
+
 export type AnimationEvent =
   | AttackAnimation
   | DeathAnimation
-  | HitNumberAnimation;
+  | HitNumberAnimation
+  | CardPlayedAnimation;

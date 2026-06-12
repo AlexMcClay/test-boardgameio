@@ -147,7 +147,7 @@ export type SummonEvent = {
 };
 
 export type SpellEvent = {
-  type: "spellCast";
+  type: "spell";
   cardId: string;
   playerId: PlayerID;
   timestamp: number;

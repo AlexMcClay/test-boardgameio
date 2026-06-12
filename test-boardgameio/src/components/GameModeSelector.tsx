@@ -20,7 +20,7 @@ const GameModeSelector = ({ onModeSelect }: GameModeSelectorProps) => {
       {/* Main circular container */}
       <div className="relative flex flex-col items-center justify-center w-[600px] h-[600px]">
         {/* Content */}
-        <div className="relative z-10 flex flex-col items-center gap-6 w-[400px]">
+        <div className="relative z-10 flex flex-col items-center gap-6 w-[400px] font-belwe">
           {/* Play Button */}
           <button
             onClick={() => onModeSelect("pvp")}
@@ -37,7 +37,7 @@ const GameModeSelector = ({ onModeSelect }: GameModeSelectorProps) => {
               ${hoveredMode === "pvp" ? "translate-y-1 shadow-[0_4px_0_rgba(92,64,51,1),0_6px_15px_rgba(0,0,0,0.6),inset_0_2px_0_rgba(255,255,255,0.3)] brightness-110" : ""}
             `}
           >
-            <span className="text-4xl font-bold text-stone-800 drop-shadow-[0_2px_2px_rgba(255,255,255,0.3)] tracking-wide">
+            <span className="text-4xl font-belwe font-bold text-stone-800 drop-shadow-[0_2px_2px_rgba(255,255,255,0.3)] tracking-wide">
               Play
             </span>
             {/* Bevel effect */}
@@ -61,7 +61,7 @@ const GameModeSelector = ({ onModeSelect }: GameModeSelectorProps) => {
               ${hoveredMode === "ai" ? "translate-y-1 shadow-[0_4px_0_rgba(92,64,51,1),0_6px_15px_rgba(0,0,0,0.6),inset_0_2px_0_rgba(255,255,255,0.3)] brightness-110" : ""}
             `}
           >
-            <span className="text-4xl font-bold text-stone-800 drop-shadow-[0_2px_2px_rgba(255,255,255,0.3)] tracking-wide">
+            <span className="text-4xl font-belwe font-bold text-stone-800 drop-shadow-[0_2px_2px_rgba(255,255,255,0.3)] tracking-wide">
               Play vs AI
             </span>
             {/* Bevel effect */}

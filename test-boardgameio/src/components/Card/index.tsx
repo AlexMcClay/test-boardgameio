@@ -2,7 +2,6 @@ import { useFitText, useArchedText } from "@/hooks";
 import type { CardProps } from "./types";
 import { motion } from "motion/react";
 import { twMerge } from "tailwind-merge";
-import PlacedCard from "./PlacedCard";
 import { useMemo, useRef } from "react";
 
 const cardBack = "assets/Card_Back.png";
@@ -46,18 +45,6 @@ const Card = ({
           draggable="false"
         />
       </motion.div>
-    );
-  }
-
-  // Use PlacedCard component when card is on the board
-  if (card.isPlaced) {
-    return (
-      <PlacedCard
-        card={card}
-        isDragging={isDragging}
-        playerID={playerID}
-        ctx={ctx}
-      />
     );
   }
 

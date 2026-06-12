@@ -180,7 +180,7 @@ const placeCard: Move<GameState> = (
 
   if (card.isSpell) {
     recordEvent(G, {
-      type: "spellCast",
+      type: "spell",
       cardId: card.id,
       playerId: ctx.currentPlayer,
       timestamp: Date.now(),

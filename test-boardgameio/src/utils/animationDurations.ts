@@ -13,3 +13,7 @@ export const DEATH_ANIMATION: AnimationData = {
 export const HIT_NUMBER_ANIMATION: AnimationData = {
   duration: 400,
 };
+
+export const CARD_PLAYED_ANIMATION: AnimationData = {
+  duration: 2500,
+};
