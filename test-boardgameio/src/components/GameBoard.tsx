@@ -24,6 +24,7 @@ import { snapCenterToCursor } from "@dnd-kit/modifiers";
 import { twMerge } from "tailwind-merge";
 import { AnimatePresence, motion } from "motion/react";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
+import { useAudioStore } from "@/stores/audioStore";
 
 interface Props extends BoardProps<GameState> {}
 
@@ -45,9 +46,11 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     return tracks[Math.floor(Math.random() * tracks.length)];
   }, []);
 
-  useBackgroundMusic(backgroundMusic, {
-    autoplay: true,
-  });
+  const setGlobalTrack = useAudioStore((state) => state.setGlobalTrack);
+  // Set the default main theme on startup
+  useEffect(() => {
+    setGlobalTrack(backgroundMusic);
+  }, [setGlobalTrack]);
 
   const { queueAnimation, startAnimating, playAnimations, isAnimating } =
     useAnimationStore();

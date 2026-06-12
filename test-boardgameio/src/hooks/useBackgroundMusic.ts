@@ -1,52 +1,56 @@
 import { useEffect } from "react";
-import { playBgmTrack } from "@/utils/audio";
 import { useAudioStore } from "../stores/audioStore";
 
 interface UseBackgroundMusicOptions {
   autoplay?: boolean;
+  fadeDuration?: number;
 }
 
-export const useBackgroundMusic = (
-  src: string,
-  options?: UseBackgroundMusicOptions,
-) => {
+export const useBackgroundMusic = (options?: UseBackgroundMusicOptions) => {
   const autoplay = options?.autoplay ?? false;
+  const fadeDuration = options?.fadeDuration ?? 1.5;
 
-  // Pull states and actions from the Zustand store
-  const audioInstance = useAudioStore((state) => state.audioInstance);
-  const isPlaying = useAudioStore((state) => state.isPlaying);
-  const changeTrack = useAudioStore((state) => state.changeTrack);
-  const setIsPlaying = useAudioStore((state) => state.setIsPlaying);
+  const globalTrackSrc = useAudioStore((state) => state.globalTrackSrc);
+  const currentSrc = useAudioStore((state) => state.currentSrc);
+  const prepareTrack = useAudioStore((state) => state.prepareTrack);
+  const executePlay = useAudioStore((state) => state.executePlay);
 
-  // 1. Tell store to prepare the right track whenever the src parameter changes
+  // Sync state to channel when the Zustand property updates
   useEffect(() => {
-    changeTrack(src);
-  }, [src, changeTrack]);
+    if (globalTrackSrc) {
+      // Converting relative strings to absolute path URLs stops the NotSupportedError
+      const absoluteUrl = new URL(globalTrackSrc, window.location.origin).href;
+      prepareTrack(absoluteUrl);
+    }
+  }, [globalTrackSrc, prepareTrack]);
 
   const play = async () => {
-    if (!audioInstance) return false;
-
     try {
-      await playBgmTrack(audioInstance);
-      setIsPlaying(true);
+      // The store now handles calling .play() internally and returns safely
+      await executePlay(fadeDuration);
       return true;
     } catch (error) {
-      console.warn("Autoplay blocked. Waiting for user interaction...", error);
-      setIsPlaying(false);
+      console.warn(
+        "Autoplay blocked. Maintaining old track until user interaction...",
+        error,
+      );
       return false;
     }
   };
 
   const pause = () => {
-    if (audioInstance) {
-      audioInstance.pause();
+    const { activeChannel, channelA, channelB, setIsPlaying } =
+      useAudioStore.getState();
+    const active = activeChannel === "A" ? channelA : channelB;
+    if (active?.element) {
+      active.element.pause();
       setIsPlaying(false);
     }
   };
 
-  // 2. Handle Autoplay / User Interaction Retry logic
+  // Autoplay handler loop
   useEffect(() => {
-    if (!autoplay || !audioInstance) return;
+    if (!autoplay || !currentSrc) return;
 
     let isSubscribed = true;
 
@@ -73,7 +77,7 @@ export const useBackgroundMusic = (
       isSubscribed = false;
       removeInteractionListeners();
     };
-  }, [autoplay, audioInstance]); // Re-run if autoplay rule or audio element changes
+  }, [autoplay, currentSrc]);
 
-  return { isPlaying, play, pause };
+  return { play, pause };
 };

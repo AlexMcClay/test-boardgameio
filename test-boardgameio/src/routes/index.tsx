@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Hearthstone } from "@/game";
 import { HearthstoneWithAI } from "@/game/AIExample";
 import GameModeSelector from "@/components/GameModeSelector";
+import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
+import { useAudioStore } from "@/stores/audioStore";
 
 export const Route = createFileRoute("/")({
   component: App,
@@ -10,6 +12,15 @@ export const Route = createFileRoute("/")({
 
 function App() {
   const [gameMode, setGameMode] = useState<"pvp" | "ai" | null>(null);
+  useBackgroundMusic({
+    autoplay: true,
+  });
+
+  const setGlobalTrack = useAudioStore((state) => state.setGlobalTrack);
+  // Set the default main theme on startup
+  useEffect(() => {
+    setGlobalTrack("assets/audio/music/01_Main_Theme.mp3");
+  }, [setGlobalTrack]);
 
   if (!gameMode) {
     return <GameModeSelector onModeSelect={setGameMode} />;

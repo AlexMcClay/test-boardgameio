@@ -132,7 +132,6 @@ const DragCard = (props: DargCardProps) => {
 
     // FIX 2: Set the state to exactly match isDragging after the delay
     const timer = setTimeout(() => {
-      console.log("Setting delayedDrag to:", isDragging);
       setDelayedDrag(isDragging);
     }, 300);
 
