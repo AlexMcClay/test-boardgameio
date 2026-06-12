@@ -28,7 +28,9 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
   const gameState = useDragStore((s) => s.gameState);
 
   const isAttackingWithArrow = attackingCardId === card.id;
-  const disabled = card.hasAttacked && !gameState?.activeBattlecryMinion; // Can't attack if already attacked (unless battlecry)
+  const disabled =
+    (card.hasAttacked || card.summoningSickness) &&
+    !gameState?.activeBattlecryMinion; // Can't attack if already attacked (unless battlecry)
   const isBattlecryMinion =
     gameState?.activeBattlecryMinion?.cardId === card.id;
   const prevIsBattlecryRef = useRef(isBattlecryMinion);
@@ -214,6 +216,7 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
       className={twMerge(
         !disabled && "cursor-pointer",
         !card.hasAttacked &&
+          !card.summoningSickness &&
           ctx.currentPlayer === playerID &&
           !isAttackingWithArrow &&
           !isValid &&

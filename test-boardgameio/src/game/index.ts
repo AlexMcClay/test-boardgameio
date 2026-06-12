@@ -136,7 +136,6 @@ const placeCard: Move<GameState> = (
   if (card.isMinnion && !card.isPlaced) {
     // console.log("Placing minion on the board");
     card.isPlaced = true; // Mark the card as placed
-    card.hasAttacked = true;
     card.summoningSickness = true; // Minion has summoning sickness
 
     // Check if card needs targeted battlecry (damage or heal)
@@ -616,7 +615,6 @@ const doEffects = (
         const summonedCard = createCardFromID(effect.cardID as CardTemplateKey);
         if (summonedCard) {
           summonedCard.isPlaced = true; // Mark the summoned card as placed
-          summonedCard.hasAttacked = true; // Reset attack status for summoned cards
           summonedCard.summoningSickness = true; // Summoned minions have summoning sickness
           recordEvent(G, {
             type: "summon",

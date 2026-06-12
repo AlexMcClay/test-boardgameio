@@ -12,7 +12,8 @@ export type MoveValidationError =
   | "already-attacked"
   | "no-active-card"
   | "not-your-turn"
-  | "must-attack-taunt";
+  | "must-attack-taunt"
+  | "summon-sickness";
 
 export type MoveValidationResult =
   | { valid: true }
@@ -233,6 +234,10 @@ export function validateMove(
         }
       }
     }
+  }
+
+  if (card.summoningSickness) {
+    return { valid: false, error: "summon-sickness" };
   }
 
   // Card already attacked
