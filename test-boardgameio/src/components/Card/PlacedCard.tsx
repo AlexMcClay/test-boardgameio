@@ -2,6 +2,8 @@ import type { CardProps } from "./types";
 import { motion } from "motion/react";
 import { twMerge } from "tailwind-merge";
 import { ATTACK_ANIMATION } from "@/utils/animationDurations";
+import { useAudioStore } from "@/stores/audioStore";
+import { useEffect } from "react";
 
 const attackIcon = "assets/attack.png";
 const healthIcon = "assets/health.png";
@@ -24,6 +26,16 @@ const PlacedCard = ({
   cardRef,
   ...props
 }: Props) => {
+  const playSfx = useAudioStore((state) => state.playSfx);
+
+  useEffect(() => {
+    if (isAttacking) {
+      setTimeout(() => {
+        playSfx("minion-attack");
+      }, 200);
+    }
+  }, [isAttacking]);
+
   return (
     <motion.div
       ref={cardRef}
