@@ -18,7 +18,7 @@ export const SFX_MANIFEST = {
   // === Gameplay Sounds (Preloaded) ===
   "card-play": { path: "/gameplay/card-play.ogg", preload: true },
   "card-draw": { path: "/ui/draw_card_1.ogg", preload: true },
-  "your-turn": { path: "/ui/your-turn.ogg", preload: true },
+  "your-turn": { path: "/ui/your_turn.ogg", preload: true },
   "card-magic-loop": {
     path: "/ui/card_motion_loop_magical.ogg",
     preload: true,

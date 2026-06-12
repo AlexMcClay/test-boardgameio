@@ -28,6 +28,7 @@ import EndTurnButton from "./Board/EndTurnButton";
 import BoardCardDeckTop from "./Board/BoardCardDeckTop";
 import BoardCardDeckBottom from "./Board/BoardCardDeckBottom";
 import DragCard from "./Board/DragCard";
+import YourTurn from "./Board/YourTurn";
 
 interface Props extends BoardProps<GameState> {}
 
@@ -74,6 +75,23 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   // State-based animation detection with visual board management
   const prevGameStateRef = useRef<GameState | null>(null);
   const lastProcessedTimestamp = useRef<number>(0);
+  const [yourTurn, setYourTurn] = useState(false);
+  const prevMovePlayer = useRef<string | null>(null);
+
+  // yourTurn Handler
+  useEffect(() => {
+    if (visualCtx.currentPlayer === prevMovePlayer.current) {
+      return;
+    } else {
+      prevMovePlayer.current = visualCtx.currentPlayer;
+      if (props.playerID && visualCtx.currentPlayer === props.playerID) {
+        setYourTurn(true);
+        setTimeout(() => {
+          setYourTurn(false);
+        }, 2000);
+      }
+    }
+  }, [visualCtx]);
 
   // add useEffect event listenr for tilde to log G.eventHistory
   useEffect(() => {
@@ -383,6 +401,43 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
               ))}
             </Lane>
           </div>
+
+          {/* Your Turn */}
+          <AnimatePresence>
+            {yourTurn && (
+              <motion.div
+                key="your-turn-overlay"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                style={{
+                  position: "fixed",
+                  top: 0,
+                  left: 0,
+                  width: "100vw",
+                  height: "100vh",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  pointerEvents: "none", // Allows clicking through the empty space around the graphic
+                  zIndex: 999,
+                }}
+              >
+                {/* This sub-wrapper ensures the scale origin remains perfectly centered on the graphic */}
+                <motion.div
+                  style={{
+                    transformOrigin: "center center",
+                    pointerEvents: "auto", // Re-enable clicks just for the banner itself
+                  }}
+                >
+                  <YourTurn
+                    mana={visualGameState.players[props.playerID ?? "0"].mana}
+                  />
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Decks */}
           <BoardCardDeckTop deck={p1Deck} ctx={visualCtx} />

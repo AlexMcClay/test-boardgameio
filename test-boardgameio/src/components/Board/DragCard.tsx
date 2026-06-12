@@ -16,6 +16,7 @@ const DragCard = ({ activeCard, wasHovered, ctx }: Props) => {
   const playSfxLoop = useAudioStore((state) => state.playSfxLoop);
   const stopSfxLoop = useAudioStore((state) => state.stopSfxLoop);
   const loopIdRef = useRef<string | null>(null);
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
     let isMounted = true;
