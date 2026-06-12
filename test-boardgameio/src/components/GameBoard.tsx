@@ -45,15 +45,9 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     return tracks[Math.floor(Math.random() * tracks.length)];
   }, []);
 
-  const { play } = useBackgroundMusic(backgroundMusic);
-
-  useEffect(() => {
-    // play on timeout to ensure it doesn't get blocked by browser autoplay policies (since it's not triggered directly by user interaction)
-    const timeout = setTimeout(() => {
-      play();
-    }, 1000);
-    return () => clearTimeout(timeout);
-  }, [play]);
+  useBackgroundMusic(backgroundMusic, {
+    autoplay: true,
+  });
 
   const { queueAnimation, startAnimating, playAnimations, isAnimating } =
     useAnimationStore();

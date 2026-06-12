@@ -144,7 +144,7 @@ export const cardTemplates = {
   },
   "boulderfist-ogre": {
     title: "Boulderfist Ogre",
-    description: "Big, dumb, strong.",
+    description: "",
     mana: 6,
     attack: 6,
     health: 7,
@@ -187,7 +187,7 @@ export const cardTemplates = {
   },
   "bloodfen-raptor": {
     title: "Bloodfen Raptor",
-    description: "Just a raptor.",
+    description: "",
     mana: 2,
     attack: 3,
     health: 2,
@@ -201,7 +201,7 @@ export const cardTemplates = {
   },
   "river-crocolisk": {
     title: "River Crocolisk",
-    description: "Swampy and snappy.",
+    description: "",
     mana: 2,
     attack: 2,
     health: 3,

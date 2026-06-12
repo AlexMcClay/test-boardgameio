@@ -1,45 +1,79 @@
-import { useEffect, useRef, useState } from "react";
-import { createBgmTrack, playBgmTrack } from "@/utils/audio";
+import { useEffect } from "react";
+import { playBgmTrack } from "@/utils/audio";
 import { useAudioStore } from "../stores/audioStore";
 
-export const useBackgroundMusic = (src: string) => {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+interface UseBackgroundMusicOptions {
+  autoplay?: boolean;
+}
 
-  // Grab state from Zustand
-  const musicVolume = useAudioStore((state) => state.musicVolume);
-  const isMuted = useAudioStore((state) => state.isMuted);
+export const useBackgroundMusic = (
+  src: string,
+  options?: UseBackgroundMusicOptions,
+) => {
+  const autoplay = options?.autoplay ?? false;
 
-  // Calculate actual volume based on mute status
-  const actualVolume = isMuted ? 0 : musicVolume;
+  // Pull states and actions from the Zustand store
+  const audioInstance = useAudioStore((state) => state.audioInstance);
+  const isPlaying = useAudioStore((state) => state.isPlaying);
+  const changeTrack = useAudioStore((state) => state.changeTrack);
+  const setIsPlaying = useAudioStore((state) => state.setIsPlaying);
 
-  // Initialize track
+  // 1. Tell store to prepare the right track whenever the src parameter changes
   useEffect(() => {
-    audioRef.current = createBgmTrack(src, actualVolume);
-    return () => {
-      audioRef.current?.pause();
-      audioRef.current = null;
-    };
-  }, [src]);
+    changeTrack(src);
+  }, [src, changeTrack]);
 
-  // Sync volume whenever Zustand state changes
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = actualVolume;
-    }
-  }, [actualVolume]);
+  const play = async () => {
+    if (!audioInstance) return false;
 
-  const play = () => {
-    if (audioRef.current) {
-      playBgmTrack(audioRef.current);
+    try {
+      await playBgmTrack(audioInstance);
       setIsPlaying(true);
+      return true;
+    } catch (error) {
+      console.warn("Autoplay blocked. Waiting for user interaction...", error);
+      setIsPlaying(false);
+      return false;
     }
   };
 
   const pause = () => {
-    audioRef.current?.pause();
-    setIsPlaying(false);
+    if (audioInstance) {
+      audioInstance.pause();
+      setIsPlaying(false);
+    }
   };
+
+  // 2. Handle Autoplay / User Interaction Retry logic
+  useEffect(() => {
+    if (!autoplay || !audioInstance) return;
+
+    let isSubscribed = true;
+
+    const attemptPlay = async () => {
+      const success = await play();
+      if (success && isSubscribed) {
+        removeInteractionListeners();
+      }
+    };
+
+    const removeInteractionListeners = () => {
+      window.removeEventListener("click", attemptPlay);
+      window.removeEventListener("keydown", attemptPlay);
+      window.removeEventListener("touchstart", attemptPlay);
+    };
+
+    attemptPlay();
+
+    window.addEventListener("click", attemptPlay);
+    window.addEventListener("keydown", attemptPlay);
+    window.addEventListener("touchstart", attemptPlay);
+
+    return () => {
+      isSubscribed = false;
+      removeInteractionListeners();
+    };
+  }, [autoplay, audioInstance]); // Re-run if autoplay rule or audio element changes
 
   return { isPlaying, play, pause };
 };
