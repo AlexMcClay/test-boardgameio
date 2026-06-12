@@ -258,12 +258,46 @@ const DropDetectCard = (props: Omit<Props, "isValid">) => {
       initial={
         isFirstRender.current
           ? {
-              opacity: 0,
-              scale: 0.8,
+              opacity: 0.9,
+              scale: 1.2, // Start slightly larger from the hand layer
+              y: -90, // Started higher up to clear the board beautifully
+              rotateX: 35, // Tilted back in hand perspective
+              rotate: -5, // Slight natural hand tilt before dropping
+              filter: "drop-shadow(0 50px 25px rgba(0,0,0,0.3))",
             }
           : undefined
       }
-      animate={{ opacity: 1, scale: 1 }}
+      animate={
+        isFirstRender.current
+          ? {
+              opacity: 1,
+              // 1. Scale snaps down on impact, pushes slightly past 1 (squish), then stabilizes
+              scale: [1.3, 0.95, 1.03, 1],
+
+              // 2. Heavy drop to 0px, then a tiny vertical rebound bounce
+              y: [-90, 0, -8, 0],
+
+              // 3. Flattens out of 3D tilt instantly on board landing
+              rotateX: [35, 0, 0, 0],
+
+              // 4. The Landing Rattle: Rotates slightly back and forth decaying to 0
+              rotate: [-5, 3, -2, 1, -0.5, 0],
+
+              // 5. The Ground Vibrations: Subtle micro-shakes left & right post-impact
+              x: [0, 6, -5, 3, -1.5, 0],
+
+              // 6. Shadow snaps tight to the card as it connects with the surface
+              filter: [
+                "drop-shadow(0 50px 25px rgba(0,0,0,0.3))",
+                "drop-shadow(0 4px 6px rgba(0,0,0,0.2))",
+                "drop-shadow(0 6px 10px rgba(0,0,0,0.15))",
+                "drop-shadow(0 4px 6px rgba(0,0,0,0.2))",
+              ],
+            }
+          : { opacity: 1, scale: 1, y: 0, rotateX: 0, rotate: 0, x: 0 }
+      }
+      // 3. Heavy Spring Config for the "Slam and Bounce" feel
+
       exit={{
         opacity: [1, 1, 0], // Stays fully visible during the shake, then vanishes quickly
         rotate: [0, -5, 5, -5, 5, 20], // Shakes back and forth rapidly before spinning away

@@ -1,6 +1,7 @@
 // Animation queue store for managing card animations
 import { create } from "zustand";
 import type { AnimationEvent, AnimationQueueItem } from "@/types/animations";
+import { BATCH_UPDATE_DELAY } from "@/utils/animationDurations";
 
 type AnimationStore = {
   // State
@@ -141,6 +142,13 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
       // Call the callback with this batch's game state and ctx so visual state can update
       if (onBatchComplete) {
         onBatchComplete(currentBatch.gameState, currentBatch.ctx);
+
+        // Add delay before processing next batch (only if there are more batches)
+        if (get().queue.length > 0) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, BATCH_UPDATE_DELAY),
+          );
+        }
       }
     }
 

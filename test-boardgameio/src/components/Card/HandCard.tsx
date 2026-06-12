@@ -70,7 +70,9 @@ const HandCard = ({
       key={`${isTop ? "p1" : "p0"}-hand-${card.id}`}
       className={twMerge(
         "relative transition-all duration-300 ease-in-out flex",
-        player.mana >= (card?.mana ?? 0) && ctx.currentPlayer === player.id
+        player.mana >= (card?.mana ?? 0) &&
+          ctx.currentPlayer === player.id &&
+          !back
           ? "canPlayCard"
           : "",
         isHovered && isTop && !back ? "translate-y-[120%]" : "",
@@ -85,6 +87,7 @@ const HandCard = ({
       }}
       onMouseEnter={(e) => {
         if (cardRef.current) {
+          if (back) return;
           const rect = cardRef.current.getBoundingClientRect();
           onHoverEnter(card.id, rect);
         }
