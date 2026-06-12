@@ -23,9 +23,9 @@ export interface Card {
   targets: TargetTypes[]; // Optional, to specify valid targets for the card
   battlecryTargets?: TargetTypes[]; // Optional, valid targets for battlecry (bypasses taunt)
   sfx?: {
-    death?: string[];
-    drop?: string[];
-    attack?: string[];
+    death?: string;
+    play?: string;
+    attack?: string;
   };
 }
 

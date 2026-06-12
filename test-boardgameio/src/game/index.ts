@@ -26,7 +26,7 @@ export const isVictory = ({ G, ctx }: { G: GameState; ctx: Ctx }) => {
   }
 };
 
-const setupData = (): GameState => {
+const setupData = (data?: any): GameState => {
   const G: GameState = {
     players: {
       "0": p0,
@@ -362,40 +362,7 @@ const doEffects = (
           });
         }
         break;
-      case "incrementValue":
-        if (target && effect.target === "other") {
-          if (target.type === "card") {
-            const targetCard = G.board[target.player].find(
-              (c) => c.id === target.id,
-            );
-            if (targetCard && targetCard[effect.key] !== undefined) {
-              // @ts-ignore
-              targetCard[effect.key] += effect.value;
-              recordEvent(G, {
-                type: "changeKey",
-                playerId: ctx.currentPlayer,
-                timestamp: Date.now(),
-                cardId: targetCard.id,
-                key: effect.key,
-                value: effect.value,
-              });
-            }
-          }
-        } else if (effect.target === "self") {
-          if (card[effect.key] !== undefined) {
-            // @ts-ignore
-            card[effect.key] += effect.value;
-            recordEvent(G, {
-              type: "changeKey",
-              playerId: ctx.currentPlayer,
-              timestamp: Date.now(),
-              cardId: card.id,
-              key: effect.key,
-              value: effect.value,
-            });
-          }
-        }
-        break;
+
       case "heal":
         // Handle different heal target types
         if (effect.target === "user-select" && target) {
@@ -592,41 +559,55 @@ const doEffects = (
           timestamp: Date.now(),
         });
         break;
+      case "incrementValue": {
+        let cardToUpdate: typeof card | undefined;
+
+        if (effect.target === "self") {
+          cardToUpdate = card;
+        } else if (effect.target === "other" && target?.type === "card") {
+          cardToUpdate = G.board[target.player].find((c) => c.id === target.id);
+        }
+
+        if (cardToUpdate && cardToUpdate[effect.key] !== undefined) {
+          // @ts-ignore
+          cardToUpdate[effect.key] += effect.value;
+
+          recordEvent(G, {
+            type: "changeKey",
+            playerId: ctx.currentPlayer,
+            timestamp: Date.now(),
+            cardId: cardToUpdate.id,
+            key: effect.key,
+            value: effect.value,
+          });
+        }
+        break;
+      }
       case "changeKey":
-        if (target && effect.target == "other") {
-          if (target.type === "card") {
-            const targetCard = G.board[target.player].find(
-              (c) => c.id === target.id,
-            );
-            if (targetCard) {
-              // @ts-ignore
-              targetCard[effect.key] = effect.value;
-              recordEvent(G, {
-                type: "changeKey",
-                playerId: ctx.currentPlayer,
-                timestamp: Date.now(),
-                cardId: targetCard.id,
-                key: effect.key,
-                value: effect.value,
-              });
-            }
-          }
-        } else if (effect.target == "self") {
-          if (card[effect.key] !== undefined) {
-            // @ts-ignore
-            card[effect.key] = effect.value;
-            recordEvent(G, {
-              type: "changeKey",
-              playerId: ctx.currentPlayer,
-              timestamp: Date.now(),
-              cardId: card.id,
-              key: effect.key,
-              value: effect.value,
-            });
-          }
+        let cardToUpdate: typeof card | undefined;
+
+        if (effect.target === "self") {
+          cardToUpdate = card;
+        } else if (effect.target === "other" && target?.type === "card") {
+          cardToUpdate = G.board[target.player].find((c) => c.id === target.id);
+        }
+
+        if (cardToUpdate && cardToUpdate[effect.key] !== undefined) {
+          // @ts-ignore
+          cardToUpdate[effect.key] = effect.value;
+
+          recordEvent(G, {
+            type: "changeKey",
+            playerId: ctx.currentPlayer,
+            timestamp: Date.now(),
+            cardId: cardToUpdate.id,
+            key: effect.key,
+            value: effect.value,
+          });
         }
         break;
       case "summon":
+        const enemyPlayerId = playerID === "0" ? "1" : "0";
         // check if the board can fit the summoned card
         if (G.board[playerID].length >= 7) {
           console.warn("Cannot summon more than 7 cards on the board");
