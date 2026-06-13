@@ -102,7 +102,12 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
             <h2
               className="text-[1.25vw] text-amber-300"
               onClick={() => {
-                console.log(Object.keys(cardTemplates).join(", "));
+                console.log(
+                  Object.entries(cardTemplates)
+                    .filter(([k, v]) => !(v as CardType).isUncollectible)
+                    .map(([k, v]) => k)
+                    .join(", "),
+                );
               }}
             >
               Card Collection
