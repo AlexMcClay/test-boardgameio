@@ -5,6 +5,7 @@ import { premadeDecks } from "@/utils/decks";
 import type { Card as CardType } from "@/types";
 import { useAudioStore } from "@/stores/audioStore";
 import { useDeckStore, type DeckString } from "@/stores/deckStore";
+import { twMerge } from "tailwind-merge";
 
 interface DeckSelectionProps {
   onDeckConfirmed: () => void;
@@ -80,8 +81,12 @@ const icons = [
 
 const DeckSelection = ({ onDeckConfirmed }: DeckSelectionProps) => {
   const [deck, setDeck] = useState<DeckString>({});
+  const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
   const playSfx = useAudioStore((state) => state.playSfx);
   const { setPlayerDeck, generateOpponentDeck } = useDeckStore();
+
+  const CARDS_PER_PAGE = 8; // 2 rows × 4 columns
 
   function handleConfirmDeck() {
     playSfx("button-click");
@@ -116,6 +121,50 @@ const DeckSelection = ({ onDeckConfirmed }: DeckSelectionProps) => {
     playSfx("button-click");
     setDeck({});
   }
+
+  function handleClassSelect(className: string) {
+    playSfx("button-click");
+    if (selectedClass === className) {
+      // Deselect - show all cards
+      setSelectedClass(null);
+    } else {
+      // Select new class
+      setSelectedClass(className);
+    }
+    // Reset to first page when changing filter
+    setCurrentPage(0);
+  }
+
+  function handlePreviousPage() {
+    if (currentPage > 0) {
+      playSfx("collection-manager-page-flip");
+      setCurrentPage(currentPage - 1);
+    }
+  }
+
+  function handleNextPage() {
+    if (currentPage < totalPages - 1) {
+      playSfx("collection-manager-page-flip");
+      setCurrentPage(currentPage + 1);
+    }
+  }
+
+  // Filter cards by class and collectibility
+  const filteredCards = Object.entries(cardTemplates)
+    .filter(([_, card]) => !(card as Omit<CardType, "id">).isUncollectible)
+    .filter(([_, card]) => !selectedClass || card.class === selectedClass)
+    .sort((a, b) => {
+      // sort by mana cost, then by name
+      return (a[1].mana ?? 0) - (b[1].mana ?? 0);
+    });
+
+  // Pagination
+  const totalPages = Math.ceil(filteredCards.length / CARDS_PER_PAGE);
+  const startIdx = currentPage * CARDS_PER_PAGE;
+  const displayedCards = filteredCards.slice(
+    startIdx,
+    startIdx + CARDS_PER_PAGE,
+  );
 
   const totalCards = Object.values(deck).reduce((sum, count) => sum + count, 0);
   const maxCards = 30;
@@ -158,7 +207,11 @@ const DeckSelection = ({ onDeckConfirmed }: DeckSelectionProps) => {
         {icons.map((i) => (
           <button
             key={i.name}
-            className="bg-black h-[2.7vw] w-[2.7vw] rounded-[50%/20%] overflow-hidden border border-[#b7a27e] border-x-4 border-t-4 transition-transform duration-200 origin-bottom hover:scale-110"
+            onClick={() => handleClassSelect(i.name)}
+            className={twMerge(
+              `bg-black h-[2.7vw] w-[2.7vw] rounded-[50%/20%] overflow-hidden border border-[#b7a27e] border-x-4 border-t-4 transition-all duration-200 origin-bottom hover:scale-110 `,
+              selectedClass === i.name ? "scale-125 hover:scale-125 " : "",
+            )}
             style={{ clipPath: "inset(0px 0px 20% 0px)" }}
           >
             <img src={i.icon} className="w-full h-full object-cover" />
@@ -166,31 +219,58 @@ const DeckSelection = ({ onDeckConfirmed }: DeckSelectionProps) => {
         ))}
       </div>
 
-      <div className="absolute bg-gradient-to-t pointer-events-none from-black  h-[1.5vh] w-[56vw] left-[12.6vw] top-[4.5vh] pl-[1vw] "></div>
+      <div className="absolute bg-gradient-to-t pointer-events-none from-black/60  h-[1.5vh] w-[56vw] left-[12.6vw] top-[4.5vh] pl-[1vw] "></div>
 
       {/* Left Panel - Card Collection */}
       <div
-        className="flex flex-col bg-white/21 w-[56vw] absolute h-[81vh] left-[12.6vw] top-[6vh]  rounded-lg shadow-lg p-[1vw] px-[0.5vw] overflow-hidden"
+        className="flex flex-col w-[56vw] absolute h-[81vh] left-[12.6vw] top-[6vh]  rounded-lg shadow-lg p-[1vw] px-[0.5vw] overflow-hidden"
         style={{
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundBlendMode: "multiply",
         }}
       >
-        <p className="absolute   w-[12vw] h-[4vh] left-[21vw] top-[3.3vh] text-center text-[1.4vw] ">
-          Demon Hunter
+        <p className="absolute w-[12vw] h-[4vh] left-[21vw] top-[3.3vh] text-center text-[1.4vw]">
+          {selectedClass || "All Classes"}
         </p>
 
-        <div className="mt-[8vh] card-grid grid grid-cols-4 gap-[2vw] px-[3vw] gap-y-[3vw] p-[1vw]  overflow-y-auto items-center justify-center overflow-x-hidden">
-          {Object.entries(cardTemplates)
-            .sort((a, b) => {
-              // sort by mana cost, then by name
-              return (a[1].mana ?? 0) - (b[1].mana ?? 0);
-            })
-            .filter(
-              ([_, card]) => !(card as Omit<CardType, "id">).isUncollectible,
-            )
-            .map(([id, card]) => (
+        {/* Navigation zones */}
+        <div className="mt-[8vh] relative h-[69vh]">
+          {/* Left navigation zone */}
+          <div
+            onClick={handlePreviousPage}
+            className={`absolute left-0 top-0 h-full  w-[5%] z-20 ${
+              currentPage > 0
+                ? " cursor-e-resize "
+                : "cursor-not-allowed opacity-50"
+            } transition-all duration-200 flex items-center justify-center`}
+          >
+            {currentPage > 0 && (
+              <div className="text-4xl text-amber-300 opacity-0 hover:opacity-100 transition-opacity">
+                ‹
+              </div>
+            )}
+          </div>
+
+          {/* Right navigation zone */}
+          <div
+            onClick={handleNextPage}
+            className={`absolute right-0 top-0 h-full w-[5%]  z-20  ${
+              currentPage < totalPages - 1
+                ? " cursor-e-resize "
+                : "cursor-not-allowed opacity-50"
+            } transition-all duration-200 flex items-center justify-center`}
+          >
+            {currentPage < totalPages - 1 && (
+              <div className="text-4xl text-amber-300 opacity-0 hover:opacity-100 transition-opacity">
+                ›
+              </div>
+            )}
+          </div>
+
+          {/* Card grid */}
+          <div className="card-grid grid grid-cols-4 grid-rows-2 gap-[2vw] px-[3vw] gap-y-[3vw] p-[1vw] items-center justify-center h-full">
+            {displayedCards.map(([id, card]) => (
               <div
                 className="cursor-pointer z-10 transition-transform duration-200 hover:scale-105 minion-shadow"
                 key={id}
@@ -231,6 +311,14 @@ const DeckSelection = ({ onDeckConfirmed }: DeckSelectionProps) => {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Page indicator */}
+          <div className="absolute bottom-[-2vh] left-0 right-0 flex justify-center items-center py-2">
+            <span className="text-black/60 text-[1.4vw] font-bold">
+              Page {currentPage + 1}
+            </span>
+          </div>
         </div>
       </div>
 

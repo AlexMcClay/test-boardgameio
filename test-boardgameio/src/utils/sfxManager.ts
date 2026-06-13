@@ -15,6 +15,11 @@ export const SFX_MANIFEST = {
     preload: true,
   },
 
+  "collection-manager-page-flip": {
+    path: "/ui/collection_manager_book_page_flip_back.ogg",
+    preload: true,
+  },
+
   // === Gameplay Sounds (Preloaded) ===
   "card-play": { path: "/gameplay/card-play.ogg", preload: true },
   "card-draw": { path: "/ui/draw_card_1.ogg", preload: true },
