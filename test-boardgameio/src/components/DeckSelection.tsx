@@ -84,24 +84,6 @@ const DeckSelection = ({ onDeckConfirmed }: DeckSelectionProps) => {
       }}
     >
       <img src={backgroundImage} className="absolute z-[0]" />
-      {/* Header */}
-      <div className="px-[1vw] py-[0.5vw] border-b-4 border-[#8d7037]  bg-[#1a0a05]/80 flex items-center justify-between absolute w-screen">
-        <h1 className="text-[1.5vw] font-bold text-amber-300">Deck Builder</h1>
-        <div className="text-[1.25vw] font-bold bg-black/60 px-[0.5vw] py-[0.25vw] rounded-lg border border-amber-900">
-          <span
-            className={
-              totalCards > maxCards
-                ? "text-red-400"
-                : totalCards === maxCards
-                  ? "text-green-400"
-                  : "text-yellow-400"
-            }
-          >
-            {totalCards}
-          </span>
-          <span className="text-gray-400"> / {maxCards}</span>
-        </div>
-      </div>
 
       {/* Left Panel - Card Collection */}
       <div
@@ -186,7 +168,51 @@ const DeckSelection = ({ onDeckConfirmed }: DeckSelectionProps) => {
 
       {/* Right Panel - Deck Summary */}
       <div className="w-[14vw] rounded-lg  p-[1vw] flex flex-col items-center gap-[1vw] absolute left-[70vw] top-[7vh]">
-        <h2 className="text-[1.25vw] text-amber-300">Your Deck</h2>
+        {/* Predefined Decks */}
+        <div className="flex flex-col gap-[0.5vw] w-full">
+          <div className="grid grid-cols-1 gap-[0.2vw] w-full">
+            {premadeDecks.map(({ name, deckString }) => (
+              <button
+                key={name}
+                className="rounded w-full text-[0.8vw] warrior-button transition-all duration-200 flex items-center gap-[0.2vw] justify-center p-[0.5vw]"
+                onClick={() => {
+                  playSfx("button-click");
+                  handleSetWholeDeck(deckString);
+                }}
+                onMouseEnter={() => {
+                  playSfx("button-over");
+                }}
+              >
+                <span className="text-[1vw] text-amber-200">{name}</span>
+              </button>
+            ))}
+          </div>
+
+          <button
+            onMouseEnter={() => {
+              playSfx("button-over");
+            }}
+            className="clear-deck-button"
+            onClick={handleClearDeck}
+          >
+            Clear Deck
+          </button>
+        </div>
+
+        <div className="text-[1.25vw] font-bold bg-black/60 px-[0.5vw] py-[0.25vw] rounded-lg border border-amber-900">
+          <span
+            className={
+              totalCards > maxCards
+                ? "text-red-400"
+                : totalCards === maxCards
+                  ? "text-green-400"
+                  : "text-yellow-400"
+            }
+          >
+            {totalCards}
+          </span>
+          <span className="text-gray-400"> / {maxCards}</span>
+        </div>
 
         {/* Mana Curve */}
         <div className=" w-full bg-black/20 rounded-lg p-[1vw] border border-amber-900">
@@ -217,38 +243,6 @@ const DeckSelection = ({ onDeckConfirmed }: DeckSelectionProps) => {
               </div>
             ))}
           </div>
-        </div>
-
-        {/* Predefined Decks */}
-        <div className="flex flex-col gap-[0.5vw] w-full">
-          <h3 className="text-[0.8vw] text-amber-300 font-bold">Quick Decks</h3>
-          <div className="grid grid-cols-2 gap-[0.2vw] w-full">
-            {premadeDecks.map(({ name, deckString }) => (
-              <button
-                key={name}
-                className="rounded w-full text-[0.8vw] warrior-button transition-all duration-200 flex items-center gap-[0.2vw] justify-center p-[0.5vw]"
-                onClick={() => {
-                  playSfx("button-click");
-                  handleSetWholeDeck(deckString);
-                }}
-                onMouseEnter={() => {
-                  playSfx("button-over");
-                }}
-              >
-                <span className="text-[1vw] text-amber-200">{name}</span>
-              </button>
-            ))}
-          </div>
-
-          <button
-            onMouseEnter={() => {
-              playSfx("button-over");
-            }}
-            className="clear-deck-button"
-            onClick={handleClearDeck}
-          >
-            Clear Deck
-          </button>
         </div>
 
         {/* Confirm Button */}

@@ -66,7 +66,7 @@ const Card = ({
       const regex = new RegExp(`\\b${keyword}\\b`, "g");
       parsedDescription = parsedDescription.replace(
         regex,
-        `<span class=" font-extrabold text-black">${keyword}</span>`,
+        `<span class="font-base font-extrabold text-black">${keyword}</span>`,
       );
     });
     return parsedDescription;
@@ -178,8 +178,11 @@ const Card = ({
       </div>
       {/* Description */}
       {/* Highlight Keywords Charge, Taunt, Battlecry */}
-      <div className="select-none text-[0.56vw] w-full relative text-black px-[1vw] py-[0.5vw] pt-[0.9vw] grow   text-center font-medium ">
-        <span className="" dangerouslySetInnerHTML={{ __html: text }} />
+      <div className="select-none text-[0.56vw] w-full relative text-black px-[1vw] py-[0.5vw] pt-[0.9vw] grow font-base  text-center font-medium ">
+        <span
+          className="font-base"
+          dangerouslySetInnerHTML={{ __html: text }}
+        />
       </div>
 
       {/* Type */}
