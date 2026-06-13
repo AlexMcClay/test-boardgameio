@@ -21,18 +21,18 @@ import HitNumbers from "./HitNumbers";
 import { pointerWithSmallBuffer } from "@/utils/customCollisionDetection";
 
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
-import { twMerge } from "tailwind-merge";
 import { AnimatePresence, motion } from "motion/react";
-import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { useAudioStore } from "@/stores/audioStore";
-import { hasToEndTurn } from "@/utils";
 import CardPlayed from "./CardPlayed";
+import EndTurnButton from "./Board/EndTurnButton";
+import BoardCardDeckTop from "./Board/BoardCardDeckTop";
+import BoardCardDeckBottom from "./Board/BoardCardDeckBottom";
+import DragCard from "./Board/DragCard";
+import YourTurn from "./Board/YourTurn";
 
 interface Props extends BoardProps<GameState> {}
 
 const backgroundImage = "assets/board.png"; // Path to your background image
-const exit_button = "assets/exit_button.png"; // Path to your exit button image
-
 const moltenCoreMusic = "assets/audio/music/05_Molten_Core.mp3";
 const arenaMusic = "assets/audio/music/05_Arena.mp3";
 
@@ -54,11 +54,12 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     setGlobalTrack(backgroundMusic);
   }, [setGlobalTrack]);
 
-  const { queueAnimation, startAnimating, playAnimations, isAnimating } =
+  const { queueAnimationBatch, playAnimations, isAnimating } =
     useAnimationStore();
 
   // Visual state buffer - keeps dead cards visible during animations
-  const [visualBoard, setVisualBoard] = useState(G.board);
+  const [visualGameState, setVisualGameState] = useState<GameState>(G);
+  const [visualCtx, setVisualCtx] = useState(ctx);
 
   // Track if the dragged card was hovered
   const [wasHovered, setWasHovered] = useState(false);
@@ -74,6 +75,23 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   // State-based animation detection with visual board management
   const prevGameStateRef = useRef<GameState | null>(null);
   const lastProcessedTimestamp = useRef<number>(0);
+  const [yourTurn, setYourTurn] = useState(false);
+  const prevMovePlayer = useRef<string | null>(null);
+
+  // yourTurn Handler
+  useEffect(() => {
+    if (visualCtx.currentPlayer === prevMovePlayer.current) {
+      return;
+    } else {
+      prevMovePlayer.current = visualCtx.currentPlayer;
+      if (props.playerID && visualCtx.currentPlayer === props.playerID) {
+        setYourTurn(true);
+        setTimeout(() => {
+          setYourTurn(false);
+        }, 2000);
+      }
+    }
+  }, [visualCtx]);
 
   // add useEffect event listenr for tilde to log G.eventHistory
   useEffect(() => {
@@ -104,14 +122,15 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     return () => {
       window.removeEventListener("keydown", handleEscape);
     };
-  }, [G.activeBattlecryMinion, moves]);
+  }, [visualGameState.activeBattlecryMinion, moves]);
 
   useEffect(() => {
     const handleAnimationsAndVisualBoard = async () => {
       // Skip on initial mount
       if (!prevGameStateRef.current) {
         prevGameStateRef.current = structuredClone(G);
-        setVisualBoard(G.board);
+        setVisualGameState(G);
+        setVisualCtx(ctx);
         return;
       }
 
@@ -144,55 +163,56 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       // Update ref immediately
       prevGameStateRef.current = structuredClone(G);
 
-      // Skip if already animating - just update the ref but don't process animations
-      // This prevents the rapid attack bug while keeping state in sync
-      if (isAnimating) {
-        console.log("Currently animating, deferring state update");
-        return;
-      }
-
-      // If a minion was placed, update visual board immediately to show it (before animations)
-      if (newEvents.find((e) => e.type === "minionPlaced")) {
-        setVisualBoard(G.board);
-      }
-
-      // If animations exist, play them BEFORE updating visual board
+      // If animations exist, add them to queue with current game state and ctx
       if (animations.length > 0) {
-        console.log("Starting animations:", animations);
-        startAnimating();
-        animations.forEach((animation) => queueAnimation(animation));
-        await playAnimations(); // Wait for all animations to complete
-        console.log("Animations complete, updating visual board");
+        console.log("Queueing animation batch:", animations);
 
-        // Visual board will update below (dead cards removed from display)
+        // Queue this batch of animations with the full game state and ctx
+        queueAnimationBatch(animations, G, ctx);
+
+        // If not currently animating, start playing the queue
+        if (!isAnimating) {
+          console.log("Starting animation queue");
+
+          // Callback to update visual state after each batch completes
+          const onBatchComplete = (gameState: GameState, batchCtx: any) => {
+            console.log("Batch complete, updating visual state");
+            setVisualGameState(gameState);
+            setVisualCtx(batchCtx);
+          };
+
+          await playAnimations(onBatchComplete);
+          console.log("All animations complete, syncing to current state");
+
+          // After all animations complete, sync visual state to actual current state
+          // setVisualGameState(G);
+          // setVisualCtx(ctx);
+        }
+        // If already animating, the batch is queued and will play automatically
+        // when the current batch finishes (handled by playAnimations loop)
+      } else {
+        // No animations detected
+        if (isAnimating) {
+          // Queue an empty batch so state updates after current animations finish
+          console.log("Queueing state update (no animations)");
+          queueAnimationBatch([], G, ctx);
+        } else {
+          // Not animating, update immediately
+          setVisualGameState(G);
+          setVisualCtx(ctx);
+        }
       }
-
-      // Update visual board after animations complete (or immediately if no animations)
-      setVisualBoard(G.board);
     };
 
     handleAnimationsAndVisualBoard();
-  }, [
-    G,
-    ctx.currentPlayer,
-    isAnimating,
-    startAnimating,
-    queueAnimation,
-    playAnimations,
-  ]);
+  }, [G, ctx, isAnimating, queueAnimationBatch, playAnimations]);
 
-  const p0 = G.players["0"];
-  const p1 = G.players["1"];
-  const board0 = visualBoard["0"];
-  const board1 = visualBoard["1"];
+  const p0 = visualGameState.players["0"];
+  const p1 = visualGameState.players["1"];
+  const board0 = visualGameState.board["0"];
+  const board1 = visualGameState.board["1"];
   const p0Deck = p0.deck;
   const p1Deck = p1.deck;
-
-  const playerHasToEndTurn = useMemo(() => {
-    if (props.playerID && props.playerID === ctx.currentPlayer)
-      return hasToEndTurn(props.playerID, G);
-    return false;
-  }, [ctx.currentPlayer, G, props.playerID]);
 
   // console.log(ctx.phase, "Current phase");
 
@@ -217,7 +237,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     let target: TargetValue | undefined;
     let location: "hand" | "board" = "hand";
 
-    // Determine target from drop data
+    // Determine target from drop data (use actual ctx, not visual)
     if (over.id === `lane-${ctx.currentPlayer}`) {
       target = { type: "lane", id: over.id, player: ctx.currentPlayer };
     } else if (over.data.current?.type === "card") {
@@ -328,41 +348,12 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           // darken background with filter
         }}
       >
-        <button
-          className={twMerge(
-            ` rounded-[50%/25%] absolute top-[44.5vh] h-[4vh] left-[79.2vw] w-[6.6vw] text-[1vw] uppercase font-belwe text-black scale-105   cursor-pointer z-50 brightness-80
-           hover:scale-110 active:scale-100 transition-all duration-150 hue-rotate-[-10deg]
-            `,
-            props?.playerID
-              ? props?.playerID != ctx.currentPlayer
-                ? "text-[0.8vw]"
-                : ``
-              : "",
-            playerHasToEndTurn && "canPlayCard",
-          )}
-          onClick={() => {
-            moves.endTurn();
-          }}
-          disabled={
-            props.playerID ? props.playerID != ctx.currentPlayer : false
-          }
-          style={{
-            backgroundImage: props?.playerID
-              ? props?.playerID != ctx.currentPlayer
-                ? ""
-                : `url(${exit_button})`
-              : `url(${exit_button})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            // darken background with filter
-          }}
-        >
-          {props?.playerID
-            ? props?.playerID != ctx.currentPlayer
-              ? "Enemy Turn"
-              : "End Turn"
-            : "End Turn"}
-        </button>
+        <EndTurnButton
+          ctx={visualCtx}
+          G={visualGameState}
+          moves={moves}
+          {...props}
+        />
         <DndContext
           onDragEnd={handleDragEnd}
           onDragOver={handleDragOver}
@@ -374,14 +365,12 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
             <PlayerArea
               moves={moves}
               player={p1}
-              G={G}
-              ctx={ctx}
+              G={visualGameState}
+              ctx={visualCtx}
               {...props}
               isTop
             />
           </div>
-
-          <CardPlayed {...props} ctx={ctx} G={G} moves={moves} />
 
           {/* Board Area */}
           <div
@@ -397,7 +386,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
                   playerID="1"
                   key={card.id}
                   card={card}
-                  ctx={ctx}
+                  ctx={visualCtx}
                 />
               ))}
             </Lane>
@@ -407,78 +396,59 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
                   playerID="0"
                   key={card.id}
                   card={card}
-                  ctx={ctx}
+                  ctx={visualCtx}
                 />
               ))}
             </Lane>
           </div>
 
+          {/* Your Turn */}
+          <AnimatePresence>
+            {yourTurn && (
+              <motion.div
+                key="your-turn-overlay"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                style={{
+                  position: "fixed",
+                  top: 0,
+                  left: 0,
+                  width: "100vw",
+                  height: "100vh",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  pointerEvents: "none", // Allows clicking through the empty space around the graphic
+                  zIndex: 999,
+                }}
+              >
+                {/* This sub-wrapper ensures the scale origin remains perfectly centered on the graphic */}
+                <motion.div
+                  style={{
+                    transformOrigin: "center center",
+                    pointerEvents: "auto", // Re-enable clicks just for the banner itself
+                  }}
+                >
+                  <YourTurn
+                    mana={visualGameState.players[props.playerID ?? "0"].mana}
+                  />
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Decks */}
-          <div
-            className="absolute z-50 top-[49.4%] left-[83.7vw] flex items-center pointer-events-none minion-shadow"
-            style={{
-              perspective: "1200px",
-              transformStyle: "preserve-3d",
-            }}
-          >
-            {p0Deck
-              .slice(Math.max(0, p0Deck.length - 8), p0Deck.length)
-              .map((card, idx) => (
-                <div
-                  key={card.id}
-                  className="absolute transition-transform z-50"
-                  style={{
-                    left: "0",
-                    top: "0",
-                    transform: `rotateY(-72deg) rotateX(-2deg) rotateZ(90deg) translateZ(${idx * 4}px)`,
-                    transformOrigin: "center center",
-
-                    // --- THE NEW FIXED COMPONENT CLIP ---
-                    // This crops from the local vertical edge, which matches your layout's horizontal line
-                    clipPath: "polygon(0% 0%, 100% 0%, 100% 65%, 0% 65%)",
-                  }}
-                  title={` ${p0Deck.length} cards`}
-                >
-                  <Card back card={card} ctx={ctx} />
-                </div>
-              ))}
-          </div>
-          <div
-            className="absolute z-50 top-[23.4%] left-[83.4vw] flex items-center pointer-events-none minion-shadow"
-            style={{
-              perspective: "1200px",
-              transformStyle: "preserve-3d",
-            }}
-          >
-            {p1Deck
-              .slice(Math.max(0, p1Deck.length - 8), p1Deck.length)
-              .map((card, idx) => (
-                <div
-                  key={card.id}
-                  className="absolute transition-transform z-50"
-                  style={{
-                    left: "0",
-                    top: "0",
-                    transform: `rotateY(-72deg) rotateX(2deg) rotateZ(76deg) translateZ(${idx * 4}px)`,
-                    transformOrigin: "center center",
-
-                    // --- THE NEW FIXED COMPONENT CLIP ---
-                    // This crops from the local vertical edge, which matches your layout's horizontal line
-                    clipPath: "polygon(0% 0%, 100% 0%, 100% 65%, 0% 65%)",
-                  }}
-                  title={` ${p1Deck.length} cards`}
-                >
-                  <Card back card={card} ctx={ctx} />
-                </div>
-              ))}
-          </div>
+          <BoardCardDeckTop deck={p1Deck} ctx={visualCtx} />
+          <BoardCardDeckBottom deck={p0Deck} ctx={visualCtx} />
 
           {/* Player 0 Hand */}
           <div className="absolute bottom-0 w-full h-1/4 flex flex-col justify-start">
             <PlayerArea
               player={p0}
-              G={G}
-              ctx={ctx}
+              G={visualGameState}
+              ctx={visualCtx}
               {...props}
               moves={moves}
               playerID="0"
@@ -495,44 +465,32 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
                 key={`overlay-${activeCard.id}`}
                 modifiers={[snapCenterToCursor]}
               >
-                <motion.div
-                  key={`overlay-${activeCard.id}`}
-                  initial={{ opacity: 1, scale: 1 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{
-                    opacity: 0,
-                    scale: 0.5,
-                    transition: { duration: 3, ease: "easeInOut" },
-                  }}
-                  transition={{
-                    duration: 2,
-                  }}
-                >
-                  <Card
-                    animate="normal"
-                    initial={wasHovered ? "play-hover" : "normal"}
-                    card={activeCard}
-                    isDragging={true}
-                    ctx={ctx}
-                    playerID={""}
-                  />
-                </motion.div>
+                <DragCard
+                  ctx={visualCtx}
+                  activeCard={activeCard}
+                  wasHovered={wasHovered}
+                />
               </DragOverlay>
             ) : null}
           </AnimatePresence>
         </DndContext>
       </div>
-      {ctx?.gameover?.winner && (
+      {visualCtx?.gameover?.winner && (
         <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black/60 z-50">
           <div className="text-4xl text-white bg-black/90 px-6 py-4 rounded-lg shadow-lg">
-            {`${G.players[ctx.gameover.winner].name} wins!`}
+            {`${visualGameState.players[visualCtx.gameover.winner].name} wins!`}
           </div>
         </div>
       )}
-
+      {/* CardPlayed Overlay */}
+      <CardPlayed
+        {...props}
+        ctx={visualCtx}
+        G={visualGameState}
+        moves={moves}
+      />
       {/* Attack Arrow Overlay */}
       <AttackArrow ctx={ctx} playerID={props.playerID} />
-
       {/* Hit Numbers Overlay */}
       <HitNumbers />
     </div>

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Hearthstone } from "@/game";
+import { Hearthstone, HeathStoneGame } from "@/game";
 import { HearthstoneWithAI } from "@/game/AIExample";
 import GameModeSelector from "@/components/GameModeSelector";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";

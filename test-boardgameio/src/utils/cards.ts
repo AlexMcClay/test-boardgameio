@@ -1,13 +1,24 @@
-import type { Card, EffectTypes } from "@/types";
+import type { Card, DamageEffect, EffectTypes } from "@/types";
 
 const damage = (
   value: number | keyof Card,
-  target: "user-select" | "self-hero" | "enemy-hero" = "user-select",
+  target: DamageEffect["target"] = "user-select",
   battlecry: boolean = false,
 ): EffectTypes => {
   return {
     type: "damage",
     value: value,
+    target: target,
+    battlecry: battlecry,
+  };
+};
+
+const freeze = (
+  target: DamageEffect["target"] = "user-select",
+  battlecry: boolean = false,
+): EffectTypes => {
+  return {
+    type: "freeze",
     target: target,
     battlecry: battlecry,
   };
@@ -31,9 +42,8 @@ const heal = (
   value: number,
   target:
     | "user-select"
-    | "self-hero"
     | "friendly-hero"
-    | "all-friendly"
+    | "friendly-all"
     | "friendly-board" = "user-select",
   battlecry: boolean = false,
 ): EffectTypes => {
@@ -96,7 +106,7 @@ export const cardTemplates = {
     type: "Demon",
     imageUrl: "assets/cards/Flame_Imp.jpg",
     effects: [damage("attack")],
-    onPlace: [damage(3, "self-hero")],
+    onPlace: [damage(3, "friendly-hero")],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
   },
@@ -148,7 +158,6 @@ export const cardTemplates = {
     mana: 6,
     attack: 6,
     health: 7,
-    type: "Ogre",
     imageUrl: "assets/cards/Boulderfist_Ogre_full.jpg",
     effects: [damage("attack")],
     onPlace: [],
@@ -165,10 +174,7 @@ export const cardTemplates = {
     type: "Beast",
     imageUrl: "assets/cards/Wolfrider.jpg",
     effects: [damage("attack")],
-    onPlace: [
-      changeKey("hasAttacked", false, "self"),
-      changeKey("summoningSickness", false, "self"),
-    ],
+    onPlace: [changeKey("summoningSickness", false, "self")],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
   },
@@ -178,7 +184,7 @@ export const cardTemplates = {
     mana: 2,
     type: "Spell",
     imageUrl: "assets/cards/Frostbolt.jpg",
-    effects: [damage(3)],
+    effects: [damage(3), freeze()],
     onPlace: [],
 
     isSpell: true,
@@ -232,10 +238,7 @@ export const cardTemplates = {
     mana: 1,
     type: "Spell",
     imageUrl: "assets/cards/Charge.jpg",
-    effects: [
-      changeKey("hasAttacked", false),
-      changeKey("summoningSickness", false),
-    ],
+    effects: [changeKey("summoningSickness", false)],
     onPlace: [],
     isSpell: true,
     isMinnion: false,
@@ -261,7 +264,6 @@ export const cardTemplates = {
     attack: 2,
     health: 2,
     mana: 2,
-    type: "Orc",
     imageUrl: "assets/cards/Frostwolf_Grunt.jpg",
     effects: [damage("attack")],
     onPlace: [],
@@ -301,7 +303,6 @@ export const cardTemplates = {
     attack: 2,
     health: 3,
     mana: 3,
-    type: "Tauren",
     imageUrl: "assets/cards/Razorfen_Hunter.jpg",
     effects: [damage("attack")],
     onPlace: [summon("boar")],
@@ -328,7 +329,6 @@ export const cardTemplates = {
     attack: 2,
     health: 4,
     mana: 4,
-    type: "Mechanical",
     imageUrl: "assets/cards/Dragonling_Mechanic.jpg",
     effects: [damage("attack")],
     onPlace: [summon("mechanical-dragonling")],
@@ -356,10 +356,35 @@ export const cardTemplates = {
     attack: 3,
     health: 5,
     mana: 4,
-    type: "Troll",
     imageUrl: "assets/cards/Senjin_Shieldmasta.jpg",
     effects: [damage("attack")],
     onPlace: [],
+    targets: ["card-opponent", "player-opponent"],
+    isMinnion: true,
+  },
+  "lord-of-the-arena": {
+    title: "Lord of the Arena",
+    description: "Taunt.",
+    taunt: true,
+    attack: 6,
+    health: 5,
+    mana: 6,
+    imageUrl: "assets/cards/Lord_of_the_Arena.jpg",
+    effects: [damage("attack")],
+    onPlace: [],
+    targets: ["card-opponent", "player-opponent"],
+    isMinnion: true,
+  },
+  "stormwind-knight": {
+    title: "Stormwind Knight",
+    description: "Taunt.",
+    taunt: false,
+    attack: 2,
+    health: 5,
+    mana: 4,
+    imageUrl: "assets/cards/Stormwind_Knight.jpg",
+    effects: [damage("attack")],
+    onPlace: [changeKey("summoningSickness", false, "self")],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
   },
@@ -414,7 +439,7 @@ export const cardTemplates = {
     type: "Naga",
     imageUrl: "assets/cards/Darkscale_Healer.jpg",
     effects: [damage("attack")],
-    onPlace: [heal(2, "all-friendly", true)],
+    onPlace: [heal(2, "friendly-all", true)],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
   },
@@ -437,12 +462,24 @@ export const cardTemplates = {
     attack: 1,
     health: 1,
     mana: 1,
-    type: "Elf",
     imageUrl: "assets/cards/Elven_Archer.jpg",
     effects: [damage("attack")],
     onPlace: [damage(1, "user-select", true)], // Battlecry damage that can target any character, bypassing taunt
     targets: ["card-opponent", "player-opponent"],
     battlecryTargets: ["card-opponent", "player-opponent"], // Can target any character for battlecry damage
+    isMinnion: true,
+  },
+  "ironforge-rifleman": {
+    title: "Ironforge Rifleman",
+    description: "Battlecry: Deal 1 damage.",
+    attack: 2,
+    health: 2,
+    mana: 3,
+    imageUrl: "assets/cards/Ironforge_Rifleman.jpg",
+    effects: [damage("attack")],
+    onPlace: [damage(1, "user-select", true)],
+    targets: ["card-opponent", "player-opponent"],
+    battlecryTargets: ["card-opponent", "player-opponent"],
     isMinnion: true,
   },
   "core-hound": {
@@ -531,7 +568,6 @@ export const cardTemplates = {
     mana: 1,
     attack: 2,
     health: 1,
-    type: "Troll",
     imageUrl: "assets/cards/Voodoo_Doctor.jpg",
     effects: [damage("attack")],
     onPlace: [heal(2)], // Reuses your healing-touch payload architecture on a targeted entity
@@ -652,10 +688,7 @@ export const cardTemplates = {
     health: 2,
     imageUrl: "assets/cards/Reckless_Rocketeer.jpg",
     effects: [damage("attack")],
-    onPlace: [
-      changeKey("hasAttacked", false, "self"),
-      changeKey("summoningSickness", false, "self"),
-    ],
+    onPlace: [changeKey("summoningSickness", false, "self")],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
   },
@@ -671,6 +704,30 @@ export const cardTemplates = {
     ],
     onPlace: [],
     targets: ["card-friendly", "card-opponent"],
+    isSpell: true,
+    isMinnion: false,
+  },
+  "bluegill-warrior": {
+    title: "Bluegill Warrior",
+    description: "Charge.",
+    mana: 2,
+    attack: 2,
+    health: 1,
+    type: "Murloc",
+    imageUrl: "assets/cards/Bluegill_Warrior.jpg",
+    effects: [damage("attack")],
+    onPlace: [changeKey("summoningSickness", false, "self")],
+    targets: ["card-opponent", "player-opponent"],
+    isMinnion: true,
+  },
+  flamestrike: {
+    title: "Flamestrike",
+    imageUrl: "assets/cards/Flamestrike.jpg",
+    description: "Deal 5 damage to all enemy minions.",
+    mana: 7,
+    effects: [damage(5, "enemy-board")],
+    onPlace: [],
+    targets: ["lane-opponent", "lane-friendly"],
     isSpell: true,
     isMinnion: false,
   },

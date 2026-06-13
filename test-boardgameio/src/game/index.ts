@@ -2,7 +2,7 @@ import Board from "@/components/Board";
 import { Client } from "boardgame.io/react";
 
 import type { Card, GameState, Player, TargetValue, GameEvent } from "@/types";
-import { createCardFromID, createDeck, shuffleDeck } from "@/utils";
+import { createCardFromID, shuffleDeck } from "@/utils";
 import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
 import { validateMove } from "@/utils/validateMove";
 import type { CardTemplateKey } from "@/utils/cards";
@@ -19,14 +19,14 @@ function recordEvent(G: GameState, event: GameEvent) {
 }
 
 export const isVictory = ({ G, ctx }: { G: GameState; ctx: Ctx }) => {
-  if (G.players[0].hp <= 0) {
+  if (G.players[0].health <= 0) {
     return { winner: "1" };
-  } else if (G.players[1].hp <= 0) {
+  } else if (G.players[1].health <= 0) {
     return { winner: "0" };
   }
 };
 
-const setupData = (): GameState => {
+const setupData = (data?: any): GameState => {
   const G: GameState = {
     players: {
       "0": p0,
@@ -49,8 +49,8 @@ const p0: Player = {
   id: "0",
   name: "Arthas",
   heroPortrait: "assets/Arthas.jpg", // Optional, if you want to display a hero portrait
-  maxHp: 30,
-  hp: 30,
+  maxHealth: 30,
+  health: 30,
   maxArmor: 0,
   armor: 0,
   mana: 1,
@@ -62,8 +62,8 @@ const p1: Player = {
   id: "1",
   name: "Illidan",
   heroPortrait: "assets/Illidan_Stormrage.jpg", // Optional, if you want to display a hero portrait
-  maxHp: 30,
-  hp: 30,
+  maxHealth: 30,
+  health: 30,
   maxArmor: 0,
   armor: 0,
   mana: 1,
@@ -136,7 +136,6 @@ const placeCard: Move<GameState> = (
   if (card.isMinnion && !card.isPlaced) {
     // console.log("Placing minion on the board");
     card.isPlaced = true; // Mark the card as placed
-    card.hasAttacked = true;
     card.summoningSickness = true; // Minion has summoning sickness
 
     // Check if card needs targeted battlecry (damage or heal)
@@ -220,19 +219,18 @@ const doEffects = (
 
   card[key].forEach((effect) => {
     switch (effect.type) {
-      case "damage":
+      case "damage": {
         const damage =
           typeof effect.value === "string"
             ? (card[effect.value] as number)
             : effect.value;
-        if (target && effect.target === "user-select") {
-          const targetPlayer = G.players[target.player];
 
+        if (target && effect.target === "user-select") {
           if (card.isPlaced && effect.type === "damage" && !effect.battlecry) {
-            card.hasAttacked = true; // Mark the card as having attacked (only for real attacks)
+            card.hasAttacked = true; // Mark the card as having attacked
           }
 
-          // Record attack event (for attack animation)
+          // Record attack animation event
           if (location === "board" && target.player !== playerID) {
             recordEvent(G, {
               type: "attack",
@@ -246,350 +244,202 @@ const doEffects = (
             });
           }
 
+          // Target: Player
           if (target.type === "player") {
-            targetPlayer.hp -= damage;
-
-            // Record damage event
-            recordEvent(G, {
-              type: "damage",
-              sourceId: cardId,
-              targetId: target.player,
-              targetType: "player",
-              playerId: target.player,
-              value: damage,
-              timestamp: Date.now(),
-            });
+            dealDamageToPlayer(G, cardId, target.player, damage);
           }
 
-          // Minion Attack
+          // Target: Minion / Card
           if (target.type === "card") {
             const targetCard = G.board[target.player].find(
               (c) => c.id === target.id,
             );
-            if (targetCard && targetCard.health) {
-              // Record damage event BEFORE removing card
-              recordEvent(G, {
-                type: "damage",
-                sourceId: cardId,
-                targetId: targetCard.id,
-                targetType: "card",
-                playerId: target.player,
-                value: damage,
-                timestamp: Date.now(),
-              });
 
-              targetCard.health -= damage;
-              if (targetCard.health <= 0) {
-                // Record death event
-                recordEvent(G, {
-                  type: "death",
-                  cardId: targetCard.id,
-                  playerId: target.player,
-                  timestamp: Date.now(),
-                });
+            if (targetCard && typeof targetCard.health !== "undefined") {
+              // Main attack damage to target
+              dealDamageToCard(G, cardId, targetCard, target.player, damage);
 
-                // Remove the card from the board immediately
-                G.board[target.player] = G.board[target.player].filter(
-                  (c) => c.id !== targetCard.id,
-                );
-              }
-
-              // check damage to self card (counter-attack)
-              if (!effect.battlecry) {
+              // Check counter-attack damage to self card
+              if (!effect.battlecry && typeof card.health !== "undefined") {
                 const damageEnemy =
                   typeof effect.value === "string"
                     ? (targetCard[effect.value] as number)
                     : effect.value;
-                if (card.health) {
-                  // Record counter-attack damage
-                  recordEvent(G, {
-                    type: "damage",
-                    sourceId: targetCard.id,
-                    targetId: card.id,
-                    targetType: "card",
-                    playerId: playerID,
-                    value: damageEnemy,
-                    timestamp: Date.now(),
-                  });
 
-                  card.health -= damageEnemy;
-                  if (card.health <= 0) {
-                    // Record death event
-                    recordEvent(G, {
-                      type: "death",
-                      cardId: card.id,
-                      playerId: playerID,
-                      timestamp: Date.now(),
-                    });
-
-                    // Remove the card from the board immediately
-                    G.board[playerID] = G.board[playerID].filter(
-                      (c) => c.id !== card.id,
-                    );
-                  }
-                }
+                dealDamageToCard(G, targetCard.id, card, playerID, damageEnemy);
               }
             }
           }
-        } else if (effect.target === "self-hero") {
-          const currentPlayer = G.players[playerID];
-          currentPlayer.hp -= damage;
+        } else if (
+          effect.target === "friendly-hero" ||
+          effect.target === "enemy-hero"
+        ) {
+          const targetPlayerId =
+            effect.target === "friendly-hero"
+              ? playerID
+              : playerID === "0"
+                ? "1"
+                : "0";
 
-          // Record damage event
-          recordEvent(G, {
-            type: "damage",
-            sourceId: cardId,
-            targetId: playerID,
-            targetType: "player",
-            playerId: playerID,
-            value: damage,
-            timestamp: Date.now(),
-          });
-        } else if (effect.target === "enemy-hero") {
-          const enemyPlayerId = playerID === "0" ? "1" : "0";
-          const enemyPlayer = G.players[enemyPlayerId];
-          enemyPlayer.hp -= damage;
-
-          // Record damage event
-          recordEvent(G, {
-            type: "damage",
-            sourceId: cardId,
-            targetId: enemyPlayerId,
-            targetType: "player",
-            playerId: enemyPlayerId,
-            value: damage,
-            timestamp: Date.now(),
-          });
+          dealDamageToPlayer(G, cardId, targetPlayerId, damage);
+        } else if (effect.target === "enemy-board") {
+          const targetPlayerId = playerID === "0" ? "1" : "0";
+          G.board[targetPlayerId].forEach((c) =>
+            dealDamageToCard(G, cardId, c, targetPlayerId, damage),
+          );
+        } else if (effect.target === "enemy-all") {
+          const targetPlayerId = playerID === "0" ? "1" : "0";
+          dealDamageToPlayer(G, cardId, targetPlayerId, damage);
+          G.board[targetPlayerId].forEach((c) =>
+            dealDamageToCard(G, cardId, c, targetPlayerId, damage),
+          );
         }
         break;
-      case "incrementValue":
-        if (target && effect.target === "other") {
+      }
+      case "freeze": {
+        if (target && effect.target === "user-select") {
+          // Record attack animation event
+
+          // Target: Player
+          // if (target.type === "player") {
+          //   dealDamageToPlayer(G, cardId, target.player, damage);
+          // }
+
+          // Target: Minion / Card
           if (target.type === "card") {
             const targetCard = G.board[target.player].find(
               (c) => c.id === target.id,
             );
-            if (targetCard && targetCard[effect.key] !== undefined) {
-              // @ts-ignore
-              targetCard[effect.key] += effect.value;
+
+            if (targetCard && typeof targetCard.health !== "undefined") {
+              // Main attack damage to target
+              freezeCard(G, cardId, targetCard, target.player);
             }
           }
-        } else if (effect.target === "self") {
-          if (card[effect.key] !== undefined) {
-            // @ts-ignore
-            card[effect.key] += effect.value;
-          }
+        } else if (
+          effect.target === "friendly-hero" ||
+          effect.target === "enemy-hero"
+        ) {
+          // const targetPlayerId =
+          //   effect.target === "friendly-hero"
+          //     ? playerID
+          //     : playerID === "0"
+          //       ? "1"
+          //       : "0";
+          // freezeCard(G, cardId, targetPlayerId);
+        } else if (effect.target === "enemy-board") {
+          const targetPlayerId = playerID === "0" ? "1" : "0";
+          G.board[targetPlayerId].forEach((c) =>
+            freezeCard(G, cardId, c, targetPlayerId),
+          );
+        } else if (effect.target === "enemy-all") {
+          const targetPlayerId = playerID === "0" ? "1" : "0";
+          // freezeCard(G, cardId, targetPlayerId);
+          G.board[targetPlayerId].forEach((c) =>
+            freezeCard(G, cardId, c, targetPlayerId),
+          );
         }
         break;
-      case "heal":
-        // Handle different heal target types
+      }
+      case "heal": {
+        const healValue = effect.value;
+
+        // 1. Single Selected Target Logic
         if (effect.target === "user-select" && target) {
-          // Targeted heal (user selects)
           if (target.type === "player") {
-            const targetPlayer = G.players[target.player];
-            const actualHeal = Math.min(
-              effect.value,
-              targetPlayer.maxHp - targetPlayer.hp,
-            );
-            targetPlayer.hp = Math.min(
-              targetPlayer.hp + effect.value,
-              targetPlayer.maxHp,
-            );
-
-            // Record heal event
-            recordEvent(G, {
-              type: "heal",
-              sourceId: cardId,
-              targetId: target.player,
-              targetType: "player",
-              playerId: target.player,
-              value: actualHeal,
-              timestamp: Date.now(),
-            });
+            healPlayer(G, cardId, target.player, healValue);
           }
+
           if (target.type === "card") {
             const targetCard = G.board[target.player].find(
               (c) => c.id === target.id,
             );
-            if (
-              targetCard &&
-              targetCard.health !== undefined &&
-              targetCard.maxHealth !== undefined
-            ) {
-              const actualHeal = Math.min(
-                effect.value,
-                targetCard.maxHealth - targetCard.health,
-              );
-              targetCard.health = Math.min(
-                targetCard.health + effect.value,
-                targetCard.maxHealth,
-              );
-
-              // Record heal event
-              recordEvent(G, {
-                type: "heal",
-                sourceId: cardId,
-                targetId: targetCard.id,
-                targetType: "card",
-                playerId: target.player,
-                value: actualHeal,
-                timestamp: Date.now(),
-              });
-            }
+            healCard(G, cardId, targetCard, target.player, healValue);
           }
+
           if (target.type === "lane") {
-            // all cards in the lane are healed
             G.board[target.player].forEach((c) => {
-              if (c.health !== undefined && c.maxHealth !== undefined) {
-                const actualHeal = Math.min(
-                  effect.value,
-                  c.maxHealth - c.health,
-                );
-                c.health = Math.min(c.health + effect.value, c.maxHealth);
-
-                // Record heal event for each card
-                recordEvent(G, {
-                  type: "heal",
-                  sourceId: cardId,
-                  targetId: c.id,
-                  targetType: "card",
-                  playerId: target.player,
-                  value: actualHeal,
-                  timestamp: Date.now(),
-                });
-              }
-            });
-          }
-        } else if (effect.target === "all-friendly") {
-          // Heal all friendly minions + hero
-          const currentPlayer = G.players[playerID];
-
-          // Heal hero
-          const heroActualHeal = Math.min(
-            effect.value,
-            currentPlayer.maxHp - currentPlayer.hp,
-          );
-          currentPlayer.hp = Math.min(
-            currentPlayer.hp + effect.value,
-            currentPlayer.maxHp,
-          );
-          if (heroActualHeal > 0) {
-            recordEvent(G, {
-              type: "heal",
-              sourceId: cardId,
-              targetId: playerID,
-              targetType: "player",
-              playerId: playerID,
-              value: heroActualHeal,
-              timestamp: Date.now(),
-            });
-          }
-
-          // Heal all friendly minions
-          G.board[playerID].forEach((c) => {
-            if (c.health !== undefined && c.maxHealth !== undefined) {
-              const actualHeal = Math.min(effect.value, c.maxHealth - c.health);
-              c.health = Math.min(c.health + effect.value, c.maxHealth);
-              if (actualHeal > 0) {
-                recordEvent(G, {
-                  type: "heal",
-                  sourceId: cardId,
-                  targetId: c.id,
-                  targetType: "card",
-                  playerId: playerID,
-                  value: actualHeal,
-                  timestamp: Date.now(),
-                });
-              }
-            }
-          });
-        } else if (effect.target === "friendly-hero") {
-          // Heal only friendly hero
-          const currentPlayer = G.players[playerID];
-          const actualHeal = Math.min(
-            effect.value,
-            currentPlayer.maxHp - currentPlayer.hp,
-          );
-          currentPlayer.hp = Math.min(
-            currentPlayer.hp + effect.value,
-            currentPlayer.maxHp,
-          );
-          if (actualHeal > 0) {
-            recordEvent(G, {
-              type: "heal",
-              sourceId: cardId,
-              targetId: playerID,
-              targetType: "player",
-              playerId: playerID,
-              value: actualHeal,
-              timestamp: Date.now(),
-            });
-          }
-        } else if (effect.target === "friendly-board") {
-          // Heal only friendly minions
-          G.board[playerID].forEach((c) => {
-            if (c.health !== undefined && c.maxHealth !== undefined) {
-              const actualHeal = Math.min(effect.value, c.maxHealth - c.health);
-              c.health = Math.min(c.health + effect.value, c.maxHealth);
-              if (actualHeal > 0) {
-                recordEvent(G, {
-                  type: "heal",
-                  sourceId: cardId,
-                  targetId: c.id,
-                  targetType: "card",
-                  playerId: playerID,
-                  value: actualHeal,
-                  timestamp: Date.now(),
-                });
-              }
-            }
-          });
-        } else if (effect.target === "self-hero") {
-          // Heal own hero
-          const currentPlayer = G.players[playerID];
-          const actualHeal = Math.min(
-            effect.value,
-            currentPlayer.maxHp - currentPlayer.hp,
-          );
-          currentPlayer.hp = Math.min(
-            currentPlayer.hp + effect.value,
-            currentPlayer.maxHp,
-          );
-          if (actualHeal > 0) {
-            recordEvent(G, {
-              type: "heal",
-              sourceId: cardId,
-              targetId: playerID,
-              targetType: "player",
-              playerId: playerID,
-              value: actualHeal,
-              timestamp: Date.now(),
+              healCard(G, cardId, c, target.player, healValue);
             });
           }
         }
+
+        // 2. Global / AoE Effects
+        else if (effect.target === "friendly-all") {
+          // Heal friendly hero
+          healPlayer(G, cardId, playerID, healValue);
+          // Heal all friendly minions
+          G.board[playerID].forEach((c) =>
+            healCard(G, cardId, c, playerID, healValue),
+          );
+        } else if (effect.target === "friendly-hero") {
+          healPlayer(G, cardId, playerID, healValue);
+        } else if (effect.target === "friendly-board") {
+          G.board[playerID].forEach((c) =>
+            healCard(G, cardId, c, playerID, healValue),
+          );
+        }
+
         break;
+      }
       case "mana":
         // increment current   player's mana
         G.players[playerID].mana += effect.value;
+        recordEvent(G, {
+          type: "mana",
+          playerId: ctx.currentPlayer,
+          timestamp: Date.now(),
+        });
         break;
+      case "incrementValue": {
+        let cardToUpdate: typeof card | undefined;
+
+        if (effect.target === "self") {
+          cardToUpdate = card;
+        } else if (effect.target === "other" && target?.type === "card") {
+          cardToUpdate = G.board[target.player].find((c) => c.id === target.id);
+        }
+
+        if (cardToUpdate && cardToUpdate[effect.key] !== undefined) {
+          // @ts-ignore
+          cardToUpdate[effect.key] += effect.value;
+
+          recordEvent(G, {
+            type: "changeKey",
+            playerId: ctx.currentPlayer,
+            timestamp: Date.now(),
+            cardId: cardToUpdate.id,
+            key: effect.key,
+            value: effect.value,
+          });
+        }
+        break;
+      }
       case "changeKey":
-        if (target && effect.target == "other") {
-          if (target.type === "card") {
-            const targetCard = G.board[target.player].find(
-              (c) => c.id === target.id,
-            );
-            if (targetCard) {
-              // @ts-ignore
-              targetCard[effect.key] = effect.value;
-            }
-          }
-        } else if (effect.target == "self") {
-          if (card[effect.key] !== undefined) {
-            // @ts-ignore
-            card[effect.key] = effect.value;
-          }
+        let cardToUpdate: typeof card | undefined;
+
+        if (effect.target === "self") {
+          cardToUpdate = card;
+        } else if (effect.target === "other" && target?.type === "card") {
+          cardToUpdate = G.board[target.player].find((c) => c.id === target.id);
+        }
+
+        if (cardToUpdate && cardToUpdate[effect.key] !== undefined) {
+          // @ts-ignore
+          cardToUpdate[effect.key] = effect.value;
+
+          recordEvent(G, {
+            type: "changeKey",
+            playerId: ctx.currentPlayer,
+            timestamp: Date.now(),
+            cardId: cardToUpdate.id,
+            key: effect.key,
+            value: effect.value,
+          });
         }
         break;
       case "summon":
+        const enemyPlayerId = playerID === "0" ? "1" : "0";
         // check if the board can fit the summoned card
         if (G.board[playerID].length >= 7) {
           console.warn("Cannot summon more than 7 cards on the board");
@@ -598,7 +448,6 @@ const doEffects = (
         const summonedCard = createCardFromID(effect.cardID as CardTemplateKey);
         if (summonedCard) {
           summonedCard.isPlaced = true; // Mark the summoned card as placed
-          summonedCard.hasAttacked = true; // Reset attack status for summoned cards
           summonedCard.summoningSickness = true; // Summoned minions have summoning sickness
           recordEvent(G, {
             type: "summon",
@@ -642,11 +491,152 @@ function handleDrawCard(G: GameState, ctx: Ctx, playerID?: PlayerID) {
     const drawnCard = player.deck.pop();
     if (drawnCard) {
       player.hand.push(drawnCard);
+      recordEvent(G, {
+        type: "drawCard",
+        cardId: drawnCard.id,
+        playerId: playerID || ctx.currentPlayer,
+        timestamp: Date.now(),
+      });
     }
   } else {
     // Handle case when deck is empty, e.g., damage player or reshuffle
     console.warn("Deck is empty, cannot draw a card.");
   }
+}
+
+function dealDamageToCard(
+  G: GameState,
+  sourceId: string,
+  targetCard: any,
+  targetPlayerId: string,
+  damageAmount: number,
+) {
+  if (!targetCard || typeof targetCard.health === "undefined") return;
+
+  // 1. Record damage event BEFORE updating health
+  recordEvent(G, {
+    type: "damage",
+    sourceId: sourceId,
+    targetId: targetCard.id,
+    targetType: "card",
+    playerId: targetPlayerId,
+    value: damageAmount,
+    timestamp: Date.now(),
+  });
+
+  // 2. Apply damage
+  targetCard.health -= damageAmount;
+
+  // 3. Handle death if health drops to or below 0
+  if (targetCard.health <= 0) {
+    recordEvent(G, {
+      type: "death",
+      cardId: targetCard.id,
+      playerId: targetPlayerId,
+      timestamp: Date.now(),
+    });
+
+    // Remove the card from the board immediately
+    G.board[targetPlayerId] = G.board[targetPlayerId].filter(
+      (c: any) => c.id !== targetCard.id,
+    );
+  }
+}
+
+function freezeCard(
+  G: GameState,
+  sourceId: string,
+  targetCard: Card,
+  targetPlayerId: string,
+) {
+  if (!targetCard) return;
+
+  targetCard.frozen = true;
+
+  recordEvent(G, {
+    type: "freeze",
+    sourceId: sourceId,
+    targetId: targetCard.id,
+    targetType: "card",
+    playerId: targetPlayerId,
+    timestamp: Date.now(),
+  });
+}
+
+function dealDamageToPlayer(
+  G: GameState,
+  sourceId: string,
+  targetPlayerId: string,
+  damageAmount: number,
+) {
+  const targetPlayer = G.players[targetPlayerId];
+  if (!targetPlayer) return;
+
+  targetPlayer.health -= damageAmount;
+
+  recordEvent(G, {
+    type: "damage",
+    sourceId: sourceId,
+    targetId: targetPlayerId,
+    targetType: "player",
+    playerId: targetPlayerId,
+    value: damageAmount,
+    timestamp: Date.now(),
+  });
+}
+function healPlayer(
+  G: GameState,
+  sourceId: string,
+  targetPlayerId: string,
+  amount: number,
+) {
+  const player = G.players[targetPlayerId];
+  if (!player) return;
+
+  const actualHeal = Math.min(amount, player.maxHealth - player.health);
+  if (actualHeal <= 0) return; // No healing needed (already at full health)
+
+  player.health += actualHeal;
+
+  recordEvent(G, {
+    type: "heal",
+    sourceId,
+    targetId: targetPlayerId,
+    targetType: "player",
+    playerId: targetPlayerId,
+    value: actualHeal,
+    timestamp: Date.now(),
+  });
+}
+
+function healCard(
+  G: GameState,
+  sourceId: string,
+  targetCard: any,
+  playerId: string,
+  amount: number,
+) {
+  if (
+    !targetCard ||
+    targetCard.health === undefined ||
+    targetCard.maxHealth === undefined
+  )
+    return;
+
+  const actualHeal = Math.min(amount, targetCard.maxHealth - targetCard.health);
+  if (actualHeal <= 0) return; // Already at full health
+
+  targetCard.health += actualHeal;
+
+  recordEvent(G, {
+    type: "heal",
+    sourceId,
+    targetId: targetCard.id,
+    targetType: "card",
+    playerId,
+    value: actualHeal,
+    timestamp: Date.now(),
+  });
 }
 
 function randomPremadeDeck() {
@@ -725,6 +715,10 @@ export const HeathStoneGame: Game<GameState> = {
       // Clear last move metadata at the end of the turn
       G.gameEvents = [];
       G.activeBattlecryMinion = null;
+
+      G.board[ctx.currentPlayer].forEach((card) => {
+        card.frozen = false; // unfreeze minions
+      });
       recordEvent(G, {
         type: "endTurn",
         playerId: ctx.currentPlayer,
@@ -745,9 +739,15 @@ export const HeathStoneGame: Game<GameState> = {
           handleDrawCard(G, ctx);
         }
       }
+
       G.board[ctx.currentPlayer].forEach((card) => {
         card.hasAttacked = false; // Reset attack status for all cards
         card.summoningSickness = false; // Remove summoning sickness
+      });
+      recordEvent(G, {
+        type: "beginTurn",
+        playerId: ctx.currentPlayer,
+        timestamp: Date.now(),
       });
     },
   },

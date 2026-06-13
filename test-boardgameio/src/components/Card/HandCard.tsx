@@ -5,6 +5,7 @@ import { twMerge } from "tailwind-merge";
 import { useDraggable } from "@dnd-kit/core";
 import type { CardProps } from "./types";
 import Card from ".";
+import { useAudioStore } from "@/stores/audioStore";
 
 type Props = {
   size: number; // Array of cards in hand
@@ -70,7 +71,9 @@ const HandCard = ({
       key={`${isTop ? "p1" : "p0"}-hand-${card.id}`}
       className={twMerge(
         "relative transition-all duration-300 ease-in-out flex",
-        player.mana >= (card?.mana ?? 0) && ctx.currentPlayer === player.id
+        player.mana >= (card?.mana ?? 0) &&
+          ctx.currentPlayer === player.id &&
+          !back
           ? "canPlayCard"
           : "",
         isHovered && isTop && !back ? "translate-y-[120%]" : "",
@@ -85,6 +88,7 @@ const HandCard = ({
       }}
       onMouseEnter={(e) => {
         if (cardRef.current) {
+          if (back) return;
           const rect = cardRef.current.getBoundingClientRect();
           onHoverEnter(card.id, rect);
         }
@@ -123,10 +127,12 @@ const DragCard = (props: DargCardProps) => {
   // FIX 1: Initialize this to false (since we aren't dragging on mount)
   const [delayedDrag, setDelayedDrag] = useState(false);
   const isFirstRender = useRef(true);
+  const playSfx = useAudioStore((state) => state.playSfx);
 
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
+      playSfx("card-draw");
       return;
     }
 
@@ -148,6 +154,9 @@ const DragCard = (props: DargCardProps) => {
   return (
     <div
       ref={setNodeRef}
+      onMouseEnter={() => {
+        if (!props.back) playSfx("card-over");
+      }}
       className={`${!disabled ? "cursor-grab" : ""} ${isDragging ? "cursor-grabbing" : ""}`}
       {...listeners}
     >

@@ -126,7 +126,7 @@ const PlayerHand = ({ isTop, G, ctx, player, playerID }: Props) => {
             card={card}
             ctx={ctx}
             player={player}
-            // back={playerID ? playerID !== player.id : false}
+            back={playerID ? playerID !== player.id : false}
             isHovered={hoveredCardId === card.id}
             onHoverEnter={handleCardHoverEnter}
             onCardRef={setCardRef}

@@ -4,6 +4,7 @@ import { cardTemplates, type CardTemplateKey } from "@/utils/cards";
 import { premadeDecks, type DeckString } from "@/utils/decks";
 import type { Ctx } from "boardgame.io";
 import type { Card as CardType } from "@/types";
+import { useAudioStore } from "@/stores/audioStore";
 
 interface DeckSelectionProps {
   ctx: Ctx;
@@ -16,8 +17,10 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
   const [deck, setDeck] = useState<Partial<Record<CardTemplateKey, number>>>(
     {},
   );
+  const playSfx = useAudioStore((state) => state.playSfx);
 
   function handleConfirmDeck() {
+    playSfx("button-click");
     moves.setDeck(ctx.currentPlayer, deck);
   }
 
@@ -38,6 +41,7 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
   }
 
   function handleClearDeck() {
+    playSfx("button-click");
     setDeck({});
   }
 
@@ -95,7 +99,14 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
         {/* Left Panel - Card Collection */}
         <div className="flex flex-col w-[60%] bg-[#2a1c12]/80 rounded-lg shadow-lg p-[1vw] px-[0.5vw] overflow-hidden">
           <div>
-            <h2 className="text-[1.25vw] text-amber-300">Card Collection</h2>
+            <h2
+              className="text-[1.25vw] text-amber-300"
+              onClick={() => {
+                console.log(Object.keys(cardTemplates).join(", "));
+              }}
+            >
+              Card Collection
+            </h2>
             <p className="text-[0.8vw] text-amber-200">
               Left click to add • Right click to remove
             </p>
@@ -119,6 +130,9 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
                       const newCount = currentCount + 1;
                       handleDeckChange(id as CardTemplateKey, newCount);
                     }
+                  }}
+                  onMouseEnter={() => {
+                    playSfx("card-over");
                   }}
                   onContextMenu={(e) => {
                     e.preventDefault();
@@ -198,20 +212,35 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
                 <button
                   key={name}
                   className="rounded w-full text-[0.8vw] warrior-button transition-all duration-200 flex items-center gap-[0.2vw] justify-center p-[0.5vw]"
-                  onClick={() => handleSetWholeDeck(deckString)}
+                  onClick={() => {
+                    playSfx("button-click");
+                    handleSetWholeDeck(deckString);
+                  }}
+                  onMouseEnter={() => {
+                    playSfx("button-over");
+                  }}
                 >
                   <span className="text-[1vw] text-amber-200">{name}</span>
                 </button>
               ))}
             </div>
 
-            <button className="clear-deck-button" onClick={handleClearDeck}>
+            <button
+              onMouseEnter={() => {
+                playSfx("button-over");
+              }}
+              className="clear-deck-button"
+              onClick={handleClearDeck}
+            >
               Clear Deck
             </button>
           </div>
 
           {/* Confirm Button */}
           <button
+            onMouseEnter={() => {
+              playSfx("button-over");
+            }}
             className={`confirm-deck-button ${totalCards === maxCards ? "ready" : ""}`}
             onClick={handleConfirmDeck}
             disabled={totalCards === 0}

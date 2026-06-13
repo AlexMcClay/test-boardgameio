@@ -5,6 +5,7 @@ import { useAnimationStore } from "@/stores/animationStore";
 import { useEffect, useState, useRef } from "react";
 import type { CardPlayedAnimation } from "@/types/animations";
 import { AnimatePresence, motion } from "motion/react";
+import { useAudioStore } from "@/stores/audioStore";
 
 interface Props extends BoardProps<GameState> {}
 
@@ -13,6 +14,8 @@ const CardPlayed = ({ ctx, playerID }: Props) => {
   const [activeCard, setActiveCard] = useState<CardPlayedAnimation | null>(
     null,
   );
+  const playSfx = useAudioStore((state) => state.playSfx);
+
   const processedAnimationTime = useRef<number>(-1);
 
   // 1. Get ALL cardPlayed animations that belong to the ENEMY
@@ -45,6 +48,7 @@ const CardPlayed = ({ ctx, playerID }: Props) => {
     // 3. Update the display instantly if a newer animation timestamp is found
     if (latestPlayAnim.startTime >= processedAnimationTime.current) {
       processedAnimationTime.current = latestPlayAnim.startTime;
+      playSfx("card-draw");
       setActiveCard(latestPlayAnim);
     } else {
       console.log(
@@ -62,26 +66,20 @@ const CardPlayed = ({ ctx, playerID }: Props) => {
     const timer = setTimeout(() => {
       // Only clear if another rapid card animation hasn't already taken over the ref tracker
       if (processedAnimationTime.current === activeCard.startTime) {
-        console.log("CLEAR DURATION", activeCard.duration);
+        console.log("CLEAR DURATION", activeCard.duration + 2000);
         setActiveCard(null);
       }
-    }, activeCard.duration);
+    }, activeCard.duration + 2000);
 
     return () => clearTimeout(timer);
   }, [activeCard]);
 
-  // 5. Global reset hook when animation store clears out completely
-  useEffect(() => {
-    if (activeAnimations.length === 0) {
-      console.log("RESETTING");
-      processedAnimationTime.current = -1;
-      setActiveCard(null);
-    }
-  }, [activeAnimations.length]);
-
   return (
     // Keep your vital positioning container untouched
-    <div className="absolute top-[35vh] left-[21vw] scale-175 pointer-events-none z-50">
+    <div
+      className="absolute top-[35vh] left-[21vw] scale-175 pointer-events-none z-50"
+      key={activeCard?.card.id}
+    >
       {activeCard && <CardComponent card={activeCard.card} ctx={ctx} />}
     </div>
   );

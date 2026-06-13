@@ -2,11 +2,14 @@ import type { CardProps } from "./types";
 import { motion } from "motion/react";
 import { twMerge } from "tailwind-merge";
 import { ATTACK_ANIMATION } from "@/utils/animationDurations";
+import { useAudioStore } from "@/stores/audioStore";
+import { useEffect } from "react";
 
 const attackIcon = "assets/attack.png";
 const healthIcon = "assets/health.png";
 const minionFrame = "assets/minion_frame.png";
 const minionTaunt = "assets/minion_taunt.png";
+const frozen = "assets/frozen.png";
 
 interface Props extends CardProps {
   isAttacking?: boolean;
@@ -24,6 +27,16 @@ const PlacedCard = ({
   cardRef,
   ...props
 }: Props) => {
+  const playSfx = useAudioStore((state) => state.playSfx);
+
+  useEffect(() => {
+    if (isAttacking) {
+      setTimeout(() => {
+        playSfx("minion-attack");
+      }, 200);
+    }
+  }, [isAttacking]);
+
   return (
     <motion.div
       ref={cardRef}
@@ -34,14 +47,27 @@ const PlacedCard = ({
       animate={
         isAttacking
           ? {
-              x: [0, targetPosition.x, 0],
-              y: [0, targetPosition.y, 0],
-              scale: [1, 1.15, 1],
-              opacity: [1, 1, 1],
+              x: [
+                0,
+                -targetPosition.x * 0.08,
+                targetPosition.x,
+                targetPosition.x,
+                0,
+              ],
+              y: [
+                0,
+                -targetPosition.y * 0.08,
+                targetPosition.y,
+                targetPosition.y,
+                0,
+              ],
+              scale: [1, 1.08, 1.18, 1.15, 1],
+              rotate: [0, -3, 6, 4, 0],
+              zIndex: 999,
+
               transition: {
                 duration: ATTACK_ANIMATION.duration / 1000,
-                times: [0, 0.5, 1],
-                ease: "easeInOut",
+                times: [0, 0.18, 0.58, 0.68, 1],
               },
             }
           : props.animate
@@ -51,10 +77,7 @@ const PlacedCard = ({
                 scale: 1,
                 x: 0,
                 y: 0,
-                // transition: {
-                //   duration: 0.3,
-                //   ease: "easeInOut",
-                // },
+                zIndex: 10,
               }
       }
       className={twMerge(
@@ -62,6 +85,17 @@ const PlacedCard = ({
         "w-[6.15vw] h-[8.32vw] relative rounded-[50%/50%] flex flex-col items-center justify-center font-serif text-white",
       )}
     >
+      {card.frozen && (
+        <div className={twMerge("absolute inset-[2px] rounded-[50%/50%] z-10")}>
+          <img
+            src={frozen}
+            alt={card.title}
+            className="object-cover w-full h-full select-none scale-129"
+            draggable="false"
+          />
+        </div>
+      )}
+
       {/* Card Art - Clipped tightly inside the oval frame */}
       <div className={twMerge("w-full h-full")}>
         <div
@@ -141,7 +175,7 @@ const PlacedCard = ({
       {(card.attack !== undefined || card.health !== undefined) && (
         <>
           {card.attack !== undefined && (
-            <div className="absolute select-none text-[1.1vw] left-[0.5vw] bottom-[0.6vw]  rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center font-bold shadow-lg">
+            <div className="absolute select-none text-[1.1vw] left-[0.5vw] bottom-[0.6vw]  rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center font-bold shadow-lg z-10">
               <img
                 src={attackIcon}
                 alt="Card Back"
@@ -161,7 +195,7 @@ const PlacedCard = ({
             </div>
           )}
           {card.health !== undefined && (
-            <div className="absolute select-none text-[1.1vw] right-[0.3vw] bottom-[0.5vw]  rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center font-bold  shadow-lg">
+            <div className="absolute select-none text-[1.1vw] right-[0.3vw] bottom-[0.5vw]  rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center font-bold  shadow-lg z-10">
               <img
                 src={healthIcon}
                 alt="Card Back"

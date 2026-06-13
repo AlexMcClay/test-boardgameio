@@ -1,5 +1,11 @@
 import type { Ctx } from "boardgame.io";
-import type { GameState, Card, Player, TargetValue } from "@/types";
+import type {
+  GameState,
+  Card,
+  Player,
+  TargetValue,
+  EffectTypes,
+} from "@/types";
 
 // Types for AI moves
 export type AIMove = {
@@ -200,7 +206,7 @@ function scoreBattlecryTarget(
       } else {
         // Targeting player - check for lethal
         const targetPlayer = target as Player;
-        if (targetPlayer.hp <= damage) {
+        if (targetPlayer.maxHealth <= damage) {
           score += 1000; // LETHAL!
         } else {
           score += damage * 5; // Face damage is good
@@ -218,7 +224,7 @@ function scoreBattlecryTarget(
       } else {
         // Healing player
         const targetPlayer = target as Player;
-        const missingHealth = targetPlayer.maxHp - targetPlayer.hp;
+        const missingHealth = targetPlayer.maxHealth - targetPlayer.health;
         score += Math.min(missingHealth, effect.value) * 2;
       }
     }
@@ -285,6 +291,7 @@ function enumerateAttacks(G: GameState, ctx: Ctx): AIMove[] {
     if (
       card.hasAttacked ||
       card.summoningSickness ||
+      card.frozen ||
       !card.attack ||
       card.attack <= 0
     ) {
@@ -549,7 +556,7 @@ function scoreAttack(
     score += attacker.attack * 10; // Face damage is valuable
 
     // Check for lethal
-    if (enemyPlayer.hp <= attacker.attack) {
+    if (enemyPlayer.health <= attacker.attack) {
       score += 1000; // LETHAL! Always go for it
     }
   }
@@ -561,7 +568,7 @@ function scoreAttack(
  * Evaluate an effect's value
  */
 function evaluateEffect(
-  effect: any,
+  effect: EffectTypes,
   card: Card,
   target: TargetValue | null,
   G: GameState,
@@ -580,14 +587,43 @@ function evaluateEffect(
       if (effect.target === "enemy-hero") {
         score += damage * 8;
         // Check for lethal
-        if (enemyPlayer.hp <= damage) {
+        if (enemyPlayer.health <= damage) {
           score += 1000; // LETHAL!
         }
+      } else if (effect.target === "enemy-board") {
+        // minions
+        G.board[enemyPlayer.id].forEach((targetCard) => {
+          if (targetCard && targetCard.health) {
+            if (targetCard.health <= damage) {
+              score += 40; // Killing minion
+              score += (targetCard.attack || 0) * 5;
+            } else {
+              score += damage * 4;
+            }
+          }
+        });
+      } else if (effect.target === "enemy-all") {
+        score += damage * 8;
+        // Check for lethal
+        if (enemyPlayer.health <= damage) {
+          score += 1000; // LETHAL!
+        }
+        // minions
+        G.board[enemyPlayer.id].forEach((targetCard) => {
+          if (targetCard && targetCard.health) {
+            if (targetCard.health <= damage) {
+              score += 40; // Killing minion
+              score += (targetCard.attack || 0) * 5;
+            } else {
+              score += damage * 4;
+            }
+          }
+        });
       } else if (effect.target === "user-select" && target) {
         if (target.type === "player") {
           score += damage * 8;
           const targetPlayer = G.players[target.player];
-          if (targetPlayer.hp <= damage) {
+          if (targetPlayer.health <= damage) {
             score += 1000; // LETHAL!
           }
         } else if (target.type === "card") {
@@ -607,16 +643,16 @@ function evaluateEffect(
       break;
 
     case "heal":
-      if (effect.target === "friendly-hero" || effect.target === "self-hero") {
+      if (effect.target === "friendly-hero") {
         const player = G.players[ctx.currentPlayer];
-        const missingHp = player.maxHp - player.hp;
+        const missingHp = player.maxHealth - player.health;
         score += Math.min(missingHp, effect.value) * 3;
-      } else if (effect.target === "all-friendly") {
+      } else if (effect.target === "friendly-all") {
         score += effect.value * (G.board[ctx.currentPlayer].length + 1) * 2; // Heal on multiple minions is good
       } else if (effect.target === "user-select" && target) {
         if (target.type === "player") {
           const targetPlayer = G.players[target.player];
-          const missingHp = targetPlayer.maxHp - targetPlayer.hp;
+          const missingHp = targetPlayer.maxHealth - targetPlayer.health;
           score += Math.min(missingHp, effect.value) * 3;
         } else if (target.type === "card") {
           const targetCard = G.board[target.player].find(
@@ -672,7 +708,7 @@ function evaluateGameState(G: GameState, ctx: Ctx): number {
   score += (ourBoardValue - theirBoardValue) * 0.5;
 
   // HP difference
-  score += (player.hp - enemyPlayer.hp) * 0.3;
+  score += (player.health - enemyPlayer.health) * 0.3;
 
   // Hand size
   score += player.hand.length * 2;

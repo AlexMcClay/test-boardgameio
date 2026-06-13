@@ -8,6 +8,7 @@ import { motion } from "motion/react";
 import { useRef, useEffect } from "react";
 import { DEATH_ANIMATION } from "@/utils/animationDurations";
 import PlacedCard from "./PlacedCard";
+import { useAudioStore } from "@/stores/audioStore";
 
 interface Props extends CardProps {
   playerID: PlayerID;
@@ -27,7 +28,9 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
   const gameState = useDragStore((s) => s.gameState);
 
   const isAttackingWithArrow = attackingCardId === card.id;
-  const disabled = card.hasAttacked && !gameState?.activeBattlecryMinion; // Can't attack if already attacked (unless battlecry)
+  const disabled =
+    (card.hasAttacked || card.summoningSickness || card.frozen) &&
+    !gameState?.activeBattlecryMinion; // Can't attack if already attacked (unless battlecry)
   const isBattlecryMinion =
     gameState?.activeBattlecryMinion?.cardId === card.id;
   const prevIsBattlecryRef = useRef(isBattlecryMinion);
@@ -211,12 +214,11 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
           : { y: 0, scale: 1 }
       }
       className={twMerge(
-        !disabled && "cursor-pointer",
-        !card.hasAttacked &&
+        !disabled &&
           ctx.currentPlayer === playerID &&
           !isAttackingWithArrow &&
           !isValid &&
-          "canAttack",
+          "canAttack cursor-pointer",
       )}
     >
       <PlacedCard
@@ -235,9 +237,14 @@ const DropDetectCard = (props: Omit<Props, "isValid">) => {
   const isFirstRender = useRef(true);
   const isValidTarget = useDragStore((state) => state.isValidTarget);
   const isValid = isValidTarget("card", props.playerID, props.card.id);
+  const playSfx = useAudioStore((state) => state.playSfx);
 
   useEffect(() => {
-    isFirstRender.current = false;
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      playSfx("minion-drop-med");
+      return;
+    }
   }, []);
 
   const { setNodeRef, isOver } = useDroppable({
@@ -258,12 +265,37 @@ const DropDetectCard = (props: Omit<Props, "isValid">) => {
       initial={
         isFirstRender.current
           ? {
-              opacity: 0,
-              scale: 0.8,
+              opacity: 0.9,
+              scale: 1.2, // Start slightly larger from the hand layer
+              y: -90, // Started higher up to clear the board beautifully
+              rotateX: 35, // Tilted back in hand perspective
+              rotate: -5, // Slight natural hand tilt before dropping
             }
           : undefined
       }
-      animate={{ opacity: 1, scale: 1 }}
+      animate={
+        isFirstRender.current
+          ? {
+              opacity: 1,
+              // 1. Scale snaps down on impact, pushes slightly past 1 (squish), then stabilizes
+              scale: [1.3, 0.95, 1.03, 1],
+
+              // 2. Heavy drop to 0px, then a tiny vertical rebound bounce
+              y: [-90, 0, -8, 0],
+
+              // 3. Flattens out of 3D tilt instantly on board landing
+              rotateX: [35, 0, 0, 0],
+
+              // 4. The Landing Rattle: Rotates slightly back and forth decaying to 0
+              rotate: [-5, 3, -2, 1, -0.5, 0],
+
+              // 5. The Ground Vibrations: Subtle micro-shakes left & right post-impact
+              x: [0, 6, -5, 3, -1.5, 0],
+            }
+          : { opacity: 1, scale: 1, y: 0, rotateX: 0, rotate: 0, x: 0 }
+      }
+      // 3. Heavy Spring Config for the "Slam and Bounce" feel
+
       exit={{
         opacity: [1, 1, 0], // Stays fully visible during the shake, then vanishes quickly
         rotate: [0, -5, 5, -5, 5, 20], // Shakes back and forth rapidly before spinning away

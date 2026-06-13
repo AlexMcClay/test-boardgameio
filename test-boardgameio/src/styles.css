@@ -44,6 +44,25 @@ code {
   }
 }
 
+@keyframes yourTurnGlow {
+  0%,
+  0%,
+  100% {
+    filter: drop-shadow(0 -10px 8px oklch(95.413% 0.19901 107.504/0.8))
+      drop-shadow(0 0 4px oklch(95.413% 0.19901 107.504/0.8))
+      drop-shadow(0 0 6px oklch(95.413% 0.19901 107.504/0.8));
+  }
+  50% {
+    filter: drop-shadow(0 -10px 8px oklch(95.413% 0.19901 107.504/0.5))
+      drop-shadow(0 0 8px oklch(95.413% 0.19901 107.504/0.5))
+      drop-shadow(0 0 12px oklch(95.413% 0.19901 107.504/0.5));
+  }
+}
+
+.yourTurnGlow {
+  animation: yourTurnGlow 1.5s ease-in-out infinite;
+}
+
 .canPlayCard {
   /* drop shadow */
   animation: shadowPulse 1.5s ease-in-out infinite;
