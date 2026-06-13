@@ -37,7 +37,7 @@ const setupData = (
   const p0: Player = {
     id: "0",
     name: "Arthas",
-    heroPortrait: "assets/Arthas.jpg",
+    heroPortrait: "assets/heros/Arthas.jpg",
     maxHealth: 30,
     health: 30,
     maxArmor: 0,
@@ -50,7 +50,7 @@ const setupData = (
   const p1: Player = {
     id: "1",
     name: "Illidan",
-    heroPortrait: "assets/Illidan_Stormrage.jpg",
+    heroPortrait: "assets/heros/Illidan_Stormrage.jpg",
     maxHealth: 30,
     health: 30,
     maxArmor: 0,
