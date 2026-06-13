@@ -99,7 +99,14 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
         {/* Left Panel - Card Collection */}
         <div className="flex flex-col w-[60%] bg-[#2a1c12]/80 rounded-lg shadow-lg p-[1vw] px-[0.5vw] overflow-hidden">
           <div>
-            <h2 className="text-[1.25vw] text-amber-300">Card Collection</h2>
+            <h2
+              className="text-[1.25vw] text-amber-300"
+              onClick={() => {
+                console.log(Object.keys(cardTemplates).join(", "));
+              }}
+            >
+              Card Collection
+            </h2>
             <p className="text-[0.8vw] text-amber-200">
               Left click to add • Right click to remove
             </p>

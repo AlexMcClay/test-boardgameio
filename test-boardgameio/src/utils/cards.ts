@@ -1,8 +1,8 @@
-import type { Card, EffectTypes } from "@/types";
+import type { Card, DamageEffect, EffectTypes } from "@/types";
 
 const damage = (
   value: number | keyof Card,
-  target: "user-select" | "self-hero" | "enemy-hero" = "user-select",
+  target: DamageEffect["target"] = "user-select",
   battlecry: boolean = false,
 ): EffectTypes => {
   return {
@@ -31,9 +31,8 @@ const heal = (
   value: number,
   target:
     | "user-select"
-    | "self-hero"
     | "friendly-hero"
-    | "all-friendly"
+    | "friendly-all"
     | "friendly-board" = "user-select",
   battlecry: boolean = false,
 ): EffectTypes => {
@@ -96,7 +95,7 @@ export const cardTemplates = {
     type: "Demon",
     imageUrl: "assets/cards/Flame_Imp.jpg",
     effects: [damage("attack")],
-    onPlace: [damage(3, "self-hero")],
+    onPlace: [damage(3, "friendly-hero")],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
   },
@@ -429,7 +428,7 @@ export const cardTemplates = {
     type: "Naga",
     imageUrl: "assets/cards/Darkscale_Healer.jpg",
     effects: [damage("attack")],
-    onPlace: [heal(2, "all-friendly", true)],
+    onPlace: [heal(2, "friendly-all", true)],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
   },
@@ -709,6 +708,17 @@ export const cardTemplates = {
     onPlace: [changeKey("summoningSickness", false, "self")],
     targets: ["card-opponent", "player-opponent"],
     isMinnion: true,
+  },
+  flamestrike: {
+    title: "Flamestrike",
+    imageUrl: "assets/cards/Flamestrike.jpg",
+    description: "Deal 5 damage to all enemy minions.",
+    mana: 7,
+    effects: [damage(5, "enemy-board")],
+    onPlace: [],
+    targets: ["lane-opponent", "lane-friendly"],
+    isSpell: true,
+    isMinnion: false,
   },
 } satisfies Record<string, Omit<Card, "id">>;
 

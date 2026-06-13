@@ -57,11 +57,16 @@ export type EffectTypes =
   | ManaEffect
   | IncrementValueEffect;
 
-type DamageEffect = {
+export type DamageEffect = {
   type: "damage";
   value: number | keyof Card;
   battlecry?: boolean; // Indicates if this damage is part of a battlecry (bypasses taunt)
-  target: "user-select" | "self-hero" | "enemy-hero"; // Target can be user-select, self-hero, enemy-hero, or hero
+  target:
+    | "user-select"
+    | "friendly-hero"
+    | "enemy-hero"
+    | "enemy-board"
+    | "enemy-all"; // Target can be user-select, self-hero, enemy-hero, or hero
 };
 
 type DestroyEffect = {
@@ -73,12 +78,7 @@ type DestroyEffect = {
 type HealEffect = {
   type: "heal";
   value: number;
-  target?:
-    | "user-select"
-    | "self-hero"
-    | "friendly-hero"
-    | "all-friendly"
-    | "friendly-board";
+  target?: "user-select" | "friendly-hero" | "friendly-all" | "friendly-board";
   battlecry?: boolean;
 };
 

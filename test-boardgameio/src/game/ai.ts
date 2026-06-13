@@ -1,5 +1,11 @@
 import type { Ctx } from "boardgame.io";
-import type { GameState, Card, Player, TargetValue } from "@/types";
+import type {
+  GameState,
+  Card,
+  Player,
+  TargetValue,
+  EffectTypes,
+} from "@/types";
 
 // Types for AI moves
 export type AIMove = {
@@ -561,7 +567,7 @@ function scoreAttack(
  * Evaluate an effect's value
  */
 function evaluateEffect(
-  effect: any,
+  effect: EffectTypes,
   card: Card,
   target: TargetValue | null,
   G: GameState,
@@ -583,6 +589,35 @@ function evaluateEffect(
         if (enemyPlayer.hp <= damage) {
           score += 1000; // LETHAL!
         }
+      } else if (effect.target === "enemy-board") {
+        // minions
+        G.board[enemyPlayer.id].forEach((targetCard) => {
+          if (targetCard && targetCard.health) {
+            if (targetCard.health <= damage) {
+              score += 40; // Killing minion
+              score += (targetCard.attack || 0) * 5;
+            } else {
+              score += damage * 4;
+            }
+          }
+        });
+      } else if (effect.target === "enemy-all") {
+        score += damage * 8;
+        // Check for lethal
+        if (enemyPlayer.hp <= damage) {
+          score += 1000; // LETHAL!
+        }
+        // minions
+        G.board[enemyPlayer.id].forEach((targetCard) => {
+          if (targetCard && targetCard.health) {
+            if (targetCard.health <= damage) {
+              score += 40; // Killing minion
+              score += (targetCard.attack || 0) * 5;
+            } else {
+              score += damage * 4;
+            }
+          }
+        });
       } else if (effect.target === "user-select" && target) {
         if (target.type === "player") {
           score += damage * 8;
@@ -607,11 +642,11 @@ function evaluateEffect(
       break;
 
     case "heal":
-      if (effect.target === "friendly-hero" || effect.target === "self-hero") {
+      if (effect.target === "friendly-hero") {
         const player = G.players[ctx.currentPlayer];
         const missingHp = player.maxHp - player.hp;
         score += Math.min(missingHp, effect.value) * 3;
-      } else if (effect.target === "all-friendly") {
+      } else if (effect.target === "friendly-all") {
         score += effect.value * (G.board[ctx.currentPlayer].length + 1) * 2; // Heal on multiple minions is good
       } else if (effect.target === "user-select" && target) {
         if (target.type === "player") {
