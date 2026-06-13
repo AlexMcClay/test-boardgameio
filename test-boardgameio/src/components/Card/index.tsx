@@ -102,7 +102,7 @@ const Card = ({
           "ring-green-500 ring-2 shadow-green-400  shadow-[0px_0px_60px_rgba(0,0,0,0.5)]",
         !card.hasAttacked &&
           card.isPlaced &&
-          ctx.currentPlayer === playerID &&
+          ctx?.currentPlayer === playerID &&
           "ring-green-500 ring-2 shadow-green-400  shadow-[0px_0px_20px_rgba(0,0,0,0.5)]",
         card.taunt && "border-gray-500",
         isDragging && "cursor-grabbing dragging-card scale-110",

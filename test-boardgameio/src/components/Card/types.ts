@@ -11,7 +11,7 @@ export interface CardProps {
   back?: boolean;
   isDragging?: boolean;
   playerID?: PlayerID;
-  ctx: Ctx;
+  ctx?: Ctx;
   animate?:
     | boolean
     | TargetAndTransition

@@ -1,27 +1,33 @@
 import { useState } from "react";
 import Card from "./Card";
 import { cardTemplates, type CardTemplateKey } from "@/utils/cards";
-import { premadeDecks, type DeckString } from "@/utils/decks";
-import type { Ctx } from "boardgame.io";
+import { premadeDecks } from "@/utils/decks";
 import type { Card as CardType } from "@/types";
 import { useAudioStore } from "@/stores/audioStore";
+import { useDeckStore, type DeckString } from "@/stores/deckStore";
 
 interface DeckSelectionProps {
-  ctx: Ctx;
-  moves: Record<string, (...args: any[]) => void>;
+  onDeckConfirmed: () => void;
 }
 
 const backgroundImage = "src/assets/wood.jpg";
 
-const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
-  const [deck, setDeck] = useState<Partial<Record<CardTemplateKey, number>>>(
-    {},
-  );
+const DeckSelection = ({ onDeckConfirmed }: DeckSelectionProps) => {
+  const [deck, setDeck] = useState<DeckString>({});
   const playSfx = useAudioStore((state) => state.playSfx);
+  const { setPlayerDeck, generateOpponentDeck } = useDeckStore();
 
   function handleConfirmDeck() {
     playSfx("button-click");
-    moves.setDeck(ctx.currentPlayer, deck);
+
+    // Store the player's deck in Zustand
+    setPlayerDeck(deck);
+
+    // Generate a random deck for the opponent
+    generateOpponentDeck();
+
+    // Notify parent that deck is ready
+    onDeckConfirmed();
   }
 
   function handleDeckChange(cardId: CardTemplateKey, count: number) {
@@ -155,7 +161,6 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
                         card={{ ...card, id }}
                         back={false}
                         isDragging={false}
-                        ctx={ctx}
                       />
                       {deck[id as CardTemplateKey] &&
                         deck[id as CardTemplateKey]! > 0 && (
@@ -251,11 +256,7 @@ const DeckSelection = ({ ctx, moves }: DeckSelectionProps) => {
             disabled={totalCards === 0}
           >
             <span className="button-text">
-              {totalCards === 0
-                ? "Select Cards"
-                : totalCards === maxCards
-                  ? "Done!"
-                  : "Confirm Deck"}
+              {totalCards === 0 ? "Select Cards" : "Start Game"}
             </span>
           </button>
         </div>

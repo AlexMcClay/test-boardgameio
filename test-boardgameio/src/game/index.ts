@@ -1,13 +1,9 @@
-import Board from "@/components/Board";
-import { Client } from "boardgame.io/react";
-
 import type { Card, GameState, Player, TargetValue, GameEvent } from "@/types";
 import { createCardFromID, shuffleDeck } from "@/utils";
 import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
 import { validateMove } from "@/utils/validateMove";
 import type { CardTemplateKey } from "@/utils/cards";
 import { enumerateAIMoves } from "./ai";
-import { premadeDecks } from "@/utils/decks";
 
 // Helper function to record game events
 function recordEvent(G: GameState, event: GameEvent) {
@@ -26,7 +22,44 @@ export const isVictory = ({ G, ctx }: { G: GameState; ctx: Ctx }) => {
   }
 };
 
-const setupData = (data?: any): GameState => {
+const setupData = (
+  { ctx }: { ctx: Ctx },
+  setupData?: { playerDeck?: Card[]; opponentDeck?: Card[] },
+): GameState => {
+  // Initialize player decks from setupData or use empty arrays
+  const playerDeck = setupData?.playerDeck
+    ? shuffleDeck([...setupData.playerDeck])
+    : [];
+  const opponentDeck = setupData?.opponentDeck
+    ? shuffleDeck([...setupData.opponentDeck])
+    : [];
+
+  const p0: Player = {
+    id: "0",
+    name: "Arthas",
+    heroPortrait: "assets/Arthas.jpg",
+    maxHealth: 30,
+    health: 30,
+    maxArmor: 0,
+    armor: 0,
+    mana: 1,
+    hand: [],
+    deck: playerDeck,
+  };
+
+  const p1: Player = {
+    id: "1",
+    name: "Illidan",
+    heroPortrait: "assets/Illidan_Stormrage.jpg",
+    maxHealth: 30,
+    health: 30,
+    maxArmor: 0,
+    armor: 0,
+    mana: 1,
+    hand: [],
+    deck: opponentDeck,
+  };
+
   const G: GameState = {
     players: {
       "0": p0,
@@ -36,39 +69,13 @@ const setupData = (data?: any): GameState => {
       "0": [],
       "1": [],
     },
-    maxMana: -1,
+    maxMana: 0,
     gameEvents: [],
     eventHistory: [],
     activeBattlecryMinion: null,
   };
 
   return G;
-};
-
-const p0: Player = {
-  id: "0",
-  name: "Arthas",
-  heroPortrait: "assets/Arthas.jpg", // Optional, if you want to display a hero portrait
-  maxHealth: 30,
-  health: 30,
-  maxArmor: 0,
-  armor: 0,
-  mana: 1,
-  hand: [],
-  deck: [],
-};
-
-const p1: Player = {
-  id: "1",
-  name: "Illidan",
-  heroPortrait: "assets/Illidan_Stormrage.jpg", // Optional, if you want to display a hero portrait
-  maxHealth: 30,
-  health: 30,
-  maxArmor: 0,
-  armor: 0,
-  mana: 1,
-  hand: [],
-  deck: shuffleDeck(randomPremadeDeck()),
 };
 
 const placeCard: Move<GameState> = (
@@ -639,30 +646,6 @@ function healCard(
   });
 }
 
-function randomPremadeDeck() {
-  return createDeckFromPremadeDeck(
-    premadeDecks[Math.floor(Math.random() * premadeDecks.length)].deckString,
-  );
-}
-
-function createDeckFromPremadeDeck(
-  premadeDeck: Record<string, number>,
-): Card[] {
-  const deck: Card[] = [];
-  for (const cardId in premadeDeck) {
-    const count = premadeDeck[cardId];
-    for (let i = 0; i < count; i++) {
-      const card = createCardFromID(cardId as CardTemplateKey);
-      if (card) {
-        deck.push(card);
-      } else {
-        console.warn(`Card with ID ${cardId} not found.`);
-      }
-    }
-  }
-  return deck;
-}
-
 export const HeathStoneGame: Game<GameState> = {
   name: "hearthstone",
   setup: setupData,
@@ -679,30 +662,11 @@ export const HeathStoneGame: Game<GameState> = {
     },
   },
   phases: {
-    setDeck: {
+    play: {
       start: true,
-      moves: {
-        setDeck({ G, ctx }, playerID: PlayerID, deck: Record<string, number>) {
-          const player = G.players[playerID];
-          if (player) {
-            const finalDeck = createDeckFromPremadeDeck(deck);
-            player.deck = shuffleDeck(finalDeck);
-            ctx.turn = 0; // Reset turn count when decks are set
-          } else {
-            console.warn(`Player ${playerID} not found.`);
-          }
-        },
-      },
-      next: "playGame",
-      endIf: ({ G, ctx }) => {
-        // Check if both players have set their decks
-        return G.players["0"].deck.length > 0 && G.players["1"].deck.length > 0;
-      },
-    },
-    playGame: {
       moves: { drawCard, placeCard, cancelBattlecry, endTurn },
       onBegin: ({ G, ctx }) => {
-        // Draw 3 cards for the first turn
+        // Draw 5 cards for each player at the start
         for (let i = 0; i < 5; i++) {
           handleDrawCard(G, ctx, "0");
           handleDrawCard(G, ctx, "1");
@@ -753,9 +717,3 @@ export const HeathStoneGame: Game<GameState> = {
   },
   endIf: isVictory,
 };
-
-export const Hearthstone = Client({
-  board: Board,
-  game: HeathStoneGame,
-  debug: { collapseOnLoad: true, hideToggleButton: true }, // Set to false for enabling debug panel
-});
