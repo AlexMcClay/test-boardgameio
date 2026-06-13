@@ -11,7 +11,7 @@ interface DeckSelectionProps {
 }
 
 const backgroundImage = "assets/collection/collection.png";
-const page = "assets/collection/page.png";
+const sheet = "assets/collection/sheet.png";
 
 const DeckSelection = ({ onDeckConfirmed }: DeckSelectionProps) => {
   const [deck, setDeck] = useState<DeckString>({});
@@ -85,35 +85,22 @@ const DeckSelection = ({ onDeckConfirmed }: DeckSelectionProps) => {
     >
       <img src={backgroundImage} className="absolute z-[0]" />
 
+      <img src={sheet} className="absolute z-[0] left-[12vw] w-[57.5vw]" />
+
       {/* Left Panel - Card Collection */}
       <div
-        className="flex flex-col w-[57.2vw] absolute h-[85vh] left-[12.1vw] top-[7vh]  rounded-lg shadow-lg p-[1vw] px-[0.5vw] overflow-hidden"
+        className="flex flex-col bg-white/21 w-[56vw] absolute h-[81vh] left-[12.6vw] top-[6vh]  rounded-lg shadow-lg p-[1vw] px-[0.5vw] overflow-hidden"
         style={{
-          backgroundImage: `url(${page})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundBlendMode: "multiply",
         }}
       >
-        <div className="mb-[4vh]">
-          <h2
-            className="text-[1.25vw] text-amber-300"
-            onClick={() => {
-              console.log(
-                Object.entries(cardTemplates)
-                  .filter(([k, v]) => !(v as CardType).isUncollectible)
-                  .map(([k, v]) => k)
-                  .join(", "),
-              );
-            }}
-          >
-            Card Collection
-          </h2>
-          <p className="text-[0.8vw] text-amber-200">
-            Left click to add • Right click to remove
-          </p>
-        </div>
-        <div className="card-grid grid grid-cols-4 gap-[1.75vw] gap-y-[4vw] p-[1vw]  overflow-y-auto items-center justify-center overflow-x-hidden">
+        <p className="absolute   w-[12vw] h-[4vh] left-[21vw] top-[3.3vh] text-center text-[1.4vw] ">
+          Demon Hunter
+        </p>
+
+        <div className="mt-[8vh] card-grid grid grid-cols-4 gap-[2vw] px-[3vw] gap-y-[3vw] p-[1vw]  overflow-y-auto items-center justify-center overflow-x-hidden">
           {Object.entries(cardTemplates)
             .sort((a, b) => {
               // sort by mana cost, then by name
@@ -146,7 +133,7 @@ const DeckSelection = ({ onDeckConfirmed }: DeckSelectionProps) => {
                 <div
                   className={` w-[11.7vw] aspect-[5/7] items-center justify-center relative transition-all ease-in  ${deck[id as CardTemplateKey] ? "card-selected" : ""}`}
                 >
-                  <div className="scale-150 absolute origin-top-left">
+                  <div className="scale-140 absolute origin-top-left">
                     <Card
                       key={id}
                       card={{ ...card, id }}
