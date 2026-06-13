@@ -13,6 +13,71 @@ interface DeckSelectionProps {
 const backgroundImage = "assets/collection/collection.png";
 const sheet = "assets/collection/sheet.png";
 
+// class icons
+const deathKnightIcon = "assets/icons/Death_Knight_icon.webp";
+const demonHunterIcon = "assets/icons/Demon_Hunter_icon.webp";
+const druidIcon = "assets/icons/Druid_icon.webp";
+const hunterIcon = "assets/icons/Hunter_icon.webp";
+const mageIcon = "assets/icons/Mage_icon.webp";
+const paladinIcon = "assets/icons/Paladin_icon.webp";
+const priestIcon = "assets/icons/Priest_icon.webp";
+const rogueIcon = "assets/icons/Rogue_icon.webp";
+const shamanIcon = "assets/icons/Shaman_icon.webp";
+const warlockIcon = "assets/icons/Warlock_icon.webp";
+const warriorIcon = "assets/icons/Warrior_icon.webp";
+const neutralIcon = "assets/icons/Neutral_icon.webp";
+
+const icons = [
+  {
+    icon: deathKnightIcon,
+    name: "Death Knight",
+  },
+  {
+    icon: demonHunterIcon,
+    name: "Demon Hunter",
+  },
+  {
+    icon: druidIcon,
+    name: "Druid",
+  },
+  {
+    icon: hunterIcon,
+    name: "Hunter",
+  },
+  {
+    icon: mageIcon,
+    name: "Mage",
+  },
+  {
+    icon: paladinIcon,
+    name: "Paladin",
+  },
+  {
+    icon: priestIcon,
+    name: "Priest",
+  },
+  {
+    icon: rogueIcon,
+    name: "Rogue",
+  },
+  {
+    icon: shamanIcon,
+    name: "Shaman",
+  },
+  {
+    icon: warlockIcon,
+    name: "Warlock",
+  },
+  {
+    icon: warriorIcon,
+    name: "Warrior",
+  },
+  {
+    icon: neutralIcon,
+    name: "Neutral",
+  },
+];
+
 const DeckSelection = ({ onDeckConfirmed }: DeckSelectionProps) => {
   const [deck, setDeck] = useState<DeckString>({});
   const playSfx = useAudioStore((state) => state.playSfx);
@@ -86,6 +151,22 @@ const DeckSelection = ({ onDeckConfirmed }: DeckSelectionProps) => {
       <img src={backgroundImage} className="absolute z-[0]" />
 
       <img src={sheet} className="absolute z-[0] left-[12vw] w-[57.5vw]" />
+
+      {/* Top Bar */}
+
+      <div className="absolute h-[5.7vh] w-[56vw] left-[12.6vw] top-[1vh] pl-[1vw] flex items-end gap-[0.5vw]">
+        {icons.map((i) => (
+          <button
+            key={i.name}
+            className="bg-black h-[2.7vw] w-[2.7vw] rounded-[50%/20%] overflow-hidden border border-[#b7a27e] border-x-4 border-t-4 transition-transform duration-200 origin-bottom hover:scale-110"
+            style={{ clipPath: "inset(0px 0px 20% 0px)" }}
+          >
+            <img src={i.icon} className="w-full h-full object-cover" />
+          </button>
+        ))}
+      </div>
+
+      <div className="absolute bg-gradient-to-t pointer-events-none from-black  h-[1.5vh] w-[56vw] left-[12.6vw] top-[4.5vh] pl-[1vw] "></div>
 
       {/* Left Panel - Card Collection */}
       <div

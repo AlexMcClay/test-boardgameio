@@ -24,6 +24,7 @@ export interface Card {
   stealth?: boolean;
   targets: TargetTypes[]; // Optional, to specify valid targets for the card
   battlecryTargets?: TargetTypes[]; // Optional, valid targets for battlecry (bypasses taunt)
+  class: string;
   sfx?: {
     death?: string;
     play?: string;
