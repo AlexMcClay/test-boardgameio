@@ -9,6 +9,7 @@ const attackIcon = "assets/attack.png";
 const healthIcon = "assets/health.png";
 const minionFrame = "assets/minion_frame.png";
 const minionTaunt = "assets/minion_taunt.png";
+const frozen = "assets/frozen.png";
 
 interface Props extends CardProps {
   isAttacking?: boolean;
@@ -84,6 +85,17 @@ const PlacedCard = ({
         "w-[6.15vw] h-[8.32vw] relative rounded-[50%/50%] flex flex-col items-center justify-center font-serif text-white",
       )}
     >
+      {card.frozen && (
+        <div className={twMerge("absolute inset-[2px] rounded-[50%/50%] z-10")}>
+          <img
+            src={frozen}
+            alt={card.title}
+            className="object-cover w-full h-full select-none scale-129"
+            draggable="false"
+          />
+        </div>
+      )}
+
       {/* Card Art - Clipped tightly inside the oval frame */}
       <div className={twMerge("w-full h-full")}>
         <div
@@ -163,7 +175,7 @@ const PlacedCard = ({
       {(card.attack !== undefined || card.health !== undefined) && (
         <>
           {card.attack !== undefined && (
-            <div className="absolute select-none text-[1.1vw] left-[0.5vw] bottom-[0.6vw]  rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center font-bold shadow-lg">
+            <div className="absolute select-none text-[1.1vw] left-[0.5vw] bottom-[0.6vw]  rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center font-bold shadow-lg z-10">
               <img
                 src={attackIcon}
                 alt="Card Back"
@@ -183,7 +195,7 @@ const PlacedCard = ({
             </div>
           )}
           {card.health !== undefined && (
-            <div className="absolute select-none text-[1.1vw] right-[0.3vw] bottom-[0.5vw]  rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center font-bold  shadow-lg">
+            <div className="absolute select-none text-[1.1vw] right-[0.3vw] bottom-[0.5vw]  rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center font-bold  shadow-lg z-10">
               <img
                 src={healthIcon}
                 alt="Card Back"

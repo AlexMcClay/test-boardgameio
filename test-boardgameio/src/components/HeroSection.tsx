@@ -103,7 +103,7 @@ const HeroSection = ({ player, isTop, G, ctx, events, moves }: Props) => {
             textShadow: "0 1px 0px black",
           }}
         >
-          {player.hp}
+          {player.health}
         </span>
       </div>
     </div>

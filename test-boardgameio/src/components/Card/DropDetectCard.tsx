@@ -29,7 +29,7 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
 
   const isAttackingWithArrow = attackingCardId === card.id;
   const disabled =
-    (card.hasAttacked || card.summoningSickness) &&
+    (card.hasAttacked || card.summoningSickness || card.frozen) &&
     !gameState?.activeBattlecryMinion; // Can't attack if already attacked (unless battlecry)
   const isBattlecryMinion =
     gameState?.activeBattlecryMinion?.cardId === card.id;
@@ -214,13 +214,11 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
           : { y: 0, scale: 1 }
       }
       className={twMerge(
-        !disabled && "cursor-pointer",
-        !card.hasAttacked &&
-          !card.summoningSickness &&
+        !disabled &&
           ctx.currentPlayer === playerID &&
           !isAttackingWithArrow &&
           !isValid &&
-          "canAttack",
+          "canAttack cursor-pointer",
       )}
     >
       <PlacedCard

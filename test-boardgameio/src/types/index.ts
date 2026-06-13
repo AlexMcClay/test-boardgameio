@@ -20,6 +20,8 @@ export interface Card {
   isMinnion: boolean; // Optional, to indicate if the card is a minion
   isUncollectible?: boolean; // Optional, to indicate if the card is uncollectible (like tokens)
   taunt?: boolean; // Optional, to indicate if the card has taunt
+  frozen?: boolean;
+  stealth?: boolean;
   targets: TargetTypes[]; // Optional, to specify valid targets for the card
   battlecryTargets?: TargetTypes[]; // Optional, valid targets for battlecry (bypasses taunt)
   sfx?: {
@@ -27,6 +29,19 @@ export interface Card {
     play?: string;
     attack?: string;
   };
+}
+
+export interface Player {
+  id: PlayerID;
+  name: string;
+  heroPortrait: string; // Optional, if you want to display a hero portrait
+  maxHealth: number;
+  health: number;
+  maxArmor: number;
+  armor: number;
+  mana: number;
+  hand: Card[];
+  deck: Card[];
 }
 
 export type TargetValue = {
@@ -55,11 +70,23 @@ export type EffectTypes =
   | SummonEffect
   | DestroyEffect
   | ManaEffect
-  | IncrementValueEffect;
+  | IncrementValueEffect
+  | FreezeEffect;
 
 export type DamageEffect = {
   type: "damage";
   value: number | keyof Card;
+  battlecry?: boolean; // Indicates if this damage is part of a battlecry (bypasses taunt)
+  target:
+    | "user-select"
+    | "friendly-hero"
+    | "enemy-hero"
+    | "enemy-board"
+    | "enemy-all"; // Target can be user-select, self-hero, enemy-hero, or hero
+};
+
+export type FreezeEffect = {
+  type: "freeze";
   battlecry?: boolean; // Indicates if this damage is part of a battlecry (bypasses taunt)
   target:
     | "user-select"
@@ -111,19 +138,6 @@ type ManaEffect = {
   value: number;
 };
 
-export interface Player {
-  id: PlayerID;
-  name: string;
-  heroPortrait: string; // Optional, if you want to display a hero portrait
-  maxHp: number;
-  hp: number;
-  maxArmor: number;
-  armor: number;
-  mana: number;
-  hand: Card[];
-  deck: Card[];
-}
-
 // Move metadata for animation detection
 export type MoveMetadata = {
   cardId: string;
@@ -145,7 +159,8 @@ export type GameEvent =
   | DrawCardEvent
   | BeginTurnEvent
   | ChangeKeyEvent
-  | ManaEvent;
+  | ManaEvent
+  | FreezeEvent;
 
 export type SummonEvent = {
   type: "summon";
@@ -223,6 +238,15 @@ export type DamageEvent = {
   targetType: "card" | "player";
   playerId: PlayerID;
   value: number;
+  timestamp: number;
+};
+
+export type FreezeEvent = {
+  type: "freeze";
+  sourceId?: string; // Card/effect that caused damage
+  targetId: string;
+  targetType: "card" | "player";
+  playerId: PlayerID;
   timestamp: number;
 };
 

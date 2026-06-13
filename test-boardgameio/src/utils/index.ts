@@ -89,7 +89,7 @@ export function hasToEndTurn(playedID: string, gameState: GameState): boolean {
     (card) => card.mana !== null && card.mana <= player.mana,
   );
   const canAttack = gameState.board[playedID].some(
-    (card) => !card.summoningSickness && !card.hasAttacked,
+    (card) => !card.summoningSickness && !card.hasAttacked && !card.frozen,
   );
   return !canPlayCards && !canAttack;
 }

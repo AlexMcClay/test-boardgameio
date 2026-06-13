@@ -13,6 +13,17 @@ const damage = (
   };
 };
 
+const freeze = (
+  target: DamageEffect["target"] = "user-select",
+  battlecry: boolean = false,
+): EffectTypes => {
+  return {
+    type: "freeze",
+    target: target,
+    battlecry: battlecry,
+  };
+};
+
 const destroy = (
   target: "user-select" | "self" | "enemy",
   battlecry: boolean = false,
@@ -173,7 +184,7 @@ export const cardTemplates = {
     mana: 2,
     type: "Spell",
     imageUrl: "assets/cards/Frostbolt.jpg",
-    effects: [damage(3)],
+    effects: [damage(3), freeze()],
     onPlace: [],
 
     isSpell: true,

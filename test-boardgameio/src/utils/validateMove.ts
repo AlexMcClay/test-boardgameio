@@ -13,7 +13,9 @@ export type MoveValidationError =
   | "no-active-card"
   | "not-your-turn"
   | "must-attack-taunt"
-  | "summon-sickness";
+  | "summon-sickness"
+  | "frozen"
+  | "stealthed";
 
 export type MoveValidationResult =
   | { valid: true }
@@ -209,6 +211,15 @@ export function validateMove(
       ctx.currentPlayer,
     );
 
+    // check if target is minion  and if minion is stealthed
+    if (target.type === "card" && target.id) {
+      // fetch card
+      const targetCard = G.board[target.player].find((c) => c.id == target.id);
+      if (targetCard && targetCard.stealth) {
+        return { valid: false, error: "stealthed" };
+      }
+    }
+
     if (!validTarget) {
       return { valid: false, error: "invalid-target" };
     }
@@ -238,6 +249,10 @@ export function validateMove(
 
   if (card.summoningSickness) {
     return { valid: false, error: "summon-sickness" };
+  }
+
+  if (card.frozen) {
+    return { valid: false, error: "frozen" };
   }
 
   // Card already attacked
