@@ -116,6 +116,7 @@ const placeCard: Move<GameState> = (
     );
     // Clear the battlecry state
     G.activeBattlecryMinion = null;
+    processDeaths(G);
     return;
   }
 
@@ -207,6 +208,8 @@ const placeCard: Move<GameState> = (
     const cardIndex = player.hand.findIndex((c) => c.id === cardId);
     player.hand.splice(cardIndex, 1); // Remove the card from hand
   }
+
+  processDeaths(G);
 };
 
 const doEffects = (
@@ -488,20 +491,8 @@ const doEffects = (
             const targetCard = G.board[target.player].find(
               (c) => c.id === target.id,
             );
-
             if (targetCard) {
-              // 1. Record the death event immediately for front-end animations
-              recordEvent(G, {
-                type: "death",
-                cardId: targetCard.id,
-                playerId: target.player,
-                timestamp: Date.now(),
-              });
-
-              // 2. Remove the minion from the target player's board
-              G.board[target.player] = G.board[target.player].filter(
-                (c) => c.id !== targetCard.id,
-              );
+              targetCard.health = 0;
             }
           }
         } else if (effect.target === "enemy-board") {
@@ -570,21 +561,6 @@ function dealDamageToCard(
 
   // 2. Apply damage
   targetCard.health -= damageAmount;
-
-  // 3. Handle death if health drops to or below 0
-  if (targetCard.health <= 0) {
-    recordEvent(G, {
-      type: "death",
-      cardId: targetCard.id,
-      playerId: targetPlayerId,
-      timestamp: Date.now(),
-    });
-
-    // Remove the card from the board immediately
-    G.board[targetPlayerId] = G.board[targetPlayerId].filter(
-      (c: any) => c.id !== targetCard.id,
-    );
-  }
 }
 
 function freezeCard(
@@ -684,6 +660,48 @@ function healCard(
     value: actualHeal,
     timestamp: Date.now(),
   });
+}
+
+function processDeaths(G: GameState) {
+  const playerIds: ("0" | "1")[] = ["0", "1"];
+  let deathsOccurred = false;
+
+  playerIds.forEach((playerId) => {
+    // 1. Find all minions on this board that are marked for death
+    const deadMinions = G.board[playerId].filter(
+      (card) => typeof card.health !== "undefined" && card.health <= 0,
+    );
+
+    if (deadMinions.length > 0) {
+      deathsOccurred = true;
+
+      deadMinions.forEach((deadCard) => {
+        // 2. Record death event for the frontend UI animations
+        recordEvent(G, {
+          type: "death",
+          cardId: deadCard.id,
+          playerId: playerId,
+          timestamp: Date.now(),
+        });
+
+        // 3. FUTURE EXPANSION: Trigger Deathrattles here!
+        // if (deadCard.deathrattle) {
+        //   executeEffects(G, deadCard.deathrattle);
+        // }
+      });
+
+      // 4. Clean sweep: Remove all dead minions from the board simultaneously
+      G.board[playerId] = G.board[playerId].filter(
+        (card) => typeof card.health === "undefined" || card.health > 0,
+      );
+    }
+  });
+
+  // 5. Recursion for chain reactions
+  // If a Deathrattle kills another minion, we need to run processDeaths again!
+  if (deathsOccurred) {
+    processDeaths(G);
+  }
 }
 
 export const HeathStoneGame: Game<GameState> = {
