@@ -1,15 +1,15 @@
 import type { CardProps } from "./types";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { twMerge } from "tailwind-merge";
 import { ATTACK_ANIMATION } from "@/utils/animationDurations";
 import { useAudioStore } from "@/stores/audioStore";
 import { useEffect } from "react";
+import FrozenOverlay from "./Overlays/FrozenOverlay";
 
 const attackIcon = "assets/attack.png";
 const healthIcon = "assets/health.png";
 const minionFrame = "assets/minion_frame.png";
 const minionTaunt = "assets/minion_taunt.png";
-const frozen = "assets/frozen.png";
 
 interface Props extends CardProps {
   isAttacking?: boolean;
@@ -85,16 +85,9 @@ const PlacedCard = ({
         "w-[6.15vw] h-[8.32vw] relative rounded-[50%/50%] flex flex-col items-center justify-center font-serif text-white",
       )}
     >
-      {card.frozen && (
-        <div className={twMerge("absolute inset-[2px] rounded-[50%/50%] z-10")}>
-          <img
-            src={frozen}
-            alt={card.title}
-            className="object-cover w-full h-full select-none scale-129"
-            draggable="false"
-          />
-        </div>
-      )}
+      <AnimatePresence>
+        {card.frozen && <FrozenOverlay key={"frozen"} />}
+      </AnimatePresence>
 
       {/* Card Art - Clipped tightly inside the oval frame */}
       <div className={twMerge("w-full h-full")}>

@@ -22,21 +22,29 @@ export const SFX_MANIFEST = {
 
   // === Gameplay Sounds (Preloaded) ===
   "card-play": { path: "/gameplay/card-play.ogg", preload: true },
-  "card-draw": { path: "/ui/draw_card_1.ogg", preload: true },
-  "your-turn": { path: "/ui/your_turn.ogg", preload: true },
+  "card-draw": { path: "/gameplay/draw_card_1.ogg", preload: true },
+  "your-turn": { path: "/gameplay/your_turn.ogg", preload: true },
   "card-magic-loop": {
-    path: "/ui/card_motion_loop_magical.ogg",
+    path: "/gameplay/card_motion_loop_magical.ogg",
+    preload: true,
+  },
+  "freeze-start": {
+    path: "/gameplay/FX_FreezeEvent_BirthStart.ogg",
+    preload: true,
+  },
+  "freeze-end": {
+    path: "/gameplay/FX_FreezeEvent_StateEnd.ogg",
     preload: true,
   },
 
   // Basic minion
   "minion-attack": {
-    path: "/ui/minion_attack_impact.ogg",
+    path: "/gameplay/minion_attack_impact.ogg",
     preload: false,
   },
-  "minion-death": { path: "/ui/Minion_Deat_01.ogg", preload: true },
+  "minion-death": { path: "/gameplay/Minion_Deat_01.ogg", preload: true },
   "minion-drop-med": {
-    path: "/ui/Minion_Drop_Medium.ogg",
+    path: "/gameplay/Minion_Drop_Medium.ogg",
     preload: true,
   },
 
