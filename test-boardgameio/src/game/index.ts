@@ -482,6 +482,34 @@ const doEffects = (
           handleDrawCard(G, ctx);
         }
         break;
+      case "destroy": {
+        if (effect.target === "user-select" && target) {
+          if (target.type === "card") {
+            const targetCard = G.board[target.player].find(
+              (c) => c.id === target.id,
+            );
+
+            if (targetCard) {
+              // 1. Record the death event immediately for front-end animations
+              recordEvent(G, {
+                type: "death",
+                cardId: targetCard.id,
+                playerId: target.player,
+                timestamp: Date.now(),
+              });
+
+              // 2. Remove the minion from the target player's board
+              G.board[target.player] = G.board[target.player].filter(
+                (c) => c.id !== targetCard.id,
+              );
+            }
+          }
+        } else if (effect.target === "enemy-board") {
+          // Optional: For random or non-targeted destroy spell variants in the future
+          console.warn("Non-targeted destroy effects are not yet implemented.");
+        }
+        break;
+      }
     }
   });
 };

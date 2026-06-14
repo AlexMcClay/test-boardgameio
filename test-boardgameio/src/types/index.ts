@@ -100,7 +100,7 @@ export type FreezeEffect = {
 
 type DestroyEffect = {
   type: "destroy";
-  target: "user-select" | "self" | "enemy"; // Target can be user-select, self, or enemy
+  target: "user-select" | "self" | "enemy-board"; // Target can be user-select, self, or enemy
   battlecry?: boolean; // Indicates if this destroy effect is part of a battlecry (bypasses taunt)
 };
 

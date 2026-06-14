@@ -25,7 +25,7 @@ const freeze = (
 };
 
 const destroy = (
-  target: "user-select" | "self" | "enemy",
+  target: "user-select" | "self" | "enemy-board",
   battlecry: boolean = false,
 ): EffectTypes => {
   return {
