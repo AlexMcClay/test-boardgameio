@@ -5,6 +5,7 @@ import { ATTACK_ANIMATION } from "@/utils/animationDurations";
 import { useAudioStore } from "@/stores/audioStore";
 import { useEffect } from "react";
 import FrozenOverlay from "./Overlays/FrozenOverlay";
+import DivineShieldOverlay from "./Overlays/DivineShieldOverlay";
 
 const attackIcon = "assets/attack.png";
 const healthIcon = "assets/health.png";
@@ -86,6 +87,7 @@ const PlacedCard = ({
       )}
     >
       <AnimatePresence>
+        {card.divineShield && <DivineShieldOverlay key={"divineShield"} />}
         {card.frozen && <FrozenOverlay key={"frozen"} />}
       </AnimatePresence>
 

@@ -163,7 +163,9 @@ const placeCard: Move<GameState> = (
       card.onPlace.some(
         (e) =>
           (e.type === "damage" && e.target === "user-select") ||
-          (e.type === "heal" && e.target === "user-select"),
+          (e.type === "heal" && e.target === "user-select") ||
+          (e.type === "changeKey" && e.target === "user-select") ||
+          (e.type === "incrementValue" && e.target === "user-select"),
       );
 
     if (needsTargetedBattlecry) {
@@ -420,7 +422,7 @@ const doEffects = (
 
         if (effect.target === "self") {
           cardToUpdate = card;
-        } else if (effect.target === "other" && target?.type === "card") {
+        } else if (effect.target === "user-select" && target?.type === "card") {
           cardToUpdate = G.board[target.player].find((c) => c.id === target.id);
         }
 
@@ -444,7 +446,7 @@ const doEffects = (
 
         if (effect.target === "self") {
           cardToUpdate = card;
-        } else if (effect.target === "other" && target?.type === "card") {
+        } else if (effect.target === "user-select" && target?.type === "card") {
           cardToUpdate = G.board[target.player].find((c) => c.id === target.id);
         }
 
@@ -547,13 +549,31 @@ function handleDrawCard(G: GameState, ctx: Ctx, playerID?: PlayerID) {
 function dealDamageToCard(
   G: GameState,
   sourceId: string,
-  targetCard: any,
+  targetCard: Card, // This is our target minion
   targetPlayerId: string,
   damageAmount: number,
 ) {
   if (!targetCard || typeof targetCard.health === "undefined") return;
 
-  // 1. Record damage event BEFORE updating health
+  // 1. DIVINE SHIELD CHECK: Intercept positive damage values
+  if (targetCard.divineShield && damageAmount > 0) {
+    // Pop the bubble!
+    targetCard.divineShield = false;
+
+    recordEvent(G, {
+      type: "damage",
+      sourceId: sourceId,
+      targetId: targetCard.id,
+      targetType: "card",
+      playerId: targetPlayerId,
+      value: 0, // Reduces damage to 0
+      timestamp: Date.now(),
+    });
+
+    return;
+  }
+
+  // 2. STANDARD DAMAGE FALLBACK (If no shield is present or damage is 0)
   recordEvent(G, {
     type: "damage",
     sourceId: sourceId,
@@ -564,7 +584,6 @@ function dealDamageToCard(
     timestamp: Date.now(),
   });
 
-  // 2. Apply damage
   targetCard.health -= damageAmount;
 }
 

@@ -66,20 +66,21 @@ export const mageDeckString: DeckString = {
 
 export const paladinDeckString: DeckString = {
   "goldshire-footman": 2,
-  "voodoo-doctor": 2,
-  "murloc-tidehunter": 2,
+  "argent-squire": 2,
+  "argent-protector": 2,
   "blessing-of-kings": 2,
   "oasis-snapjaw": 2,
   "senjin-shieldmasta": 2,
-  "silver-hand-knight": 2,
+  shielded_minibot: 2,
   "darkscale-healer": 2,
   "boulderfist-ogre": 2,
   "lord-of-the-arena": 2,
   "river-crocolisk": 2,
   "razorfen-hunter": 2,
   "dragonling-mechanic": 2,
-  "chillwind-yeti": 2,
-  "core-hound": 2,
+  sunwalker: 2,
+  "core-hound": 1,
+  "tirion-fordring": 1,
 };
 
 export const rogueDeckString: DeckString = {

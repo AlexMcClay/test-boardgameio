@@ -11,6 +11,7 @@ export interface Card {
   health?: number;
   maxAttack?: number;
   maxHealth?: number;
+  maxMana?: number;
   type?: string; // e.g., "Spell", "Beast", "Demon", etc.
   imageUrl?: string; // URL to the card image
   effects: Array<EffectTypes>;
@@ -25,13 +26,14 @@ export interface Card {
   taunt?: boolean; // Optional, to indicate if the card has taunt
   frozen?: boolean;
   stealth?: boolean;
+  divineShield?: boolean;
   targets: TargetTypes[]; // Optional, to specify valid targets for the card
   battlecryTargets?: TargetTypes[]; // Optional, valid targets for battlecry (bypasses taunt)
   class: string;
   sfx?: {
-    death?: string;
-    play?: string;
-    attack?: string;
+    death?: string[];
+    play?: string[];
+    attack?: string[];
   };
 }
 
@@ -121,14 +123,14 @@ type ChangeKeyEffect = {
   type: "changeKey";
   key: keyof Card; // Key to change in the card object
   value: any; // New value for the key
-  target: "other" | "self"; // Target of the change, either "other" or "self"
+  target: "user-select" | "self"; // Target of the change, either "other" or "self"
 };
 
 type IncrementValueEffect = {
   type: "incrementValue";
   key: keyof Card; // Key to change in the card object
   value: any; // New value for the key
-  target: "other" | "self"; // Target of the change, either "other" or "self"
+  target: "user-select" | "self"; // Target of the change, either "other" or "self"
 };
 
 type SummonEffect = {
