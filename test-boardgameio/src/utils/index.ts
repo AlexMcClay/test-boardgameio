@@ -13,13 +13,17 @@ export function shuffleDeck(deck: Card[]): Card[] {
 
 // cardFactory.ts
 
-export function createCardInstance(template: Omit<Card, "id">): Card {
+export function createCardInstance(
+  template: Omit<Card, "id" | "originalID">,
+  originalID: string,
+): Card {
   return {
     ...template,
     id: self.crypto.randomUUID(),
     maxAttack: template.attack,
     maxHealth: template.health,
     hasAttacked: false,
+    originalID: originalID,
   };
 }
 
@@ -29,7 +33,7 @@ export function createCardFromID(id: CardTemplateKey): Card | null {
     console.warn(`Card template with ID ${id} not found.`);
     return null;
   }
-  return createCardInstance(cardTemplate);
+  return createCardInstance(cardTemplate, id);
 }
 
 export function hasToEndTurn(playedID: string, gameState: GameState): boolean {

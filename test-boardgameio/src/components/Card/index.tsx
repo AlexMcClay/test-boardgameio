@@ -187,16 +187,18 @@ const Card = ({
 
       {/* Type */}
       {card.type && (
-        <div className="absolute select-none -bottom-1 text-sm w-fit px-6 text-center font-extrabold text-white shadow-md rounded bg-[#f1ce8d] ">
-          <span
-            style={{
-              WebkitTextStroke: "0.5px black",
-              textShadow: "0 1px 0px black",
-            }}
-            className="relative z-10 font-belwe  scale-130  translate-y-[-5%] translate-x-[-5%]"
-          >
-            {card.type}
-          </span>
+        <div className="absolute select-none -bottom-1 w-fit px-6 text-center font-extrabold text-white shadow-md rounded bg-[#f1ce8d] flex flex-col">
+          {card.type.map((t) => (
+            <span
+              style={{
+                WebkitTextStroke: "0.5px black",
+                textShadow: "0 1px 0px black",
+              }}
+              className="relative z-10 font-belwe text-[0.6vw]  scale-130  translate-y-[-5%] translate-x-[-5%]"
+            >
+              {t}
+            </span>
+          ))}
         </div>
       )}
 

@@ -4,6 +4,7 @@ import type { DeckString } from "@/utils/decks";
 
 export interface Card {
   id: string;
+  originalID: string;
   title: string;
   description: string;
   mana: number | null;
@@ -12,7 +13,7 @@ export interface Card {
   maxAttack?: number;
   maxHealth?: number;
   maxMana?: number;
-  type?: string; // e.g., "Spell", "Beast", "Demon", etc.
+  type?: string[]; // e.g., "Spell", "Beast", "Demon", etc.
   imageUrl?: string; // URL to the card image
   effects: Array<EffectTypes>;
   onPlace: Array<EffectTypes>; // Effects that trigger when the card is placed
@@ -27,6 +28,7 @@ export interface Card {
   frozen?: boolean;
   stealth?: boolean;
   divineShield?: boolean;
+  keywords?: string[];
   targets: TargetTypes[]; // Optional, to specify valid targets for the card
   battlecryTargets?: TargetTypes[]; // Optional, valid targets for battlecry (bypasses taunt)
   class: string;
@@ -110,7 +112,7 @@ export type DivineShieldEffect = {
 
 type DestroyEffect = {
   type: "destroy";
-  target: "user-select" | "self" | "enemy-board"; // Target can be user-select, self, or enemy
+  target: "user-select" | "self" | "enemy-board" | "board"; // Target can be user-select, self, or enemy
   battlecry?: boolean; // Indicates if this destroy effect is part of a battlecry (bypasses taunt)
 };
 
@@ -304,4 +306,11 @@ export interface GameState {
   gameEvents: GameEvent[]; // Current move events (cleared each move)
   eventHistory: GameEvent[]; // Full game history (debug log)
   activeBattlecryMinion?: { cardId: string; playerId: PlayerID } | null; // Tracks minion waiting to resolve targeted battlecry
+
+  // ADD THIS: Global tracking of spent spells and dead minions
+  graveyard: {
+    card: Card;
+    originalOwner: PlayerID;
+    diedOnTurn: number;
+  }[];
 }

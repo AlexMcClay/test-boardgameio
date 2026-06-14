@@ -82,6 +82,7 @@ const setupData = (
     gameEvents: [],
     eventHistory: [],
     activeBattlecryMinion: null,
+    graveyard: [],
   };
 
   return G;
@@ -210,6 +211,12 @@ const placeCard: Move<GameState> = (
       timestamp: Date.now(),
       card,
     });
+    // ADD THIS: Push the resolved spell into the graveyard
+    G.graveyard.push({
+      card: structuredClone(card),
+      originalOwner: ctx.currentPlayer,
+      diedOnTurn: ctx.turn,
+    });
   }
 
   if (location === "hand") {
@@ -253,7 +260,7 @@ const doEffects = (
             : effect.value;
 
         if (target && effect.target === "user-select") {
-          if (card.isPlaced && effect.type === "damage" && !effect.battlecry) {
+          if (card.isPlaced && !effect.battlecry && card.isMinion) {
             card.hasAttacked = true; // Mark the card as having attacked
           }
 
@@ -764,6 +771,12 @@ function processDeaths(G: GameState, ctx: Ctx) {
           cardId: deadCard.id,
           playerId: playerId,
           timestamp: Date.now(),
+        });
+
+        G.graveyard.push({
+          card: structuredClone(deadCard),
+          originalOwner: playerId,
+          diedOnTurn: ctx.turn,
         });
       });
 
