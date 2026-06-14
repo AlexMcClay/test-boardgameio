@@ -5,7 +5,6 @@ import { Client } from "boardgame.io/react";
 import { Local } from "boardgame.io/multiplayer";
 import { MCTSBot } from "boardgame.io/ai";
 import { enumerateAIMoves } from "@/game/ai";
-import Board from "@/components/Board";
 import MainMenu from "@/components/MainMenu";
 import CollectionManager from "@/components/CollectionManager";
 import PlayArea from "@/components/PlayArea";
@@ -18,6 +17,7 @@ import type { CardTemplateKey } from "@/utils/cards";
 import type { Card } from "@/types";
 import type { State } from "boardgame.io";
 import { premadeDecks } from "@/utils/decks";
+import Gameboard from "@/components/GameBoard";
 
 export const Route = createFileRoute("/")({
   component: App,
@@ -145,7 +145,7 @@ function App() {
 
     if (gameMode === "ai") {
       const HearthstoneWithAI = Client({
-        board: Board,
+        board: Gameboard,
         game: gameWithSetup,
         numPlayers: 2,
         multiplayer: Local({
@@ -164,7 +164,7 @@ function App() {
 
     // PvP mode
     const HearthstonePvP = Client({
-      board: Board,
+      board: Gameboard,
       game: gameWithSetup,
       debug: { collapseOnLoad: true, hideToggleButton: true },
     });

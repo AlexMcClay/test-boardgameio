@@ -80,11 +80,25 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
 
   // yourTurn Handler
   useEffect(() => {
-    if (visualCtx.currentPlayer === prevMovePlayer.current) {
+    console.log(
+      "AAAA: ",
+      visualCtx.currentPlayer,
+      prevMovePlayer.current,
+      visualCtx,
+    );
+    if (
+      visualCtx.currentPlayer === prevMovePlayer.current ||
+      visualCtx.currentPlayer === undefined ||
+      prevMovePlayer.current === undefined
+    ) {
       return;
     } else {
       prevMovePlayer.current = visualCtx.currentPlayer;
-      if (props.playerID && visualCtx.currentPlayer === props.playerID) {
+      if (
+        props.playerID &&
+        visualCtx.currentPlayer === props.playerID &&
+        visualCtx.turn > 1
+      ) {
         setYourTurn(true);
         setTimeout(() => {
           setYourTurn(false);

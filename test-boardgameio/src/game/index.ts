@@ -678,53 +678,57 @@ export const HeathStoneGame: Game<GameState> = {
       moves: { drawCard, placeCard, cancelBattlecry, endTurn },
       onBegin: ({ G, ctx }) => {
         // Draw 5 cards for each player at the start
+        console.log("CURRENT PLAYer", ctx.currentPlayer);
         for (let i = 0; i < 5; i++) {
           handleDrawCard(G, ctx, "0");
           handleDrawCard(G, ctx, "1");
         }
       },
+      turn: {
+        onEnd: ({ G, ctx }) => {
+          // Clear last move metadata at the end of the turn
+          G.gameEvents = [];
+          G.activeBattlecryMinion = null;
+
+          G.board[ctx.currentPlayer].forEach((card) => {
+            card.frozen = false; // unfreeze minions
+          });
+          recordEvent(G, {
+            type: "endTurn",
+            playerId: ctx.currentPlayer,
+            timestamp: Date.now(),
+          });
+        },
+        onBegin: ({ G, ctx }) => {
+          // Reset mana at the start of each turn
+          // Draw a card at the start of the turn
+          console.log("CURRENT PLAYer TURN", ctx.currentPlayer);
+
+          if (ctx.turn % 2) {
+            G.maxMana = Math.min(G.maxMana + 1, 10);
+          }
+          G.players[ctx.currentPlayer].mana = G.maxMana;
+          if (ctx.turn > 2) {
+            // draw card if the player has less than 10 cards in hand
+            const player = G.players[ctx.currentPlayer];
+            if (player.hand.length < 10) {
+              handleDrawCard(G, ctx);
+            }
+          }
+
+          G.board[ctx.currentPlayer].forEach((card) => {
+            card.hasAttacked = false; // Reset attack status for all cards
+            card.summoningSickness = false; // Remove summoning sickness
+          });
+          recordEvent(G, {
+            type: "beginTurn",
+            playerId: ctx.currentPlayer,
+            timestamp: Date.now(),
+          });
+        },
+      },
     },
   },
-  turn: {
-    onEnd: ({ G, ctx }) => {
-      // Clear last move metadata at the end of the turn
-      G.gameEvents = [];
-      G.activeBattlecryMinion = null;
-
-      G.board[ctx.currentPlayer].forEach((card) => {
-        card.frozen = false; // unfreeze minions
-      });
-      recordEvent(G, {
-        type: "endTurn",
-        playerId: ctx.currentPlayer,
-        timestamp: Date.now(),
-      });
-    },
-    onBegin: ({ G, ctx }) => {
-      // Reset mana at the start of each turn
-      // Draw a card at the start of the turn
-      if (ctx.turn % 2) {
-        G.maxMana = Math.min(G.maxMana + 1, 10);
-      }
-      G.players[ctx.currentPlayer].mana = G.maxMana;
-      if (ctx.turn > 2) {
-        // draw card if the player has less than 10 cards in hand
-        const player = G.players[ctx.currentPlayer];
-        if (player.hand.length < 10) {
-          handleDrawCard(G, ctx);
-        }
-      }
-
-      G.board[ctx.currentPlayer].forEach((card) => {
-        card.hasAttacked = false; // Reset attack status for all cards
-        card.summoningSickness = false; // Remove summoning sickness
-      });
-      recordEvent(G, {
-        type: "beginTurn",
-        playerId: ctx.currentPlayer,
-        timestamp: Date.now(),
-      });
-    },
-  },
+  turn: {},
   endIf: isVictory,
 };

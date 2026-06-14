@@ -38,11 +38,11 @@ const CardPlayed = ({ ctx, playerID }: Props) => {
   // );
 
   useEffect(() => {
-    console.log(
-      "LATEST PLAY",
-      latestPlayAnim?.card.title,
-      activeAnimations.length,
-    );
+    // console.log(
+    //   "LATEST PLAY",
+    //   latestPlayAnim?.card.title,
+    //   activeAnimations.length,
+    // );
     if (!latestPlayAnim) return;
 
     // 3. Update the display instantly if a newer animation timestamp is found
@@ -51,11 +51,11 @@ const CardPlayed = ({ ctx, playerID }: Props) => {
       playSfx("card-draw");
       setActiveCard(latestPlayAnim);
     } else {
-      console.log(
-        "DIDNT UPDATE DISPLAY",
-        latestPlayAnim.startTime,
-        processedAnimationTime.current,
-      );
+      // console.log(
+      //   "DIDNT UPDATE DISPLAY",
+      //   latestPlayAnim.startTime,
+      //   processedAnimationTime.current,
+      // );
     }
   }, [latestPlayAnim]);
 
