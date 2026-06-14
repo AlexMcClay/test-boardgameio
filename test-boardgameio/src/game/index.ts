@@ -472,17 +472,8 @@ const doEffects = (
           cardToUpdate = card;
         } else if (effect.target === "user-select" && target?.type === "card") {
           cardToUpdate = G.board[target.player].find((c) => c.id === target.id);
-          console.log(
-            "DEBUG CAHNGE KEY CARD TO UPDATE:",
-            cardToUpdate,
-            "PLAYER: ",
-            target.player,
-            " ID: ",
-            target.id,
-          );
         }
-
-        if (cardToUpdate !== undefined) {
+        if (cardToUpdate && cardToUpdate[effect.key] !== undefined) {
           // @ts-ignore
           cardToUpdate[effect.key] = effect.value;
 

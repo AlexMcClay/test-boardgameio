@@ -80,12 +80,6 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
 
   // yourTurn Handler
   useEffect(() => {
-    console.log(
-      "AAAA: ",
-      visualCtx.currentPlayer,
-      prevMovePlayer.current,
-      visualCtx,
-    );
     if (
       visualCtx.currentPlayer === prevMovePlayer.current ||
       visualCtx.currentPlayer === undefined ||
@@ -256,6 +250,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       target = { type: "lane", id: over.id, player: ctx.currentPlayer };
     } else if (over.data.current?.type === "card") {
       if (over.data.current.id === active.id) return;
+
       location = active.data.current?.card?.isPlaced ? "board" : "hand";
       target = {
         type: "card",

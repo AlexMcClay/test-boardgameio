@@ -55,7 +55,7 @@ export const createSfxSlice: StateCreator<AudioState, [], [], SfxSlice> = (
       return;
     }
 
-    console.log("[SFX] Preloading sounds...");
+    // console.log("[SFX] Preloading sounds...");
 
     const preloadEntries = Object.entries(SFX_MANIFEST).filter(
       ([_, config]) => config.preload,
@@ -66,10 +66,10 @@ export const createSfxSlice: StateCreator<AudioState, [], [], SfxSlice> = (
         const url = resolveSfxPath(id);
         const buffer = await loadSfxBuffer(audioContext, url);
         preloadedSounds.set(id, buffer);
-        console.log(`[SFX] Preloaded: ${id}`);
+        // console.log(`[SFX] Preloaded: ${id}`);
         return { id, success: true };
       } catch (error) {
-        console.error(`[SFX] Failed to preload ${id}:`, error);
+        // console.error(`[SFX] Failed to preload ${id}:`, error);
         return { id, success: false };
       }
     });

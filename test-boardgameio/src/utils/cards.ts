@@ -94,7 +94,7 @@ const changeKey = (
 const incrementValue = (
   key: keyof Card,
   value: number,
-  target: "user-select" | "self" = "self",
+  target: "user-select" | "self" = "user-select",
 ): EffectTypes => {
   return {
     type: "incrementValue",

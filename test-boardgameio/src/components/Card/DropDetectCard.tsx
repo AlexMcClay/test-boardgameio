@@ -253,6 +253,7 @@ const DropDetectCard = (props: Omit<Props, "isValid">) => {
       type: "card",
       player: props.playerID, // Include playerID to match the Lane component
       id: props.card.id,
+      cardName: props.card.title,
     },
   });
 
