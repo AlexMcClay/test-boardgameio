@@ -15,6 +15,7 @@ export interface Card {
   imageUrl?: string; // URL to the card image
   effects: Array<EffectTypes>;
   onPlace: Array<EffectTypes>; // Effects that trigger when the card is placed
+  deathrattle?: Array<EffectTypes>;
   isPlaced?: boolean; // Optional, to track if the card is placed on the board
   hasAttacked?: boolean; // Optional, to track if the card has attacked this turn
   summoningSickness?: boolean; // Optional, to track if minion was just placed (shows Zzz)

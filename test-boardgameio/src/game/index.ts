@@ -92,6 +92,7 @@ const placeCard: Move<GameState> = (
   cardId: string,
   location: "hand" | "board" = "hand",
   target?: TargetValue,
+  boardIndex?: number, // Insert position on the board
 ) => {
   // console.log(
   //   `Attempting to place card ${cardId} from ${location} (AI Move #${G.aiMoveCount}) with target:`,
@@ -116,7 +117,7 @@ const placeCard: Move<GameState> = (
     );
     // Clear the battlecry state
     G.activeBattlecryMinion = null;
-    processDeaths(G);
+    processDeaths(G, ctx);
     return;
   }
 
@@ -184,7 +185,11 @@ const placeCard: Move<GameState> = (
       );
     }
 
-    G.board[ctx.currentPlayer].push(card);
+    if (boardIndex !== undefined) {
+      G.board[ctx.currentPlayer].splice(boardIndex, 0, card);
+    } else {
+      G.board[ctx.currentPlayer].push(card);
+    }
     recordEvent(G, {
       type: "minionPlaced",
       cardId: card.id,
@@ -209,7 +214,7 @@ const placeCard: Move<GameState> = (
     player.hand.splice(cardIndex, 1); // Remove the card from hand
   }
 
-  processDeaths(G);
+  processDeaths(G, ctx);
 };
 
 const doEffects = (
@@ -221,7 +226,7 @@ const doEffects = (
     ctx: Ctx;
   },
   cardId: string,
-  key: "effects" | "onPlace" = "effects",
+  key: "effects" | "onPlace" | "deathrattle" = "effects",
   location: "hand" | "board",
   playerID: PlayerID,
   target?: TargetValue,
@@ -236,7 +241,7 @@ const doEffects = (
     return; // Card not found in the specified location
   }
 
-  card[key].forEach((effect) => {
+  card[key]?.forEach((effect) => {
     switch (effect.type) {
       case "damage": {
         const damage =
@@ -482,7 +487,7 @@ const doEffects = (
         break;
       case "draw":
         for (let i = 0; i < effect.value; i++) {
-          handleDrawCard(G, ctx);
+          handleDrawCard(G, ctx, playerID);
         }
         break;
       case "destroy": {
@@ -662,12 +667,13 @@ function healCard(
   });
 }
 
-function processDeaths(G: GameState) {
+function processDeaths(G: GameState, ctx: Ctx) {
+  // Pass 'ctx' here so doEffects can access it
   const playerIds: ("0" | "1")[] = ["0", "1"];
   let deathsOccurred = false;
 
   playerIds.forEach((playerId) => {
-    // 1. Find all minions on this board that are marked for death
+    // 1. Find all minions on this board marked for death
     const deadMinions = G.board[playerId].filter(
       (card) => typeof card.health !== "undefined" && card.health <= 0,
     );
@@ -676,31 +682,40 @@ function processDeaths(G: GameState) {
       deathsOccurred = true;
 
       deadMinions.forEach((deadCard) => {
-        // 2. Record death event for the frontend UI animations
+        // 2. TRIGGER DEATHRATTLES:
+        if (deadCard.deathrattle && deadCard.deathrattle.length > 0) {
+          doEffects(
+            {
+              G,
+              ctx,
+            },
+            deadCard.id,
+            "deathrattle",
+            "board",
+            playerId,
+          );
+        }
+
+        // 3. Record death event for frontend UI animations
         recordEvent(G, {
           type: "death",
           cardId: deadCard.id,
           playerId: playerId,
           timestamp: Date.now(),
         });
-
-        // 3. FUTURE EXPANSION: Trigger Deathrattles here!
-        // if (deadCard.deathrattle) {
-        //   executeEffects(G, deadCard.deathrattle);
-        // }
       });
 
-      // 4. Clean sweep: Remove all dead minions from the board simultaneously
+      // 4. Clean sweep: Remove dead minions from the board simultaneously
       G.board[playerId] = G.board[playerId].filter(
         (card) => typeof card.health === "undefined" || card.health > 0,
       );
     }
   });
 
-  // 5. Recursion for chain reactions
-  // If a Deathrattle kills another minion, we need to run processDeaths again!
+  // 5. Recursion for chain reactions!
+  // If a deathrattle dealt damage that killed ANOTHER minion, this runs again.
   if (deathsOccurred) {
-    processDeaths(G);
+    processDeaths(G, ctx);
   }
 }
 
