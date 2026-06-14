@@ -1,10 +1,35 @@
 import { create } from "zustand";
 import type { CardTemplateKey } from "@/utils/cards";
-import type { Card } from "@/types";
+import type { Card, SavedDeck } from "@/types";
 import { createCardFromID, shuffleDeck } from "@/utils";
 import { premadeDecks } from "@/utils/decks";
 
 export type DeckString = Partial<Record<CardTemplateKey, number>>;
+
+// Configuration: Set to true to filter cards by hero class + neutral when building decks
+export const FILTER_BY_CLASS_WHEN_BUILDING = false;
+
+// LocalStorage key for user decks
+const USER_DECKS_KEY = "hearthstone_user_decks";
+
+// Helper functions for localStorage
+function loadUserDecks(): SavedDeck[] {
+  try {
+    const stored = localStorage.getItem(USER_DECKS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error("Failed to load user decks from localStorage:", error);
+    return [];
+  }
+}
+
+function saveUserDecksToStorage(decks: SavedDeck[]): void {
+  try {
+    localStorage.setItem(USER_DECKS_KEY, JSON.stringify(decks));
+  } catch (error) {
+    console.error("Failed to save user decks to localStorage:", error);
+  }
+}
 
 interface DeckState {
   // Player's deck selection (Player 0)
@@ -16,11 +41,25 @@ interface DeckState {
   // Whether decks are ready to start game
   isDeckReady: boolean;
 
+  // User's custom decks (persisted to localStorage)
+  userDecks: SavedDeck[];
+
+  // Currently selected deck for playing
+  selectedDeckForPlay: SavedDeck | null;
+
   // Actions
   setPlayerDeck: (deck: DeckString) => void;
   generateOpponentDeck: () => void;
   clearDecks: () => void;
   setReady: (ready: boolean) => void;
+
+  // User deck management
+  saveUserDeck: (deck: SavedDeck) => void;
+  deleteUserDeck: (id: string) => void;
+  updateUserDeck: (id: string, updates: Partial<SavedDeck>) => void;
+  getAllDecks: () => SavedDeck[];
+  selectDeckForPlay: (deck: SavedDeck) => void;
+  clearSelectedDeck: () => void;
 }
 
 // Helper function to create a deck from a deck string
@@ -53,6 +92,8 @@ export const useDeckStore = create<DeckState>((set, get) => ({
   playerDeck: {},
   opponentDeck: null,
   isDeckReady: false,
+  userDecks: loadUserDecks(),
+  selectedDeckForPlay: null,
 
   setPlayerDeck: (deck: DeckString) => {
     set({ playerDeck: deck });
@@ -80,5 +121,60 @@ export const useDeckStore = create<DeckState>((set, get) => ({
 
   setReady: (ready: boolean) => {
     set({ isDeckReady: ready });
+  },
+
+  saveUserDeck: (deck: SavedDeck) => {
+    const state = get();
+    // Check if deck with this ID already exists (update) or is new (add)
+    const existingIndex = state.userDecks.findIndex((d) => d.id === deck.id);
+
+    let updatedDecks: SavedDeck[];
+    if (existingIndex >= 0) {
+      // Update existing deck
+      updatedDecks = [...state.userDecks];
+      updatedDecks[existingIndex] = deck;
+    } else {
+      // Add new deck
+      updatedDecks = [...state.userDecks, deck];
+    }
+
+    saveUserDecksToStorage(updatedDecks);
+    set({ userDecks: updatedDecks });
+  },
+
+  deleteUserDeck: (id: string) => {
+    const state = get();
+    const updatedDecks = state.userDecks.filter((deck) => deck.id !== id);
+    saveUserDecksToStorage(updatedDecks);
+    set({ userDecks: updatedDecks });
+  },
+
+  updateUserDeck: (id: string, updates: Partial<SavedDeck>) => {
+    const state = get();
+    const updatedDecks = state.userDecks.map((deck) =>
+      deck.id === id ? { ...deck, ...updates } : deck,
+    );
+    saveUserDecksToStorage(updatedDecks);
+    set({ userDecks: updatedDecks });
+  },
+
+  getAllDecks: () => {
+    const state = get();
+    // Convert premade decks to SavedDeck format and combine with user decks
+    const premadeAsSaved: SavedDeck[] = premadeDecks.map((deck) => ({
+      id: `premade-${deck.name.toLowerCase()}`,
+      name: deck.name,
+      hero: deck.hero,
+      deckString: deck.deckString,
+    }));
+    return [...premadeAsSaved, ...state.userDecks];
+  },
+
+  selectDeckForPlay: (deck: SavedDeck) => {
+    set({ selectedDeckForPlay: deck });
+  },
+
+  clearSelectedDeck: () => {
+    set({ selectedDeckForPlay: null });
   },
 }));

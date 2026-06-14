@@ -4,6 +4,7 @@ import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
 import { validateMove } from "@/utils/validateMove";
 import type { CardTemplateKey } from "@/utils/cards";
 import { enumerateAIMoves } from "./ai";
+import type { Hero } from "@/utils/heros";
 
 // Helper function to record game events
 function recordEvent(G: GameState, event: GameEvent) {
@@ -24,7 +25,12 @@ export const isVictory = ({ G, ctx }: { G: GameState; ctx: Ctx }) => {
 
 const setupData = (
   { ctx }: { ctx: Ctx },
-  setupData?: { playerDeck?: Card[]; opponentDeck?: Card[] },
+  setupData?: {
+    playerDeck?: Card[];
+    playerHero?: Hero;
+    opponentDeck?: Card[];
+    opponentHero?: Hero;
+  },
 ): GameState => {
   // Initialize player decks from setupData or use empty arrays
   const playerDeck = setupData?.playerDeck
@@ -34,10 +40,14 @@ const setupData = (
     ? shuffleDeck([...setupData.opponentDeck])
     : [];
 
+  // Get hero data or use defaults
+  const playerHero = setupData?.playerHero;
+  const opponentHero = setupData?.opponentHero;
+
   const p0: Player = {
     id: "0",
-    name: "Arthas",
-    heroPortrait: "assets/heros/Arthas.jpg",
+    name: playerHero?.heroName || "Arthas",
+    heroPortrait: playerHero?.portrait || "assets/heros/Arthas.jpg",
     maxHealth: 30,
     health: 30,
     maxArmor: 0,
@@ -49,8 +59,9 @@ const setupData = (
 
   const p1: Player = {
     id: "1",
-    name: "Illidan",
-    heroPortrait: "assets/heros/Illidan_Stormrage.jpg",
+    name: opponentHero?.heroName || "Illidan",
+    heroPortrait:
+      opponentHero?.portrait || "assets/heros/Illidan_Stormrage.jpg",
     maxHealth: 30,
     health: 30,
     maxArmor: 0,

@@ -6,15 +6,18 @@ import { Local } from "boardgame.io/multiplayer";
 import { MCTSBot } from "boardgame.io/ai";
 import { enumerateAIMoves } from "@/game/ai";
 import Board from "@/components/Board";
-import GameModeSelector from "@/components/GameModeSelector";
-import DeckSelection from "@/components/DeckSelection";
+import MainMenu from "@/components/MainMenu";
+import CollectionManager from "@/components/CollectionManager";
+import PlayArea from "@/components/PlayArea";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { useAudioStore } from "@/stores/audioStore";
 import { useDeckStore } from "@/stores/deckStore";
+import { useViewStore } from "@/stores/viewStore";
 import { createCardFromID, shuffleDeck } from "@/utils";
 import type { CardTemplateKey } from "@/utils/cards";
 import type { Card } from "@/types";
 import type { State } from "boardgame.io";
+import { premadeDecks } from "@/utils/decks";
 
 export const Route = createFileRoute("/")({
   component: App,
@@ -49,10 +52,10 @@ class FastMCTSBot extends MCTSBot {
 
 function App() {
   const [gameMode, setGameMode] = useState<"pvp" | "ai" | null>(null);
-  const [showDeckSelection, setShowDeckSelection] = useState(false);
   const [gameKey, setGameKey] = useState(0); // Used to remount game component
 
-  const { playerDeck, opponentDeck, isDeckReady, clearDecks } = useDeckStore();
+  const currentView = useViewStore((state) => state.currentView);
+  const { selectedDeckForPlay, generateOpponentDeck } = useDeckStore();
 
   useBackgroundMusic({
     autoplay: true,
@@ -64,32 +67,25 @@ function App() {
     setGlobalTrack("assets/audio/music/01_Main_Theme.mp3");
   }, [setGlobalTrack]);
 
-  // Reset decks when game mode changes
-  useEffect(() => {
-    if (gameMode) {
-      clearDecks();
-      setShowDeckSelection(true);
+  // Handle game start from PlayArea
+  const handleGameStart = (mode: "pvp" | "ai") => {
+    if (!selectedDeckForPlay) {
+      console.error("No deck selected!");
+      return;
     }
-  }, [gameMode, clearDecks]);
 
-  const handleDeckConfirmed = () => {
-    setShowDeckSelection(false);
+    // Generate opponent deck
+    generateOpponentDeck();
+
+    setGameMode(mode);
     setGameKey((prev) => prev + 1); // Force remount with new setupData
   };
 
-  const handleBackToModeSelect = () => {
-    setGameMode(null);
-    setShowDeckSelection(false);
-    clearDecks();
-  };
-
   // Convert deck string to Card array
-  const getPlayerDeckCards = (): Card[] | undefined => {
-    if (!playerDeck || Object.keys(playerDeck).length === 0) return undefined;
-
+  const getDeckCards = (deckString: Record<string, number>): Card[] => {
     const deck: Card[] = [];
-    for (const cardId in playerDeck) {
-      const count = playerDeck[cardId as CardTemplateKey];
+    for (const cardId in deckString) {
+      const count = deckString[cardId as CardTemplateKey];
       if (count) {
         for (let i = 0; i < count; i++) {
           const card = createCardFromID(cardId as CardTemplateKey);
@@ -100,60 +96,82 @@ function App() {
     return shuffleDeck(deck);
   };
 
-  if (!gameMode) {
-    return <GameModeSelector onModeSelect={setGameMode} />;
+  // Show main menu
+  if (currentView === "main-menu") {
+    return <MainMenu />;
   }
 
-  if (showDeckSelection) {
-    return <DeckSelection onDeckConfirmed={handleDeckConfirmed} />;
+  // Show collection manager
+  if (currentView === "collection") {
+    return <CollectionManager />;
   }
 
-  if (!isDeckReady || !opponentDeck) {
-    return <div>Loading...</div>;
+  // Show play area (deck selection)
+  if (currentView === "play" && !gameMode) {
+    return <PlayArea onGameStart={handleGameStart} />;
   }
 
-  // Prepare setup data
-  const playerDeckCards = getPlayerDeckCards();
+  // Show game
+  if (currentView === "play" && gameMode && selectedDeckForPlay) {
+    const { opponentDeck } = useDeckStore.getState();
 
-  // Create a custom game configuration with setupData
-  const gameWithSetup = {
-    ...HeathStoneGame,
-    setup: (ctx: any) => {
-      if (!HeathStoneGame.setup) {
-        throw new Error("HeathStoneGame.setup is not defined");
-      }
-      return HeathStoneGame.setup(ctx, {
-        playerDeck: playerDeckCards,
-        opponentDeck: opponentDeck,
+    if (!opponentDeck) {
+      return <div>Loading opponent deck...</div>;
+    }
+
+    // Get player deck cards
+    const playerDeckCards = getDeckCards(selectedDeckForPlay.deckString);
+
+    // Get a random opponent deck
+    const randomOpponentDeck =
+      premadeDecks[Math.floor(Math.random() * premadeDecks.length)];
+    const opponentDeckCards = opponentDeck;
+
+    // Create a custom game configuration with setupData
+    const gameWithSetup = {
+      ...HeathStoneGame,
+      setup: (ctx: any) => {
+        if (!HeathStoneGame.setup) {
+          throw new Error("HeathStoneGame.setup is not defined");
+        }
+        return HeathStoneGame.setup(ctx, {
+          playerDeck: playerDeckCards,
+          playerHero: selectedDeckForPlay.hero,
+          opponentDeck: opponentDeckCards,
+          opponentHero: randomOpponentDeck.hero,
+        });
+      },
+    };
+
+    if (gameMode === "ai") {
+      const HearthstoneWithAI = Client({
+        board: Board,
+        game: gameWithSetup,
+        numPlayers: 2,
+        multiplayer: Local({
+          bots: {
+            "1": FastMCTSBot,
+          },
+        }),
+        debug: {
+          collapseOnLoad: true,
+          hideToggleButton: true,
+        },
       });
-    },
-  };
 
-  if (gameMode === "ai") {
-    const HearthstoneWithAI = Client({
+      return <HearthstoneWithAI key={gameKey} playerID="0" />;
+    }
+
+    // PvP mode
+    const HearthstonePvP = Client({
       board: Board,
       game: gameWithSetup,
-      numPlayers: 2,
-      multiplayer: Local({
-        bots: {
-          "1": FastMCTSBot,
-        },
-      }),
-      debug: {
-        collapseOnLoad: true,
-        hideToggleButton: true,
-      },
+      debug: { collapseOnLoad: true, hideToggleButton: true },
     });
 
-    return <HearthstoneWithAI key={gameKey} playerID="0" />;
+    return <HearthstonePvP key={gameKey} />;
   }
 
-  // PvP mode
-  const HearthstonePvP = Client({
-    board: Board,
-    game: gameWithSetup,
-    debug: { collapseOnLoad: true, hideToggleButton: true },
-  });
-
-  return <HearthstonePvP key={gameKey} />;
+  // Fallback
+  return <MainMenu />;
 }

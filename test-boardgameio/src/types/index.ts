@@ -1,4 +1,6 @@
 import type { PlayerID } from "boardgame.io";
+import type { Hero } from "@/utils/heros";
+import type { DeckString } from "@/utils/decks";
 
 export interface Card {
   id: string;
@@ -267,6 +269,13 @@ export type DeathEvent = {
   playerId: PlayerID;
   timestamp: number;
 };
+
+export interface SavedDeck {
+  id: string;
+  name: string;
+  hero: Hero;
+  deckString: DeckString;
+}
 
 export interface GameState {
   players: Record<PlayerID, Player>;

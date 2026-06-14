@@ -1,16 +1,16 @@
 import { useAudioStore } from "@/stores/audioStore";
+import { useViewStore } from "@/stores/viewStore";
 import { useState } from "react";
-
-interface GameModeSelectorProps {
-  onModeSelect: (mode: "pvp" | "ai") => void;
-}
 
 const backgroundImage = "assets/menu/main_menu.png";
 
-const GameModeSelector = ({ onModeSelect }: GameModeSelectorProps) => {
-  const [hoveredMode, setHoveredMode] = useState<"pvp" | "ai" | null>(null);
+const MainMenu = () => {
+  const [hoveredButton, setHoveredButton] = useState<
+    "play" | "collection" | null
+  >(null);
 
   const playSfx = useAudioStore((state) => state.playSfx);
+  const setView = useViewStore((state) => state.setView);
 
   return (
     <div
@@ -28,13 +28,13 @@ const GameModeSelector = ({ onModeSelect }: GameModeSelectorProps) => {
           <button
             onClick={() => {
               playSfx("button-click");
-              onModeSelect("pvp");
+              setView("play");
             }}
             onMouseEnter={() => {
-              setHoveredMode("pvp");
+              setHoveredButton("play");
               playSfx("button-over");
             }}
-            onMouseLeave={() => setHoveredMode(null)}
+            onMouseLeave={() => setHoveredButton(null)}
             className={`
               relative w-full py-6 px-8
               bg-[#bda393]
@@ -43,7 +43,7 @@ const GameModeSelector = ({ onModeSelect }: GameModeSelectorProps) => {
               outline-2 outline-black
               shadow-[0_6px_0_rgba(92,64,51,1),0_8px_20px_rgba(0,0,0,0.6),inset_0_2px_0_rgba(255,255,255,0.3)]
               transition-all duration-200
-              ${hoveredMode === "pvp" ? "translate-y-1 shadow-[0_4px_0_rgba(92,64,51,1),0_6px_15px_rgba(0,0,0,0.6),inset_0_2px_0_rgba(255,255,255,0.3)] brightness-110" : ""}
+              ${hoveredButton === "play" ? "translate-y-1 shadow-[0_4px_0_rgba(92,64,51,1),0_6px_15px_rgba(0,0,0,0.6),inset_0_2px_0_rgba(255,255,255,0.3)] brightness-110" : ""}
             `}
           >
             <span className="text-4xl font-belwe font-bold text-stone-800 drop-shadow-[0_2px_2px_rgba(255,255,255,0.3)] tracking-wide">
@@ -54,17 +54,17 @@ const GameModeSelector = ({ onModeSelect }: GameModeSelectorProps) => {
             <div className="absolute inset-0 rounded-lg border-b-2 border-r-2 border-black/20 pointer-events-none" />
           </button>
 
-          {/* Play vs AI Button */}
+          {/* Collection Button */}
           <button
             onClick={() => {
               playSfx("button-click");
-              onModeSelect("ai");
+              setView("collection");
             }}
             onMouseEnter={() => {
               playSfx("button-over");
-              setHoveredMode("ai");
+              setHoveredButton("collection");
             }}
-            onMouseLeave={() => setHoveredMode(null)}
+            onMouseLeave={() => setHoveredButton(null)}
             className={`
               relative w-full py-6 px-8
               bg-[#bda393]
@@ -73,11 +73,11 @@ const GameModeSelector = ({ onModeSelect }: GameModeSelectorProps) => {
               outline-2 outline-black
               shadow-[0_6px_0_rgba(92,64,51,1),0_8px_20px_rgba(0,0,0,0.6),inset_0_2px_0_rgba(255,255,255,0.3)]
               transition-all duration-200
-              ${hoveredMode === "ai" ? "translate-y-1 shadow-[0_4px_0_rgba(92,64,51,1),0_6px_15px_rgba(0,0,0,0.6),inset_0_2px_0_rgba(255,255,255,0.3)] brightness-110" : ""}
+              ${hoveredButton === "collection" ? "translate-y-1 shadow-[0_4px_0_rgba(92,64,51,1),0_6px_15px_rgba(0,0,0,0.6),inset_0_2px_0_rgba(255,255,255,0.3)] brightness-110" : ""}
             `}
           >
             <span className="text-4xl font-belwe font-bold text-stone-800 drop-shadow-[0_2px_2px_rgba(255,255,255,0.3)] tracking-wide">
-              Play vs AI
+              Collection
             </span>
             {/* Bevel effect */}
             <div className="absolute inset-0 rounded-lg border-t-2 border-l-2 border-white/20 pointer-events-none" />
@@ -89,4 +89,4 @@ const GameModeSelector = ({ onModeSelect }: GameModeSelectorProps) => {
   );
 };
 
-export default GameModeSelector;
+export default MainMenu;
