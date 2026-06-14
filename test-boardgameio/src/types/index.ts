@@ -76,7 +76,8 @@ export type EffectTypes =
   | DestroyEffect
   | ManaEffect
   | IncrementValueEffect
-  | FreezeEffect;
+  | FreezeEffect
+  | DivineShieldEffect;
 
 export type DamageEffect = {
   type: "damage";
@@ -99,6 +100,12 @@ export type FreezeEffect = {
     | "enemy-hero"
     | "enemy-board"
     | "enemy-all"; // Target can be user-select, self-hero, enemy-hero, or hero
+};
+
+export type DivineShieldEffect = {
+  type: "divineShield";
+  battlecry?: boolean; // Indicates if this damage is part of a battlecry (bypasses taunt)
+  target: "user-select" | "friendly-hero";
 };
 
 type DestroyEffect = {
@@ -165,7 +172,8 @@ export type GameEvent =
   | BeginTurnEvent
   | ChangeKeyEvent
   | ManaEvent
-  | FreezeEvent;
+  | FreezeEvent
+  | DivineShieldEvent;
 
 export type SummonEvent = {
   type: "summon";
@@ -248,7 +256,16 @@ export type DamageEvent = {
 
 export type FreezeEvent = {
   type: "freeze";
-  sourceId?: string; // Card/effect that caused damage
+  sourceId?: string; // Card/effect
+  targetId: string;
+  targetType: "card" | "player";
+  playerId: PlayerID;
+  timestamp: number;
+};
+
+export type DivineShieldEvent = {
+  type: "divineShield";
+  sourceId?: string; // Card/effect
   targetId: string;
   targetType: "card" | "player";
   playerId: PlayerID;

@@ -1,4 +1,9 @@
-import type { Card, DamageEffect, EffectTypes } from "@/types";
+import type {
+  Card,
+  DamageEffect,
+  DivineShieldEffect,
+  EffectTypes,
+} from "@/types";
 
 const damage = (
   value: number | keyof Card,
@@ -19,6 +24,17 @@ const freeze = (
 ): EffectTypes => {
   return {
     type: "freeze",
+    target: target,
+    battlecry: battlecry,
+  };
+};
+
+const divineShield = (
+  target: DivineShieldEffect["target"] = "user-select",
+  battlecry: boolean = false,
+): EffectTypes => {
+  return {
+    type: "divineShield",
     target: target,
     battlecry: battlecry,
   };
@@ -874,8 +890,23 @@ export const cardTemplates = {
     class: "Paladin",
     targets: ["card-opponent", "player-opponent"],
     effects: [damage("attack")],
-    onPlace: [changeKey("divineShield", true, "user-select")],
+    onPlace: [divineShield("user-select", true)],
     battlecryTargets: ["card-friendly"],
+  },
+  "hand-of-protection": {
+    title: "Hand of Protection",
+    description: "Give a minion Divine Shield.",
+    mana: 1,
+    attack: undefined,
+    health: undefined,
+    type: "Spell",
+    imageUrl: "assets/cards/Hand_of_Protection.jpg",
+    effects: [divineShield("user-select")],
+    onPlace: [],
+    isSpell: true,
+    targets: ["card"],
+    isMinion: false,
+    class: "Paladin",
   },
 } satisfies Record<string, Omit<Card, "id">>;
 

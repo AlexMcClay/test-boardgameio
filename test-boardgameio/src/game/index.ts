@@ -165,7 +165,8 @@ const placeCard: Move<GameState> = (
           (e.type === "damage" && e.target === "user-select") ||
           (e.type === "heal" && e.target === "user-select") ||
           (e.type === "changeKey" && e.target === "user-select") ||
-          (e.type === "incrementValue" && e.target === "user-select"),
+          (e.type === "incrementValue" && e.target === "user-select") ||
+          (e.type === "divineShield" && e.target === "user-select"),
       );
 
     if (needsTargetedBattlecry) {
@@ -367,6 +368,29 @@ const doEffects = (
         }
         break;
       }
+      case "divineShield": {
+        if (target && effect.target === "user-select") {
+          // Record attack animation event
+
+          // Target: Player
+          // if (target.type === "player") {
+          //   dealDamageToPlayer(G, cardId, target.player, damage);
+          // }
+
+          // Target: Minion / Card
+          if (target.type === "card") {
+            const targetCard = G.board[target.player].find(
+              (c) => c.id === target.id,
+            );
+
+            if (targetCard && typeof targetCard.health !== "undefined") {
+              // Main attack damage to target
+              divineShieldCard(G, cardId, targetCard, target.player);
+            }
+          }
+        }
+        break;
+      }
       case "heal": {
         const healValue = effect.value;
 
@@ -448,9 +472,17 @@ const doEffects = (
           cardToUpdate = card;
         } else if (effect.target === "user-select" && target?.type === "card") {
           cardToUpdate = G.board[target.player].find((c) => c.id === target.id);
+          console.log(
+            "DEBUG CAHNGE KEY CARD TO UPDATE:",
+            cardToUpdate,
+            "PLAYER: ",
+            target.player,
+            " ID: ",
+            target.id,
+          );
         }
 
-        if (cardToUpdate && cardToUpdate[effect.key] !== undefined) {
+        if (cardToUpdate !== undefined) {
           // @ts-ignore
           cardToUpdate[effect.key] = effect.value;
 
@@ -599,6 +631,26 @@ function freezeCard(
 
   recordEvent(G, {
     type: "freeze",
+    sourceId: sourceId,
+    targetId: targetCard.id,
+    targetType: "card",
+    playerId: targetPlayerId,
+    timestamp: Date.now(),
+  });
+}
+
+function divineShieldCard(
+  G: GameState,
+  sourceId: string,
+  targetCard: Card,
+  targetPlayerId: string,
+) {
+  if (!targetCard) return;
+
+  targetCard.divineShield = true;
+
+  recordEvent(G, {
+    type: "divineShield",
     sourceId: sourceId,
     targetId: targetCard.id,
     targetType: "card",
