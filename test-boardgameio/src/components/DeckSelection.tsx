@@ -123,7 +123,7 @@ const DeckSelection = ({ onDeckConfirmed }: DeckSelectionProps) => {
   }
 
   function handleClassSelect(className: string) {
-    playSfx("button-click");
+    playSfx("collection-manager-page-flip");
     if (selectedClass === className) {
       // Deselect - show all cards
       setSelectedClass(null);
@@ -203,7 +203,7 @@ const DeckSelection = ({ onDeckConfirmed }: DeckSelectionProps) => {
 
       {/* Top Bar */}
 
-      <div className="absolute h-[5.7vh] w-[56vw] left-[12.6vw] top-[1vh] pl-[1vw] flex items-end gap-[0.5vw]">
+      <div className="absolute h-[5.9vh] w-[56vw] left-[12.6vw] top-[1vh] pl-[1vw] flex items-end gap-[0.5vw]">
         {icons.map((i) => (
           <button
             key={i.name}
@@ -311,6 +311,13 @@ const DeckSelection = ({ onDeckConfirmed }: DeckSelectionProps) => {
                 </div>
               </div>
             ))}
+            {displayedCards.length === 0 && (
+              <div className=" col-span-4 row-span-2">
+                <p className="text-[2vw] text-center text-black/70">
+                  No Cards in Class
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Page indicator */}
@@ -323,7 +330,7 @@ const DeckSelection = ({ onDeckConfirmed }: DeckSelectionProps) => {
       </div>
 
       {/* Right Panel - Deck Summary */}
-      <div className="w-[14vw] rounded-lg  p-[1vw] flex flex-col items-center gap-[1vw] absolute left-[70vw] top-[7vh]">
+      <div className="w-[13.2vw] rounded-lg  p-[1vw] flex flex-col items-center gap-[1vw] absolute left-[70.5vw] top-[7vh]">
         {/* Predefined Decks */}
         <div className="flex flex-col gap-[0.5vw] w-full">
           <div className="grid grid-cols-1 gap-[0.2vw] w-full">

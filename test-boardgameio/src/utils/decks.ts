@@ -1,4 +1,12 @@
 import type { CardTemplateKey, cardTemplates } from "./cards";
+import {
+  druidHero,
+  mageHero,
+  paladinHero,
+  rogueHero,
+  warriorHero,
+  type Hero,
+} from "./heros";
 
 export type DeckString = Partial<Record<CardTemplateKey, number>>;
 
@@ -13,7 +21,6 @@ export const warriorDeckString: DeckString = {
   "chillwind-yeti": 2,
   "stormwind-knight": 2,
   "boulderfist-ogre": 2,
-
   "river-crocolisk": 2,
   "murloc-raider": 2,
   "dragonling-mechanic": 2,
@@ -32,7 +39,6 @@ export const druidDeckString: DeckString = {
   "boulderfist-ogre": 2,
   "lord-of-the-arena": 2,
   "core-hound": 2,
-
   "bloodfen-raptor": 2,
   "chillwind-yeti": 2,
   "dragonling-mechanic": 2,
@@ -51,7 +57,6 @@ export const mageDeckString: DeckString = {
   "senjin-shieldmasta": 2,
   "gnomish-inventor": 2,
   "boulderfist-ogre": 2,
-
   "river-crocolisk": 2,
   "ironforge-rifleman": 2,
   "dragonling-mechanic": 2,
@@ -70,7 +75,6 @@ export const paladinDeckString: DeckString = {
   "darkscale-healer": 2,
   "boulderfist-ogre": 2,
   "lord-of-the-arena": 2,
-
   "river-crocolisk": 2,
   "razorfen-hunter": 2,
   "dragonling-mechanic": 2,
@@ -89,7 +93,6 @@ export const rogueDeckString: DeckString = {
   nightblade: 2,
   "reckless-rocketeer": 2,
   "boulderfist-ogre": 2,
-
   "novice-engineer": 2,
   "bloodfen-raptor": 2,
   "chillwind-yeti": 2,
@@ -97,30 +100,16 @@ export const rogueDeckString: DeckString = {
   "gnomish-inventor": 2,
 };
 
-export const aggroFaceDeckString: DeckString = {
-  "flame-imp": 2,
-  "murloc-raider": 2,
-  "arcane-shot": 2,
-  "bluegill-warrior": 2,
-  wolfrider: 2,
-  "magma-rager": 2,
-  nightblade: 2,
-  "frostwolf-grunt": 2,
-  "reckless-rocketeer": 2,
-  "core-hound": 2,
+export interface Deck {
+  hero: Hero;
+  name: string;
+  deckString: DeckString;
+}
 
-  "bloodfen-raptor": 2,
-  "river-crocolisk": 2,
-  "elven-archer": 2,
-  charge: 2,
-  "stormwind-knight": 2,
-};
-
-export const premadeDecks = [
-  { name: "Warrior", deckString: warriorDeckString },
-  { name: "Druid", deckString: druidDeckString },
-  { name: "Mage", deckString: mageDeckString },
-  { name: "Paladin", deckString: paladinDeckString },
-  { name: "Rogue", deckString: rogueDeckString },
-  { name: "Aggro Face", deckString: aggroFaceDeckString },
+export const premadeDecks: Deck[] = [
+  { name: "Warrior", deckString: warriorDeckString, hero: warriorHero },
+  { name: "Druid", deckString: druidDeckString, hero: druidHero },
+  { name: "Mage", deckString: mageDeckString, hero: mageHero },
+  { name: "Paladin", deckString: paladinDeckString, hero: paladinHero },
+  { name: "Rogue", deckString: rogueDeckString, hero: rogueHero },
 ];
