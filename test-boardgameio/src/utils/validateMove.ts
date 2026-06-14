@@ -169,14 +169,14 @@ export function validateMove(
   }
 
   // Minions must be placed on the board (not directly targeted)
-  if (!card.isPlaced && card.isMinnion && target && target.type !== "lane") {
+  if (!card.isPlaced && card.isMinion && target && target.type !== "lane") {
     return { valid: false, error: "minion-needs-board" };
   }
 
   // Board limit for minions
   if (
     !card.isPlaced &&
-    card.isMinnion &&
+    card.isMinion &&
     G.board[ctx.currentPlayer].length >= 7
   ) {
     return { valid: false, error: "board-full" };
@@ -188,7 +188,7 @@ export function validateMove(
   }
 
   // Validate lane placement for unplaced minions
-  if (!card.isPlaced && card.isMinnion && target?.type === "lane") {
+  if (!card.isPlaced && card.isMinion && target?.type === "lane") {
     // Minions can only be placed on friendly lanes
     if (target.player !== ctx.currentPlayer) {
       return { valid: false, error: "invalid-target" };
@@ -278,7 +278,7 @@ export function canTargetHighlight(
   if (!activeCard || !currentPlayer) return false;
 
   // Unplaced minions can only target lanes
-  if (!activeCard.isPlaced && activeCard.isMinnion) {
+  if (!activeCard.isPlaced && activeCard.isMinion) {
     return targetType === "lane" && targetPlayerID === currentPlayer;
   }
 

@@ -50,7 +50,6 @@ const setupData = (
     heroPortrait: playerHero?.portrait || "assets/heros/Arthas.jpg",
     maxHealth: 30,
     health: 30,
-    maxArmor: 0,
     armor: 0,
     mana: 1,
     hand: [],
@@ -64,7 +63,6 @@ const setupData = (
       opponentHero?.portrait || "assets/heros/Illidan_Stormrage.jpg",
     maxHealth: 30,
     health: 30,
-    maxArmor: 0,
     armor: 0,
     mana: 1,
     hand: [],
@@ -151,7 +149,7 @@ const placeCard: Move<GameState> = (
   doEffects({ G, ctx }, cardId, "effects", location, ctx.currentPlayer, target);
 
   // See if the card can be placed on the board
-  if (card.isMinnion && !card.isPlaced) {
+  if (card.isMinion && !card.isPlaced) {
     // console.log("Placing minion on the board");
     card.isPlaced = true; // Mark the card as placed
     card.summoningSickness = true; // Minion has summoning sickness
@@ -590,7 +588,10 @@ function dealDamageToPlayer(
   const targetPlayer = G.players[targetPlayerId];
   if (!targetPlayer) return;
 
-  targetPlayer.health -= damageAmount;
+  const armorDamage = Math.min(targetPlayer.armor, damageAmount);
+  targetPlayer.armor -= armorDamage;
+  const remainingDamage = damageAmount - armorDamage;
+  targetPlayer.health -= remainingDamage;
 
   recordEvent(G, {
     type: "damage",
@@ -678,7 +679,6 @@ export const HeathStoneGame: Game<GameState> = {
       moves: { drawCard, placeCard, cancelBattlecry, endTurn },
       onBegin: ({ G, ctx }) => {
         // Draw 5 cards for each player at the start
-        console.log("CURRENT PLAYer", ctx.currentPlayer);
         for (let i = 0; i < 5; i++) {
           handleDrawCard(G, ctx, "0");
           handleDrawCard(G, ctx, "1");
@@ -702,7 +702,6 @@ export const HeathStoneGame: Game<GameState> = {
         onBegin: ({ G, ctx }) => {
           // Reset mana at the start of each turn
           // Draw a card at the start of the turn
-          console.log("CURRENT PLAYer TURN", ctx.currentPlayer);
 
           if (ctx.turn % 2) {
             G.maxMana = Math.min(G.maxMana + 1, 10);

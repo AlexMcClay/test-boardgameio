@@ -246,7 +246,7 @@ function enumerateHandPlays(G: GameState, ctx: Ctx, player: Player): AIMove[] {
     }
 
     // Check board space for minions
-    if (card.isMinnion && G.board[ctx.currentPlayer].length >= 7) {
+    if (card.isMinion && G.board[ctx.currentPlayer].length >= 7) {
       return; // Board is full
     }
 
@@ -254,7 +254,7 @@ function enumerateHandPlays(G: GameState, ctx: Ctx, player: Player): AIMove[] {
     if (card.targets && card.targets.length > 0) {
       const targetMoves = enumerateTargets(G, ctx, card, "hand");
       moves.push(...targetMoves);
-    } else if (card.isMinnion) {
+    } else if (card.isMinion) {
       // Minion without targeting - just needs to be placed
       const score = scoreCardPlay(G, ctx, card, null);
       moves.push({
@@ -366,7 +366,7 @@ function enumerateTargets(
   const moves: AIMove[] = [];
   const enemyPlayerId = ctx.currentPlayer === "0" ? "1" : "0";
 
-  if (card.isMinnion && location === "hand" && !card.isPlaced) {
+  if (card.isMinion && location === "hand" && !card.isPlaced) {
     // place on lane
     const target: TargetValue = {
       type: "lane",
@@ -412,7 +412,7 @@ function enumerateTargets(
           player: enemyPlayerId,
         };
         const scoreHero = scoreCardPlay(G, ctx, card, targetHero);
-        if (card.isMinnion && !card.isPlaced) {
+        if (card.isMinion && !card.isPlaced) {
           // can't place minion on hero, skip this move
           break;
         }
@@ -488,7 +488,7 @@ function scoreCardPlay(
   }
 
   // Minion value
-  if (card.isMinnion) {
+  if (card.isMinion) {
     score += 20; // Base value for board presence
     if (card.attack) score += card.attack * 8; // Attack is valuable
     if (card.health) score += card.health * 6; // Health is valuable
@@ -501,7 +501,7 @@ function scoreCardPlay(
   });
 
   // Battlecry value (if minion)
-  if (card.isMinnion && card.onPlace.length > 0) {
+  if (card.isMinion && card.onPlace.length > 0) {
     card.onPlace.forEach((effect) => {
       score += evaluateEffect(effect, card, target, G, ctx, enemyPlayer);
     });

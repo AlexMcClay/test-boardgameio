@@ -19,7 +19,7 @@ export interface Card {
   hasAttacked?: boolean; // Optional, to track if the card has attacked this turn
   summoningSickness?: boolean; // Optional, to track if minion was just placed (shows Zzz)
   isSpell?: boolean; // Optional, to indicate if the card is a spell
-  isMinnion: boolean; // Optional, to indicate if the card is a minion
+  isMinion: boolean; // Optional, to indicate if the card is a minion
   isUncollectible?: boolean; // Optional, to indicate if the card is uncollectible (like tokens)
   taunt?: boolean; // Optional, to indicate if the card has taunt
   frozen?: boolean;
@@ -40,7 +40,6 @@ export interface Player {
   heroPortrait: string; // Optional, if you want to display a hero portrait
   maxHealth: number;
   health: number;
-  maxArmor: number;
   armor: number;
   mana: number;
   hand: Card[];

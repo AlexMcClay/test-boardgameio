@@ -108,7 +108,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [damage(3, "friendly-hero")],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Warlock",
   },
   "chillwind-yeti": {
@@ -122,7 +122,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   fireball: {
@@ -137,7 +137,7 @@ export const cardTemplates = {
     onPlace: [],
     isSpell: true,
     targets: ["card", "player"],
-    isMinnion: false,
+    isMinion: false,
     class: "Mage",
   },
   "arcane-intellect": {
@@ -150,7 +150,7 @@ export const cardTemplates = {
     onPlace: [],
     isSpell: true,
     targets: [], // Can target the player to draw cards
-    isMinnion: false,
+    isMinion: false,
     class: "Mage",
   },
   "boulderfist-ogre": {
@@ -163,7 +163,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   wolfrider: {
@@ -177,7 +177,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [changeKey("summoningSickness", false, "self")],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   frostbolt: {
@@ -190,7 +190,7 @@ export const cardTemplates = {
     onPlace: [],
     isSpell: true,
     targets: ["card", "player"],
-    isMinnion: false,
+    isMinion: false,
     class: "Mage",
   },
   "bloodfen-raptor": {
@@ -204,7 +204,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   "river-crocolisk": {
@@ -218,7 +218,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   "ironfur-grizzly": {
@@ -233,7 +233,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   charge: {
@@ -245,7 +245,7 @@ export const cardTemplates = {
     effects: [changeKey("summoningSickness", false)],
     onPlace: [],
     isSpell: true,
-    isMinnion: false,
+    isMinion: false,
     targets: ["card-friendly"],
     class: "Warrior",
   },
@@ -260,7 +260,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   "frostwolf-grunt": {
@@ -274,7 +274,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   "murloc-tidehunter": {
@@ -288,7 +288,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [summon("murloc-scout")],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   "murloc-scout": {
@@ -302,7 +302,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     isUncollectible: true,
     class: "Neutral",
   },
@@ -316,7 +316,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [summon("boar")],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   boar: {
@@ -330,7 +330,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     isUncollectible: true,
     class: "Neutral",
   },
@@ -344,7 +344,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [summon("mechanical-dragonling")],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   "mechanical-dragonling": {
@@ -358,7 +358,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     isUncollectible: true,
     class: "Neutral",
   },
@@ -373,7 +373,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   "lord-of-the-arena": {
@@ -387,7 +387,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   "stormwind-knight": {
@@ -401,7 +401,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [changeKey("summoningSickness", false, "self")],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   innervate: {
@@ -414,7 +414,7 @@ export const cardTemplates = {
     onPlace: [],
     isSpell: true,
     targets: [],
-    isMinnion: false,
+    isMinion: false,
     class: "Druid",
   },
   "mark-of-the-wild": {
@@ -433,7 +433,7 @@ export const cardTemplates = {
     onPlace: [],
     isSpell: true,
     targets: ["card-friendly"],
-    isMinnion: false,
+    isMinion: false,
     class: "Druid",
   },
   "healing-touch": {
@@ -446,7 +446,7 @@ export const cardTemplates = {
     onPlace: [],
     isSpell: true,
     targets: ["card-friendly", "player-friendly"],
-    isMinnion: false,
+    isMinion: false,
     class: "Druid",
   },
   "darkscale-healer": {
@@ -460,7 +460,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [heal(2, "friendly-all", true)],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   nightblade: {
@@ -474,7 +474,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [damage(3, "enemy-hero")],
     targets: ["player-opponent", "card-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   "elven-archer": {
@@ -488,7 +488,7 @@ export const cardTemplates = {
     onPlace: [damage(1, "user-select", true)], // Battlecry damage that can target any character, bypassing taunt
     targets: ["card-opponent", "player-opponent"],
     battlecryTargets: ["card-opponent", "player-opponent"], // Can target any character for battlecry damage
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   "ironforge-rifleman": {
@@ -502,7 +502,7 @@ export const cardTemplates = {
     onPlace: [damage(1, "user-select", true)],
     targets: ["card-opponent", "player-opponent"],
     battlecryTargets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   "core-hound": {
@@ -516,7 +516,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   "silverback-patriarch": {
@@ -531,7 +531,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   "magma-rager": {
@@ -545,7 +545,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   "oasis-snapjaw": {
@@ -559,7 +559,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   "silver-hand-knight": {
@@ -573,7 +573,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [summon("squire")],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   squire: {
@@ -587,7 +587,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     isUncollectible: true,
     class: "Neutral",
   },
@@ -602,7 +602,7 @@ export const cardTemplates = {
     onPlace: [heal(2)], // Reuses your healing-touch payload architecture on a targeted entity
     battlecryTargets: ["card-friendly", "player-friendly"], // Can target friendly characters for battlecry healing
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     hasAttacked: false,
     class: "Neutral",
   },
@@ -616,7 +616,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [draw(1)], // Draw a card when placed
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   "stormpike-commando": {
@@ -630,7 +630,7 @@ export const cardTemplates = {
     onPlace: [damage(2, "user-select", true)], // Uses elven archer battlecry logic scaled to 2
     targets: ["card-opponent", "player-opponent"],
     battlecryTargets: ["card-opponent", "player-opponent"], // Can target any character for battlecry damage
-    isMinnion: true,
+    isMinion: true,
     hasAttacked: false,
     class: "Neutral",
   },
@@ -645,7 +645,7 @@ export const cardTemplates = {
     onPlace: [draw(1)], // Draw a card when placed
     battlecryTargets: [],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   "arcane-shot": {
@@ -656,7 +656,7 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isSpell: true,
-    isMinnion: false,
+    isMinion: false,
     imageUrl: "assets/cards/Arcane_Shot.jpg",
     class: "Hunter",
   },
@@ -668,7 +668,7 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-opponent"], // Can only target opponent minions
     isSpell: true,
-    isMinnion: false,
+    isMinion: false,
     imageUrl: "assets/cards/Assassinate.jpg",
     class: "Rogue",
   },
@@ -687,7 +687,7 @@ export const cardTemplates = {
     onPlace: [],
     isSpell: true,
     targets: ["card-friendly"],
-    isMinnion: false,
+    isMinion: false,
     class: "Paladin",
   },
   "goldshire-footman": {
@@ -701,7 +701,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   "booty-bay-bodyguard": {
@@ -715,7 +715,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   "reckless-rocketeer": {
@@ -728,7 +728,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [changeKey("summoningSickness", false, "self")],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Neutral",
   },
   "inner-rage": {
@@ -744,7 +744,7 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["card-friendly", "card-opponent"],
     isSpell: true,
-    isMinnion: false,
+    isMinion: false,
     class: "Warrior",
   },
   "bluegill-warrior": {
@@ -758,7 +758,7 @@ export const cardTemplates = {
     effects: [damage("attack")],
     onPlace: [changeKey("summoningSickness", false, "self")],
     targets: ["card-opponent", "player-opponent"],
-    isMinnion: true,
+    isMinion: true,
     class: "Warrior",
   },
   flamestrike: {
@@ -770,7 +770,7 @@ export const cardTemplates = {
     onPlace: [],
     targets: ["lane-opponent", "lane-friendly"],
     isSpell: true,
-    isMinnion: false,
+    isMinion: false,
     class: "Mage",
   },
 } satisfies Record<string, Omit<Card, "id">>;
