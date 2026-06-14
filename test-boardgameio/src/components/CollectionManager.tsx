@@ -14,6 +14,7 @@ import { heros, type Hero } from "@/utils/heros";
 
 const backgroundImage = "assets/collection/collection.png";
 const sheet = "assets/collection/sheet.png";
+const mana_crystal = "assets/mana.png";
 
 // class icons
 const deathKnightIcon = "assets/icons/Death_Knight_icon.webp";
@@ -110,10 +111,6 @@ const CollectionManager = () => {
       (sum, count) => sum + count,
       0,
     );
-    if (totalCards !== 30) {
-      alert("Deck must have exactly 30 cards!");
-      return;
-    }
 
     if (!deckName.trim()) {
       alert("Please enter a deck name!");
@@ -227,22 +224,6 @@ const CollectionManager = () => {
   const totalCards = Object.values(deck).reduce((sum, count) => sum + count, 0);
   const maxCards = 30;
 
-  // Calculate mana curve
-  const manaCurve = Array.from({ length: 8 }, (_, i) => {
-    const manaCount = Object.entries(deck).reduce((sum, [cardId, count]) => {
-      const card = cardTemplates[cardId as CardTemplateKey];
-      if (card) {
-        const mana = card.mana ?? 0;
-        if (i === 7) {
-          return mana >= 7 ? sum + count : sum;
-        }
-        return mana === i ? sum + count : sum;
-      }
-      return sum;
-    }, 0);
-    return manaCount;
-  });
-
   const allDecks = getAllDecks();
 
   return (
@@ -290,9 +271,7 @@ const CollectionManager = () => {
       {/* Left Panel - Card Collection */}
       <div className="flex flex-col w-[56vw] absolute h-[81vh] left-[12.6vw] top-[6vh] rounded-lg shadow-lg p-[1vw] px-[0.5vw] overflow-hidden">
         <p className="absolute w-[12vw] h-[4vh] left-[21vw] top-[3.3vh] text-center text-[1.4vw]">
-          {mode === "viewer"
-            ? "Collection"
-            : selectedClass || selectedHero?.class || "All Classes"}
+          {selectedClass || "All Classes"}
         </p>
 
         {/* Navigation zones */}
@@ -361,7 +340,7 @@ const CollectionManager = () => {
                 }}
               >
                 <div
-                  className={`w-[11.7vw] aspect-[5/7] items-center justify-center relative transition-all ease-in ${mode === "card-select" && deck[id as CardTemplateKey] ? "card-selected" : ""}`}
+                  className={`w-[11.7vw] aspect-[5/7] items-center justify-center relative transition-all ease-in `}
                 >
                   <div className="scale-140 absolute origin-top-left">
                     <Card
@@ -370,13 +349,6 @@ const CollectionManager = () => {
                       back={false}
                       isDragging={false}
                     />
-                    {mode === "card-select" &&
-                      deck[id as CardTemplateKey] &&
-                      deck[id as CardTemplateKey]! > 0 && (
-                        <div className="bg-amber-300 absolute top-[-0.5vw] right-[-0.5vw] text-[1vw] font-bold rounded-full w-[1.25vw] h-[1.25vw] flex items-center justify-center">
-                          {deck[id as CardTemplateKey]}
-                        </div>
-                      )}
                   </div>
                 </div>
               </div>
@@ -400,29 +372,29 @@ const CollectionManager = () => {
       </div>
 
       {/* Right Panel - Changes based on mode */}
-      <div className="w-[13.2vw] rounded-lg p-[1vw] flex flex-col items-center gap-[1vw] absolute left-[70.5vw] top-[7vh]">
+      <div className="w-[13.2vw] h-[84vh] rounded-lg p-[1vw] flex flex-col items-center gap-[1vw] absolute left-[70.5vw] top-[7vh]">
         {mode === "viewer" && (
           <>
-            <h2 className="text-[1.5vw] font-bold text-amber-300 mb-[1vw]">
-              Your Decks
-            </h2>
-
             <div className="flex flex-col gap-[0.5vw] w-full max-h-[60vh] overflow-y-auto">
               {allDecks.map((savedDeck) => (
                 <div
                   key={savedDeck.id}
-                  className="relative rounded w-full warrior-button transition-all duration-200 cursor-pointer p-[0.5vw] flex items-center gap-[0.5vw]"
-                  onClick={() => handleEditDeck(savedDeck)}
+                  className="flex h-[4vw] items-end gap-[0.5vw] bg-black/40rounded border border-amber-900  w-full "
+                  onClick={() => {
+                    if (savedDeck.id.startsWith("premade-")) return;
+                    handleEditDeck(savedDeck);
+                  }}
                   onMouseEnter={() => playSfx("button-over")}
+                  style={{
+                    backgroundImage: `url(${savedDeck.hero.portrait})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }}
                 >
-                  <img
-                    src={savedDeck.hero.portrait}
-                    alt={savedDeck.hero.heroName}
-                    className="w-[2.5vw] h-[2.5vw] rounded-full border-2 border-amber-900"
-                  />
-                  <span className="text-[0.9vw] text-amber-200 flex-1">
+                  <span className="w-full p-[0.3vw] text-[1.1vw] bg-gradient-to-r from-black to-transparent   text-white">
                     {savedDeck.name}
                   </span>
+
                   {!savedDeck.id.startsWith("premade-") && (
                     <button
                       onClick={(e) => handleDeleteDeck(savedDeck.id, e)}
@@ -443,117 +415,145 @@ const CollectionManager = () => {
               Create New Deck
             </button>
 
-            <button
-              onMouseEnter={() => playSfx("button-over")}
-              className="clear-deck-button w-full"
-              onClick={handleBackToMenu}
-            >
-              Back to Menu
-            </button>
+            <div className=" absolute bottom-[-2.4vw] left-[8.4vw] w-[8vw] text-[1.25vw]  text-white px-[0.5vw] py-[0.25vw] rounded-lg flex flex-col gap-0 ">
+              <button
+                onMouseEnter={() => playSfx("button-over")}
+                className="clear-deck-button w-full"
+                onClick={handleBackToMenu}
+              >
+                Back to Menu
+              </button>
+            </div>
           </>
         )}
 
         {mode === "card-select" && (
           <>
-            <div className="w-full">
-              <label className="text-[0.8vw] text-amber-300 block mb-[0.2vw]">
-                Deck Name
-              </label>
-              <input
-                type="text"
-                value={deckName}
-                onChange={(e) => setDeckName(e.target.value)}
-                placeholder="Enter deck name..."
-                className="w-full p-[0.3vw] text-[0.9vw] rounded bg-black/60 border border-amber-900 text-white"
-                maxLength={30}
-              />
-            </div>
-
             {selectedHero && (
-              <div className="flex items-center gap-[0.5vw] bg-black/40 p-[0.5vw] rounded border border-amber-900">
-                <img
-                  src={selectedHero.portrait}
-                  alt={selectedHero.heroName}
-                  className="w-[2vw] h-[2vw] rounded-full"
+              <div
+                className="flex h-[4vw] items-end gap-[0.5vw] bg-black/40rounded border border-amber-900 left-[0.3vw] w-full absolute top-[-7vh]"
+                style={{
+                  backgroundImage: `url(${selectedHero.portrait})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }}
+              >
+                <input
+                  type="text"
+                  value={deckName}
+                  onChange={(e) => setDeckName(e.target.value)}
+                  placeholder="Enter deck name..."
+                  className="w-full p-[0.3vw] text-[1.1vw] bg-gradient-to-r from-black to-transparent   text-white"
+                  maxLength={30}
                 />
-                <span className="text-[0.8vw] text-amber-200">
-                  {selectedHero.heroName}
-                </span>
               </div>
             )}
 
-            <div className="text-[1.25vw] font-bold bg-black/60 px-[0.5vw] py-[0.25vw] rounded-lg border border-amber-900">
-              <span
-                className={
-                  totalCards > maxCards
-                    ? "text-red-400"
-                    : totalCards === maxCards
-                      ? "text-green-400"
-                      : "text-yellow-400"
-                }
-              >
-                {totalCards}
-              </span>
-              <span className="text-gray-400"> / {maxCards}</span>
-            </div>
-
-            {/* Mana Curve */}
-            <div className="w-full bg-black/20 rounded-lg p-[1vw] border border-amber-900">
-              <h3 className="text-[1vw] text-amber-300 text-center">
-                Mana Curve
-              </h3>
-              <div className="h-[10vw] gap-1 flex items-end">
-                {manaCurve.map((count, mana) => (
+            {/* CARD LIST GOES HERE */}
+            <div
+              className={twMerge(
+                "flex flex-col w-full gap-[0.5vh] overflow-y-auto h-full rounded-[0.7vw]",
+                Object.values(deck).reduce((sum, count) => sum + count, 0) ==
+                  30 &&
+                  " ring-blue-500 ring-2 shadow-blue-400  shadow-[0px_0px_60px_rgba(0,0,0,0.5)] ",
+              )}
+            >
+              {Object.entries(deck)
+                .sort(([aKey], [bKey]) => {
+                  const aCard = cardTemplates[aKey as CardTemplateKey];
+                  const bCard = cardTemplates[bKey as CardTemplateKey];
+                  const aMana = aCard.mana ?? -1;
+                  const bMana = bCard.mana ?? -1;
+                  return aMana - bMana;
+                })
+                .map(([k, count]) => (
                   <div
-                    key={mana}
-                    className="flex flex-col items-center w-full h-full justify-end"
+                    key={k}
+                    className="bg-gray-800 text-white w-full h-[3vh] min-h-[3vh] flex items-center relative shadow rounded cursor-pointer hover:bg-gray-700 transition-colors"
+                    onClick={() => {
+                      const currentCount = deck[k as CardTemplateKey] || 0;
+                      if (currentCount > 0) {
+                        handleDeckChange(
+                          k as CardTemplateKey,
+                          currentCount - 1,
+                        );
+                      }
+                    }}
+                    onMouseEnter={() => playSfx("card-over")}
                   >
-                    <div
-                      className="mana-bar"
+                    <img
+                      src={cardTemplates[k as CardTemplateKey].imageUrl}
+                      className={twMerge(
+                        "absolute h-[2.8vh] min-h-[2.8vh] w-[40%] right-0",
+                        "object-cover object-center", // Prevents stretching & centers the image contents
+                        count > 1 && "right-[1.1vw]",
+                      )}
                       style={{
-                        height:
-                          totalCards > 0
-                            ? `${(count / totalCards) * 2 * 100}%`
-                            : "0%",
-                        minHeight: count > 0 ? "20px" : "0px",
+                        WebkitMaskImage:
+                          "linear-gradient(to left, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%)",
+                        maskImage:
+                          "linear-gradient(to left, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%)",
                       }}
-                    >
-                      <span className="text-[0.8vw] text-white font-bold">
-                        {count || ""}
+                      alt="card-image"
+                    />
+                    {/* Mana Crystal */}
+                    <div className=" select-none absolute text-lg w-[1.7vw] h-[1.7vw] flex items-center justify-center font-bold  shadow-md z-10 ">
+                      <img
+                        src={mana_crystal}
+                        alt="cardTemplates[k as CardTemplateKey] Back"
+                        className="object-cover w-full h-full absolute scale-100 brightness-90"
+                        // no drag
+                        draggable="false"
+                      />
+                      <span
+                        className="relative z-20 text-[1.1vw] font-extrabold font-belwe  scale-160 translate-y-[-10%] translate-x-[-5%]"
+                        style={{
+                          WebkitTextStroke: "0.5px black",
+                          textShadow: "0 1px 0px black",
+                        }}
+                      >
+                        {cardTemplates[k as CardTemplateKey].mana ?? ""}
                       </span>
                     </div>
-                    <div className="text-[0.8vw] text-gray-400 mt-1">
-                      {mana === 7 ? "7+" : mana}
-                    </div>
+
+                    <span
+                      className="pl-[2vw] text-[0.8vw] z-20"
+                      style={{
+                        WebkitTextStroke: "0.2px black",
+                        textShadow: "0 1px 0px black",
+                      }}
+                    >
+                      {cardTemplates[k as CardTemplateKey].title}
+                    </span>
+
+                    {count > 1 && (
+                      <div className="absolute right-0 top-0 bg-gray-950 h-full flex items-center text-yellow-400 px-[0.3vw] rounded">
+                        {count}
+                      </div>
+                    )}
                   </div>
                 ))}
-              </div>
             </div>
 
-            <button
-              onMouseEnter={() => playSfx("button-over")}
-              className="clear-deck-button"
-              onClick={handleClearDeck}
-            >
-              Clear Deck
-            </button>
+            <div className=" absolute bottom-[-2.4vw] left-[8.4vw] w-[8vw] text-[1.25vw]  text-white px-[0.5vw] py-[0.25vw] rounded-lg flex flex-col gap-0 ">
+              <button
+                onMouseEnter={() => playSfx("button-over")}
+                className="clear-deck-button"
+                onClick={handleSaveDeck}
+              >
+                <span className="button-text">Save Deck</span>
+              </button>
+            </div>
 
-            <button
-              onMouseEnter={() => playSfx("button-over")}
-              className={`confirm-deck-button ${totalCards === maxCards && deckName.trim() ? "ready" : ""}`}
-              onClick={handleSaveDeck}
-              disabled={totalCards !== maxCards || !deckName.trim()}
-            >
-              <span className="button-text">Save Deck</span>
-            </button>
-
-            <button
-              onMouseEnter={() => playSfx("button-over")}
-              className="clear-deck-button"
-              onClick={handleCancelEdit}
-            >
-              Cancel
-            </button>
+            <div className=" absolute bottom-[-1.8vw] left-[1.5vw] text-[1.25vw]  text-white px-[0.5vw] py-[0.25vw] rounded-lg flex flex-col gap-0 ">
+              <div>
+                <span>{totalCards}</span>
+                <span> / {maxCards}</span>
+              </div>
+              <span className="text-[0.8vw] absolute bottom-[-0.5vh] left-[1.2vw]">
+                Cards
+              </span>
+            </div>
           </>
         )}
       </div>
@@ -606,5 +606,58 @@ const CollectionManager = () => {
     </div>
   );
 };
+
+function ManaCurve({
+  deck,
+  totalCards,
+}: {
+  deck: DeckString;
+  totalCards: number;
+}) {
+  const manaCurve = Array.from({ length: 8 }, (_, i) => {
+    const manaCount = Object.entries(deck).reduce((sum, [cardId, count]) => {
+      const card = cardTemplates[cardId as CardTemplateKey];
+      if (card) {
+        const mana = card.mana ?? 0;
+        if (i === 7) {
+          return mana >= 7 ? sum + count : sum;
+        }
+        return mana === i ? sum + count : sum;
+      }
+      return sum;
+    }, 0);
+    return manaCount;
+  });
+
+  return (
+    <div className="w-full bg-black/20 rounded-lg p-[1vw] border border-amber-900">
+      <h3 className="text-[1vw] text-amber-300 text-center">Mana Curve</h3>
+      <div className="h-[10vw] gap-1 flex items-end">
+        {manaCurve.map((count, mana) => (
+          <div
+            key={mana}
+            className="flex flex-col items-center w-full h-full justify-end"
+          >
+            <div
+              className="mana-bar"
+              style={{
+                height:
+                  totalCards > 0 ? `${(count / totalCards) * 2 * 100}%` : "0%",
+                minHeight: count > 0 ? "20px" : "0px",
+              }}
+            >
+              <span className="text-[0.8vw] text-white font-bold">
+                {count || ""}
+              </span>
+            </div>
+            <div className="text-[0.8vw] text-gray-400 mt-1">
+              {mana === 7 ? "7+" : mana}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default CollectionManager;
