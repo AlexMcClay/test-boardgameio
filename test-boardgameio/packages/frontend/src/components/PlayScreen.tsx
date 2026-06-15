@@ -1,21 +1,21 @@
 import { useEffect, useState } from "react";
 import { useAudioStore } from "@/stores/audioStore";
 import { useDeckStore } from "@/stores/deckStore";
-import { useViewStore } from "@/stores/viewStore";
+import {
+  useViewStore,
+  type GameMode,
+  type MultiplayerSession,
+} from "@/stores/viewStore";
 import { generateCardsFromDeckstring, type SavedDeck } from "@project/shared";
 import { matchmakingWebSocketService } from "@/services/matchMakingService";
+import SettingsOverlay from "./SettingsOverlay";
+import SettingsButton from "./SettingsButton";
 
 const backgroundImage = "assets/menu/main_menu.png";
 
-type MultiplayerSession = {
-  matchID: string;
-  playerID: string;
-  playerCredentials: string;
-};
-
 interface PlayScreenProps {
   onGameStart: (
-    mode: "pvp" | "ai",
+    mode: GameMode,
     multiplayerSession?: MultiplayerSession,
   ) => void;
 }
@@ -30,6 +30,8 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
   }, []);
 
   const [isSearchingMatch, setIsSearchingMatch] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
   useEffect(() => {
     const unsubscribe = matchmakingWebSocketService.subscribe((msg) => {
       console.log("Received WebSocket message: ", msg);
@@ -249,6 +251,15 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
           </button>
         </div>
       </div>
+
+      {/* Settings Button */}
+      <SettingsButton setIsSettingsOpen={setIsSettingsOpen} />
+
+      {/* Settings Overlay */}
+      <SettingsOverlay
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </div>
   );
 };

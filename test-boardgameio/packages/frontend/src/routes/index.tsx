@@ -50,15 +50,12 @@ class FastMCTSBot extends MCTSBot {
 }
 
 function App() {
-  const [gameMode, setGameMode] = useState<"pvp" | "ai" | null>(null);
-  const [gameKey, setGameKey] = useState(0); // Used to remount game component
-  const [multiplayerSession, setMultiplayerSession] = useState<{
-    matchID: string;
-    playerID: string;
-    playerCredentials: string;
-  } | null>(null);
-
   const currentView = useViewStore((state) => state.currentView);
+  const gameMode = useViewStore((state) => state.gameMode);
+  const gameKey = useViewStore((state) => state.gameKey);
+  const multiplayerSession = useViewStore((state) => state.multiplayerSession);
+  const startGame = useViewStore((state) => state.startGame);
+
   const { selectedDeckForPlay, generateOpponentDeck } = useDeckStore();
 
   useBackgroundMusic({
@@ -88,9 +85,8 @@ function App() {
     // Generate opponent deck
     generateOpponentDeck();
 
-    setGameMode(mode);
-    setMultiplayerSession(nextMultiplayerSession ?? null);
-    setGameKey((prev) => prev + 1); // Force remount with new setupData
+    // Use viewStore's startGame method
+    startGame(mode, nextMultiplayerSession);
   };
 
   // Show main menu

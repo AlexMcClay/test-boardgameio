@@ -16,6 +16,8 @@ import {
 } from "@/stores/deckStore";
 import { useViewStore } from "@/stores/viewStore";
 import { twMerge } from "tailwind-merge";
+import SettingsOverlay from "./SettingsOverlay";
+import SettingsButton from "./SettingsButton";
 
 const backgroundImage = "assets/collection/collection.png";
 const sheet = "assets/collection/sheet.png";
@@ -61,6 +63,7 @@ const CollectionManager = () => {
   const [deck, setDeck] = useState<DeckString>({});
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const playSfx = useAudioStore((state) => state.playSfx);
   const { saveUserDeck, deleteUserDeck, getAllDecks } = useDeckStore();
@@ -613,6 +616,15 @@ const CollectionManager = () => {
           </div>
         </div>
       )}
+
+      {/* Settings Button */}
+      <SettingsButton setIsSettingsOpen={setIsSettingsOpen} />
+
+      {/* Settings Overlay */}
+      <SettingsOverlay
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </div>
   );
 };

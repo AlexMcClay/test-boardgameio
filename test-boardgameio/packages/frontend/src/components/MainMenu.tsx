@@ -1,6 +1,8 @@
 import { useAudioStore } from "@/stores/audioStore";
 import { useViewStore } from "@/stores/viewStore";
 import { useState } from "react";
+import SettingsOverlay from "./SettingsOverlay";
+import SettingsButton from "./SettingsButton";
 
 const backgroundImage = "assets/menu/main_menu.png";
 
@@ -8,6 +10,7 @@ const MainMenu = () => {
   const [hoveredButton, setHoveredButton] = useState<
     "play" | "collection" | null
   >(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const playSfx = useAudioStore((state) => state.playSfx);
   const setView = useViewStore((state) => state.setView);
@@ -85,6 +88,15 @@ const MainMenu = () => {
           </button>
         </div>
       </div>
+
+      {/* Settings Button */}
+      <SettingsButton setIsSettingsOpen={setIsSettingsOpen} />
+
+      {/* Settings Overlay */}
+      <SettingsOverlay
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </div>
   );
 };

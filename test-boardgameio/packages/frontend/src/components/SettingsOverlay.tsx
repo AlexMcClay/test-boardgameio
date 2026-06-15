@@ -1,11 +1,13 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useAudioStore } from "@/stores/audioStore";
+import { useViewStore } from "@/stores/viewStore";
 import {
   IoClose,
   IoVolumeHigh,
   IoVolumeMute,
   IoMusicalNotes,
   IoMegaphone,
+  IoLogOut,
 } from "react-icons/io5";
 
 interface SettingsOverlayProps {
@@ -20,6 +22,16 @@ const SettingsOverlay = ({ isOpen, onClose }: SettingsOverlayProps) => {
   const setMusicVolume = useAudioStore((state) => state.setMusicVolume);
   const setSfxVolume = useAudioStore((state) => state.setSfxVolume);
   const toggleMute = useAudioStore((state) => state.toggleMute);
+  const playSfx = useAudioStore((state) => state.playSfx);
+
+  const gameMode = useViewStore((state) => state.gameMode);
+  const disconnectFromGame = useViewStore((state) => state.disconnectFromGame);
+
+  const handleDisconnect = () => {
+    playSfx("button-click");
+    disconnectFromGame();
+    onClose();
+  };
 
   return (
     <AnimatePresence>
@@ -138,6 +150,23 @@ const SettingsOverlay = ({ isOpen, onClose }: SettingsOverlayProps) => {
                   className="w-full h-[0.4vw] bg-gray-600 rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed accent-blue-600"
                 />
               </div>
+
+              {/* Disconnect Button - Show if in any active game */}
+              {gameMode && (
+                <>
+                  <div className="border-t border-gray-600/50 my-[0.5vw]" />
+                  <button
+                    onClick={handleDisconnect}
+                    onMouseEnter={() => {
+                      playSfx("button-over");
+                    }}
+                    className="flex items-center justify-center gap-[0.6vw] bg-red-600/80 hover:bg-red-600 text-white rounded-lg p-[0.7vw] transition-colors duration-200"
+                  >
+                    <IoLogOut className="w-[1.2vw] h-[1.2vw]" />
+                    <span className="font-medium text-[0.85vw]">Exit Game</span>
+                  </button>
+                </>
+              )}
             </div>
           </motion.div>
         </motion.div>
