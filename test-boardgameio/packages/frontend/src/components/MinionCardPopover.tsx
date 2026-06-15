@@ -21,12 +21,12 @@ const MinionCardPopover = ({ card, position, ctx }: Props) => {
         left: `${position.x}px`,
         top: `${position.y}px`,
       }}
-      initial={{ opacity: 0, scale: 0.9 }}
+      initial={{ opacity: 0, scale: 0.5 }}
       animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      transition={{ duration: 0.2 }}
+      exit={{ opacity: 0, scale: 0.5 }}
+      transition={{ duration: 0.1 }}
     >
-      <div className="scale-150 origin-left">
+      <div className="scale-200 origin-left">
         <CardComponent card={card} ctx={ctx} />
       </div>
     </motion.div>,
