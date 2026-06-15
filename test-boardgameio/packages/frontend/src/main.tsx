@@ -8,6 +8,15 @@ import { routeTree } from './routeTree.gen'
 import './styles.css'
 import reportWebVitals from './reportWebVitals.ts'
 
+function ensureUserId(): string {
+  const existingUserId = localStorage.getItem('user_id')
+  if (existingUserId) return existingUserId
+
+  const newUserId = crypto.randomUUID()
+  localStorage.setItem('user_id', newUserId)
+  return newUserId
+}
+
 // Create a new router instance
 const router = createRouter({
   routeTree,
@@ -28,6 +37,8 @@ declare module '@tanstack/react-router' {
 // Render the app
 const rootElement = document.getElementById('app')
 if (rootElement && !rootElement.innerHTML) {
+  ensureUserId()
+
   const root = ReactDOM.createRoot(rootElement)
   root.render(
     <StrictMode>
