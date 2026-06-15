@@ -53,6 +53,7 @@ const HeroSection = ({ player }: Props) => {
       className={twMerge(
         `flex items-center w-[7%] pointer-events-auto relative transition-all duration-100 no-shadow`,
         isValid && !isOver && "valid-target-shadow ",
+        isValid && isOver && "highlight-shadow",
       )}
       style={{
         aspectRatio: "1 / 1.06",

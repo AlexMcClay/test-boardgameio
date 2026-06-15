@@ -355,7 +355,7 @@ const DropDetectCard = (props: Omit<Props, "isValid">) => {
       <div
         className={twMerge(
           isValid && !isOver && "valid-target-shadow ",
-          isOver && "ring-2 ring-amber-300",
+          isValid && isOver && "highlight-shadow ring-2 ring-amber-300",
         )}
       >
         <MinionCard {...props} isValid={isValid} />

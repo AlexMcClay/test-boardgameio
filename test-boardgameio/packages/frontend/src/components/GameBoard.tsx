@@ -178,6 +178,23 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
 
       // If animations exist, add them to queue with current game state and ctx
       if (animations.length > 0) {
+        // --- DUPLICATE CHECK START ---
+        // Fetch the absolute newest queue array snapshot directly from the store
+        const existingQueue = useAnimationStore.getState().queue;
+        const incomingSerialized = JSON.stringify(animations);
+
+        const isAlreadyQueued = existingQueue.some(
+          (batch) => JSON.stringify(batch.animations) === incomingSerialized,
+        );
+
+        if (isAlreadyQueued) {
+          console.warn(
+            "⚠️ Multi-player race-condition caught in useEffect: This animation batch is already in the queue. Dropping duplicate.",
+          );
+          return; // Exit early so it doesn't queue or trigger an extra playAnimations loop
+        }
+        // --- DUPLICATE CHECK END ---
+
         console.log("Queueing animation batch:", animations);
 
         // Queue this batch of animations with the full game state and ctx

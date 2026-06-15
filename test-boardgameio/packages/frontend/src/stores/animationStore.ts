@@ -30,13 +30,39 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
   activeAnimations: [],
 
   queueAnimationBatch: (animations, gameState, ctx) => {
+    // 1. Get current queue state
+    const currentQueue = get().queue;
+
+    // 2. Check if this exact batch of animations is already in the queue
+    const isDuplicate = currentQueue.some((batch) => {
+      if (batch.animations.length !== animations.length) return false;
+
+      // Deep compare each animation in the array
+      return batch.animations.every((anim, index) => {
+        const incomingAnim = animations[index];
+        if (anim.type !== incomingAnim.type) return false;
+
+        // Compare by matching types and structures
+        return JSON.stringify(anim) === JSON.stringify(incomingAnim);
+      });
+    });
+
+    if (isDuplicate) {
+      console.warn(
+        "⚠️ Animation bug caught: Attempted to add duplicate animation batch to queue. Ignoring.",
+        animations,
+      );
+      return; // Stop execution, don't add to queue
+    }
+
+    // 3. If it's unique, add it to the queue
     set((state) => ({
       queue: [
         ...state.queue,
         {
           animations,
-          gameState: structuredClone(gameState), // Deep clone to prevent reference issues
-          ctx: structuredClone(ctx), // Deep clone ctx as well
+          gameState: structuredClone(gameState),
+          ctx: structuredClone(ctx),
         },
       ],
     }));
