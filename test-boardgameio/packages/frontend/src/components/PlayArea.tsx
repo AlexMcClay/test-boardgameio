@@ -1,16 +1,60 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAudioStore } from "@/stores/audioStore";
 import { useDeckStore } from "@/stores/deckStore";
 import { useViewStore } from "@/stores/viewStore";
-import type { SavedDeck } from "@project/shared";
+import {
+  createCardFromID,
+  shuffleDeck,
+  type Card,
+  type CardTemplateKey,
+  type SavedDeck,
+} from "@project/shared";
+import { matchmakingWebSocketService } from "@/services/matchMakingService";
 
 const backgroundImage = "assets/menu/main_menu.png";
 
+type MultiplayerSession = {
+  matchID: string;
+  playerID: string;
+  playerCredentials: string;
+};
+
 interface PlayAreaProps {
-  onGameStart: (mode: "pvp" | "ai") => void;
+  onGameStart: (mode: "pvp" | "ai", multiplayerSession?: MultiplayerSession) => void;
 }
 
 const PlayArea = ({ onGameStart }: PlayAreaProps) => {
+  useEffect(() => {
+    matchmakingWebSocketService.reconnect();
+
+    return () => {
+      matchmakingWebSocketService.disconnect();
+    };
+  }, []);
+
+  const [isSearchingMatch, setIsSearchingMatch] = useState(false);
+  useEffect(() => {
+    const unsubscribe = matchmakingWebSocketService.subscribe(msg => {
+      console.log("Received WebSocket message: ", msg);
+
+      if (msg.type === "searching_for_match") {
+        setIsSearchingMatch(true);
+      }
+
+      if (msg.type === "match_found") {
+        setIsSearchingMatch(false);
+        onGameStart("pvp", {
+          matchID: msg.matchID,
+          playerID: msg.playerID,
+          playerCredentials: msg.playerCredentials,
+        });
+      }
+    });
+
+    return unsubscribe;
+  }, [onGameStart]);
+
+
   const [selectedDeck, setSelectedDeck] = useState<SavedDeck | null>(null);
   const [hoveredMode, setHoveredMode] = useState<"pvp" | "ai" | null>(null);
 
@@ -20,6 +64,19 @@ const PlayArea = ({ onGameStart }: PlayAreaProps) => {
 
   const allDecks = getAllDecks();
 
+  const getDeckCards = (deckString: Record<string, number>): Card[] => {
+    const deck: Card[] = [];
+    for (const cardId in deckString) {
+      const count = deckString[cardId as CardTemplateKey];
+      if (!count) continue;
+      for (let i = 0; i < count; i++) {
+        const card = createCardFromID(cardId as CardTemplateKey);
+        if (card) deck.push(card);
+      }
+    }
+    return shuffleDeck(deck);
+  };
+
   function handleSelectDeck(deck: SavedDeck) {
     playSfx("button-click");
     setSelectedDeck(deck);
@@ -27,11 +84,37 @@ const PlayArea = ({ onGameStart }: PlayAreaProps) => {
   }
 
   function handleStartGame(mode: "pvp" | "ai") {
+    if(isSearchingMatch)
+    {
+      matchmakingWebSocketService.send({
+        type: "cancel_search",
+        playerID: localStorage.getItem("user_id") || "",
+      });
+      alert("Canceling current matchmaking search...");
+      setIsSearchingMatch(false);
+      return;
+    }
     if (!selectedDeck) {
       alert("Please select a deck first!");
       return;
     }
     playSfx("button-click");
+    if(mode === "pvp" && !matchmakingWebSocketService.isConnected()) {
+      console.log("Matchmaking server is not connected. Setting up Local Play instead.");
+      onGameStart(mode);
+    }
+    else if(mode === "pvp") {
+      console.log("Starting matchmaking via WebSocket...");
+      matchmakingWebSocketService.send({
+        type: "find_match",
+        playerID: localStorage.getItem("user_id") || "",
+        playerDeck: getDeckCards(selectedDeck.deckString),
+        playerHero: selectedDeck.hero,
+      });
+      setIsSearchingMatch(true);
+      return;
+    }
+
     onGameStart(mode);
   }
 
@@ -128,7 +211,7 @@ const PlayArea = ({ onGameStart }: PlayAreaProps) => {
               `}
             >
               <span className="text-2xl font-bold text-stone-800 drop-shadow-[0_2px_2px_rgba(255,255,255,0.3)]">
-                Play vs Player
+                {isSearchingMatch ? "Searching For Match..." : "Play vs Player"}
               </span>
               <div className="absolute inset-0 rounded-lg border-t-2 border-l-2 border-white/20 pointer-events-none" />
               <div className="absolute inset-0 rounded-lg border-b-2 border-r-2 border-black/20 pointer-events-none" />

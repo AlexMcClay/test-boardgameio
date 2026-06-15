@@ -1,7 +1,8 @@
 import { useAnimationStore } from "@/stores/animationStore";
 import type { HitNumberAnimation } from "@/types/animations";
-import { motion, AnimatePresence, useMotionValue } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 
 interface HitNumberPosition {
   id: string;
@@ -15,7 +16,6 @@ const damage_icon = "assets/damage_icon.png";
 
 const HitNumbers = () => {
   const activeAnimations = useAnimationStore((s) => s.activeAnimations);
-
   const [positions, setPositions] = useState<HitNumberPosition[]>([]);
   const processedAnimations = useRef<Set<string>>(new Set());
 
@@ -26,7 +26,6 @@ const HitNumbers = () => {
   useEffect(() => {
     const newAnimations = hitNumberAnimations.filter((anim) => {
       const animKey = `${anim.targetId}-${anim.damageType}-${anim.value}-${anim.startTime}`;
-
       return !processedAnimations.current.has(animKey);
     });
 
@@ -34,7 +33,6 @@ const HitNumbers = () => {
 
     const newPositions: HitNumberPosition[] = newAnimations.map((anim) => {
       const animKey = `${anim.targetId}-${anim.damageType}-${anim.value}-${anim.startTime}`;
-
       processedAnimations.current.add(animKey);
 
       return {
@@ -55,20 +53,19 @@ const HitNumbers = () => {
     }
   }, [hitNumberAnimations.length, positions.length]);
 
+  // Notice we don't need the fullscreen wrapper fixed overlay here anymore!
   return (
-    <div className="fixed inset-0 pointer-events-none z-40">
-      <AnimatePresence>
-        {positions.map((pos) => (
-          <HitNumber
-            key={pos.id}
-            {...pos}
-            onFinished={() =>
-              setPositions((prev) => prev.filter((p) => p.id !== pos.id))
-            }
-          />
-        ))}
-      </AnimatePresence>
-    </div>
+    <AnimatePresence>
+      {positions.map((pos) => (
+        <HitNumber
+          key={pos.id}
+          {...pos}
+          onFinished={() =>
+            setPositions((prev) => prev.filter((p) => p.id !== pos.id))
+          }
+        />
+      ))}
+    </AnimatePresence>
   );
 };
 
@@ -88,72 +85,45 @@ const HitNumber = ({
   onFinished,
 }: HitNumberProps) => {
   const isDamage = damageType === "damage";
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
-  const x = useMotionValue(window.innerWidth / 2);
-  const y = useMotionValue(window.innerHeight / 2);
-
+  // Find the parent element ONLY ONCE when the component mounts
   useEffect(() => {
-    let frameId: number;
+    const selector =
+      targetType === "card"
+        ? `[data-card-id="${targetId}"]`
+        : `[data-player-id="${targetId}"]`;
 
-    const updatePosition = () => {
-      let targetElement: HTMLElement | null = null;
-
-      if (targetType === "card") {
-        targetElement = document.querySelector(`[data-card-id="${targetId}"]`);
-      } else {
-        targetElement = document.querySelector(
-          `[data-player-id="${targetId}"]`,
-        );
-      }
-
-      if (targetElement) {
-        const rect = targetElement.getBoundingClientRect();
-
-        x.set(rect.left + rect.width / 2);
-        y.set(rect.top + rect.height / 2);
-      }
-
-      frameId = requestAnimationFrame(updatePosition);
-    };
-
-    updatePosition();
-
-    return () => {
-      cancelAnimationFrame(frameId);
-    };
-  }, [targetId, targetType, x, y]);
+    const element = document.querySelector(selector) as HTMLElement | null;
+    if (element) {
+      setPortalTarget(element);
+    } else {
+      // Fallback if target element isn't found in DOM yet
+      onFinished();
+    }
+  }, [targetId, targetType, onFinished]);
 
   useEffect(() => {
     const timer = setTimeout(onFinished, 1500);
-
     return () => clearTimeout(timer);
   }, [onFinished]);
 
-  return (
+  // If we haven't found the DOM node to attach to, render nothing
+  if (!portalTarget) return null;
+
+  return createPortal(
     <motion.div
-      style={{
-        position: "absolute",
-        left: 0,
-        top: 0,
-        x,
-        y,
-      }}
-      initial={{
-        opacity: 1,
-        scale: 0.7,
-      }}
+      initial={{ opacity: 1, scale: 0.7 }}
       animate={{
         opacity: [1, 1, 1, 1, 1, 1, 1, 1, 0],
         scale: [0.8, 1.3, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2],
+        // Optional: Add a little natural floating upward effect relative to the card
+        y: [0, -10, -20, -25, -30, -30, -30, -30, -35],
       }}
-      exit={{
-        opacity: 0,
-      }}
-      transition={{
-        duration: 1.5,
-        ease: "easeOut",
-      }}
-      className="-translate-x-1/2 -translate-y-1/2"
+      exit={{ opacity: 0 }}
+      transition={{ duration: 1.5, ease: "easeOut" }}
+      // Perfectly centers the damage numbers over the relative parent container
+      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-50"
     >
       <div className="relative flex items-center justify-center">
         <motion.img
@@ -189,7 +159,8 @@ const HitNumber = ({
           {value}
         </motion.div>
       </div>
-    </motion.div>
+    </motion.div>,
+    portalTarget, // <--- This sends it straight into your target element!
   );
 };
 

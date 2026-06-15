@@ -31,6 +31,7 @@ const PlacedCard = ({
   const playSfx = useAudioStore((state) => state.playSfx);
 
   useEffect(() => {
+    console.log("IS ATTACKING", isAttacking, card.title);
     if (isAttacking) {
       setTimeout(() => {
         playSfx("minion-attack");

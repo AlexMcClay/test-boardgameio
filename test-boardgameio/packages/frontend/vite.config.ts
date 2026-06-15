@@ -15,6 +15,11 @@ export default defineConfig({
     tailwindcss(),
     tsconfigPaths(),
   ],
+  server: {
+    watch: {
+      usePolling: true
+    }
+  },
   test: {
     globals: true,
     environment: "jsdom",

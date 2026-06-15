@@ -27,8 +27,8 @@ const Lane = ({ children, playerID }: Props) => {
       ref={setNodeRef}
       className={twMerge(
         `flex justify-center items-center gap-[0.8vw] relative`,
-        isOver && "ring-2 ring-yellow-300",
-        isValid && "ring-2 ring-yellow-400 bg-yellow-400/10",
+        isValid && "ring-2 ring-orange-300 bg-orange-400/10",
+        isOver && "ring-2 ring-green-300 bg-green-400/20",
       )}
       style={{
         height: "calc(36%)", // Adjust height to account for gap

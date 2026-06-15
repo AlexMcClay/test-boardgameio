@@ -158,35 +158,79 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
   useEffect(() => {
     if (!isAttackingWithArrow) return;
 
+    // Helper function to find target ID via coordinate bounding boxes
+    const getTargetAtCoordinates = (clientX: number, clientY: number) => {
+      // Find all player containers on the board
+      const playerElements = document.querySelectorAll(
+        '[data-player-bounds="true"]',
+      );
+
+      for (const el of playerElements) {
+        const rect = el.getBoundingClientRect();
+
+        // Check if mouse coordinates fall strictly within the element's actual box boundary
+        const isInsideX = clientX >= rect.left && clientX <= rect.right;
+        const isInsideY = clientY >= rect.top && clientY <= rect.bottom;
+
+        if (isInsideX && isInsideY) {
+          return el.getAttribute("data-player-id");
+        }
+      }
+      return null;
+    };
+
     const handleMouseMove = (e: MouseEvent) => {
       updateAttackCursor({ x: e.clientX, y: e.clientY });
+
+      // 1. Check if hovering a player via geometry
+      const targetPlayerId = getTargetAtCoordinates(e.clientX, e.clientY);
+
+      // 2. Fall back to elementFromPoint for cards (assuming cards aren't blocked by the health bar)
+      let targetCardId: string | null = null;
+      if (!targetPlayerId) {
+        const element = document.elementFromPoint(e.clientX, e.clientY);
+        targetCardId =
+          element?.closest("[data-card-id]")?.getAttribute("data-card-id") ||
+          null;
+      }
+
+      // Update store state for the bullseye target preview
+      if (targetPlayerId) {
+        useDragStore.setState({
+          hoveredTarget: { type: "player", id: targetPlayerId },
+        });
+      } else if (targetCardId) {
+        useDragStore.setState({
+          hoveredTarget: { type: "card", id: targetCardId },
+        });
+      } else {
+        useDragStore.setState({ hoveredTarget: null });
+      }
     };
 
     const handleMouseUp = (e: MouseEvent) => {
-      // Use document.elementFromPoint to find target
-      const element = document.elementFromPoint(e.clientX, e.clientY);
+      const targetPlayerId = getTargetAtCoordinates(e.clientX, e.clientY);
 
-      if (element) {
-        const targetCardId = element
-          .closest("[data-card-id]")
-          ?.getAttribute("data-card-id");
-        const targetPlayerId = element
-          .closest("[data-player-id]")
-          ?.getAttribute("data-player-id");
-
-        // Emit custom event with target info for GameBoard to handle
-        if (targetCardId || targetPlayerId) {
-          const event = new CustomEvent("attack-target", {
-            detail: {
-              attackerId: card.id,
-              targetCardId,
-              targetPlayerId,
-            },
-          });
-          window.dispatchEvent(event);
-        }
+      let targetCardId: string | null = null;
+      if (!targetPlayerId) {
+        const element = document.elementFromPoint(e.clientX, e.clientY);
+        targetCardId =
+          element?.closest("[data-card-id]")?.getAttribute("data-card-id") ||
+          null;
       }
 
+      if (targetCardId || targetPlayerId) {
+        const event = new CustomEvent("attack-target", {
+          detail: {
+            attackerId: card.id,
+            targetCardId,
+            targetPlayerId,
+          },
+        });
+        window.dispatchEvent(event);
+      }
+
+      useDragStore.setState({ hoveredTarget: null });
       endAttack();
     };
 
@@ -310,8 +354,8 @@ const DropDetectCard = (props: Omit<Props, "isValid">) => {
     >
       <div
         className={twMerge(
-          isValid && !isOver && "highlight-shadow ",
-          isOver && "ring-2 ring-amber-300",
+          isValid && !isOver && "valid-target-shadow ",
+          isValid && isOver && "highlight-shadow ring-2 ring-amber-300",
         )}
       >
         <MinionCard {...props} isValid={isValid} />

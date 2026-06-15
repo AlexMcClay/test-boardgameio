@@ -159,6 +159,31 @@ code {
   }
 }
 
+.valid-target-shadow {
+  filter: drop-shadow(0 0 2px oklch(68.649% 0.20623 42.221))
+    drop-shadow(0 0 4px oklch(68.649% 0.20623 42.221))
+    drop-shadow(0 0 6px oklch(68.649% 0.20623 42.221));
+}
+
+/* Animate highlight shadow on hover */
+.valid-target-shadow:hover {
+  animation: validTargetPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes validTargetPulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px oklch(68.649% 0.20623 42.221))
+      drop-shadow(0 0 4px oklch(68.649% 0.20623 42.221))
+      drop-shadow(0 0 6px oklch(68.649% 0.20623 42.221));
+  }
+  50% {
+    filter: drop-shadow(0 0 4px oklch(68.649% 0.20623 42.221/0.5))
+      drop-shadow(0 0 8px oklch(68.649% 0.20623 42.221/0.5))
+      drop-shadow(0 0 12px oklch(68.649% 0.20623 42.221/0.5));
+  }
+}
+
 /* ===== DECK SELECTION STYLING ===== */
 
 .card-grid::-webkit-scrollbar {

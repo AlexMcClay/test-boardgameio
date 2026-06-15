@@ -6,6 +6,7 @@ import {
   loadSfxBuffer,
   LRUCache,
 } from "@/utils/sfxManager";
+import { randomIDGen } from "@project/shared";
 
 const MAX_CACHE_SIZE = 30;
 
@@ -197,7 +198,7 @@ export const createSfxSlice: StateCreator<AudioState, [], [], SfxSlice> = (
       get();
 
     // Generate unique ID for this loop instance
-    const loopId = crypto.randomUUID();
+    const loopId = randomIDGen();
 
     // Validate context
     if (!audioContext) {

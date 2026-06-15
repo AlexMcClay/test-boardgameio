@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Client } from "boardgame.io/react";
-import { Local } from "boardgame.io/multiplayer";
+import { Local, SocketIO } from "boardgame.io/multiplayer";
 import { MCTSBot } from "boardgame.io/ai";
 import MainMenu from "@/components/MainMenu";
 import CollectionManager from "@/components/CollectionManager";
@@ -56,6 +56,11 @@ class FastMCTSBot extends MCTSBot {
 function App() {
   const [gameMode, setGameMode] = useState<"pvp" | "ai" | null>(null);
   const [gameKey, setGameKey] = useState(0); // Used to remount game component
+  const [multiplayerSession, setMultiplayerSession] = useState<{
+    matchID: string;
+    playerID: string;
+    playerCredentials: string;
+  } | null>(null);
 
   const currentView = useViewStore((state) => state.currentView);
   const { selectedDeckForPlay, generateOpponentDeck } = useDeckStore();
@@ -71,7 +76,14 @@ function App() {
   }, [setGlobalTrack]);
 
   // Handle game start from PlayArea
-  const handleGameStart = (mode: "pvp" | "ai") => {
+  const handleGameStart = (
+    mode: "pvp" | "ai",
+    nextMultiplayerSession?: {
+      matchID: string;
+      playerID: string;
+      playerCredentials: string;
+    },
+  ) => {
     if (!selectedDeckForPlay) {
       console.error("No deck selected!");
       return;
@@ -81,6 +93,7 @@ function App() {
     generateOpponentDeck();
 
     setGameMode(mode);
+    setMultiplayerSession(nextMultiplayerSession ?? null);
     setGameKey((prev) => prev + 1); // Force remount with new setupData
   };
 
@@ -163,6 +176,24 @@ function App() {
       });
 
       return <HearthstoneWithAI key={gameKey} playerID="0" />;
+    }
+
+    if (gameMode === "pvp" && multiplayerSession) {
+      const HearthstoneOnlinePvP = Client({
+        board: Gameboard,
+        game: HeathStoneGame,
+        multiplayer: SocketIO({ server: "http://localhost:8000" }),
+        debug: { collapseOnLoad: true, hideToggleButton: true },
+      });
+
+      return (
+        <HearthstoneOnlinePvP
+          key={gameKey}
+          matchID={multiplayerSession.matchID}
+          playerID={multiplayerSession.playerID}
+          credentials={multiplayerSession.playerCredentials}
+        />
+      );
     }
 
     // PvP mode
