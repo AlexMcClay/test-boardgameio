@@ -1,5 +1,4 @@
 // Utility to detect animation events from game event log
-import type { GameState } from "@/types";
 import type { AnimationEvent } from "@/types/animations";
 import {
   ATTACK_ANIMATION,
@@ -7,6 +6,7 @@ import {
   DEATH_ANIMATION,
   HIT_NUMBER_ANIMATION,
 } from "./animationDurations";
+import type { GameState } from "@project/shared";
 
 /**
  * Detects all animations by reading from game event log

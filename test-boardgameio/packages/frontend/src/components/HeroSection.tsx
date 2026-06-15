@@ -1,6 +1,6 @@
 import { useDragStore } from "@/stores/dragStore";
-import type { GameState, Player } from "@/types";
 import { useDroppable } from "@dnd-kit/core";
+import type { GameState, Player } from "@project/shared";
 import type { BoardProps } from "boardgame.io/dist/types/packages/react";
 import { twMerge } from "tailwind-merge";
 

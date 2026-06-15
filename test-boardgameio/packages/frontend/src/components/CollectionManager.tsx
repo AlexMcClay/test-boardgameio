@@ -1,7 +1,13 @@
 import { useState } from "react";
 import Card from "./Card";
-import { cardTemplates, type CardTemplateKey } from "@/utils/cards";
-import type { Card as CardType, SavedDeck } from "@/types";
+import {
+  cardTemplates,
+  heros,
+  type CardTemplateKey,
+  type Card as CardType,
+  type Hero,
+  type SavedDeck,
+} from "@project/shared";
 import { useAudioStore } from "@/stores/audioStore";
 import {
   useDeckStore,
@@ -10,7 +16,6 @@ import {
 } from "@/stores/deckStore";
 import { useViewStore } from "@/stores/viewStore";
 import { twMerge } from "tailwind-merge";
-import { heros, type Hero } from "@/utils/heros";
 
 const backgroundImage = "assets/collection/collection.png";
 const sheet = "assets/collection/sheet.png";
@@ -345,7 +350,7 @@ const CollectionManager = () => {
                   <div className="scale-140 absolute origin-top-left">
                     <Card
                       key={id}
-                      card={{ ...card, id }}
+                      card={{ ...card, id, originalID: id }}
                       back={false}
                       isDragging={false}
                     />

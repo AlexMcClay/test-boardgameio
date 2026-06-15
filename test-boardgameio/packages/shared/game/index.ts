@@ -1,10 +1,16 @@
-import type { Card, GameState, Player, TargetValue, GameEvent } from "@/types";
-import { createCardFromID, shuffleDeck } from "@/utils";
+import type {
+  Card,
+  GameState,
+  Player,
+  TargetValue,
+  GameEvent,
+  Hero,
+} from "./types";
+import { createCardFromID, shuffleDeck } from "./utils/index";
 import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
-import { validateMove } from "@/utils/validateMove";
-import type { CardTemplateKey } from "@/utils/cards";
+import { validateMove } from "./utils/validateMove";
+import type { CardTemplateKey } from "./data/cards";
 import { enumerateAIMoves } from "./ai";
-import type { Hero } from "@/utils/heros";
 
 // Helper function to record game events
 function recordEvent(G: GameState, event: GameEvent) {
@@ -867,3 +873,18 @@ export const HeathStoneGame: Game<GameState> = {
   turn: {},
   endIf: isVictory,
 };
+
+// Export everything from data
+export * from "./data/cards.js";
+export * from "./data/heros.js";
+export * from "./data/decks.js";
+
+// Export everything from utils
+export * from "./utils/index.js";
+export * from "./utils/validateMove.js";
+
+// Export individual files in the game root
+export * from "./ai.js";
+export * from "./utils/index.js"; // Note: Ensure this file name doesn't conflict with the 'utils' folder export!
+export * from "./utils/validateMove.js"; // Note: Ensure this file name doesn't conflict with the 'utils' folder export!
+export * from "./types.d.js";

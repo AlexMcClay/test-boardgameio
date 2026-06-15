@@ -1,4 +1,4 @@
-import type { Card } from "@/types";
+import type { Card } from "@project/shared";
 import CardComponent from "../Card";
 import type { Ctx } from "boardgame.io";
 

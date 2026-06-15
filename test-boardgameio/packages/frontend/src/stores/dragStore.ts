@@ -1,8 +1,7 @@
 // stores/dragStore.ts
 import { create } from "zustand";
-import type { Card, GameState } from "@/types";
 import type { PlayerID } from "boardgame.io";
-import { canTargetHighlight } from "@/utils/validateMove";
+import { canTargetHighlight, type Card, type GameState } from "@project/shared";
 
 type DragStore = {
   activeCard: Card | null;

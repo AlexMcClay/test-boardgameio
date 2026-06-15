@@ -1,6 +1,15 @@
+import type { CardTemplateKey } from "./data/cards";
 import type { PlayerID } from "boardgame.io";
-import type { Hero } from "@/utils/heros";
-import type { DeckString } from "@/utils/decks";
+
+export type DeckString = Partial<Record<CardTemplateKey, number>>;
+
+export interface Hero {
+  name: string;
+  portrait: string;
+  ability?: string;
+  class: string;
+  heroName: string;
+}
 
 export interface Card {
   id: string;

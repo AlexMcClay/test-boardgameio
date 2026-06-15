@@ -5,7 +5,7 @@ import type {
   Player,
   TargetValue,
   EffectTypes,
-} from "@/types";
+} from "./types";
 
 // Types for AI moves
 export type AIMove = {

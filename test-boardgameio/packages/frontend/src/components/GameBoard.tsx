@@ -1,6 +1,5 @@
 import PlayerArea from "./PlayerArea";
 import type { BoardProps } from "boardgame.io/react";
-import type { GameState, TargetValue } from "@/types";
 import {
   DndContext,
   DragOverlay,
@@ -10,11 +9,9 @@ import {
 } from "@dnd-kit/core";
 import Lane from "./Lane";
 import DropDetectCard from "./Card/DropDetectCard";
-import Card from "./Card";
 import { useDragStore } from "@/stores/dragStore";
 import { useAnimationStore } from "@/stores/animationStore";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { validateMove } from "@/utils/validateMove";
 import { detectAllAnimations } from "@/utils/detectAnimations";
 import AttackArrow from "./AttackArrow";
 import HitNumbers from "./HitNumbers";
@@ -29,6 +26,11 @@ import BoardCardDeckTop from "./Board/BoardCardDeckTop";
 import BoardCardDeckBottom from "./Board/BoardCardDeckBottom";
 import DragCard from "./Board/DragCard";
 import YourTurn from "./Board/YourTurn";
+import {
+  validateMove,
+  type GameState,
+  type TargetValue,
+} from "@project/shared";
 
 interface Props extends BoardProps<GameState> {}
 

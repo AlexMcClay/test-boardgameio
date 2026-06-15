@@ -1,10 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { HeathStoneGame } from "@/game";
 import { Client } from "boardgame.io/react";
 import { Local } from "boardgame.io/multiplayer";
 import { MCTSBot } from "boardgame.io/ai";
-import { enumerateAIMoves } from "@/game/ai";
 import MainMenu from "@/components/MainMenu";
 import CollectionManager from "@/components/CollectionManager";
 import PlayArea from "@/components/PlayArea";
@@ -12,12 +10,17 @@ import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { useAudioStore } from "@/stores/audioStore";
 import { useDeckStore } from "@/stores/deckStore";
 import { useViewStore } from "@/stores/viewStore";
-import { createCardFromID, shuffleDeck } from "@/utils";
-import type { CardTemplateKey } from "@/utils/cards";
-import type { Card } from "@/types";
 import type { State } from "boardgame.io";
-import { premadeDecks } from "@/utils/decks";
 import Gameboard from "@/components/GameBoard";
+import {
+  createCardFromID,
+  enumerateAIMoves,
+  HeathStoneGame,
+  premadeDecks,
+  shuffleDeck,
+  type Card,
+  type CardTemplateKey,
+} from "@project/shared";
 
 export const Route = createFileRoute("/")({
   component: App,

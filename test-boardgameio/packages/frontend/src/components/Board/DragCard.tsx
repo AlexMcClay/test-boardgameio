@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import CardComponent from "../Card";
 import type { Ctx } from "boardgame.io";
-import type { Card } from "@/types";
+import type { Card } from "@project/shared";
 import { useAudioStore } from "@/stores/audioStore";
 
 type Props = {

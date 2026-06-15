@@ -3,7 +3,7 @@ import type {
   DamageEffect,
   DivineShieldEffect,
   EffectTypes,
-} from "@/types";
+} from "../types";
 
 const damage = (
   value: number | keyof Card,

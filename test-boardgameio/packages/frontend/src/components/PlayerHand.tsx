@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import type { GameState, Player } from "@/types";
 import type { BoardProps } from "boardgame.io/dist/types/packages/react";
 import { twMerge } from "tailwind-merge";
 import HandCard from "./Card/HandCard";
+import type { GameState, Player } from "@project/shared";
 
 interface Props extends BoardProps<GameState> {
   isTop?: boolean; // true for player 1, false or undefined for player 0

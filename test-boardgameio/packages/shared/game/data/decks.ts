@@ -1,14 +1,11 @@
-import type { CardTemplateKey, cardTemplates } from "./cards";
+import { type Hero, type DeckString } from "../types";
 import {
   druidHero,
   mageHero,
   paladinHero,
   rogueHero,
   warriorHero,
-  type Hero,
 } from "./heros";
-
-export type DeckString = Partial<Record<CardTemplateKey, number>>;
 
 export const warriorDeckString: DeckString = {
   "inner-rage": 2,

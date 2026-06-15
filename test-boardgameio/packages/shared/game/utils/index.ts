@@ -1,6 +1,5 @@
-import type { Card, GameState } from "@/types";
-import { cardTemplates, type CardTemplateKey } from "./cards";
-import type { DeckString } from "./decks";
+import type { Card, GameState } from "../types";
+import { cardTemplates, type CardTemplateKey } from "../data/cards";
 
 export function shuffleDeck(deck: Card[]): Card[] {
   const copy = [...deck];

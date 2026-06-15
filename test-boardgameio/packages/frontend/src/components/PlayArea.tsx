@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAudioStore } from "@/stores/audioStore";
 import { useDeckStore } from "@/stores/deckStore";
 import { useViewStore } from "@/stores/viewStore";
-import type { SavedDeck } from "@/types";
+import type { SavedDeck } from "@project/shared";
 
 const backgroundImage = "assets/menu/main_menu.png";
 

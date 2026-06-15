@@ -1,4 +1,4 @@
-import type { Card } from "@/types";
+import type { Card } from "@project/shared";
 import type { Ctx, PlayerID } from "boardgame.io";
 import type {
   LegacyAnimationControls,

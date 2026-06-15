@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Card as CardType, Player } from "@/types";
+import type { Card as CardType, Player } from "@project/shared";
 import type { Ctx } from "boardgame.io";
 import { twMerge } from "tailwind-merge";
 import { useDraggable } from "@dnd-kit/core";

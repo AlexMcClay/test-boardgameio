@@ -1,8 +1,12 @@
 import { create } from "zustand";
-import type { CardTemplateKey } from "@/utils/cards";
-import type { Card, SavedDeck } from "@/types";
-import { createCardFromID, shuffleDeck } from "@/utils";
-import { premadeDecks } from "@/utils/decks";
+import {
+  createCardFromID,
+  shuffleDeck,
+  premadeDecks,
+  type Card,
+  type SavedDeck,
+  type CardTemplateKey,
+} from "@project/shared";
 
 export type DeckString = Partial<Record<CardTemplateKey, number>>;
 

@@ -1,10 +1,4 @@
-export interface Hero {
-  name: string;
-  portrait: string;
-  ability?: string;
-  class: string;
-  heroName: string;
-}
+import type { Hero } from "../types";
 
 // individual hero definitions
 export const warriorHero: Hero = {

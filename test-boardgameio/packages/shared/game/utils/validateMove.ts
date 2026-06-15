@@ -1,5 +1,5 @@
 // utils/validateMove.ts
-import type { Card, TargetValue, GameState } from "@/types";
+import type { Card, TargetValue, GameState } from "../types";
 import type { Ctx, PlayerID } from "boardgame.io";
 
 export type MoveValidationError =

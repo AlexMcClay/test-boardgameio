@@ -1,6 +1,5 @@
 import { useAudioStore } from "@/stores/audioStore";
-import type { GameState } from "@/types";
-import { hasToEndTurn } from "@/utils";
+import { hasToEndTurn, type GameState } from "@project/shared";
 import type { BoardProps } from "boardgame.io/dist/types/packages/react";
 import { useMemo } from "react";
 import { twMerge } from "tailwind-merge";
