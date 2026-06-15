@@ -68,6 +68,8 @@ const CollectionManager = () => {
 
   const CARDS_PER_PAGE = 8; // 2 rows × 4 columns
 
+  const isPremade = editingDeck?.id.startsWith("premade-") ?? false;
+
   function handleBackToMenu() {
     playSfx("button-click");
     setView("main-menu");
@@ -112,11 +114,6 @@ const CollectionManager = () => {
   function handleSaveDeck() {
     playSfx("button-click");
 
-    // const totalCards = Object.values(deck).reduce(
-    //   (sum, count) => sum + count,
-    //   0,
-    // );
-
     if (!deckName.trim()) {
       alert("Please enter a deck name!");
       return;
@@ -144,16 +141,17 @@ const CollectionManager = () => {
     setDeck({});
   }
 
-  // function handleCancelEdit() {
-  //   playSfx("button-click");
-  //   setMode("viewer");
-  //   setEditingDeck(null);
-  //   setSelectedHero(null);
-  //   setDeckName("");
-  //   setDeck({});
-  // }
+  function handleCancelEdit() {
+    playSfx("button-click");
+    setMode("viewer");
+    setEditingDeck(null);
+    setSelectedHero(null);
+    setDeckName("");
+    setDeck({});
+  }
 
   function handleDeckChange(cardId: CardTemplateKey, count: number) {
+    if (isPremade) return;
     setDeck((prevDeck) => {
       const newDeck = { ...prevDeck };
       if (count > 0) {
@@ -164,11 +162,6 @@ const CollectionManager = () => {
       return newDeck;
     });
   }
-
-  // function handleClearDeck() {
-  //   playSfx("button-click");
-  //   setDeck({});
-  // }
 
   function handleClassSelect(className: string) {
     playSfx("collection-manager-page-flip");
@@ -318,13 +311,13 @@ const CollectionManager = () => {
             {displayedCards.map(([id, card]) => (
               <div
                 className={
-                  mode === "card-select"
+                  mode === "card-select" && !isPremade
                     ? "cursor-pointer z-10 transition-transform duration-200 hover:scale-105 minion-shadow"
                     : "z-10 minion-shadow"
                 }
                 key={id}
                 onClick={() => {
-                  if (mode === "card-select") {
+                  if (mode === "card-select" && !isPremade) {
                     const currentCount = deck[id as CardTemplateKey] || 0;
                     if (currentCount < 2 && totalCards < maxCards) {
                       const newCount = currentCount + 1;
@@ -333,10 +326,10 @@ const CollectionManager = () => {
                   }
                 }}
                 onMouseEnter={() =>
-                  mode === "card-select" && playSfx("card-over")
+                  mode === "card-select" && !isPremade && playSfx("card-over")
                 }
                 onContextMenu={(e) => {
-                  if (mode === "card-select") {
+                  if (mode === "card-select" && !isPremade) {
                     e.preventDefault();
                     const currentCount = deck[id as CardTemplateKey] || 0;
                     const newCount = currentCount > 0 ? currentCount - 1 : 0;
@@ -384,9 +377,8 @@ const CollectionManager = () => {
               {allDecks.map((savedDeck) => (
                 <div
                   key={savedDeck.id}
-                  className="flex h-[4vw] items-end gap-[0.5vw] bg-black/40rounded border border-amber-900  w-full "
+                  className="flex h-[4vw] items-end gap-[0.5vw] bg-black/40 rounded border border-amber-900 w-full cursor-pointer"
                   onClick={() => {
-                    if (savedDeck.id.startsWith("premade-")) return;
                     handleEditDeck(savedDeck);
                   }}
                   onMouseEnter={() => playSfx("button-over")}
@@ -436,21 +428,29 @@ const CollectionManager = () => {
           <>
             {selectedHero && (
               <div
-                className="flex h-[4vw] items-end gap-[0.5vw] bg-black/40rounded border border-amber-900 left-[0.3vw] w-full absolute top-[-7vh]"
+                className="flex h-[4vw] items-end gap-[0.5vw] bg-black/40 rounded border border-amber-900 left-[0.3vw] w-full absolute top-[-7vh]"
                 style={{
                   backgroundImage: `url(${selectedHero.portrait})`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                 }}
               >
-                <input
-                  type="text"
-                  value={deckName}
-                  onChange={(e) => setDeckName(e.target.value)}
-                  placeholder="Enter deck name..."
-                  className="w-full p-[0.3vw] text-[1.1vw] bg-gradient-to-r from-black to-transparent   text-white"
-                  maxLength={30}
-                />
+                <div className="flex items-center w-full bg-gradient-to-r from-black to-transparent pr-[0.3vw]">
+                  <input
+                    type="text"
+                    value={deckName}
+                    onChange={(e) => setDeckName(e.target.value)}
+                    placeholder="Enter deck name..."
+                    className="w-full p-[0.3vw] text-[1.1vw] bg-transparent text-white focus:outline-none"
+                    maxLength={30}
+                    readOnly={isPremade}
+                  />
+                  {isPremade && (
+                    <span className="text-[0.6vw] text-amber-400 font-bold whitespace-nowrap self-center">
+                      (Premade)
+                    </span>
+                  )}
+                </div>
               </div>
             )}
 
@@ -474,8 +474,12 @@ const CollectionManager = () => {
                 .map(([k, count]) => (
                   <div
                     key={k}
-                    className="bg-gray-800 text-white w-full h-[3vh] min-h-[3vh] flex items-center relative shadow rounded cursor-pointer hover:bg-gray-700 transition-colors"
+                    className={twMerge(
+                      "bg-gray-800 text-white w-full h-[3vh] min-h-[3vh] flex items-center relative shadow rounded transition-colors",
+                      !isPremade && "cursor-pointer hover:bg-gray-700",
+                    )}
                     onClick={() => {
+                      if (isPremade) return;
                       const currentCount = deck[k as CardTemplateKey] || 0;
                       if (currentCount > 0) {
                         handleDeckChange(
@@ -484,13 +488,13 @@ const CollectionManager = () => {
                         );
                       }
                     }}
-                    onMouseEnter={() => playSfx("card-over")}
+                    onMouseEnter={() => !isPremade && playSfx("card-over")}
                   >
                     <img
                       src={cardTemplates[k as CardTemplateKey].imageUrl}
                       className={twMerge(
                         "absolute h-[2.8vh] min-h-[2.8vh] w-[40%] right-0",
-                        "object-cover object-center", // Prevents stretching & centers the image contents
+                        "object-cover object-center",
                         count > 1 && "right-[1.1vw]",
                       )}
                       style={{
@@ -507,7 +511,6 @@ const CollectionManager = () => {
                         src={mana_crystal}
                         alt="cardTemplates[k as CardTemplateKey] Back"
                         className="object-cover w-full h-full absolute scale-100 brightness-90"
-                        // no drag
                         draggable="false"
                       />
                       <span
@@ -544,9 +547,11 @@ const CollectionManager = () => {
               <button
                 onMouseEnter={() => playSfx("button-over")}
                 className="clear-deck-button"
-                onClick={handleSaveDeck}
+                onClick={isPremade ? handleCancelEdit : handleSaveDeck}
               >
-                <span className="button-text">Save Deck</span>
+                <span className="button-text">
+                  {isPremade ? "Back" : "Save Deck"}
+                </span>
               </button>
             </div>
 
@@ -611,58 +616,5 @@ const CollectionManager = () => {
     </div>
   );
 };
-
-// function ManaCurve({
-//   deck,
-//   totalCards,
-// }: {
-//   deck: DeckString;
-//   totalCards: number;
-// }) {
-//   const manaCurve = Array.from({ length: 8 }, (_, i) => {
-//     const manaCount = Object.entries(deck).reduce((sum, [cardId, count]) => {
-//       const card = cardTemplates[cardId as CardTemplateKey];
-//       if (card) {
-//         const mana = card.mana ?? 0;
-//         if (i === 7) {
-//           return mana >= 7 ? sum + count : sum;
-//         }
-//         return mana === i ? sum + count : sum;
-//       }
-//       return sum;
-//     }, 0);
-//     return manaCount;
-//   });
-
-//   return (
-//     <div className="w-full bg-black/20 rounded-lg p-[1vw] border border-amber-900">
-//       <h3 className="text-[1vw] text-amber-300 text-center">Mana Curve</h3>
-//       <div className="h-[10vw] gap-1 flex items-end">
-//         {manaCurve.map((count, mana) => (
-//           <div
-//             key={mana}
-//             className="flex flex-col items-center w-full h-full justify-end"
-//           >
-//             <div
-//               className="mana-bar"
-//               style={{
-//                 height:
-//                   totalCards > 0 ? `${(count / totalCards) * 2 * 100}%` : "0%",
-//                 minHeight: count > 0 ? "20px" : "0px",
-//               }}
-//             >
-//               <span className="text-[0.8vw] text-white font-bold">
-//                 {count || ""}
-//               </span>
-//             </div>
-//             <div className="text-[0.8vw] text-gray-400 mt-1">
-//               {mana === 7 ? "7+" : mana}
-//             </div>
-//           </div>
-//         ))}
-//       </div>
-//     </div>
-//   );
-// }
 
 export default CollectionManager;
