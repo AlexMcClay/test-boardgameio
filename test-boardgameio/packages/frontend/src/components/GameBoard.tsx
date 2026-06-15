@@ -27,6 +27,8 @@ import BoardCardDeckTop from "./Board/BoardCardDeckTop";
 import BoardCardDeckBottom from "./Board/BoardCardDeckBottom";
 import DragCard from "./Board/DragCard";
 import YourTurn from "./Board/YourTurn";
+import SettingsOverlay from "./SettingsOverlay";
+import { IoSettings } from "react-icons/io5";
 import {
   validateMove,
   type GameState,
@@ -66,6 +68,9 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
 
   // Track if the dragged card was hovered
   const [wasHovered, setWasHovered] = useState(false);
+
+  // Settings overlay state
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
     setCurrentPlayer(ctx.currentPlayer);
@@ -537,6 +542,19 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       <AttackArrow ctx={ctx} playerID={props.playerID} />
       {/* Hit Numbers Overlay */}
       <HitNumbers />
+      {/* Settings Button */}
+      <button
+        onClick={() => setIsSettingsOpen(true)}
+        className="absolute bottom-[1vw] right-[1vw] bg-gray-800/90 hover:bg-gray-700/90 text-white rounded-full shadow-lg transition-all duration-200 hover:scale-110 z-50 p-[0.8vw]"
+        aria-label="Open settings"
+      >
+        <IoSettings className="w-[1.5vw] h-[1.5vw]" />
+      </button>
+      {/* Settings Overlay */}
+      <SettingsOverlay
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </div>
   );
 };

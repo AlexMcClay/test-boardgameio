@@ -5,7 +5,7 @@ import { Local, SocketIO } from "boardgame.io/multiplayer";
 import { MCTSBot } from "boardgame.io/ai";
 import MainMenu from "@/components/MainMenu";
 import CollectionManager from "@/components/CollectionManager";
-import PlayArea from "@/components/PlayArea";
+import PlayScreen from "@/components/PlayScreen";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { useAudioStore } from "@/stores/audioStore";
 import { useDeckStore } from "@/stores/deckStore";
@@ -13,13 +13,9 @@ import { useViewStore } from "@/stores/viewStore";
 import type { State } from "boardgame.io";
 import Gameboard from "@/components/GameBoard";
 import {
-  createCardFromID,
   enumerateAIMoves,
+  generateCardsFromDeckstring,
   HeathStoneGame,
-  premadeDecks,
-  shuffleDeck,
-  type Card,
-  type CardTemplateKey,
 } from "@project/shared";
 
 export const Route = createFileRoute("/")({
@@ -75,7 +71,7 @@ function App() {
     setGlobalTrack("assets/audio/music/01_Main_Theme.mp3");
   }, [setGlobalTrack]);
 
-  // Handle game start from PlayArea
+  // Handle game start from PlayScreen
   const handleGameStart = (
     mode: "pvp" | "ai",
     nextMultiplayerSession?: {
@@ -97,21 +93,6 @@ function App() {
     setGameKey((prev) => prev + 1); // Force remount with new setupData
   };
 
-  // Convert deck string to Card array
-  const getDeckCards = (deckString: Record<string, number>): Card[] => {
-    const deck: Card[] = [];
-    for (const cardId in deckString) {
-      const count = deckString[cardId as CardTemplateKey];
-      if (count) {
-        for (let i = 0; i < count; i++) {
-          const card = createCardFromID(cardId as CardTemplateKey);
-          if (card) deck.push(card);
-        }
-      }
-    }
-    return shuffleDeck(deck);
-  };
-
   // Show main menu
   if (currentView === "main-menu") {
     return <MainMenu />;
@@ -124,7 +105,7 @@ function App() {
 
   // Show play area (deck selection)
   if (currentView === "play" && !gameMode) {
-    return <PlayArea onGameStart={handleGameStart} />;
+    return <PlayScreen onGameStart={handleGameStart} />;
   }
 
   // Show game
@@ -136,10 +117,14 @@ function App() {
     }
 
     // Get player deck cards from SavedDeck
-    const playerDeckCards = getDeckCards(selectedDeckForPlay.deckString);
+    const playerDeckCards = generateCardsFromDeckstring(
+      selectedDeckForPlay.deckString,
+    );
 
     // Get opponent deck cards from SavedDeck
-    const opponentDeckCards = getDeckCards(opponentDeck.deckString);
+    const opponentDeckCards = generateCardsFromDeckstring(
+      opponentDeck.deckString,
+    );
 
     // Create a custom game configuration with setupData
     const gameWithSetup = {
