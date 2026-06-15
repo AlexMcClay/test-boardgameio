@@ -2,7 +2,6 @@ import { type StateCreator } from "zustand";
 import { type AudioState } from "./audioStore";
 import {
   SFX_MANIFEST,
-  type SfxId,
   resolveSfxPath,
   loadSfxBuffer,
   LRUCache,
@@ -61,7 +60,7 @@ export const createSfxSlice: StateCreator<AudioState, [], [], SfxSlice> = (
       ([_, config]) => config.preload,
     );
 
-    const loadPromises = preloadEntries.map(async ([id, config]) => {
+    const loadPromises = preloadEntries.map(async ([id, _config]) => {
       try {
         const url = resolveSfxPath(id);
         const buffer = await loadSfxBuffer(audioContext, url);

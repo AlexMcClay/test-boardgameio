@@ -107,11 +107,11 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
       set({ isAnimating: true });
 
       // Calculate total timeline duration for this batch
-      const timelineEnd = Math.max(
-        ...currentBatch.animations.map(
-          (anim) => anim.startTime + anim.duration,
-        ),
-      );
+      // const timelineEnd = Math.max(
+      //   ...currentBatch.animations.map(
+      //     (anim) => anim.startTime + anim.duration,
+      //   ),
+      // );
 
       // Play all animations in this batch on their timeline (can overlap!)
       const animationPromises = currentBatch.animations.map((animation) => {

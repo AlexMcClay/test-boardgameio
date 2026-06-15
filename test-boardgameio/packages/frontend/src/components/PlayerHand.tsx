@@ -13,7 +13,7 @@ interface Props extends BoardProps<GameState> {
 const HOVER_EXIT_THRESHOLD_X = 0.85;
 const HOVER_EXIT_THRESHOLD_Y = 1.2;
 
-const PlayerHand = ({ isTop, G, ctx, player, playerID }: Props) => {
+const PlayerHand = ({ isTop, ctx, player, playerID }: Props) => {
   const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
   const [hoverOrigin, setHoverOrigin] = useState<{
     x: number;

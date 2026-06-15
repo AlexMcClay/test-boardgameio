@@ -21,7 +21,7 @@ function recordEvent(G: GameState, event: GameEvent) {
   G.eventHistory.push(event);
 }
 
-export const isVictory = ({ G, ctx }: { G: GameState; ctx: Ctx }) => {
+export const isVictory = ({ G }: { G: GameState; ctx: Ctx }) => {
   if (G.players[0].health <= 0) {
     return { winner: "1" };
   } else if (G.players[1].health <= 0) {
@@ -39,6 +39,7 @@ const setupData = (
   },
 ): GameState => {
   // Initialize player decks from setupData or use empty arrays
+  console.debug(ctx);
   const playerDeck = setupData?.playerDeck
     ? shuffleDeck([...setupData.playerDeck])
     : [];
@@ -501,7 +502,7 @@ const doEffects = (
         }
         break;
       case "summon":
-        const enemyPlayerId = playerID === "0" ? "1" : "0";
+        // const enemyPlayerId = playerID === "0" ? "1" : "0";
         // check if the board can fit the summoned card
         if (G.board[playerID].length >= 7) {
           console.warn("Cannot summon more than 7 cards on the board");
@@ -556,7 +557,7 @@ const drawCard: Move<GameState> = ({ G, ctx }) => {
   handleDrawCard(G, ctx);
 };
 
-const endTurn: Move<GameState> = ({ G, ctx, events }) => {
+const endTurn: Move<GameState> = ({ G, events }) => {
   // Clear last move metadata at the end of the turn
   G.gameEvents = [];
   G.activeBattlecryMinion = null;

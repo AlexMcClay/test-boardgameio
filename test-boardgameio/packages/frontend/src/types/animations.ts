@@ -1,6 +1,6 @@
 // Animation event types for the animation queue system
 import type { PlayerID } from "boardgame.io";
-import type { Card, GameState } from ".";
+import type { Card, GameState } from "@project/shared";
 
 export type AttackAnimation = {
   type: "attack";

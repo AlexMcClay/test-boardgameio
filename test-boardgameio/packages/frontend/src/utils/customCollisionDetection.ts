@@ -3,7 +3,7 @@ import type {
   DroppableContainer,
   UniqueIdentifier,
 } from "@dnd-kit/core";
-import { getFirstCollision, pointerWithin } from "@dnd-kit/core";
+import { pointerWithin } from "@dnd-kit/core";
 
 /**
  * Custom collision detection that uses pointer position with a small buffer zone

@@ -3,7 +3,6 @@ import type { BoardProps } from "boardgame.io/dist/types/packages/react";
 import { useAnimationStore } from "@/stores/animationStore";
 import { useEffect, useState, useRef } from "react";
 import type { CardPlayedAnimation } from "@/types/animations";
-import { AnimatePresence, motion } from "motion/react";
 import { useAudioStore } from "@/stores/audioStore";
 import type { GameState } from "@project/shared";
 

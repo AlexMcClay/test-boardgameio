@@ -1,14 +1,14 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { motion } from "motion/react";
-import { useAudioStore } from "@/stores/audioStore";
+// import { useAudioStore } from "@/stores/audioStore";
 
 type Props = {};
 
 const divineShield = "assets/DivineShield_Bubble2.png";
 
-const DivineShieldOverlay = (props: Props) => {
+const DivineShieldOverlay = (_props: Props) => {
   const isFirstRender = useRef(true);
-  const playSfx = useAudioStore((state) => state.playSfx);
+  // const playSfx = useAudioStore((state) => state.playSfx);
 
   useEffect(() => {
     if (isFirstRender.current) {

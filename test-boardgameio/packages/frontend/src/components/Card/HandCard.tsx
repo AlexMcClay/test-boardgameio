@@ -86,7 +86,7 @@ const HandCard = ({
           ? "none"
           : `rotate(${angle}deg) translateY(${isTop ? -translateY : translateY}px)`,
       }}
-      onMouseEnter={(e) => {
+      onMouseEnter={(_e) => {
         if (cardRef.current) {
           if (back) return;
           const rect = cardRef.current.getBoundingClientRect();
@@ -125,7 +125,7 @@ const DragCard = (props: DargCardProps) => {
   });
 
   // FIX 1: Initialize this to false (since we aren't dragging on mount)
-  const [delayedDrag, setDelayedDrag] = useState(false);
+  const [, setDelayedDrag] = useState(false);
   const isFirstRender = useRef(true);
   const playSfx = useAudioStore((state) => state.playSfx);
 

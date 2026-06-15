@@ -90,7 +90,7 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
 
   const targetPosition = getTargetPosition();
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleMouseDown = (_e: React.MouseEvent) => {
     if (disabled && !isBattlecryMinion) return;
 
     // Get card center position

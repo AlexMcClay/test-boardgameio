@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import { useAudioStore } from "@/stores/audioStore";
 
@@ -6,7 +6,7 @@ type Props = {};
 
 const frozen = "assets/frozen.png";
 
-const FrozenOverlay = (props: Props) => {
+const FrozenOverlay = (_props: Props) => {
   const isFirstRender = useRef(true);
   const playSfx = useAudioStore((state) => state.playSfx);
 

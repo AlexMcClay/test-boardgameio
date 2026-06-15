@@ -7,6 +7,9 @@
   "scripts": {
     "dev:frontend": "npm run dev -w packages/frontend",
     "dev:backend": "npm run dev -w packages/backend",
-    "build:all": "npm run build --workspaces"
+    "build:frontend": "npm run build -w packages/frontend",
+    "build:backend": "npm run build -w packages/backend",
+    "build:all": "npm run build --workspaces",
+    "start:frontend": "npm run serve -w packages/frontend"
   }
 }

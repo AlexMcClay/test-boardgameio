@@ -112,10 +112,10 @@ const CollectionManager = () => {
   function handleSaveDeck() {
     playSfx("button-click");
 
-    const totalCards = Object.values(deck).reduce(
-      (sum, count) => sum + count,
-      0,
-    );
+    // const totalCards = Object.values(deck).reduce(
+    //   (sum, count) => sum + count,
+    //   0,
+    // );
 
     if (!deckName.trim()) {
       alert("Please enter a deck name!");
@@ -144,14 +144,14 @@ const CollectionManager = () => {
     setDeck({});
   }
 
-  function handleCancelEdit() {
-    playSfx("button-click");
-    setMode("viewer");
-    setEditingDeck(null);
-    setSelectedHero(null);
-    setDeckName("");
-    setDeck({});
-  }
+  // function handleCancelEdit() {
+  //   playSfx("button-click");
+  //   setMode("viewer");
+  //   setEditingDeck(null);
+  //   setSelectedHero(null);
+  //   setDeckName("");
+  //   setDeck({});
+  // }
 
   function handleDeckChange(cardId: CardTemplateKey, count: number) {
     setDeck((prevDeck) => {
@@ -165,10 +165,10 @@ const CollectionManager = () => {
     });
   }
 
-  function handleClearDeck() {
-    playSfx("button-click");
-    setDeck({});
-  }
+  // function handleClearDeck() {
+  //   playSfx("button-click");
+  //   setDeck({});
+  // }
 
   function handleClassSelect(className: string) {
     playSfx("collection-manager-page-flip");
@@ -612,57 +612,57 @@ const CollectionManager = () => {
   );
 };
 
-function ManaCurve({
-  deck,
-  totalCards,
-}: {
-  deck: DeckString;
-  totalCards: number;
-}) {
-  const manaCurve = Array.from({ length: 8 }, (_, i) => {
-    const manaCount = Object.entries(deck).reduce((sum, [cardId, count]) => {
-      const card = cardTemplates[cardId as CardTemplateKey];
-      if (card) {
-        const mana = card.mana ?? 0;
-        if (i === 7) {
-          return mana >= 7 ? sum + count : sum;
-        }
-        return mana === i ? sum + count : sum;
-      }
-      return sum;
-    }, 0);
-    return manaCount;
-  });
+// function ManaCurve({
+//   deck,
+//   totalCards,
+// }: {
+//   deck: DeckString;
+//   totalCards: number;
+// }) {
+//   const manaCurve = Array.from({ length: 8 }, (_, i) => {
+//     const manaCount = Object.entries(deck).reduce((sum, [cardId, count]) => {
+//       const card = cardTemplates[cardId as CardTemplateKey];
+//       if (card) {
+//         const mana = card.mana ?? 0;
+//         if (i === 7) {
+//           return mana >= 7 ? sum + count : sum;
+//         }
+//         return mana === i ? sum + count : sum;
+//       }
+//       return sum;
+//     }, 0);
+//     return manaCount;
+//   });
 
-  return (
-    <div className="w-full bg-black/20 rounded-lg p-[1vw] border border-amber-900">
-      <h3 className="text-[1vw] text-amber-300 text-center">Mana Curve</h3>
-      <div className="h-[10vw] gap-1 flex items-end">
-        {manaCurve.map((count, mana) => (
-          <div
-            key={mana}
-            className="flex flex-col items-center w-full h-full justify-end"
-          >
-            <div
-              className="mana-bar"
-              style={{
-                height:
-                  totalCards > 0 ? `${(count / totalCards) * 2 * 100}%` : "0%",
-                minHeight: count > 0 ? "20px" : "0px",
-              }}
-            >
-              <span className="text-[0.8vw] text-white font-bold">
-                {count || ""}
-              </span>
-            </div>
-            <div className="text-[0.8vw] text-gray-400 mt-1">
-              {mana === 7 ? "7+" : mana}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+//   return (
+//     <div className="w-full bg-black/20 rounded-lg p-[1vw] border border-amber-900">
+//       <h3 className="text-[1vw] text-amber-300 text-center">Mana Curve</h3>
+//       <div className="h-[10vw] gap-1 flex items-end">
+//         {manaCurve.map((count, mana) => (
+//           <div
+//             key={mana}
+//             className="flex flex-col items-center w-full h-full justify-end"
+//           >
+//             <div
+//               className="mana-bar"
+//               style={{
+//                 height:
+//                   totalCards > 0 ? `${(count / totalCards) * 2 * 100}%` : "0%",
+//                 minHeight: count > 0 ? "20px" : "0px",
+//               }}
+//             >
+//               <span className="text-[0.8vw] text-white font-bold">
+//                 {count || ""}
+//               </span>
+//             </div>
+//             <div className="text-[0.8vw] text-gray-400 mt-1">
+//               {mana === 7 ? "7+" : mana}
+//             </div>
+//           </div>
+//         ))}
+//       </div>
+//     </div>
+//   );
+// }
 
 export default CollectionManager;

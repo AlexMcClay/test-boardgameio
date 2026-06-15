@@ -11,7 +11,7 @@ interface Props extends BoardProps<GameState> {
 
 const healthIcon = "assets/health.png";
 
-const HeroSection = ({ player, isTop, G, ctx, events, moves }: Props) => {
+const HeroSection = ({ player }: Props) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `player-${player.id}`,
     data: {
