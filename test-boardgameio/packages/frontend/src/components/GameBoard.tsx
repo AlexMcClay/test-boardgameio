@@ -6,6 +6,7 @@ import {
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
+  MeasuringStrategy,
 } from "@dnd-kit/core";
 import Lane from "./Lane";
 import DropDetectCard from "./Card/DropDetectCard";
@@ -396,6 +397,11 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           onDragOver={handleDragOver}
           onDragStart={handleDragStart}
           collisionDetection={pointerWithSmallBuffer}
+          measuring={{
+            droppable: {
+              strategy: MeasuringStrategy.Always, // Forces dnd-kit to remeasure elements frequently
+            },
+          }}
         >
           {/* Player 1 Hand */}
           <div className=" absolute w-full h-1/4 flex flex-col justify-end">

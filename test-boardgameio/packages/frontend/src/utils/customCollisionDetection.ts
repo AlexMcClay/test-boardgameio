@@ -76,11 +76,20 @@ export const createPointerWithBuffer = (
         });
       }
     }
+    // Sort collisions: Prefer cards over lanes first, then fall back to distance
+    collisions.sort((a, b) => {
+      const aType = a.data.droppableContainer.data.current?.type;
+      const bType = b.data.droppableContainer.data.current?.type;
 
-    // Sort by distance (closest first) and return the best match
-    collisions.sort((a, b) => a.data.value - b.data.value);
+      // If one is a card and the other is a lane, always prioritize the card
+      if (aType === "card" && bType === "lane") return -1;
+      if (aType === "lane" && bType === "card") return 1;
 
-    // Return the first (closest) collision
+      // Otherwise, sort by closest distance to center
+      return a.data.value - b.data.value;
+    });
+
+    // Return the best match
     return collisions.length > 0 ? [collisions[0]] : [];
   };
 };
