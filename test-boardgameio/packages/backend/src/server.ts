@@ -56,10 +56,14 @@ async function createAndStartMatch(
     body: JSON.stringify({
       numPlayers: 2,
       setupData: {
-        playerDeck: playerA.playerDeck,
-        playerHero: playerA.playerHero,
-        opponentDeck: playerB.playerDeck,
-        opponentHero: playerB.playerHero,
+        player0: {
+          deck: playerA.playerDeck,
+          hero: playerA.playerHero,
+        },
+        player1: {
+          deck: playerB.playerDeck,
+          hero: playerB.playerHero,
+        },
       },
     }),
   });

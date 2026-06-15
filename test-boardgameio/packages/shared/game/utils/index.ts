@@ -61,6 +61,22 @@ export function createCardFromID(id: CardTemplateKey): Card | null {
   return createCardInstance(cardTemplate, id);
 }
 
+export const generateCardsFromDeckstring = (
+  deckString: Record<string, number>,
+): Card[] => {
+  const deck: Card[] = [];
+  for (const cardId in deckString) {
+    const count = deckString[cardId as CardTemplateKey];
+    if (count) {
+      for (let i = 0; i < count; i++) {
+        const card = createCardFromID(cardId as CardTemplateKey);
+        if (card) deck.push(card);
+      }
+    }
+  }
+  return shuffleDeck(deck);
+};
+
 export function hasToEndTurn(playedID: string, gameState: GameState): boolean {
   // check if the player can play any cards, and check if any minnions can attack, some cards have 0 mana cost so we have to check for that as well
   const player = gameState.players[playedID];

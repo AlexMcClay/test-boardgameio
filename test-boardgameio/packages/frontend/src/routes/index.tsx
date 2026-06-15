@@ -135,13 +135,11 @@ function App() {
       return <div>Loading opponent deck...</div>;
     }
 
-    // Get player deck cards
+    // Get player deck cards from SavedDeck
     const playerDeckCards = getDeckCards(selectedDeckForPlay.deckString);
 
-    // Get a random opponent deck
-    const randomOpponentDeck =
-      premadeDecks[Math.floor(Math.random() * premadeDecks.length)];
-    const opponentDeckCards = opponentDeck;
+    // Get opponent deck cards from SavedDeck
+    const opponentDeckCards = getDeckCards(opponentDeck.deckString);
 
     // Create a custom game configuration with setupData
     const gameWithSetup = {
@@ -151,10 +149,14 @@ function App() {
           throw new Error("HeathStoneGame.setup is not defined");
         }
         return HeathStoneGame.setup(ctx, {
-          playerDeck: playerDeckCards,
-          playerHero: selectedDeckForPlay.hero,
-          opponentDeck: opponentDeckCards,
-          opponentHero: randomOpponentDeck.hero,
+          player0: {
+            deck: playerDeckCards,
+            hero: selectedDeckForPlay.hero,
+          },
+          player1: {
+            deck: opponentDeckCards,
+            hero: opponentDeck.hero,
+          },
         });
       },
     };

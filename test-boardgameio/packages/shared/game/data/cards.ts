@@ -925,7 +925,7 @@ export const cardTemplates = {
   },
   "argent-protector": {
     title: "Argent Protector",
-    description: "Battlecry: guve a friendly minion Divine Shield.",
+    description: "Battlecry: give a friendly minion Divine Shield.",
     imageUrl: "assets/cards/Argent_Protector.jpg",
     mana: 2,
     attack: 2,

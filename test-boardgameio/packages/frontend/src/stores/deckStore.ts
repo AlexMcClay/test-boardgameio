@@ -40,7 +40,7 @@ interface DeckState {
   playerDeck: DeckString;
 
   // Opponent's deck (Player 1) - generated when ready
-  opponentDeck: Card[] | null;
+  opponentDeck: SavedDeck | null;
 
   // Whether decks are ready to start game
   isDeckReady: boolean;
@@ -86,10 +86,15 @@ function createDeckFromDeckString(deckString: DeckString): Card[] {
 }
 
 // Helper function to pick a random premade deck
-function getRandomPremadeDeck(): DeckString {
+function getRandomPremadeDeck(): SavedDeck {
   const randomDeck =
     premadeDecks[Math.floor(Math.random() * premadeDecks.length)];
-  return randomDeck.deckString;
+  return {
+    id: `premade-${randomDeck.name.toLowerCase()}`,
+    name: randomDeck.name,
+    hero: randomDeck.hero,
+    deckString: randomDeck.deckString,
+  };
 }
 
 export const useDeckStore = create<DeckState>((set, get) => ({
@@ -105,12 +110,10 @@ export const useDeckStore = create<DeckState>((set, get) => ({
 
   generateOpponentDeck: () => {
     // Generate a random premade deck for the opponent
-    const opponentDeckString = getRandomPremadeDeck();
-    const opponentDeckCards = createDeckFromDeckString(opponentDeckString);
-    const shuffledOpponentDeck = shuffleDeck(opponentDeckCards);
+    const opponentSavedDeck = getRandomPremadeDeck();
 
     set({
-      opponentDeck: shuffledOpponentDeck,
+      opponentDeck: opponentSavedDeck,
       isDeckReady: true,
     });
   },

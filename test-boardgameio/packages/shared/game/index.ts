@@ -32,24 +32,28 @@ export const isVictory = ({ G }: { G: GameState; ctx: Ctx }) => {
 const setupData = (
   { ctx }: { ctx: Ctx },
   setupData?: {
-    playerDeck?: Card[];
-    playerHero?: Hero;
-    opponentDeck?: Card[];
-    opponentHero?: Hero;
+    player0: {
+      deck: Card[];
+      hero: Hero;
+    };
+    player1: {
+      deck: Card[];
+      hero: Hero;
+    };
   },
 ): GameState => {
   // Initialize player decks from setupData or use empty arrays
   console.debug(ctx);
-  const playerDeck = setupData?.playerDeck
-    ? shuffleDeck([...setupData.playerDeck])
+  const playerDeck = setupData?.player0.deck
+    ? shuffleDeck([...setupData.player0.deck])
     : [];
-  const opponentDeck = setupData?.opponentDeck
-    ? shuffleDeck([...setupData.opponentDeck])
+  const opponentDeck = setupData?.player1.deck
+    ? shuffleDeck([...setupData.player1.deck])
     : [];
 
   // Get hero data or use defaults
-  const playerHero = setupData?.playerHero;
-  const opponentHero = setupData?.opponentHero;
+  const playerHero = setupData?.player0.hero;
+  const opponentHero = setupData?.player1.hero;
 
   const p0: Player = {
     id: "0",
