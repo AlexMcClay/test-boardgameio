@@ -52,6 +52,7 @@ const HeroSection = ({ player }: Props) => {
       data-player-bounds="true"
       className={twMerge(
         `flex items-center w-[7%] pointer-events-auto relative transition-all duration-100 no-shadow`,
+        "minion-card",
         isValid && !isOver && "valid-target-shadow ",
         isValid && isOver && "highlight-shadow",
       )}

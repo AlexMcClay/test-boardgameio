@@ -30,7 +30,7 @@ const PlayerArea = ({
         className={twMerge(
           "absolute z-0 self-center justify-center w-full flex items-center pointer-events-none",
           !isTop && "translate-y-[-97%] translate-x-[-0.1%]",
-          isTop && "translate-y-[57%] translate-x-[0]",
+          isTop && "translate-y-[57%] translate-x-[0%]",
         )}
       >
         <HeroSection
