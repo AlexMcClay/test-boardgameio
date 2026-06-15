@@ -20,9 +20,12 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
+
+    /* Paths & Monorepo Setup */
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
+      "@project/shared": ["../shared/src/index.ts"]
     }
   }
 }

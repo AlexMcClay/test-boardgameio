@@ -213,7 +213,7 @@ const placeCard: Move<GameState> = (
     });
     // ADD THIS: Push the resolved spell into the graveyard
     G.graveyard.push({
-      card: structuredClone(card),
+      card: JSON.parse(JSON.stringify(card)),
       originalOwner: ctx.currentPlayer,
       diedOnTurn: ctx.turn,
     });
@@ -774,7 +774,7 @@ function processDeaths(G: GameState, ctx: Ctx) {
         });
 
         G.graveyard.push({
-          card: structuredClone(deadCard),
+          card: JSON.parse(JSON.stringify(deadCard)),
           originalOwner: playerId,
           diedOnTurn: ctx.turn,
         });
