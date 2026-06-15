@@ -179,10 +179,11 @@ function App() {
     }
 
     if (gameMode === "pvp" && multiplayerSession) {
+      const serverUrl = `${window.location.protocol}//${window.location.hostname}:8000`;
       const HearthstoneOnlinePvP = Client({
         board: Gameboard,
         game: HeathStoneGame,
-        multiplayer: SocketIO({ server: "http://localhost:8000" }),
+        multiplayer: SocketIO({ server: serverUrl }),
         debug: { collapseOnLoad: true, hideToggleButton: true },
       });
 

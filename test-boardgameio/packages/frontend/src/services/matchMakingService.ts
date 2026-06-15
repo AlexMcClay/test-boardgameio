@@ -13,17 +13,25 @@ class MatchmakingWebSocketService {
   connect() {
     if (this.socket || !this.shouldReconnect) return;
 
-    this.socket = new WebSocket("ws://localhost:8000/matchmaking-ws");
+    // Determine the correct protocol (ws for http, wss for https)
+    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 
+    // Connect using the current hostname while keeping the :8000 port and path
+    this.socket = new WebSocket(
+      `${wsProtocol}//${window.location.hostname}:8000/matchmaking-ws`,
+    );
     this.socket.onopen = () => {
       console.log("Connected");
-      this.send({ type: "connect", playerID: localStorage.getItem("user_id") || '' });
+      this.send({
+        type: "connect",
+        playerID: localStorage.getItem("user_id") || "",
+      });
     };
 
     this.socket.onmessage = (event) => {
       const data: WebSocketMessage = JSON.parse(event.data);
 
-      this.handlers.forEach(handler => {
+      this.handlers.forEach((handler) => {
         handler(data);
       });
     };
