@@ -7,6 +7,11 @@ type DragStore = {
   activeCard: Card | null;
   currentPlayer: PlayerID | null;
   gameState: GameState | null;
+  // Add this to your store interface/state if it doesn't exist yet:
+  hoveredTarget: {
+    type: "card" | "player" | null;
+    id: string | null;
+  } | null;
   setActiveCard: (card: Card | null) => void;
   setCurrentPlayer: (player: PlayerID) => void;
   setGameState: (gameState: GameState) => void;
@@ -33,6 +38,7 @@ export const useDragStore = create<DragStore>((set, get) => ({
   activeCard: null,
   currentPlayer: null,
   gameState: null,
+  hoveredTarget: null,
 
   setActiveCard: (card) => set({ activeCard: card }),
   setCurrentPlayer: (player) => set({ currentPlayer: player }),

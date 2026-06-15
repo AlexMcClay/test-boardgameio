@@ -49,24 +49,30 @@ const HeroSection = ({ player }: Props) => {
       ref={setNodeRef}
       id="player-stats"
       data-player-id={player.id}
+      data-player-bounds="true"
       className={twMerge(
-        // 1. Set a percentage width, use aspect-square to guarantee a perfect 1:1 box
-        `flex items-center w-[7%]  pointer-events-auto relative transition-all duration-100 no-shadow`,
-        (isOver || isValid) && "highlight-shadow ",
+        `flex items-center w-[7%] pointer-events-auto relative transition-all duration-100 no-shadow`,
+        isValid && !isOver && "valid-target-shadow ",
       )}
       style={{
-        aspectRatio: "1 / 1.06", // Ensure the container is always a square
+        aspectRatio: "1 / 1.06",
       }}
     >
       <div
-        className="relative h-full w-full overflow-hidden"
+        className="absolute inset-0 z-40 bg-transparent cursor-pointer"
+        data-player-id={player.id} // Duplicated here so elementFromPoint catches it instantly
+      />
+
+      {/* Visual Portrait Wrapper */}
+      <div
+        className="relative h-full w-full overflow-hidden pointer-events-none"
         style={{ clipPath: archClipPath }}
       >
-        {/* The Hero Image */}
+        {/* The Hero Image (Added pointer-events-none) */}
         <img
           src={heroPortrait}
           alt={`${player.name} portrait`}
-          className="h-full w-full object-cover opacity-100"
+          className="h-full w-full object-cover opacity-100 pointer-events-none"
           draggable="false"
         />
 
@@ -79,25 +85,24 @@ const HeroSection = ({ player }: Props) => {
           }}
         />
 
-        {/* Top Arc Inset Shadow Correction (Enhances darkness at the very top curve) */}
+        {/* Top Arc Inset Shadow Correction */}
         <div
           className="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/80 via-transparent to-transparent"
           style={{ clipPath: archClipPath }}
         />
       </div>
-      {/* Health */}
-      <div className="absolute bottom-[-10%] right-[-20%] z-30 w-[40%] aspect-square flex items-center justify-center">
-        {/* The Health Icon - Now fits perfectly as the structural background */}
+
+      {/* Health Icon (Pushed underneath the invisible hitbox layer using z-30) */}
+      <div className="absolute bottom-[-10%] right-[-20%] z-20 w-[40%] aspect-square flex items-center justify-center pointer-events-none">
         <img
           src={healthIcon}
           alt="HP"
-          className="w-full h-full object-contain  inset-0"
+          className="w-full h-full object-contain inset-0 pointer-events-none"
           draggable="false"
         />
 
-        {/* The HP Text - Centers perfectly without needing complex math transforms */}
         <span
-          className="text-red-500 z-10 text-[175%] absolute font-extrabold  text-center leading-none font-belwe  scale-140  "
+          className="text-red-500 z-10 text-[175%] absolute font-extrabold text-center leading-none font-belwe scale-140 pointer-events-none"
           style={{
             WebkitTextStroke: "1px black",
             textShadow: "0 1px 0px black",
