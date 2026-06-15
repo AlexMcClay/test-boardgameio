@@ -147,7 +147,7 @@ export const cardTemplates = {
     mana: 4,
     attack: undefined,
     health: undefined,
-    type: ["Spell"],
+    type: ["Fire"],
     imageUrl: "assets/cards/fireball.jpg",
     effects: [damage(6)],
     onPlace: [],
@@ -156,12 +156,44 @@ export const cardTemplates = {
     isMinion: false,
     class: "Mage",
   },
+  "mirror-image-spell": {
+    title: "Mirror Image",
+    description: "Summon two 0/2 minions with Taunt.",
+    mana: 1,
+    attack: undefined,
+    health: undefined,
+    imageUrl: "assets/cards/Mirror_Image.jpg",
+    // We add the summon effect twice to push two distinct instances onto the board side
+    effects: [summon("mirror-image-token"), summon("mirror-image-token")],
+    onPlace: [],
+    isSpell: true,
+    targets: [], // Self-casting spell; requires no selected targets
+    isMinion: false,
+    class: "Mage",
+  },
+
+  "mirror-image-token": {
+    title: "Mirror Image",
+    description: "Taunt.",
+    taunt: true, // Forces enemies to get through this barrier first
+    attack: 0,
+    health: 2,
+    mana: 0,
+    type: ["Minion"],
+    imageUrl: "assets/cards/Mirror_Image_Summon.jpg",
+    effects: [], // No standard attack value effect because its base attack is 0
+    onPlace: [],
+    targets: ["card-opponent", "player-opponent"],
+    isMinion: true,
+    isUncollectible: true, // Hidden from deckbuilders like Murloc Scout
+    class: "Mage",
+  },
   "arcane-intellect": {
     title: "Arcane Intellect",
     description: "Draw 2 cards.",
     mana: 3,
     imageUrl: "assets/cards/Arcane_Intellect.jpg",
-    type: ["Spell"],
+    type: ["Arcane"],
     effects: [draw(2)],
     onPlace: [],
     isSpell: true,
@@ -200,7 +232,7 @@ export const cardTemplates = {
     title: "Frostbolt",
     description: "Deal 3 damage and Freeze.",
     mana: 2,
-    type: ["Spell"],
+    type: ["Frost"],
     imageUrl: "assets/cards/Frostbolt.jpg",
     effects: [damage(3), freeze()],
     onPlace: [],
@@ -679,7 +711,7 @@ export const cardTemplates = {
   assassinate: {
     title: "Assassinate",
     description: "Destroy an enemy minion.",
-    mana: 5,
+    mana: 4,
     effects: [destroy("user-select")], // Targeted destroy effect that can target any minion, bypassing taunt
     onPlace: [],
     targets: ["card-opponent"], // Can only target opponent minions
@@ -788,6 +820,20 @@ export const cardTemplates = {
     isSpell: true,
     isMinion: false,
     class: "Mage",
+    type: ["Fire"],
+  },
+  arcane_explosion: {
+    title: "Arcane Explosion",
+    imageUrl: "assets/cards/Arcane_Explosion.jpg",
+    description: "Deal 1 damage to all enemy minions.",
+    mana: 2,
+    effects: [damage(1, "enemy-board")],
+    onPlace: [],
+    targets: ["lane-opponent", "lane-friendly"],
+    isSpell: true,
+    isMinion: false,
+    class: "Mage",
+    type: ["Arcane"],
   },
   "leper-gnome": {
     title: "Leper Gnome",
