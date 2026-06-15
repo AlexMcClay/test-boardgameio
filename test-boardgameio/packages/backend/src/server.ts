@@ -1,6 +1,4 @@
-
 import * as game from "@project/shared";
-import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import type { Context } from "koa";
 import type Router from "@koa/router";
@@ -25,29 +23,30 @@ const { Server, Origins } = require("boardgame.io/server") as {
   };
 };
 
-
 const queueManager = new QueueManager();
 const socketsByPlayerId = new Map<string, WebSocket>();
 
-// Defaut Server configuration 
+// Defaut Server configuration
 const server = Server({
   games: [game.HeathStoneGame],
   origins: [Origins.LOCALHOST],
-}); 
+});
 
 // Default Lobby API configuration - can be customized as needed (Kept for example and if we want to use it )
 const lobbyConfig = {
   apiPort: 8080,
-  apiCallback: () => console.log('Running Lobby API on port 8080...'),
+  apiCallback: () => console.log("Running Lobby API on port 8080..."),
 };
 
-
 // Helper function to create and start a match between two players using the Boardgame.io REST API
-async function createAndStartMatch(playerA: queueItem, playerB: {
-  playerID: string;
-  playerDeck: queueItem["playerDeck"];
-  playerHero: queueItem["playerHero"];
-}) {
+async function createAndStartMatch(
+  playerA: queueItem,
+  playerB: {
+    playerID: string;
+    playerDeck: queueItem["playerDeck"];
+    playerHero: queueItem["playerHero"];
+  },
+) {
   const gameName = game.HeathStoneGame.name;
   const apiBase = `http://127.0.0.1:${lobbyConfig.apiPort}`;
 
@@ -72,17 +71,22 @@ async function createAndStartMatch(playerA: queueItem, playerB: {
   const { matchID } = (await createResponse.json()) as { matchID: string };
 
   const joinPlayer = async (playerID: "0" | "1", playerName: string) => {
-    const joinResponse = await fetch(`${apiBase}/games/${gameName}/${matchID}/join`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        playerID,
-        playerName,
-      }),
-    });
+    const joinResponse = await fetch(
+      `${apiBase}/games/${gameName}/${matchID}/join`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          playerID,
+          playerName,
+        }),
+      },
+    );
 
     if (!joinResponse.ok) {
-      throw new Error(`Failed to join player ${playerID}: ${await joinResponse.text()}`);
+      throw new Error(
+        `Failed to join player ${playerID}: ${await joinResponse.text()}`,
+      );
     }
 
     return (await joinResponse.json()) as {
@@ -103,31 +107,38 @@ async function createAndStartMatch(playerA: queueItem, playerB: {
 // Start the boardgameIO server + Lobby api's and set up WebSocket handling for matchmaking
 server.run({ port: 8000, lobbyConfig } as any).then(({ appServer }) => {
   // Set up WebSocket server for matchmaking
-  const wss = new WebSocketServer({ server: appServer, path: "/matchmaking-ws" });
+  const wss = new WebSocketServer({
+    server: appServer,
+    path: "/matchmaking-ws",
+  });
 
   wss.on("connection", (ws: WebSocket) => {
     console.log("WebSocket client connected to matchmaking");
     let queuedMatchID: string | null = null;
     let connectedPlayerID: string | null = null;
 
-
     ws.on("message", (message: Buffer) => {
       console.log("Received:", message.toString());
       const request: WebSocketMessage = JSON.parse(message.toString());
-      if(request.type === "connect") {
+      if (request.type === "connect") {
         connectedPlayerID = request.playerID;
         socketsByPlayerId.set(request.playerID, ws);
       }
 
       if (request.type === "find_match") {
-        if(queueManager.isPlayerInQueue(request.playerID)) {
-          console.log(`Player ${request.playerID} is already in the matchmaking queue.`);
+        if (queueManager.isPlayerInQueue(request.playerID)) {
+          console.log(
+            `Player ${request.playerID} is already in the matchmaking queue.`,
+          );
           return;
         }
         connectedPlayerID = request.playerID;
         socketsByPlayerId.set(request.playerID, ws);
 
-        const queuedOpponent = queueManager.findMatch(request.playerID, request.skillLevel);
+        const queuedOpponent = queueManager.findMatch(
+          request.playerID,
+          request.skillLevel,
+        );
 
         if (!queuedOpponent) {
           queuedMatchID = queueManager.addToQueue(
@@ -173,8 +184,13 @@ server.run({ port: 8000, lobbyConfig } as any).then(({ appServer }) => {
               },
             };
 
-            const opponentSocket = socketsByPlayerId.get(queuedOpponent.playerID);
-            if (opponentSocket && opponentSocket.readyState === WebSocket.OPEN) {
+            const opponentSocket = socketsByPlayerId.get(
+              queuedOpponent.playerID,
+            );
+            if (
+              opponentSocket &&
+              opponentSocket.readyState === WebSocket.OPEN
+            ) {
               opponentSocket.send(JSON.stringify(queuedOpponentResponse));
             }
 
@@ -189,7 +205,9 @@ server.run({ port: 8000, lobbyConfig } as any).then(({ appServer }) => {
 
       if (request.type === "cancel_search") {
         if (queuedMatchID) {
-          console.log(`Player ${request.playerID} canceled matchmaking search.`);
+          console.log(
+            `Player ${request.playerID} canceled matchmaking search.`,
+          );
           queueManager.removeFromQueue(queuedMatchID);
           queuedMatchID = null;
         }
@@ -207,5 +225,7 @@ server.run({ port: 8000, lobbyConfig } as any).then(({ appServer }) => {
     });
   });
 
-  console.log("🚀 WebSocket matchmaking available at ws://localhost:8000/matchmaking-ws");
+  console.log(
+    "🚀 WebSocket matchmaking available at ws://localhost:8000/matchmaking-ws",
+  );
 });

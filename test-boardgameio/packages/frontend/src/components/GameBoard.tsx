@@ -110,6 +110,9 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
         console.log("Event History:", G.gameEvents);
         console.log("Full Game History:", G.eventHistory);
         console.log("Active Battlecry Minion:", G.activeBattlecryMinion);
+        console.log("GAME STATE", G);
+        console.log("GAME CONTEXT", ctx);
+        console.log("YOUR PLAYER: ", props.playerID);
       }
     };
 
@@ -117,7 +120,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [G.gameEvents]);
+  }, [G.gameEvents, props.playerID, G.activeBattlecryMinion]);
 
   // ESC handler for canceling battlecry
   useEffect(() => {
@@ -217,12 +220,18 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     handleAnimationsAndVisualBoard();
   }, [G, ctx, isAnimating, queueAnimationBatch, playAnimations]);
 
-  const p0 = visualGameState.players["0"];
-  const p1 = visualGameState.players["1"];
-  const board0 = visualGameState.board["0"];
-  const board1 = visualGameState.board["1"];
-  const p0Deck = p0.deck;
-  const p1Deck = p1.deck;
+  const mainPlayer = props.playerID ?? "0";
+  const enemyPlayer = props.playerID
+    ? props.playerID === "0"
+      ? "1"
+      : "0"
+    : "1";
+  const bottomPlayer = visualGameState.players[mainPlayer];
+  const topPlayer = visualGameState.players[enemyPlayer];
+  const bottomDeck = bottomPlayer.deck;
+  const topDeck = topPlayer.deck;
+  const bottomBoard = visualGameState.board[mainPlayer];
+  const topBoard = visualGameState.board[enemyPlayer];
 
   // console.log(ctx.phase, "Current phase");
 
@@ -375,11 +384,12 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           <div className=" absolute w-full h-1/4 flex flex-col justify-end">
             <PlayerArea
               moves={moves}
-              player={p1}
+              player={topPlayer}
               G={visualGameState}
               ctx={visualCtx}
               {...props}
               isTop
+              playerID={mainPlayer}
             />
           </div>
 
@@ -391,20 +401,20 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
             }}
           >
             {/* Player 1 Board */}
-            <Lane playerID="1">
-              {board1.map((card) => (
+            <Lane playerID={enemyPlayer}>
+              {topBoard.map((card) => (
                 <DropDetectCard
-                  playerID="1"
+                  playerID={enemyPlayer}
                   key={card.id}
                   card={card}
                   ctx={visualCtx}
                 />
               ))}
             </Lane>
-            <Lane playerID="0">
-              {board0.map((card) => (
+            <Lane playerID={mainPlayer}>
+              {bottomBoard.map((card) => (
                 <DropDetectCard
-                  playerID="0"
+                  playerID={mainPlayer}
                   key={card.id}
                   card={card}
                   ctx={visualCtx}
@@ -451,18 +461,18 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           </AnimatePresence>
 
           {/* Decks */}
-          <BoardCardDeckTop deck={p1Deck} ctx={visualCtx} />
-          <BoardCardDeckBottom deck={p0Deck} ctx={visualCtx} />
+          <BoardCardDeckTop deck={topDeck} ctx={visualCtx} />
+          <BoardCardDeckBottom deck={bottomDeck} ctx={visualCtx} />
 
           {/* Player 0 Hand */}
           <div className="absolute bottom-0 w-full h-1/4 flex flex-col justify-start">
             <PlayerArea
-              player={p0}
+              player={bottomPlayer}
               G={visualGameState}
               ctx={visualCtx}
               {...props}
               moves={moves}
-              playerID="0"
+              playerID={mainPlayer}
             />
           </div>
           <AnimatePresence
