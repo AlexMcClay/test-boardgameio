@@ -129,7 +129,7 @@ const HitNumber = ({
         <motion.img
           src={damage_icon}
           alt="damage"
-          className="absolute w-32 h-32 min-h-32 min-w-32 object-contain"
+          className="absolute w-[8vw] h-[8vw] min-h-[8vw] min-w-[8vw] object-contain"
           initial={{ scale: 0.8, rotate: 0 }}
           animate={{ scale: 1, rotate: 20 }}
           transition={{ duration: 0.3, ease: "easeOut" }}
@@ -144,7 +144,7 @@ const HitNumber = ({
           initial={{ scale: 0.7 }}
           animate={{ scale: [0.7, 1.2, 1] }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className={`relative z-10 font-black text-4xl pointer-events-none select-none -top-1 -left-1 ${
+          className={`relative z-10 font-black text-[2vw] pointer-events-none select-none -top-1 -left-1 ${
             isDamage ? "text-white" : "text-green-500"
           }`}
           style={{

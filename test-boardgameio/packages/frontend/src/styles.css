@@ -78,34 +78,30 @@ code {
 }
 
 .canAttack:hover {
+  will-change: filter;
+  transform: translate3d(0, 0, 0);
+
   animation: canAttackHover 1.5s ease-in-out infinite;
 }
 
 @keyframes canAttackHover {
   0%,
   100% {
-    filter: 
-      /* --- INNER GLOW: Sharp, solid white core --- */ drop-shadow(
-        0 0 2px oklch(100% 0 0)
-      )
-      drop-shadow(0 0 3px oklch(100% 0 0))
-      /* --- OUTER BORDER: Heavy, stacked green layers for a solid look --- */
-      drop-shadow(0 0 5px oklch(87.481% 0.24568 148.025))
-      drop-shadow(0 0 5px oklch(87.481% 0.24568 148.025))
-      drop-shadow(0 0 6px oklch(87.481% 0.24568 148.025))
+    filter: drop-shadow(0 0 2px oklch(100% 0 0 / 1))
+      drop-shadow(0 0 3px oklch(100% 0 0 / 1))
+      drop-shadow(0 0 5px oklch(87.481% 0.24568 148.025 / 1))
+      drop-shadow(0 0 5px oklch(87.481% 0.24568 148.025 / 1))
+      drop-shadow(0 0 6px oklch(87.481% 0.24568 148.025 / 1))
       drop-shadow(0 0 8px oklch(92.831% 0.11804 154.485 / 0.6));
   }
 
   50% {
-    filter: 
-      /* --- PULSING DOWN: White dims slightly --- */ drop-shadow(
-        0 0 1px oklch(100% 0 0 / 0.7)
-      )
+    filter: drop-shadow(0 0 1px oklch(100% 0 0 / 0.7))
       drop-shadow(0 0 2px oklch(100% 0 0 / 0.5))
-      /* --- PULSING DOWN: Green remains relatively dense but shrinks slightly --- */
-      drop-shadow(0 0 4px oklch(87.481% 0.24568 148.025))
-      drop-shadow(0 0 4px oklch(87.481% 0.24568 148.025))
-      drop-shadow(0 0 5px oklch(87.481% 0.24568 148.025 / 0.5));
+      drop-shadow(0 0 4px oklch(87.481% 0.24568 148.025 / 1))
+      drop-shadow(0 0 4px oklch(87.481% 0.24568 148.025 / 1))
+      drop-shadow(0 0 5px oklch(87.481% 0.24568 148.025 / 0.5))
+      drop-shadow(0 0 6px oklch(92.831% 0.11804 154.485 / 0)); /* Matching 6th layer fading out entirely */
   }
 }
 
@@ -142,20 +138,24 @@ code {
 
 /* Animate highlight shadow on hover */
 .highlight-shadow:hover {
+  /* GPU hardware acceleration hooks to prevent layout flickering */
+  will-change: filter;
+  transform: translate3d(0, 0, 0);
+
   animation: highlightPulse 1.5s ease-in-out infinite;
 }
 
 @keyframes highlightPulse {
   0%,
   100% {
-    filter: drop-shadow(0 0 2px oklch(85.2% 0.199 91.936))
-      drop-shadow(0 0 4px oklch(85.2% 0.199 91.936))
-      drop-shadow(0 0 6px oklch(85.2% 0.199 91.936));
+    filter: drop-shadow(0 0 2px oklch(85.2% 0.199 91.936 / 1))
+      drop-shadow(0 0 4px oklch(85.2% 0.199 91.936 / 1))
+      drop-shadow(0 0 6px oklch(85.2% 0.199 91.936 / 1));
   }
   50% {
-    filter: drop-shadow(0 0 4px oklch(85.2% 0.199 91.936/0.5))
-      drop-shadow(0 0 8px oklch(85.2% 0.199 91.936/0.5))
-      drop-shadow(0 0 12px oklch(85.2% 0.199 91.936/0.5));
+    filter: drop-shadow(0 0 4px oklch(85.2% 0.199 91.936 / 0.5))
+      drop-shadow(0 0 8px oklch(85.2% 0.199 91.936 / 0.5))
+      drop-shadow(0 0 12px oklch(85.2% 0.199 91.936 / 0.5));
   }
 }
 
@@ -165,22 +165,29 @@ code {
     drop-shadow(0 0 6px oklch(68.649% 0.20623 42.221));
 }
 
-/* Animate highlight shadow on hover */
 .valid-target-shadow:hover {
+  /* Inform the GPU to prepare for filter updates */
+  will-change: filter;
+  /* Force a composite layer to prevent layout shifting */
+  transform: translate3d(0, 0, 0);
+
   animation: validTargetPulse 1.5s ease-in-out infinite;
 }
 
 @keyframes validTargetPulse {
   0%,
   100% {
-    filter: drop-shadow(0 0 2px oklch(68.649% 0.20623 42.221))
-      drop-shadow(0 0 4px oklch(68.649% 0.20623 42.221))
-      drop-shadow(0 0 6px oklch(68.649% 0.20623 42.221));
+    filter: drop-shadow(0 0 2px oklch(100% 0 0 / 1)) /* 1. White core active */
+      drop-shadow(0 0 4px oklch(68.649% 0.20623 42.221 / 1))
+      drop-shadow(0 0 8px oklch(68.649% 0.20623 42.221 / 1))
+      drop-shadow(0 0 12px oklch(68.649% 0.20623 42.221 / 1));
   }
   50% {
-    filter: drop-shadow(0 0 4px oklch(68.649% 0.20623 42.221/0.5))
-      drop-shadow(0 0 8px oklch(68.649% 0.20623 42.221/0.5))
-      drop-shadow(0 0 12px oklch(68.649% 0.20623 42.221/0.5));
+    filter: drop-shadow(0 0 2px oklch(100% 0 0 / 0))
+      /* 1. Matching layer, but completely transparent */
+      drop-shadow(0 0 4px oklch(68.649% 0.20623 42.221 / 0.5))
+      drop-shadow(0 0 8px oklch(68.649% 0.20623 42.221 / 0.5))
+      drop-shadow(0 0 16px oklch(68.649% 0.20623 42.221 / 0.3));
   }
 }
 

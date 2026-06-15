@@ -4,11 +4,12 @@ import type { Ctx, PlayerID } from "boardgame.io";
 import { useDragStore } from "@/stores/dragStore";
 import { useAnimationStore } from "@/stores/animationStore";
 import { twMerge } from "tailwind-merge";
-import { motion } from "motion/react";
-import { useRef, useEffect } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { useRef, useEffect, useState } from "react";
 import { DEATH_ANIMATION } from "@/utils/animationDurations";
 import PlacedCard from "./PlacedCard";
 import { useAudioStore } from "@/stores/audioStore";
+import MinionCardPopover from "../MinionCardPopover";
 
 interface Props extends CardProps {
   playerID: PlayerID;
@@ -20,12 +21,20 @@ interface Props extends CardProps {
 const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
   const placedCardRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
   const startAttack = useDragStore((s) => s.startAttack);
   const updateAttackCursor = useDragStore((s) => s.updateAttackCursor);
   const endAttack = useDragStore((s) => s.endAttack);
   const attackingCardId = useDragStore((s) => s.attackingCardId);
   const activeAnimations = useAnimationStore((s) => s.activeAnimations);
   const gameState = useDragStore((s) => s.gameState);
+
+  // Hover popover state
+  const [showPopover, setShowPopover] = useState(false);
+  const [popoverPosition, setPopoverPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   const isAttackingWithArrow = attackingCardId === card.id;
   const disabled =
@@ -89,6 +98,77 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
   };
 
   const targetPosition = getTargetPosition();
+
+  // Hover handlers for popover
+  const handleMouseEnter = () => {
+    console.log("MOUSE ENTERED");
+    // Don't show popover during attack mode
+    if (isAttackingWithArrow || attackingCardId) return;
+
+    console.log("HERE");
+
+    // Clear any existing timer
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+    }
+
+    console.log("HERE 2");
+
+    // Start 1-second timer
+    hoverTimerRef.current = setTimeout(() => {
+      const rect = wrapperRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      // Calculate position for popover
+      const cardWidth = rect.width;
+      const cardScaled = cardWidth * 1.5; // Account for 150% scale
+      const spacing = 20; // Spacing between card and popover
+
+      // Check if we should show on right or left
+      const showOnRight = rect.right + cardScaled + spacing < window.innerWidth;
+
+      const x = showOnRight
+        ? rect.right + spacing
+        : rect.left - cardScaled - spacing;
+
+      // Center vertically relative to the minion
+      const y = rect.top + rect.height / 2 - (rect.height * 1.5) / 2;
+
+      setPopoverPosition({ x, y });
+      setShowPopover(true);
+    }, 500);
+  };
+
+  const handleMouseLeave = () => {
+    // Clear timer if mouse leaves before 1 second
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+
+    // Hide popover
+    setShowPopover(false);
+  };
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current) {
+        clearTimeout(hoverTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Hide popover when entering attack mode
+  useEffect(() => {
+    if (isAttackingWithArrow || attackingCardId) {
+      setShowPopover(false);
+      if (hoverTimerRef.current) {
+        clearTimeout(hoverTimerRef.current);
+        hoverTimerRef.current = null;
+      }
+    }
+  }, [isAttackingWithArrow, attackingCardId]);
 
   const handleMouseDown = (_e: React.MouseEvent) => {
     if (disabled && !isBattlecryMinion) return;
@@ -244,36 +324,52 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
   }, [isAttackingWithArrow, card.id, updateAttackCursor, endAttack]);
 
   return (
-    <motion.div
-      ref={wrapperRef}
-      onMouseDown={handleMouseDown}
-      animate={
-        isAttackingWithArrow
-          ? {
-              y: 0,
-              scale: 1.15,
-              transition: { duration: 0.15, ease: "easeOut" },
-              // filter: "drop-shadow(0px 0px 10px rgba(239, 68, 68, 0.7))",
-            }
-          : { y: 0, scale: 1 }
-      }
-      className={twMerge(
-        !disabled &&
-          ctx.currentPlayer === playerID &&
-          !isAttackingWithArrow &&
-          !isValid &&
-          "canAttack cursor-pointer",
-      )}
-    >
-      <PlacedCard
-        card={{ ...card, mana: null }}
-        playerID={playerID}
-        ctx={ctx}
-        isAttacking={isAttackAnimating}
-        targetPosition={targetPosition}
-        cardRef={placedCardRef}
-      />
-    </motion.div>
+    <>
+      <motion.div
+        ref={wrapperRef}
+        onMouseDown={handleMouseDown}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        animate={
+          isAttackingWithArrow
+            ? {
+                y: 0,
+                scale: 1.15,
+                transition: { duration: 0.15, ease: "easeOut" },
+                // filter: "drop-shadow(0px 0px 10px rgba(239, 68, 68, 0.7))",
+              }
+            : { y: 0, scale: 1 }
+        }
+        className={twMerge(
+          !disabled &&
+            ctx.currentPlayer === playerID &&
+            !isAttackingWithArrow &&
+            !isValid &&
+            "canAttack cursor-pointer",
+        )}
+      >
+        <PlacedCard
+          card={{ ...card, mana: null }}
+          playerID={playerID}
+          ctx={ctx}
+          isAttacking={isAttackAnimating}
+          targetPosition={targetPosition}
+          cardRef={placedCardRef}
+        />
+      </motion.div>
+
+      {/* Render popover when hovering */}
+      <AnimatePresence>
+        {showPopover && (
+          <MinionCardPopover
+            key={"minion-card-overlay"}
+            card={{ ...card, mana: card.mana }}
+            position={popoverPosition}
+            ctx={ctx}
+          />
+        )}
+      </AnimatePresence>
+    </>
   );
 };
 
