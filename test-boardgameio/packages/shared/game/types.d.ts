@@ -99,7 +99,8 @@ export type DamageEffect = {
     | "friendly-hero"
     | "enemy-hero"
     | "enemy-board"
-    | "enemy-all"; // Target can be user-select, self-hero, enemy-hero, or hero
+    | "enemy-all" // Target can be user-select, self-hero, enemy-hero, or hero
+    | "board";
 };
 
 export type FreezeEffect = {
@@ -110,13 +111,22 @@ export type FreezeEffect = {
     | "friendly-hero"
     | "enemy-hero"
     | "enemy-board"
-    | "enemy-all"; // Target can be user-select, self-hero, enemy-hero, or hero
+    | "enemy-all"
+    | "board";
+  // Target can be user-select, self-hero, enemy-hero, or hero
 };
 
 export type DivineShieldEffect = {
   type: "divineShield";
   battlecry?: boolean; // Indicates if this damage is part of a battlecry (bypasses taunt)
-  target: "user-select" | "friendly-hero";
+  target:
+    | "user-select"
+    | "friendly-hero"
+    | "enemy-hero"
+    | "enemy-board"
+    | "enemy-all"
+    | "board";
+  // Target can be user-select, self-hero, enemy-hero, or hero
 };
 
 type DestroyEffect = {

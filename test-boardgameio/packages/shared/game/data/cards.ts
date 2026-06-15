@@ -288,7 +288,6 @@ export const cardTemplates = {
     title: "Charge",
     description: "Give a minion Charge.",
     mana: 1,
-    type: ["Spell"],
     imageUrl: "assets/cards/Charge.jpg",
     effects: [changeKey("summoningSickness", false)],
     onPlace: [],
@@ -807,7 +806,7 @@ export const cardTemplates = {
     onPlace: [changeKey("summoningSickness", false, "self")],
     targets: ["card-opponent", "player-opponent"],
     isMinion: true,
-    class: "Warrior",
+    class: "Neutral",
   },
   flamestrike: {
     title: "Flamestrike",
@@ -952,6 +951,158 @@ export const cardTemplates = {
     isSpell: true,
     targets: ["card"],
     isMinion: false,
+    class: "Paladin",
+  },
+  // Add these to your cardTemplates object in cards.ts
+
+  "force-of-nature": {
+    title: "Force of Nature",
+    description: "Summon three 2/2 Treants with Charge.",
+    mana: 5,
+
+    type: ["Nature"],
+    imageUrl: "assets/cards/Force_of_Nature.jpg",
+    // Spawns three distinct Treant instances onto the board side
+    effects: [
+      summon("treant-token"),
+      summon("treant-token"),
+      summon("treant-token"),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targets: [], // Self-casting spell; requires no selected targets
+    isMinion: false,
+    class: "Druid",
+  },
+  "treant-token": {
+    title: "Treant",
+    description: "Charge.",
+    mana: 2,
+    attack: 2,
+    health: 2,
+    type: ["Minion"],
+    imageUrl: "assets/cards/Treant.jpg",
+    effects: [damage("attack")],
+    // Removes summoning sickness immediately upon being summoned to the board
+    onPlace: [changeKey("summoningSickness", false, "self")],
+    targets: ["card-opponent", "player-opponent"],
+    isMinion: true,
+    isUncollectible: true, // Hidden from deckbuilders, matching your rule constraints
+    class: "Druid",
+  },
+  "ironbark-protector": {
+    title: "Ironbark Protector",
+    description: "Taunt.",
+    taunt: true,
+    mana: 8,
+    attack: 8,
+    health: 8,
+    type: ["Minion"],
+    imageUrl: "assets/cards/Ironbark_Protector.jpg",
+    effects: [damage("attack")],
+    onPlace: [],
+    targets: ["card-opponent", "player-opponent"],
+    isMinion: true,
+    class: "Druid",
+  },
+  starfire: {
+    title: "Starfire",
+    description: "Deal 5 damage. Draw a card.",
+    mana: 6,
+    type: ["Arcane"],
+    imageUrl: "assets/cards/Starfire.jpg",
+    effects: [damage(5), draw(1)],
+    onPlace: [],
+    isSpell: true,
+    targets: ["card", "player"], // Can target any minion or hero on the board
+    isMinion: false,
+    class: "Druid",
+  },
+  "frost-nova": {
+    title: "Frost Nova",
+    description: "Freeze all enemy minions.",
+    mana: 3,
+    type: ["Frost"],
+    imageUrl: "assets/cards/Frost_Nova.jpg",
+    effects: [freeze("enemy-board")],
+    onPlace: [],
+    isSpell: true,
+    targets: ["lane-opponent", "lane-friendly"], // Board-wide spell targeting matching Flamestrike
+    isMinion: false,
+    class: "Mage",
+  },
+  blizzard: {
+    title: "Blizzard",
+    description: "Deal 2 damage to all enemy minions and Freeze them.",
+    mana: 6,
+    type: ["Frost"],
+    imageUrl: "assets/cards/Blizzard.jpg",
+    effects: [damage(2, "enemy-board"), freeze("enemy-board")],
+    onPlace: [],
+    isSpell: true,
+    targets: ["lane-opponent", "lane-friendly"], // Board-wide spell targeting alignment
+    isMinion: false,
+    class: "Mage",
+  },
+  whirlwind: {
+    title: "Whirlwind",
+    description: "Deal 1 damage to ALL minions.",
+    mana: 1,
+    attack: undefined,
+    health: undefined,
+    imageUrl: "assets/cards/Whirlwind.jpg",
+    // Applies 1 damage to every minion on the entire board (friendly and enemy)
+    effects: [damage(1, "board")],
+    onPlace: [],
+    isSpell: true,
+    targets: ["lane-opponent", "lane-friendly"], // Board-wide spell targeting alignment
+    isMinion: false,
+    class: "Warrior",
+  },
+  // Add this to your cardTemplates object in cards.ts
+
+  "korkron-elite": {
+    title: "Kor'kron Elite",
+    description: "Charge.",
+    mana: 4,
+    attack: 4,
+    health: 3,
+    imageUrl: "assets/cards/Korkron_Elite.jpg",
+    effects: [damage("attack")],
+    onPlace: [changeKey("summoningSickness", false, "self")],
+    targets: ["card-opponent", "player-opponent"],
+    isMinion: true,
+    class: "Warrior",
+  },
+  // Add this to your cardTemplates object in cards.ts
+
+  "lay-on-hands": {
+    title: "Lay on Hands",
+    description: "Restore 8 Health. Draw 3 cards.",
+    mana: 8,
+    type: ["Holy"],
+    imageUrl: "assets/cards/Lay_on_Hands.jpg",
+    effects: [heal(8), draw(3)],
+    onPlace: [],
+    isSpell: true,
+    targets: ["card-friendly", "player-friendly"], // Can target friendly minions or your hero
+    isMinion: false,
+    class: "Paladin",
+  },
+  // Add this to your cardTemplates object in cards.ts
+  "guardian-of-kings": {
+    title: "Guardian of Kings",
+    description: "Battlecry: Restore 6 Health to your hero.",
+    mana: 7,
+    attack: 5,
+    health: 7,
+    taunt: true,
+    imageUrl: "assets/cards/Guardian_of_Kings.jpg",
+    effects: [damage("attack")],
+    // Restores 6 health directly to the friendly hero on placement
+    onPlace: [heal(6, "friendly-hero", true)],
+    targets: ["card-opponent", "player-opponent"],
+    isMinion: true,
     class: "Paladin",
   },
 } satisfies Record<string, Omit<Card, "id" | "originalID">>;

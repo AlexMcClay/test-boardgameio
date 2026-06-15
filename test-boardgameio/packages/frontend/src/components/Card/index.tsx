@@ -60,6 +60,7 @@ const Card = ({
       "Lifesteal",
       "Rush",
       "Overkill",
+      "Freeze",
     ];
     let parsedDescription = card.description;
     keywords.forEach((keyword) => {
@@ -178,7 +179,7 @@ const Card = ({
       </div>
       {/* Description */}
       {/* Highlight Keywords Charge, Taunt, Battlecry */}
-      <div className="select-none text-[0.56vw] w-full relative text-black px-[1vw] py-[0.5vw] pt-[0.9vw] grow font-base  text-center font-medium ">
+      <div className="select-none text-[0.45vw] w-full relative text-black px-[1vw] font-[600] py-[0.5vw] pt-[1vw] grow font-base  text-center ">
         <span
           className="font-base"
           dangerouslySetInnerHTML={{ __html: text }}

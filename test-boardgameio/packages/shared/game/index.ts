@@ -338,6 +338,12 @@ const doEffects = (
           G.board[targetPlayerId].forEach((c) =>
             dealDamageToCard(G, cardId, c, targetPlayerId, damage),
           );
+        } else if (effect.target === "board") {
+          Object.entries(G.board).forEach(([player, lane]) => {
+            lane.forEach((c) => {
+              dealDamageToCard(G, cardId, c, player, damage);
+            });
+          });
         }
         break;
       }
@@ -383,18 +389,17 @@ const doEffects = (
           G.board[targetPlayerId].forEach((c) =>
             freezeCard(G, cardId, c, targetPlayerId),
           );
+        } else if (effect.target === "board") {
+          Object.entries(G.board).forEach(([player, lane]) => {
+            lane.forEach((c) => {
+              freezeCard(G, cardId, c, player);
+            });
+          });
         }
         break;
       }
       case "divineShield": {
         if (target && effect.target === "user-select") {
-          // Record attack animation event
-
-          // Target: Player
-          // if (target.type === "player") {
-          //   dealDamageToPlayer(G, cardId, target.player, damage);
-          // }
-
           // Target: Minion / Card
           if (target.type === "card") {
             const targetCard = G.board[target.player].find(
@@ -406,6 +411,34 @@ const doEffects = (
               divineShieldCard(G, cardId, targetCard, target.player);
             }
           }
+        } else if (
+          effect.target === "friendly-hero" ||
+          effect.target === "enemy-hero"
+        ) {
+          // const targetPlayerId =
+          //   effect.target === "friendly-hero"
+          //     ? playerID
+          //     : playerID === "0"
+          //       ? "1"
+          //       : "0";
+          // divineShieldCard(G, cardId, targetPlayerId);
+        } else if (effect.target === "enemy-board") {
+          const targetPlayerId = playerID === "0" ? "1" : "0";
+          G.board[targetPlayerId].forEach((c) =>
+            divineShieldCard(G, cardId, c, targetPlayerId),
+          );
+        } else if (effect.target === "enemy-all") {
+          const targetPlayerId = playerID === "0" ? "1" : "0";
+          // divineShieldCard(G, cardId, targetPlayerId);
+          G.board[targetPlayerId].forEach((c) =>
+            divineShieldCard(G, cardId, c, targetPlayerId),
+          );
+        } else if (effect.target === "board") {
+          Object.entries(G.board).forEach(([player, lane]) => {
+            lane.forEach((c) => {
+              divineShieldCard(G, cardId, c, player);
+            });
+          });
         }
         break;
       }
