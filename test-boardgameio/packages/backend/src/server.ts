@@ -109,7 +109,7 @@ async function createAndStartMatch(
   };
 }
 // Start the boardgameIO server + Lobby api's and set up WebSocket handling for matchmaking
-server.run({ port: 8000, lobbyConfig } as any).then(({ appServer }) => {
+server.run({ port: 8000, lobbyConfig , host: "0.0.0.0"} as any).then(({ appServer }) => {
   // Set up WebSocket server for matchmaking
   const wss = new WebSocketServer({
     server: appServer,
