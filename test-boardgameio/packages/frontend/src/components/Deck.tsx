@@ -76,9 +76,10 @@ const Deck = ({
     return (
       <motion.div
         layout
-        title={name}
         layoutId={id}
-        className="flex h-[4vw] w-[10vw] items-end gap-[0.5vw] bg-black/40 rounded border z-30 relative"
+        key={id}
+        className="flex h-[4vw] min-h-[4vw] w-[10vw] items-end gap-[0.5vw] bg-black/40 rounded cursor-pointer relative"
+        onMouseEnter={() => playSfx("button-over")}
         style={{
           backgroundImage: `url(${image})`,
           backgroundSize: "cover",
@@ -108,6 +109,37 @@ const Deck = ({
             </span>
           )}
         </div>
+      </motion.div>
+    );
+  }
+
+  // --- Variant: Play ---
+  if (type === "play") {
+    return (
+      <motion.div
+        layout
+        layoutId={id}
+        key={id}
+        className="flex h-[4vw] min-h-[4vw] w-[10vw] items-end gap-[0.5vw] bg-black/40 rounded cursor-pointer relative"
+        onClick={(e) => {
+          handleEditDeck ? handleEditDeck(e) : null;
+        }}
+        onMouseEnter={() => playSfx("button-over")}
+        style={{
+          backgroundImage: `url(${image})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <img
+          src={deck_frame}
+          alt="Deck Frame"
+          className="absolute z-10 min-w-[11.5vw] top-[-0.5vw] left-[-1vw]"
+          draggable="false"
+        />
+        <span className="w-full p-[0.3vw] text-[1.1vw] bg-gradient-to-r from-black to-transparent text-white">
+          {name}
+        </span>
       </motion.div>
     );
   }
