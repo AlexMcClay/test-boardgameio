@@ -12,6 +12,7 @@ import SettingsOverlay from "./SettingsOverlay";
 import SettingsButton from "./SettingsButton";
 import Deck from "./Deck";
 import GameModeModal from "./GameModeModal";
+import MatchmakingModal from "./MatchmakingModal";
 import { IoChevronBack, IoChevronForward } from "react-icons/io5";
 
 const backgroundImage = "assets/play_screen/background.png";
@@ -55,6 +56,9 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isGameModeModalOpen, setIsGameModeModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
+  const [selectedGameMode, setSelectedGameMode] = useState<GameMode | null>(
+    null,
+  );
 
   useEffect(() => {
     const unsubscribe = matchmakingWebSocketService.subscribe((msg) => {
@@ -90,17 +94,25 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
 
   function handleSelectDeck(deck: SavedDeck) {
     playSfx("button-click");
-    if (selectedDeck?.id === deck.id) {
-      // If same deck is clicked, open game mode modal
-      setIsGameModeModalOpen(true);
-    } else {
-      // Select the deck
-      setSelectedDeck(deck);
-      selectDeckForPlay(deck);
-    }
+    // Just select the deck (remove modal trigger)
+    setSelectedDeck(deck);
+    selectDeckForPlay(deck);
   }
 
-  function handleStartGame(mode: GameMode) {
+  function handleModeSelection(mode: GameMode) {
+    playSfx("button-click");
+    setSelectedGameMode(mode);
+    setIsGameModeModalOpen(false);
+  }
+
+  function handleStartGame() {
+    if (!selectedGameMode || !selectedDeck) {
+      playSfx("button-click");
+      alert("Please select both a game mode and a deck!");
+      return;
+    }
+
+    const mode = selectedGameMode;
     if (isSearchingMatch) {
       matchmakingWebSocketService.send({
         type: "cancel_search",
@@ -161,6 +173,15 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
     }
   }
 
+  function handleCancelSearch() {
+    playSfx("button-click");
+    matchmakingWebSocketService.send({
+      type: "cancel_search",
+      playerID: localStorage.getItem("user_id") || "",
+    });
+    setIsSearchingMatch(false);
+  }
+
   return (
     <div
       className="fixed inset-0  font-belwe"
@@ -176,7 +197,11 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
         {/* Header */}
         <div className="flex flex-col items-center mb-[2vw]">
           <h1 className="text-[2vw] font-bold text-amber-100 drop-shadow-[0_0.3vw_0.3vw_rgba(0,0,0,0.8)]">
-            Play (PLACEHOLDER VS AI OR PLAYER)
+            {selectedGameMode === "pvp"
+              ? "Play vs Player"
+              : selectedGameMode === "ai"
+                ? "Play vs AI"
+                : "Play (Select Mode)"}
           </h1>
           <h2 className="text-[1.5vw] mt-[3vw] font-bold px-[1vw] text-white bg-black/40 drop-shadow-[0_0.2vw_0.2vw_rgba(0,0,0,0.8)]">
             Choose Your Deck
@@ -251,14 +276,18 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
         <div className="flex justify-start absolute top-[1vw] left-[5vw] z-50">
           <button
             onClick={() => {
-              // click to change gamemode
-              // SHOUYLD OPEN MODAL
+              playSfx("button-click");
+              setIsGameModeModalOpen(true);
             }}
             onMouseEnter={() => playSfx("button-over")}
             className="relative py-[0.25vw] px-[2.5vw] bg-[#bda393] rounded-lg border-[0.3vw] border-[#8d7037] shadow-[0_0.4vw_0_rgba(92,64,51,1),0_0.6vw_1.5vw_rgba(0,0,0,0.6),inset_0_0.2vw_0_rgba(255,255,255,0.3)] transition-all duration-200 hover:translate-y-[0.15vw] hover:shadow-[0_0.2vw_0_rgba(92,64,51,1),0_0.4vw_1vw_rgba(0,0,0,0.6)] hover:brightness-110"
           >
             <span className="text-[1.25vw] font-bold text-stone-800 drop-shadow-[0_0.1vw_0.1vw_rgba(255,255,255,0.3)]">
-              Game Mode
+              {selectedGameMode === "pvp"
+                ? "vs Player"
+                : selectedGameMode === "ai"
+                  ? "vs AI"
+                  : "Game Mode"}
             </span>
             <div className="absolute inset-0 rounded-lg border-t-[0.15vw] border-l-[0.15vw] border-white/20 pointer-events-none" />
             <div className="absolute inset-0 rounded-lg border-b-[0.15vw] border-r-[0.15vw] border-black/20 pointer-events-none" />
@@ -300,9 +329,13 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
               <div className=" absolute top-[35.6vw] left-[5vw] w-[12vw] rounded-full   flex items-center justify-center">
                 <p className="text-[1.5vw] text-white">{selectedDeck.name}</p>
               </div>
-              <div className=" absolute top-[42vw] left-[5vw] w-[12vw] h-[12vw] rounded-full bg-black/60  flex items-center justify-center">
-                <p className="text-[2vw] text-white">Play</p>
-              </div>
+              <button
+                onClick={handleStartGame}
+                onMouseEnter={() => playSfx("button-over")}
+                className="absolute top-[42vw] left-[5vw] w-[12vw] h-[12vw] rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center transition-all duration-200 hover:scale-105 cursor-pointer"
+              >
+                <p className="text-[3.5vw] font-bold text-white">Play</p>
+              </button>
             </>
           ) : (
             <></>
@@ -353,7 +386,13 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
       <GameModeModal
         isOpen={isGameModeModalOpen}
         onClose={() => setIsGameModeModalOpen(false)}
-        onSelectMode={handleStartGame}
+        onSelectMode={handleModeSelection}
+      />
+
+      {/* Matchmaking Modal */}
+      <MatchmakingModal
+        isOpen={isSearchingMatch}
+        onCancel={handleCancelSearch}
       />
     </div>
   );

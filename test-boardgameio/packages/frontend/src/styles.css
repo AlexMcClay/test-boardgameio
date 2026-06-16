@@ -95,6 +95,11 @@ code {
   animation: shadowPulse 1.5s ease-in-out infinite;
 }
 
+.gameMode:hover {
+  filter: drop-shadow(0 0 2px oklch(100% 0 0))
+    drop-shadow(0 0 4px oklch(100% 0 0)) drop-shadow(0 0 6px oklch(100% 0 0));
+}
+
 /* Apply the white glow ONLY if the card DOES NOT contain an active .canAttack element being hovered */
 .minion-card:not(:has(.canAttack:hover)):hover {
   filter: drop-shadow(0 0 2px oklch(100% 0 0))

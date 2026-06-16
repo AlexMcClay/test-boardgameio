@@ -9,6 +9,10 @@ interface GameModeModalProps {
   onSelectMode: (mode: GameMode) => void;
 }
 
+const parchment = "assets/gamemode_parchment.png";
+const aiIcon = "assets/icons/Icon_Standard.webp";
+const pvpIcon = "assets/icons/Icon_Duels.webp";
+
 const GameModeModal = ({
   isOpen,
   onClose,
@@ -38,7 +42,7 @@ const GameModeModal = ({
           onClick={handleClose}
         >
           {/* Backdrop with blur */}
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-xs" />
 
           {/* Modal Content */}
           <motion.div
@@ -55,54 +59,64 @@ const GameModeModal = ({
             onClick={(e) => e.stopPropagation()}
           >
             {/* Background Panel */}
-            <div className="absolute inset-0 bg-gradient-to-br from-amber-900/95 via-amber-800/95 to-amber-900/95 rounded-2xl border-[0.4vw] border-amber-600 shadow-[0_0_3vw_rgba(0,0,0,0.9),inset_0_0_2vw_rgba(0,0,0,0.5)]" />
 
             {/* Content */}
-            <div className="relative z-10 flex flex-col items-center gap-[2vw] w-full">
+            <div className="relative z-10 flex items-center gap-[2vw] w-full">
               {/* Title */}
-              <h2 className="text-[3vw] font-bold text-amber-100 drop-shadow-[0_0.3vw_0.3vw_rgba(0,0,0,0.8)] text-center">
-                Choose Game Mode
-              </h2>
-
               {/* Game Mode Buttons */}
-              <div className="flex flex-col gap-[1.5vw] w-full">
+              <div className="flex  gap-[1.5vw] w-full">
                 {/* Player vs Player Button */}
-                <button
+
+                <div
+                  className="flex items-center justify-center flex-col relative w-[20vw] min-w-[20vw] gameMode"
                   onClick={() => handleSelectMode("pvp")}
                   onMouseEnter={() => playSfx("button-over")}
-                  className="relative py-[1.5vw] px-[2vw] bg-[#bda393] rounded-xl border-[0.3vw] border-[#8d7037] shadow-[0_0.5vw_0_rgba(92,64,51,1),0_0.8vw_2vw_rgba(0,0,0,0.6),inset_0_0.2vw_0_rgba(255,255,255,0.3)] transition-all duration-200 hover:translate-y-[0.2vw] hover:shadow-[0_0.3vw_0_rgba(92,64,51,1),0_0.6vw_1.5vw_rgba(0,0,0,0.6)] hover:brightness-110"
                 >
-                  <span className="text-[2vw] font-bold text-stone-800 drop-shadow-[0_0.15vw_0.15vw_rgba(255,255,255,0.3)]">
-                    Player vs Player
-                  </span>
-                  <div className="absolute inset-0 rounded-xl border-t-[0.15vw] border-l-[0.15vw] border-white/20 pointer-events-none" />
-                  <div className="absolute inset-0 rounded-xl border-b-[0.15vw] border-r-[0.15vw] border-black/20 pointer-events-none" />
-                </button>
+                  <img src={pvpIcon} className="w-[14vw]" />
+                  <img className="ml-[1vw]" src={parchment} />
+                  <div className=" absolute text-white top-[15vw] w-[8vw] ">
+                    <p
+                      className="text-[2vw] text-center"
+                      style={{
+                        WebkitTextStroke: "0.1vw black",
+                        textShadow: "0 1px 0px black",
+                      }}
+                    >
+                      PvP
+                    </p>
+                    <hr className="w-full border-black" />
+                    <p className="text-black text-[1vw] text-center">
+                      Player vs Player
+                    </p>
+                  </div>
+                </div>
 
-                {/* Play vs AI Button */}
-                <button
+                <div
+                  className="flex items-center justify-center flex-col relative w-[20vw] min-w-[20vw] gameMode"
                   onClick={() => handleSelectMode("ai")}
                   onMouseEnter={() => playSfx("button-over")}
-                  className="relative py-[1.5vw] px-[2vw] bg-[#bda393] rounded-xl border-[0.3vw] border-[#8d7037] shadow-[0_0.5vw_0_rgba(92,64,51,1),0_0.8vw_2vw_rgba(0,0,0,0.6),inset_0_0.2vw_0_rgba(255,255,255,0.3)] transition-all duration-200 hover:translate-y-[0.2vw] hover:shadow-[0_0.3vw_0_rgba(92,64,51,1),0_0.6vw_1.5vw_rgba(0,0,0,0.6)] hover:brightness-110"
                 >
-                  <span className="text-[2vw] font-bold text-stone-800 drop-shadow-[0_0.15vw_0.15vw_rgba(255,255,255,0.3)]">
-                    Play vs AI
-                  </span>
-                  <div className="absolute inset-0 rounded-xl border-t-[0.15vw] border-l-[0.15vw] border-white/20 pointer-events-none" />
-                  <div className="absolute inset-0 rounded-xl border-b-[0.15vw] border-r-[0.15vw] border-black/20 pointer-events-none" />
-                </button>
-              </div>
+                  <img src={aiIcon} className="w-[14vw]" />
+                  <img className="ml-[1vw]" src={parchment} />
+                  <div className=" absolute text-white top-[15vw] w-[8vw] ">
+                    <p
+                      className="text-[2vw] text-center"
+                      style={{
+                        WebkitTextStroke: "0.1vw black",
+                        textShadow: "0 1px 0px black",
+                      }}
+                    >
+                      AI
+                    </p>
+                    <hr className="w-full border-black" />
+                    <p className="text-black text-[1vw] text-center">
+                      Player vs AI
+                    </p>
+                  </div>
+                </div>
 
-              {/* Cancel Button */}
-              <button
-                onClick={handleClose}
-                onMouseEnter={() => playSfx("button-over")}
-                className="relative py-[1vw] px-[2vw] bg-[#9d8573] rounded-lg border-[0.25vw] border-[#6d5437] shadow-[0_0.3vw_0_rgba(72,54,41,1)] transition-all duration-200 hover:translate-y-[0.1vw] hover:shadow-[0_0.15vw_0_rgba(72,54,41,1)] hover:brightness-110"
-              >
-                <span className="text-[1.3vw] font-bold text-stone-800">
-                  Cancel
-                </span>
-              </button>
+                {/* Play vs AI Button */}
+              </div>
             </div>
           </motion.div>
         </motion.div>
