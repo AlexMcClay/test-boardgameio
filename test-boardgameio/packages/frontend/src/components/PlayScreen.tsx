@@ -11,7 +11,7 @@ import { matchmakingWebSocketService } from "@/services/matchMakingService";
 import SettingsOverlay from "./SettingsOverlay";
 import SettingsButton from "./SettingsButton";
 
-const backgroundImage = "assets/menu/main_menu.png";
+const backgroundImage = "assets/play_screen/background.png";
 
 interface PlayScreenProps {
   onGameStart: (
@@ -119,6 +119,8 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
       style={{
         backgroundImage: `url(${backgroundImage})`,
         backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+        backgroundSize: "cover",
       }}
     >
       <div className="relative z-10 flex flex-col items-center gap-6 w-[800px] font-belwe">

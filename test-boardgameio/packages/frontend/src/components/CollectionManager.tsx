@@ -18,12 +18,11 @@ import { useViewStore } from "@/stores/viewStore";
 import { twMerge } from "tailwind-merge";
 import SettingsOverlay from "./SettingsOverlay";
 import SettingsButton from "./SettingsButton";
-import { motion } from "motion/react";
+import Deck from "./Deck";
 
 const backgroundImage = "assets/collection/collection.png";
 const sheet = "assets/collection/sheet.png";
 const mana_crystal = "assets/mana.png";
-const deck_frame = "assets/deck_frame.png";
 
 // class icons
 const deathKnightIcon = "assets/icons/Death_Knight_icon.webp";
@@ -97,7 +96,12 @@ const CollectionManager = () => {
     setCurrentPage(0);
   }
 
-  function handleEditDeck(savedDeck: SavedDeck) {
+  function handleEditDeck(
+    e: React.MouseEvent<HTMLDivElement, MouseEvent>,
+    savedDeck: SavedDeck,
+  ) {
+    e.stopPropagation();
+    e.preventDefault();
     playSfx("button-click");
     setEditingDeck(savedDeck);
     setSelectedHero(savedDeck.hero);
@@ -399,81 +403,38 @@ const CollectionManager = () => {
       </div>
 
       {mode === "card-select" && selectedHero && (
-        <motion.div
-          layout
-          layoutId={editingDeck?.id}
-          className="flex h-[4vw] w-[10vw] items-end gap-[0.5vw] bg-black/40 rounded border  left-[72vw] z-30 absolute top-[0vh]"
-          style={{
-            backgroundImage: `url(${selectedHero.portrait})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        >
-          <img
-            src={deck_frame}
-            alt="Deck Frame"
-            className="absolute  z-10  min-w-[11.5vw] top-[-0.5vw] left-[-1vw]"
-            draggable="false"
+        <div className="absolute top-[0vh] left-[72vw] z-50">
+          <Deck
+            type="edit"
+            key={editingDeck?.id}
+            image={
+              selectedHero
+                ? selectedHero.portrait
+                : (editingDeck?.hero.portrait ?? "")
+            }
+            name={deckName}
+            id={editingDeck?.id ?? "NEW DECK"}
+            setDeckName={setDeckName}
+            isPremade={isPremade}
           />
-          <div className="flex items-center w-full bg-gradient-to-r from-black to-transparent pr-[0.3vw]">
-            <input
-              type="text"
-              value={deckName}
-              onChange={(e) => setDeckName(e.target.value)}
-              placeholder="Enter deck name..."
-              className="w-full p-[0.3vw] text-[1.1vw] bg-transparent text-white focus:outline-none"
-              maxLength={30}
-              readOnly={isPremade}
-            />
-            {isPremade && (
-              <span className="text-[0.6vw] text-amber-400 font-bold whitespace-nowrap self-center">
-                (Premade)
-              </span>
-            )}
-          </div>
-        </motion.div>
+        </div>
       )}
 
       {/* Right Panel - Changes based on mode */}
-      <div className="w-[13.2vw] h-[84vh] rounded-lg p-[1vw] flex flex-col items-center gap-[1vw] absolute left-[70.5vw] top-[7vh] ">
+      <div className="w-[13.2vw] h-[83vh] rounded-lg p-[1vw] flex flex-col items-center gap-[1vw] absolute left-[70.5vw] top-[7vh] overflow-y-auto ">
         {mode === "viewer" && (
           <>
-            <div className="flex flex-col gap-[1.5vw] w-full max-h-[60vh] items-center ">
+            <div className="flex flex-col gap-[1.5vw] w-full  items-center ">
               {allDecks.map((savedDeck) => (
-                <motion.div
-                  layout
-                  layoutId={savedDeck.id}
+                <Deck
+                  type="collectionManager"
                   key={savedDeck.id}
-                  className="flex h-[4vw] w-[10vw] items-end gap-[0.5vw] bg-black/40 rounded cursor-pointer relative"
-                  onClick={() => {
-                    handleEditDeck(savedDeck);
-                  }}
-                  onMouseEnter={() => playSfx("button-over")}
-                  style={{
-                    backgroundImage: `url(${savedDeck.hero.portrait})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                  }}
-                >
-                  <img
-                    src={deck_frame}
-                    alt="Deck Frame"
-                    className="absolute  z-10  min-w-[11.5vw] top-[-0.5vw] left-[-1vw]"
-                    draggable="false"
-                  />
-                  <span className="w-full p-[0.3vw] text-[1.1vw] bg-gradient-to-r from-black to-transparent   text-white">
-                    {savedDeck.name}
-                  </span>
-
-                  {!savedDeck.id.startsWith("premade-") && (
-                    <button
-                      onClick={(e) => handleDeleteDeck(savedDeck.id, e)}
-                      className="text-red-400 hover:text-red-600 text-[0.8vw] px-[0.3vw]"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </motion.div>
+                  handleEditDeck={(e) => handleEditDeck(e, savedDeck)}
+                  image={savedDeck.hero.portrait}
+                  name={savedDeck.name}
+                  id={savedDeck.id}
+                  handleDeleteDeck={handleDeleteDeck}
+                />
               ))}
             </div>
             <button
