@@ -132,20 +132,17 @@ export function validateMove(
 
   // Check if there's a pending battlecry
   if (G.activeBattlecryMinion) {
-    // Only allow the battlecry minion to act or allow other moves if it's a different card being placed
     if (
       G.activeBattlecryMinion.cardId !== cardId &&
       location === "hand" &&
       !card.isPlaced
     ) {
-      // Allow placing new cards even with pending battlecry (player can play other cards first)
-      // Continue with normal validation
+      // Allow placing new cards even with pending battlecry
     } else if (
       G.activeBattlecryMinion.cardId === cardId &&
       location === "board" &&
       target
     ) {
-      // This is the battlecry resolution - use battlecryTargets for validation
       const validTarget = isValidTargetTypeForBattlecry(
         card,
         target.type,
@@ -157,14 +154,12 @@ export function validateMove(
         return { valid: false, error: "invalid-target" };
       }
 
-      // Battlecries bypass taunt - no taunt check needed
       return { valid: true };
     } else if (
       G.activeBattlecryMinion.cardId !== cardId &&
       location === "board"
     ) {
-      // Trying to use a different placed card while battlecry is pending
-      return { valid: false, error: "must-attack-taunt" }; // Reusing error code
+      return { valid: false, error: "must-attack-taunt" };
     }
   }
 
@@ -189,11 +184,9 @@ export function validateMove(
 
   // Validate lane placement for unplaced minions
   if (!card.isPlaced && card.isMinion && target?.type === "lane") {
-    // Minions can only be placed on friendly lanes
     if (target.player !== ctx.currentPlayer) {
       return { valid: false, error: "invalid-target" };
     }
-    // Valid placement - return early (lanes aren't in targets array)
     return { valid: true };
   }
 
@@ -211,9 +204,8 @@ export function validateMove(
       ctx.currentPlayer,
     );
 
-    // check if target is minion  and if minion is stealthed
+    // check if target is minion and if minion is stealthed
     if (target.type === "card" && target.id) {
-      // fetch card
       const targetCard = G.board[target.player].find((c) => c.id == target.id);
       if (targetCard && targetCard.stealth) {
         return { valid: false, error: "stealthed" };
@@ -224,6 +216,14 @@ export function validateMove(
       return { valid: false, error: "invalid-target" };
     }
 
+    // --- RUSH MECHANIC CHECK ---
+    // If a minion has Rush but NOT Charge, and still has summon sickness, it cannot target a player/hero
+    if (card.isMinion && card.summoningSickness && card.rush && !card.charge) {
+      if (target.type === "player") {
+        return { valid: false, error: "invalid-target" };
+      }
+    }
+
     // TAUNT MECHANIC: Check if trying to bypass taunt
     const isTargetingEnemy = target.player !== ctx.currentPlayer;
     if (isTargetingEnemy && !isTauntBypassAllowed(card)) {
@@ -231,12 +231,10 @@ export function validateMove(
       const enemyHasTaunt = hasTauntMinions(enemyBoard);
 
       if (enemyHasTaunt) {
-        // If targeting enemy hero, must attack taunt instead
         if (target.type === "player") {
           return { valid: false, error: "must-attack-taunt" };
         }
 
-        // If targeting an enemy card, it must be a taunt minion
         if (target.type === "card") {
           const targetCard = enemyBoard.find((c) => c.id === target.id);
           if (!targetCard || !targetCard.taunt) {
@@ -247,7 +245,9 @@ export function validateMove(
     }
   }
 
-  if (card.summoningSickness) {
+  // --- SUMMONING SICKNESS CHECK ---
+  // Bypass summoning sickness if the minion has Charge OR Rush
+  if (card.summoningSickness && !card.charge && !card.rush) {
     return { valid: false, error: "summon-sickness" };
   }
 
@@ -313,6 +313,19 @@ export function canTargetHighlight(
   );
 
   if (!isValidType) return false;
+
+  // --- RUSH MECHANIC UI CHECK ---
+  // If rushing minion has summon sickness and doesn't have charge, it cannot highlight the enemy player
+  if (
+    activeCard.isMinion &&
+    activeCard.summoningSickness &&
+    activeCard.rush &&
+    !activeCard.charge
+  ) {
+    if (targetType === "player") {
+      return false;
+    }
+  }
 
   // TAUNT MECHANIC: Check if trying to bypass taunt in UI
   if (gameState) {

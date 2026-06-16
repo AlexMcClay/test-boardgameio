@@ -129,7 +129,7 @@ const Card = ({
 
       {/* Mana Crystal */}
       {card.mana !== null && card.mana !== undefined && (
-        <div className=" select-none absolute text-lg top-[-0.7rem] left-[-0.7rem]  w-[1.7vw] h-[1.7vw] flex items-center justify-center font-bold  shadow-md z-10 ">
+        <div className=" select-none absolute text-lg top-[-0.5vw] left-[-0.3vw]  w-[1.7vw] h-[1.7vw] flex items-center justify-center font-bold   z-10 ">
           <img
             src={mana_crystal}
             alt="Card Back"
@@ -207,7 +207,7 @@ const Card = ({
       {(card.attack !== undefined || card.health !== undefined) && (
         <>
           {card.attack !== undefined && (
-            <div className="absolute select-none -left-1 -bottom-1  rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center text-[1.1vw] font-bold shadow-lg">
+            <div className="absolute select-none left-[-0.1vw] bottom-[-0.2vw] rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center text-[1.1vw] font-bold shadow-lg">
               <img
                 src={attackIcon}
                 alt="Card Back"
@@ -220,18 +220,18 @@ const Card = ({
                   WebkitTextStroke: "0.5px black",
                   textShadow: "0 1px 0px black",
                 }}
-                className="absolute font-belwe  scale-130  translate-y-[-5%] translate-x-[-5%]"
+                className="absolute font-belwe  scale-130  translate-y-[-0.1vw] translate-x-[-0.05vw]"
               >
                 {card.attack}
               </span>
             </div>
           )}
           {card.health !== undefined && (
-            <div className="absolute select-none right-[-1rem] -bottom-1 rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center text-[1.1vw] font-bold  shadow-lg">
+            <div className="absolute select-none right-[-0.5vw] bottom-[-0.2vw] rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center text-[1.1vw] font-bold  shadow-lg">
               <img
                 src={healthIcon}
                 alt="Card Back"
-                className=" object-contain w-full h-full absolute scale-130  bottom-1"
+                className=" object-contain w-full h-full absolute scale-130  bottom-[0.2vw]"
                 // no drag
                 draggable="false"
               />
@@ -240,7 +240,7 @@ const Card = ({
                   WebkitTextStroke: "0.5px black",
                   textShadow: "0 1px 0px black",
                 }}
-                className="absolute font-belwe  scale-140 translate-y-[-10%] translate-x-[-10%]"
+                className="absolute font-belwe  scale-140 translate-y-[-0.1vw] translate-x-[0vw]"
               >
                 {card.health}
               </span>

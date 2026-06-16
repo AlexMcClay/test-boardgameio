@@ -267,6 +267,30 @@ const CollectionManager = () => {
         ))}
       </div>
 
+      <div
+        className="absolute w-[1vw] h-[1vw] bg-black"
+        title="DEBUG SQUARE"
+        onClick={() => {
+          console.log(
+            JSON.stringify(
+              Object.entries(cardTemplates)
+                .filter(
+                  ([k, card]) =>
+                    !(card as Omit<CardType, "id">).isUncollectible,
+                )
+                .map(([k, card]) => {
+                  return {
+                    id: k,
+                    name: card.title,
+                    class: card.class,
+                    mana: card.mana,
+                  };
+                }),
+            ),
+          );
+        }}
+      ></div>
+
       <div className="absolute bg-gradient-to-t pointer-events-none from-black/60 h-[1.5vh] w-[56vw] left-[12.6vw] top-[4.5vh] pl-[1vw]"></div>
 
       {/* Left Panel - Card Collection */}
@@ -343,7 +367,7 @@ const CollectionManager = () => {
                 <div
                   className={`w-[11.7vw] aspect-[5/7] items-center justify-center relative transition-all ease-in `}
                 >
-                  <div className="scale-140 absolute origin-top-left">
+                  <div className="scale-140 absolute origin-top-left minion-card">
                     <Card
                       key={id}
                       card={{ ...card, id, originalID: id }}
@@ -415,13 +439,13 @@ const CollectionManager = () => {
               Create New Deck
             </button>
 
-            <div className=" absolute bottom-[-2.4vw] left-[8.4vw] w-[8vw] text-[1.25vw]  text-white px-[0.5vw] py-[0.25vw] rounded-lg flex flex-col gap-0 ">
+            <div className=" absolute bottom-[-2.4vw] left-[8.4vw] w-[8vw]   text-white px-[0.5vw] py-[0.25vw] rounded-lg flex flex-col gap-0 ">
               <button
                 onMouseEnter={() => playSfx("button-over")}
-                className="clear-deck-button w-full"
+                className="clear-deck-button w-full text-[1vw]! h-full"
                 onClick={handleBackToMenu}
               >
-                Back to Menu
+                Back
               </button>
             </div>
           </>
@@ -549,10 +573,10 @@ const CollectionManager = () => {
             <div className=" absolute bottom-[-2.4vw] left-[8.4vw] w-[8vw] text-[1.25vw]  text-white px-[0.5vw] py-[0.25vw] rounded-lg flex flex-col gap-0 ">
               <button
                 onMouseEnter={() => playSfx("button-over")}
-                className="clear-deck-button"
+                className="clear-deck-button w-full h-full"
                 onClick={isPremade ? handleCancelEdit : handleSaveDeck}
               >
-                <span className="button-text">
+                <span className="button-text text-[1vw]">
                   {isPremade ? "Back" : "Save Deck"}
                 </span>
               </button>

@@ -180,7 +180,6 @@ const placeCard: Move<GameState> = (
           (e.type === "incrementValue" && e.target === "user-select") ||
           (e.type === "divineShield" && e.target === "user-select"),
       );
-
     if (needsTargetedBattlecry) {
       // console.log("Setting pending battlecry for card:", card.id);
       // Set pending battlecry, DON'T execute onPlace yet
@@ -347,96 +346,74 @@ const doEffects = (
         }
         break;
       }
-      case "freeze": {
+      // Add these cases to your main engine effect processor switch block
+      case "freeze":
+      case "divineShield":
+      case "taunt":
+      case "stealth":
+      case "charge":
+      case "rush": {
+        // Map the effect type to the exact property name on your Card object
+        const keyMap: Record<string, keyof Card> = {
+          freeze: "frozen", // your card uses .frozen instead of .freeze
+          divineShield: "divineShield",
+          taunt: "taunt",
+          stealth: "stealth",
+          charge: "charge",
+          rush: "rush",
+        };
+
+        const cardKey = keyMap[effect.type];
+
         if (target && effect.target === "user-select") {
-          // Record attack animation event
-
-          // Target: Player
-          // if (target.type === "player") {
-          //   dealDamageToPlayer(G, cardId, target.player, damage);
-          // }
-
-          // Target: Minion / Card
           if (target.type === "card") {
             const targetCard = G.board[target.player].find(
               (c) => c.id === target.id,
             );
-
             if (targetCard && typeof targetCard.health !== "undefined") {
-              // Main attack damage to target
-              freezeCard(G, cardId, targetCard, target.player);
+              applyBoolEffectToCard(
+                G,
+                cardId,
+                targetCard,
+                target.player,
+                effect.type,
+                cardKey,
+              );
             }
           }
         } else if (
           effect.target === "friendly-hero" ||
           effect.target === "enemy-hero"
         ) {
-          // const targetPlayerId =
-          //   effect.target === "friendly-hero"
-          //     ? playerID
-          //     : playerID === "0"
-          //       ? "1"
-          //       : "0";
-          // freezeCard(G, cardId, targetPlayerId);
+          // Hero logic can be placed here if heroes get statuses (like frozen)
         } else if (effect.target === "enemy-board") {
           const targetPlayerId = playerID === "0" ? "1" : "0";
           G.board[targetPlayerId].forEach((c) =>
-            freezeCard(G, cardId, c, targetPlayerId),
+            applyBoolEffectToCard(
+              G,
+              cardId,
+              c,
+              targetPlayerId,
+              effect.type,
+              cardKey,
+            ),
           );
         } else if (effect.target === "enemy-all") {
           const targetPlayerId = playerID === "0" ? "1" : "0";
-          // freezeCard(G, cardId, targetPlayerId);
           G.board[targetPlayerId].forEach((c) =>
-            freezeCard(G, cardId, c, targetPlayerId),
+            applyBoolEffectToCard(
+              G,
+              cardId,
+              c,
+              targetPlayerId,
+              effect.type,
+              cardKey,
+            ),
           );
         } else if (effect.target === "board") {
           Object.entries(G.board).forEach(([player, lane]) => {
             lane.forEach((c) => {
-              freezeCard(G, cardId, c, player);
-            });
-          });
-        }
-        break;
-      }
-      case "divineShield": {
-        if (target && effect.target === "user-select") {
-          // Target: Minion / Card
-          if (target.type === "card") {
-            const targetCard = G.board[target.player].find(
-              (c) => c.id === target.id,
-            );
-
-            if (targetCard && typeof targetCard.health !== "undefined") {
-              // Main attack damage to target
-              divineShieldCard(G, cardId, targetCard, target.player);
-            }
-          }
-        } else if (
-          effect.target === "friendly-hero" ||
-          effect.target === "enemy-hero"
-        ) {
-          // const targetPlayerId =
-          //   effect.target === "friendly-hero"
-          //     ? playerID
-          //     : playerID === "0"
-          //       ? "1"
-          //       : "0";
-          // divineShieldCard(G, cardId, targetPlayerId);
-        } else if (effect.target === "enemy-board") {
-          const targetPlayerId = playerID === "0" ? "1" : "0";
-          G.board[targetPlayerId].forEach((c) =>
-            divineShieldCard(G, cardId, c, targetPlayerId),
-          );
-        } else if (effect.target === "enemy-all") {
-          const targetPlayerId = playerID === "0" ? "1" : "0";
-          // divineShieldCard(G, cardId, targetPlayerId);
-          G.board[targetPlayerId].forEach((c) =>
-            divineShieldCard(G, cardId, c, targetPlayerId),
-          );
-        } else if (effect.target === "board") {
-          Object.entries(G.board).forEach(([player, lane]) => {
-            lane.forEach((c) => {
-              divineShieldCard(G, cardId, c, player);
+              applyBoolEffectToCard(G, cardId, c, player, effect.type, cardKey);
             });
           });
         }
@@ -661,44 +638,34 @@ function dealDamageToCard(
   targetCard.health -= damageAmount;
 }
 
-function freezeCard(
+function applyBoolEffectToCard(
   G: GameState,
   sourceId: string,
   targetCard: Card,
   targetPlayerId: string,
+  effectType:
+    | "freeze"
+    | "divineShield"
+    | "taunt"
+    | "stealth"
+    | "charge"
+    | "rush",
+  cardKey: keyof Card,
 ) {
   if (!targetCard) return;
 
-  targetCard.frozen = true;
+  // Dynamically set the card property to true (e.g. targetCard.taunt = true)
+  (targetCard as any)[cardKey] = true;
 
+  // This matches your GameEvent type definitions exactly
   recordEvent(G, {
-    type: "freeze",
+    type: effectType,
     sourceId: sourceId,
     targetId: targetCard.id,
     targetType: "card",
     playerId: targetPlayerId,
     timestamp: Date.now(),
-  });
-}
-
-function divineShieldCard(
-  G: GameState,
-  sourceId: string,
-  targetCard: Card,
-  targetPlayerId: string,
-) {
-  if (!targetCard) return;
-
-  targetCard.divineShield = true;
-
-  recordEvent(G, {
-    type: "divineShield",
-    sourceId: sourceId,
-    targetId: targetCard.id,
-    targetType: "card",
-    playerId: targetPlayerId,
-    timestamp: Date.now(),
-  });
+  } as GameEvent);
 }
 
 function dealDamageToPlayer(

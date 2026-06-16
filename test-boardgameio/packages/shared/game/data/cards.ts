@@ -1,4 +1,5 @@
 import type {
+  BaseBoolEffect,
   Card,
   DamageEffect,
   DivineShieldEffect,
@@ -18,27 +19,26 @@ const damage = (
   };
 };
 
-const freeze = (
-  target: DamageEffect["target"] = "user-select",
-  battlecry: boolean = false,
-): EffectTypes => {
-  return {
-    type: "freeze",
-    target: target,
-    battlecry: battlecry,
-  };
+// 1. The Generic Factory Function
+const createBoolEffectUtil = (type: EffectTypes["type"]) => {
+  return (
+    target: BaseBoolEffect["target"] = "user-select",
+    battlecry: boolean = false,
+  ): EffectTypes =>
+    ({
+      type,
+      target,
+      battlecry,
+    }) as EffectTypes; // Typecast ensures TypeScript maps it back to the exact union member
 };
 
-const divineShield = (
-  target: DivineShieldEffect["target"] = "user-select",
-  battlecry: boolean = false,
-): EffectTypes => {
-  return {
-    type: "divineShield",
-    target: target,
-    battlecry: battlecry,
-  };
-};
+// 2. Generate all your utility helpers instantly
+const freeze = createBoolEffectUtil("freeze");
+const divineShield = createBoolEffectUtil("divineShield");
+const taunt = createBoolEffectUtil("taunt");
+const stealth = createBoolEffectUtil("stealth");
+const charge = createBoolEffectUtil("charge");
+const rush = createBoolEffectUtil("rush");
 
 const destroy = (
   target: "user-select" | "self" | "enemy-board" | "board",
@@ -223,7 +223,8 @@ export const cardTemplates = {
     type: ["Beast"],
     imageUrl: "assets/cards/Wolfrider.jpg",
     effects: [damage("attack")],
-    onPlace: [changeKey("summoningSickness", false, "self")],
+    charge: true,
+    onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinion: true,
     class: "Neutral",
@@ -289,7 +290,7 @@ export const cardTemplates = {
     description: "Give a minion Charge.",
     mana: 1,
     imageUrl: "assets/cards/Charge.jpg",
-    effects: [changeKey("summoningSickness", false)],
+    effects: [charge()],
     onPlace: [],
     isSpell: true,
     isMinion: false,
@@ -439,14 +440,15 @@ export const cardTemplates = {
   },
   "stormwind-knight": {
     title: "Stormwind Knight",
-    description: "Taunt.",
+    description: "Charge.",
     taunt: false,
     attack: 2,
     health: 5,
     mana: 4,
+    charge: true,
     imageUrl: "assets/cards/Stormwind_Knight.jpg",
     effects: [damage("attack")],
-    onPlace: [changeKey("summoningSickness", false, "self")],
+    onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinion: true,
     class: "Neutral",
@@ -773,7 +775,8 @@ export const cardTemplates = {
     health: 2,
     imageUrl: "assets/cards/Reckless_Rocketeer.jpg",
     effects: [damage("attack")],
-    onPlace: [changeKey("summoningSickness", false, "self")],
+    charge: true,
+    onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinion: true,
     class: "Neutral",
@@ -803,7 +806,8 @@ export const cardTemplates = {
     type: ["Murloc"],
     imageUrl: "assets/cards/Bluegill_Warrior.jpg",
     effects: [damage("attack")],
-    onPlace: [changeKey("summoningSickness", false, "self")],
+    charge: true,
+    onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinion: true,
     class: "Neutral",
@@ -980,11 +984,10 @@ export const cardTemplates = {
     mana: 2,
     attack: 2,
     health: 2,
-    type: ["Minion"],
+    charge: true,
     imageUrl: "assets/cards/Treant.jpg",
     effects: [damage("attack")],
-    // Removes summoning sickness immediately upon being summoned to the board
-    onPlace: [changeKey("summoningSickness", false, "self")],
+    onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinion: true,
     isUncollectible: true, // Hidden from deckbuilders, matching your rule constraints
@@ -1069,7 +1072,8 @@ export const cardTemplates = {
     health: 3,
     imageUrl: "assets/cards/Korkron_Elite.jpg",
     effects: [damage("attack")],
-    onPlace: [changeKey("summoningSickness", false, "self")],
+    charge: true,
+    onPlace: [],
     targets: ["card-opponent", "player-opponent"],
     isMinion: true,
     class: "Warrior",
@@ -1104,6 +1108,38 @@ export const cardTemplates = {
     targets: ["card-opponent", "player-opponent"],
     isMinion: true,
     class: "Paladin",
+  },
+  "warsong-outrider": {
+    title: "Warsong Outrider",
+    description: "Rush",
+    mana: 4,
+    attack: 5,
+    health: 4,
+    rush: true,
+    imageUrl: "assets/cards/Warsong_Outrider.jpg",
+    effects: [damage("attack")],
+    onPlace: [],
+    targets: ["card-opponent", "player-opponent"],
+    isMinion: true,
+    class: "Warrior",
+  },
+  "cruel-taskmaster": {
+    title: "Cruel Taskmaster",
+    description: "Battlecry: Deal 1 damage to a minion and give it +2 Attack.",
+    mana: 2,
+    attack: 2,
+    health: 3,
+    imageUrl: "assets/cards/Cruel_Taskmaster.jpg",
+    effects: [damage("attack")],
+    onPlace: [
+      damage(1, "user-select", true),
+      incrementValue("attack", 2, "user-select"),
+      incrementValue("maxAttack", 2, "user-select"),
+    ],
+    battlecryTargets: ["card"],
+    targets: ["card-opponent", "player-opponent"],
+    isMinion: true,
+    class: "Warrior",
   },
 } satisfies Record<string, Omit<Card, "id" | "originalID">>;
 

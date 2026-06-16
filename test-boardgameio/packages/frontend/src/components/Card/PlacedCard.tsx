@@ -29,6 +29,7 @@ const PlacedCard = ({
   ...props
 }: Props) => {
   const playSfx = useAudioStore((state) => state.playSfx);
+  const isSicknessActive = card.summoningSickness && !card.charge && !card.rush;
 
   useEffect(() => {
     console.log("IS ATTACKING", isAttacking, card.title);
@@ -118,7 +119,7 @@ const PlacedCard = ({
       </div>
 
       {/* Summoning Sickness Indicator (Zzz) */}
-      {card.summoningSickness && (
+      {isSicknessActive && (
         <motion.div
           className="absolute inset-0 pointer-events-none "
           initial={{ opacity: 0 }}

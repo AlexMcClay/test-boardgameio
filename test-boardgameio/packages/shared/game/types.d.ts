@@ -37,6 +37,8 @@ export interface Card {
   frozen?: boolean;
   stealth?: boolean;
   divineShield?: boolean;
+  charge?: boolean;
+  rush?: boolean;
   keywords?: string[];
   targets: TargetTypes[]; // Optional, to specify valid targets for the card
   battlecryTargets?: TargetTypes[]; // Optional, valid targets for battlecry (bypasses taunt)
@@ -88,7 +90,47 @@ export type EffectTypes =
   | ManaEffect
   | IncrementValueEffect
   | FreezeEffect
-  | DivineShieldEffect;
+  | DivineShieldEffect
+  | TauntEffect
+  | StealthEffect
+  | ChargeEffect
+  | RushEffect;
+
+export type BaseBoolEffect = {
+  battlecry?: boolean; // Indicates if this damage is part of a battlecry (bypasses taunt)
+  target:
+    | "user-select"
+    | "friendly-hero"
+    | "enemy-hero"
+    | "enemy-board"
+    | "enemy-all"
+    | "board";
+  // Target can be user-select, self-hero, enemy-hero, or hero
+};
+
+export type FreezeEffect = {
+  type: "freeze";
+} & BaseBoolEffect;
+
+export type DivineShieldEffect = {
+  type: "divineShield";
+} & BaseBoolEffect;
+
+export type TauntEffect = {
+  type: "taunt";
+} & BaseBoolEffect;
+
+export type StealthEffect = {
+  type: "stealth";
+} & BaseBoolEffect;
+
+export type ChargeEffect = {
+  type: "charge";
+} & BaseBoolEffect;
+
+export type RushEffect = {
+  type: "rush";
+} & BaseBoolEffect;
 
 export type DamageEffect = {
   type: "damage";
@@ -101,32 +143,6 @@ export type DamageEffect = {
     | "enemy-board"
     | "enemy-all" // Target can be user-select, self-hero, enemy-hero, or hero
     | "board";
-};
-
-export type FreezeEffect = {
-  type: "freeze";
-  battlecry?: boolean; // Indicates if this damage is part of a battlecry (bypasses taunt)
-  target:
-    | "user-select"
-    | "friendly-hero"
-    | "enemy-hero"
-    | "enemy-board"
-    | "enemy-all"
-    | "board";
-  // Target can be user-select, self-hero, enemy-hero, or hero
-};
-
-export type DivineShieldEffect = {
-  type: "divineShield";
-  battlecry?: boolean; // Indicates if this damage is part of a battlecry (bypasses taunt)
-  target:
-    | "user-select"
-    | "friendly-hero"
-    | "enemy-hero"
-    | "enemy-board"
-    | "enemy-all"
-    | "board";
-  // Target can be user-select, self-hero, enemy-hero, or hero
 };
 
 type DestroyEffect = {
@@ -180,6 +196,7 @@ export type MoveMetadata = {
 };
 
 // Game event types for comprehensive event tracking
+// Game event types for comprehensive event tracking
 export type GameEvent =
   | AttackEvent
   | DamageEvent
@@ -194,7 +211,43 @@ export type GameEvent =
   | ChangeKeyEvent
   | ManaEvent
   | FreezeEvent
-  | DivineShieldEvent;
+  | DivineShieldEvent
+  | TauntEvent
+  | StealthEvent
+  | ChargeEvent
+  | RushEvent;
+
+type BaseGameBoolEvent = {
+  sourceId?: string; // Card/effect that caused this status change
+  targetId: string; // Card/minion gaining the status
+  targetType: "card" | "player";
+  playerId: PlayerID;
+  timestamp: number;
+};
+
+export type FreezeEvent = {
+  type: "freeze";
+} & BaseGameBoolEvent;
+
+export type DivineShieldEvent = {
+  type: "divineShield";
+} & BaseGameBoolEvent;
+
+export type TauntEvent = {
+  type: "taunt";
+} & BaseGameBoolEvent;
+
+export type StealthEvent = {
+  type: "stealth";
+} & BaseGameBoolEvent;
+
+export type ChargeEvent = {
+  type: "charge";
+} & BaseGameBoolEvent;
+
+export type RushEvent = {
+  type: "rush";
+} & BaseGameBoolEvent;
 
 export type SummonEvent = {
   type: "summon";
@@ -272,24 +325,6 @@ export type DamageEvent = {
   targetType: "card" | "player";
   playerId: PlayerID;
   value: number;
-  timestamp: number;
-};
-
-export type FreezeEvent = {
-  type: "freeze";
-  sourceId?: string; // Card/effect
-  targetId: string;
-  targetType: "card" | "player";
-  playerId: PlayerID;
-  timestamp: number;
-};
-
-export type DivineShieldEvent = {
-  type: "divineShield";
-  sourceId?: string; // Card/effect
-  targetId: string;
-  targetType: "card" | "player";
-  playerId: PlayerID;
   timestamp: number;
 };
 

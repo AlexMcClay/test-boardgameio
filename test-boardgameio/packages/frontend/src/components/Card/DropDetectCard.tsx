@@ -37,9 +37,10 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
   } | null>(null);
 
   const isAttackingWithArrow = attackingCardId === card.id;
+  const isSicknessActive = card.summoningSickness && !card.charge && !card.rush;
   const disabled =
-    (card.hasAttacked || card.summoningSickness || card.frozen) &&
-    !gameState?.activeBattlecryMinion; // Can't attack if already attacked (unless battlecry)
+    (card.hasAttacked || isSicknessActive || card.frozen) &&
+    !gameState?.activeBattlecryMinion;
   const isBattlecryMinion =
     gameState?.activeBattlecryMinion?.cardId === card.id;
   const prevIsBattlecryRef = useRef(isBattlecryMinion);
