@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Client } from "boardgame.io/react";
 import { Local, SocketIO } from "boardgame.io/multiplayer";
 import { MCTSBot } from "boardgame.io/ai";

@@ -1,4 +1,4 @@
-import { Card, Hero, randomIDGen } from "../../shared/game";
+import { Card, Hero, randomIDGen } from "@project/shared";
 
 export type queueItem = {
   matchID: string;
