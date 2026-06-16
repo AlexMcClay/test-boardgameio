@@ -18,10 +18,12 @@ import { useViewStore } from "@/stores/viewStore";
 import { twMerge } from "tailwind-merge";
 import SettingsOverlay from "./SettingsOverlay";
 import SettingsButton from "./SettingsButton";
+import { motion } from "motion/react";
 
 const backgroundImage = "assets/collection/collection.png";
 const sheet = "assets/collection/sheet.png";
 const mana_crystal = "assets/mana.png";
+const deck_frame = "assets/deck_frame.png";
 
 // class icons
 const deathKnightIcon = "assets/icons/Death_Knight_icon.webp";
@@ -396,15 +398,53 @@ const CollectionManager = () => {
         </div>
       </div>
 
+      {mode === "card-select" && selectedHero && (
+        <motion.div
+          layout
+          layoutId={editingDeck?.id}
+          className="flex h-[4vw] w-[10vw] items-end gap-[0.5vw] bg-black/40 rounded border  left-[72vw] z-30 absolute top-[0vh]"
+          style={{
+            backgroundImage: `url(${selectedHero.portrait})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <img
+            src={deck_frame}
+            alt="Deck Frame"
+            className="absolute  z-10  min-w-[11.5vw] top-[-0.5vw] left-[-1vw]"
+            draggable="false"
+          />
+          <div className="flex items-center w-full bg-gradient-to-r from-black to-transparent pr-[0.3vw]">
+            <input
+              type="text"
+              value={deckName}
+              onChange={(e) => setDeckName(e.target.value)}
+              placeholder="Enter deck name..."
+              className="w-full p-[0.3vw] text-[1.1vw] bg-transparent text-white focus:outline-none"
+              maxLength={30}
+              readOnly={isPremade}
+            />
+            {isPremade && (
+              <span className="text-[0.6vw] text-amber-400 font-bold whitespace-nowrap self-center">
+                (Premade)
+              </span>
+            )}
+          </div>
+        </motion.div>
+      )}
+
       {/* Right Panel - Changes based on mode */}
-      <div className="w-[13.2vw] h-[84vh] rounded-lg p-[1vw] flex flex-col items-center gap-[1vw] absolute left-[70.5vw] top-[7vh]">
+      <div className="w-[13.2vw] h-[84vh] rounded-lg p-[1vw] flex flex-col items-center gap-[1vw] absolute left-[70.5vw] top-[7vh] ">
         {mode === "viewer" && (
           <>
-            <div className="flex flex-col gap-[0.5vw] w-full max-h-[60vh] overflow-y-auto">
+            <div className="flex flex-col gap-[1.5vw] w-full max-h-[60vh] items-center ">
               {allDecks.map((savedDeck) => (
-                <div
+                <motion.div
+                  layout
+                  layoutId={savedDeck.id}
                   key={savedDeck.id}
-                  className="flex h-[4vw] items-end gap-[0.5vw] bg-black/40 rounded border border-amber-900 w-full cursor-pointer"
+                  className="flex h-[4vw] w-[10vw] items-end gap-[0.5vw] bg-black/40 rounded cursor-pointer relative"
                   onClick={() => {
                     handleEditDeck(savedDeck);
                   }}
@@ -415,6 +455,12 @@ const CollectionManager = () => {
                     backgroundPosition: "center",
                   }}
                 >
+                  <img
+                    src={deck_frame}
+                    alt="Deck Frame"
+                    className="absolute  z-10  min-w-[11.5vw] top-[-0.5vw] left-[-1vw]"
+                    draggable="false"
+                  />
                   <span className="w-full p-[0.3vw] text-[1.1vw] bg-gradient-to-r from-black to-transparent   text-white">
                     {savedDeck.name}
                   </span>
@@ -427,10 +473,9 @@ const CollectionManager = () => {
                       ✕
                     </button>
                   )}
-                </div>
+                </motion.div>
               ))}
             </div>
-
             <button
               onMouseEnter={() => playSfx("button-over")}
               className="warrior-button w-full p-[0.5vw] text-[1vw] text-amber-200 mt-[1vw]"
@@ -438,49 +483,11 @@ const CollectionManager = () => {
             >
               Create New Deck
             </button>
-
-            <div className=" absolute bottom-[-2.4vw] left-[8.4vw] w-[8vw]   text-white px-[0.5vw] py-[0.25vw] rounded-lg flex flex-col gap-0 ">
-              <button
-                onMouseEnter={() => playSfx("button-over")}
-                className="clear-deck-button w-full text-[1vw]! h-full"
-                onClick={handleBackToMenu}
-              >
-                Back
-              </button>
-            </div>
           </>
         )}
 
         {mode === "card-select" && (
           <>
-            {selectedHero && (
-              <div
-                className="flex h-[4vw] items-end gap-[0.5vw] bg-black/40 rounded border border-amber-900 left-[0.3vw] w-full absolute top-[-7vh]"
-                style={{
-                  backgroundImage: `url(${selectedHero.portrait})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }}
-              >
-                <div className="flex items-center w-full bg-gradient-to-r from-black to-transparent pr-[0.3vw]">
-                  <input
-                    type="text"
-                    value={deckName}
-                    onChange={(e) => setDeckName(e.target.value)}
-                    placeholder="Enter deck name..."
-                    className="w-full p-[0.3vw] text-[1.1vw] bg-transparent text-white focus:outline-none"
-                    maxLength={30}
-                    readOnly={isPremade}
-                  />
-                  {isPremade && (
-                    <span className="text-[0.6vw] text-amber-400 font-bold whitespace-nowrap self-center">
-                      (Premade)
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* CARD LIST GOES HERE */}
             <div
               className={twMerge(
@@ -569,31 +576,43 @@ const CollectionManager = () => {
                   </div>
                 ))}
             </div>
-
-            <div className=" absolute bottom-[-2.4vw] left-[8.4vw] w-[8vw] text-[1.25vw]  text-white px-[0.5vw] py-[0.25vw] rounded-lg flex flex-col gap-0 ">
-              <button
-                onMouseEnter={() => playSfx("button-over")}
-                className="clear-deck-button w-full h-full"
-                onClick={isPremade ? handleCancelEdit : handleSaveDeck}
-              >
-                <span className="button-text text-[1vw]">
-                  {isPremade ? "Back" : "Save Deck"}
-                </span>
-              </button>
-            </div>
-
-            <div className=" absolute bottom-[-1.8vw] left-[1.5vw] text-[1.25vw]  text-white px-[0.5vw] py-[0.25vw] rounded-lg flex flex-col gap-0 ">
-              <div>
-                <span>{totalCards}</span>
-                <span> / {maxCards}</span>
-              </div>
-              <span className="text-[0.8vw] absolute bottom-[-0.5vh] left-[1.2vw]">
-                Cards
-              </span>
-            </div>
           </>
         )}
       </div>
+
+      <div className=" absolute bottom-[2.4vw] left-[78.9vw] w-[8vw] text-[1.25vw]  text-white px-[0.5vw] py-[0.25vw] rounded-lg flex flex-col gap-0 ">
+        <button
+          onMouseEnter={() => playSfx("button-over")}
+          className="clear-deck-button w-full h-full"
+          onClick={
+            mode === "card-select"
+              ? isPremade
+                ? handleCancelEdit
+                : handleSaveDeck
+              : handleBackToMenu
+          }
+        >
+          <span className="button-text text-[1vw]">
+            {mode === "card-select"
+              ? isPremade
+                ? "Back"
+                : "Save Deck"
+              : "Back"}
+          </span>
+        </button>
+      </div>
+
+      {mode === "card-select" && (
+        <div className=" absolute bottom-[3.2vw] left-[72vw] text-[1.25vw]  text-white px-[0.5vw] py-[0.25vw] rounded-lg flex flex-col gap-0 ">
+          <div>
+            <span>{totalCards}</span>
+            <span> / {maxCards}</span>
+          </div>
+          <span className="text-[0.8vw] absolute bottom-[-0.5vh] left-[1.2vw]">
+            Cards
+          </span>
+        </div>
+      )}
 
       {/* Hero Selection Modal */}
       {showHeroModal && (
