@@ -1,9 +1,6 @@
 import { create } from "zustand";
 import {
-  createCardFromID,
-  shuffleDeck,
   premadeDecks,
-  type Card,
   type SavedDeck,
   type CardTemplateKey,
 } from "@project/shared";
@@ -66,24 +63,24 @@ interface DeckState {
   clearSelectedDeck: () => void;
 }
 
-// Helper function to create a deck from a deck string
-function createDeckFromDeckString(deckString: DeckString): Card[] {
-  const deck: Card[] = [];
-  for (const cardId in deckString) {
-    const count = deckString[cardId as CardTemplateKey];
-    if (count) {
-      for (let i = 0; i < count; i++) {
-        const card = createCardFromID(cardId as CardTemplateKey);
-        if (card) {
-          deck.push(card);
-        } else {
-          console.warn(`Card with ID ${cardId} not found.`);
-        }
-      }
-    }
-  }
-  return deck;
-}
+// // Helper function to create a deck from a deck string
+// function createDeckFromDeckString(deckString: DeckString): Card[] {
+//   const deck: Card[] = [];
+//   for (const cardId in deckString) {
+//     const count = deckString[cardId as CardTemplateKey];
+//     if (count) {
+//       for (let i = 0; i < count; i++) {
+//         const card = createCardFromID(cardId as CardTemplateKey);
+//         if (card) {
+//           deck.push(card);
+//         } else {
+//           console.warn(`Card with ID ${cardId} not found.`);
+//         }
+//       }
+//     }
+//   }
+//   return deck;
+// }
 
 // Helper function to pick a random premade deck
 function getRandomPremadeDeck(): SavedDeck {
