@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import type { Card as CardType, Player } from "@project/shared";
+import {
+  getManaCost,
+  type Card as CardType,
+  type Player,
+} from "@project/shared";
 import type { Ctx } from "boardgame.io";
 import { twMerge } from "tailwind-merge";
 import { useDraggable } from "@dnd-kit/core";
@@ -71,7 +75,7 @@ const HandCard = ({
       key={`${isTop ? "p1" : "p0"}-hand-${card.id}`}
       className={twMerge(
         "relative transition-all duration-300 ease-in-out flex",
-        player.mana >= (card?.mana ?? 0) &&
+        player.mana >= getManaCost(card) &&
           ctx.currentPlayer === player.id &&
           !back
           ? "canPlayCard"

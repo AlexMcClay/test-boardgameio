@@ -13,16 +13,15 @@ export function shuffleDeck(deck: Card[]): Card[] {
 // cardFactory.ts
 
 export function createCardInstance(
-  template: Omit<Card, "id" | "originalID">,
+  template: Omit<Card, "id" | "originalID" | "damageTaken">,
   originalID: string,
 ): Card {
   return {
     ...template,
     id: randomIDGen(),
-    maxAttack: template.attack,
-    maxHealth: template.health,
     hasAttacked: false,
     originalID: originalID,
+    damageTaken: 0,
   };
 }
 
@@ -81,10 +80,43 @@ export function hasToEndTurn(playedID: string, gameState: GameState): boolean {
   // check if the player can play any cards, and check if any minnions can attack, some cards have 0 mana cost so we have to check for that as well
   const player = gameState.players[playedID];
   const canPlayCards = player.hand.some(
-    (card) => card.mana !== null && card.mana <= player.mana,
+    (card) => getManaCost(card) <= player.mana,
   );
   const canAttack = gameState.board[playedID].some(
     (card) => !card.summoningSickness && !card.hasAttacked && !card.frozen,
   );
   return !canPlayCards && !canAttack;
+}
+
+// Get the current attack, combining base values + permanent buffs + environmental auras
+export function getAttack(card: Card): number {
+  const bonus =
+    card.modifiers
+      ?.filter((m) => m.stat === "attack")
+      .reduce((sum, m) => sum + m.value, 0) ?? 0;
+  return Math.max(0, (card?.baseAttack ?? 0) + bonus);
+}
+
+// Maximum health capacity is dynamically scaled by modifiers
+export function getMaxHealth(card: Card): number {
+  const bonus =
+    card.modifiers
+      ?.filter((m) => m.stat === "health")
+      .reduce((sum, m) => sum + m.value, 0) ?? 0;
+  return Math.max(1, (card.baseHealth ?? 0) + bonus);
+}
+
+// Current actual health is Max Health minus recorded damage
+export function getCurrentHealth(card: Card): number {
+  const maxHealth = getMaxHealth(card);
+  return Math.max(0, maxHealth - (card.damageTaken ?? 0));
+}
+
+// Dynamic mana cost parsing (e.g., Sorcerer's Apprentice effects)
+export function getManaCost(card: Card): number {
+  const bonus =
+    card.modifiers
+      ?.filter((m) => m.stat === "mana")
+      .reduce((sum, m) => sum + m.value, 0) ?? 0;
+  return Math.max(0, (card.baseMana ?? 0) + bonus);
 }

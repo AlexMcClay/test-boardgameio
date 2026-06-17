@@ -1,4 +1,5 @@
 // utils/validateMove.ts
+import { getManaCost } from ".";
 import type { Card, TargetValue, GameState } from "../types";
 import type { Ctx, PlayerID } from "boardgame.io";
 
@@ -178,7 +179,7 @@ export function validateMove(
   }
 
   // Mana check for unplaced cards
-  if (!card.isPlaced && player.mana < (card.mana || 0)) {
+  if (!card.isPlaced && player.mana < getManaCost(card)) {
     return { valid: false, error: "not-enough-mana" };
   }
 

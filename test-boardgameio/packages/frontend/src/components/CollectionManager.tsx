@@ -278,7 +278,7 @@ const CollectionManager = () => {
       // Otherwise show all cards
       return true;
     })
-    .sort((a, b) => (a[1].mana ?? 0) - (b[1].mana ?? 0));
+    .sort((a, b) => (a[1].baseMana ?? 0) - (b[1].baseMana ?? 0));
 
   // Pagination
   const totalPages = Math.ceil(filteredCards.length / CARDS_PER_PAGE);
@@ -349,7 +349,7 @@ const CollectionManager = () => {
                     id: k,
                     name: card.title,
                     class: card.class,
-                    mana: card.mana,
+                    mana: card.baseMana,
                   };
                 }),
             ),
@@ -441,7 +441,7 @@ const CollectionManager = () => {
                   >
                     <Card
                       key={id}
-                      card={{ ...card, id, originalID: id }}
+                      card={{ ...card, id, originalID: id, damageTaken: 0 }}
                       back={false}
                       isDragging={false}
                       type="game"
@@ -528,8 +528,8 @@ const CollectionManager = () => {
                 .sort(([aKey], [bKey]) => {
                   const aCard = cardTemplates[aKey as CardTemplateKey];
                   const bCard = cardTemplates[bKey as CardTemplateKey];
-                  const aMana = aCard.mana ?? -1;
-                  const bMana = bCard.mana ?? -1;
+                  const aMana = aCard.baseMana ?? -1;
+                  const bMana = bCard.baseMana ?? -1;
                   return aMana - bMana;
                 })
                 .map(([k, count]) => (
@@ -589,7 +589,7 @@ const CollectionManager = () => {
                           textShadow: "0 1px 0px black",
                         }}
                       >
-                        {cardTemplates[k as CardTemplateKey].mana ?? ""}
+                        {cardTemplates[k as CardTemplateKey].baseMana ?? ""}
                       </span>
                     </div>
 

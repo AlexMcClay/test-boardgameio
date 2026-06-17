@@ -6,6 +6,12 @@ import type {
   TargetValue,
   EffectTypes,
 } from "./types";
+import {
+  getAttack,
+  getCurrentHealth,
+  getManaCost,
+  getMaxHealth,
+} from "./utils";
 
 // Types for AI moves
 export type AIMove = {
@@ -194,14 +200,17 @@ function scoreBattlecryTarget(
       if (targetType === "card") {
         const targetCard = target as Card;
         // Prefer killing minions
-        if (targetCard.health && targetCard.health <= damage) {
+        if (
+          getCurrentHealth(targetCard) &&
+          getCurrentHealth(targetCard) <= damage
+        ) {
           score += 50; // High priority to kill
         } else {
           score += damage * 3; // Damage is valuable
         }
         // Prefer targeting high attack minions
-        if (targetCard.attack) {
-          score += targetCard.attack * 2;
+        if (getAttack(targetCard)) {
+          score += getAttack(targetCard) * 2;
         }
       } else {
         // Targeting player - check for lethal
@@ -217,8 +226,9 @@ function scoreBattlecryTarget(
       if (targetType === "card") {
         const targetCard = target as Card;
         // Prefer healing damaged minions
-        if (targetCard.health && targetCard.maxHealth) {
-          const missingHealth = targetCard.maxHealth - targetCard.health;
+        if (getCurrentHealth(targetCard) && getMaxHealth(targetCard)) {
+          const missingHealth =
+            getMaxHealth(targetCard) - getCurrentHealth(targetCard);
           score += Math.min(missingHealth, effect.value) * 3;
         }
       } else {
@@ -241,7 +251,7 @@ function enumerateHandPlays(G: GameState, ctx: Ctx, player: Player): AIMove[] {
 
   player.hand.forEach((card) => {
     // Check if card is affordable
-    if (card.mana !== null && card.mana > player.mana) {
+    if (getManaCost(card) > player.mana) {
       return; // Skip unaffordable cards
     }
 
@@ -292,8 +302,8 @@ function enumerateAttacks(G: GameState, ctx: Ctx): AIMove[] {
       card.hasAttacked ||
       card.summoningSickness ||
       card.frozen ||
-      !card.attack ||
-      card.attack <= 0
+      !getAttack(card) ||
+      getAttack(card) <= 0
     ) {
       return;
     }
@@ -479,19 +489,18 @@ function scoreCardPlay(
   const enemyPlayer = G.players[enemyPlayerId];
 
   // Mana efficiency - prefer using mana
-  if (card.mana !== null) {
-    score += card.mana * 5; // Each mana used is worth 5 points
-    // Bonus for using most of available mana
-    if (player.mana - card.mana < 2) {
-      score += 10; // Bonus for efficient mana use
-    }
+  const mana = getManaCost(card);
+  score += mana * 5; // Each mana used is worth 5 points
+  // Bonus for using most of available mana
+  if (player.mana - mana < 2) {
+    score += 10; // Bonus for efficient mana use
   }
 
   // Minion value
   if (card.isMinion) {
     score += 20; // Base value for board presence
-    if (card.attack) score += card.attack * 8; // Attack is valuable
-    if (card.health) score += card.health * 6; // Health is valuable
+    if (getAttack(card)) score += getAttack(card) * 8; // Attack is valuable
+    if (getCurrentHealth(card)) score += getCurrentHealth(card) * 6; // Health is valuable
     if (card.taunt) score += 15; // Taunt is valuable
   }
 
@@ -521,28 +530,36 @@ function scoreAttack(
 ): number {
   let score = 0;
 
-  if (!attacker.attack) return -100; // Can't attack without attack value
+  if (!getAttack(attacker)) return -100; // Can't attack without attack value
 
   if (targetType === "card") {
     const targetCard = target as Card;
 
     // Check if this kills the target
-    if (targetCard.health && targetCard.health <= attacker.attack) {
+    if (
+      getCurrentHealth(targetCard) &&
+      getCurrentHealth(targetCard) <= getAttack(attacker)
+    ) {
       score += 40; // Killing is good
-      score += (targetCard.attack || 0) * 5; // Prefer killing high attack minions
-      score += (targetCard.health || 0) * 3; // Value of health removed
+      score += (getAttack(targetCard) || 0) * 5; // Prefer killing high attack minions
+      score += (getCurrentHealth(targetCard) || 0) * 3; // Value of health removed
     } else {
       // Partial damage
-      score += attacker.attack * 2;
+      score += getAttack(attacker) * 2;
     }
 
     // Check if we survive the counter-attack
-    if (attacker.health && targetCard.attack) {
-      if (attacker.health <= targetCard.attack) {
+    if (getCurrentHealth(attacker) && getAttack(targetCard)) {
+      if (getCurrentHealth(attacker) <= getAttack(targetCard)) {
         score -= 30; // We die in the trade
         // But if it's a favorable trade (we kill high value), it's okay
-        if (targetCard.health && targetCard.health <= attacker.attack) {
-          score += (targetCard.attack || 0) * 3 + (targetCard.health || 0) * 2;
+        if (
+          getCurrentHealth(targetCard) &&
+          getCurrentHealth(targetCard) <= getAttack(attacker)
+        ) {
+          score +=
+            (getAttack(targetCard) || 0) * 3 +
+            (getCurrentHealth(targetCard) || 0) * 2;
         }
       }
     }
@@ -553,10 +570,10 @@ function scoreAttack(
     }
   } else {
     // Attacking face
-    score += attacker.attack * 10; // Face damage is valuable
+    score += getAttack(attacker) * 10; // Face damage is valuable
 
     // Check for lethal
-    if (enemyPlayer.health <= attacker.attack) {
+    if (enemyPlayer.health <= getAttack(attacker)) {
       score += 1000; // LETHAL! Always go for it
     }
   }
@@ -593,10 +610,10 @@ function evaluateEffect(
       } else if (effect.target === "enemy-board") {
         // minions
         G.board[enemyPlayer.id].forEach((targetCard) => {
-          if (targetCard && targetCard.health) {
-            if (targetCard.health <= damage) {
+          if (targetCard && getCurrentHealth(targetCard)) {
+            if (getCurrentHealth(targetCard) <= damage) {
               score += 40; // Killing minion
-              score += (targetCard.attack || 0) * 5;
+              score += (getAttack(targetCard) || 0) * 5;
             } else {
               score += damage * 4;
             }
@@ -610,10 +627,10 @@ function evaluateEffect(
         }
         // minions
         G.board[enemyPlayer.id].forEach((targetCard) => {
-          if (targetCard && targetCard.health) {
-            if (targetCard.health <= damage) {
+          if (targetCard && getCurrentHealth(targetCard)) {
+            if (getCurrentHealth(targetCard) <= damage) {
               score += 40; // Killing minion
-              score += (targetCard.attack || 0) * 5;
+              score += (getAttack(targetCard) || 0) * 5;
             } else {
               score += damage * 4;
             }
@@ -630,10 +647,10 @@ function evaluateEffect(
           const targetCard = G.board[target.player].find(
             (c) => c.id === target.id,
           );
-          if (targetCard && targetCard.health) {
-            if (targetCard.health <= damage) {
+          if (targetCard && getCurrentHealth(targetCard)) {
+            if (getCurrentHealth(targetCard) <= damage) {
               score += 40; // Killing minion
-              score += (targetCard.attack || 0) * 5;
+              score += (getAttack(targetCard) || 0) * 5;
             } else {
               score += damage * 4;
             }
@@ -658,8 +675,13 @@ function evaluateEffect(
           const targetCard = G.board[target.player].find(
             (c) => c.id === target.id,
           );
-          if (targetCard && targetCard.health && targetCard.maxHealth) {
-            const missingHealth = targetCard.maxHealth - targetCard.health;
+          if (
+            targetCard &&
+            getCurrentHealth(targetCard) &&
+            getMaxHealth(targetCard)
+          ) {
+            const missingHealth =
+              getMaxHealth(targetCard) - getCurrentHealth(targetCard);
             score += Math.min(missingHealth, effect.value) * 3;
           }
         }
@@ -697,11 +719,13 @@ function evaluateGameState(G: GameState, ctx: Ctx): number {
 
   // Count total stats on board
   const ourBoardValue = ourBoard.reduce(
-    (sum, card) => sum + (card.attack || 0) * 2 + (card.health || 0),
+    (sum, card) =>
+      sum + (getAttack(card) || 0) * 2 + (getCurrentHealth(card) || 0),
     0,
   );
   const theirBoardValue = theirBoard.reduce(
-    (sum, card) => sum + (card.attack || 0) * 2 + (card.health || 0),
+    (sum, card) =>
+      sum + (getAttack(card) || 0) * 2 + (getCurrentHealth(card) || 0),
     0,
   );
 

@@ -5,8 +5,17 @@ import type {
   TargetValue,
   GameEvent,
   Hero,
+  ApplyModifierEffect,
+  CardModifier,
 } from "./types";
-import { createCardFromID, shuffleDeck } from "./utils/index";
+import {
+  createCardFromID,
+  getAttack,
+  getCurrentHealth,
+  getManaCost,
+  getMaxHealth,
+  shuffleDeck,
+} from "./utils/index";
 import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
 import { validateMove } from "./utils/validateMove";
 import type { CardTemplateKey } from "./data/cards";
@@ -158,7 +167,7 @@ const placeCard: Move<GameState> = (
       ? player.hand.find((c) => c.id === cardId)!
       : G.board[ctx.currentPlayer].find((c) => c.id === cardId)!;
 
-  player.mana -= !card.isPlaced ? card.mana || 0 : 0; // Deduct mana cost
+  player.mana -= !card.isPlaced ? getManaCost(card) : 0;
 
   doEffects({ G, ctx }, cardId, "effects", location, ctx.currentPlayer, target);
 
@@ -178,7 +187,8 @@ const placeCard: Move<GameState> = (
           (e.type === "heal" && e.target === "user-select") ||
           (e.type === "changeKey" && e.target === "user-select") ||
           (e.type === "incrementValue" && e.target === "user-select") ||
-          (e.type === "divineShield" && e.target === "user-select"),
+          (e.type === "divineShield" && e.target === "user-select") ||
+          (e.type === "applyModifier" && e.target === "user-select"),
       );
     if (needsTargetedBattlecry) {
       // console.log("Setting pending battlecry for card:", card.id);
@@ -265,9 +275,11 @@ const doEffects = (
     switch (effect.type) {
       case "damage": {
         const damage =
-          typeof effect.value === "string"
-            ? (card[effect.value] as number)
-            : effect.value;
+          effect.value === "baseAttack"
+            ? getAttack(card)
+            : typeof effect.value === "string"
+              ? (card[effect.value] as number)
+              : effect.value;
 
         if (target && effect.target === "user-select") {
           if (card.isPlaced && !effect.battlecry && card.isMinion) {
@@ -299,16 +311,13 @@ const doEffects = (
               (c) => c.id === target.id,
             );
 
-            if (targetCard && typeof targetCard.health !== "undefined") {
+            if (targetCard && targetCard.isMinion) {
               // Main attack damage to target
               dealDamageToCard(G, cardId, targetCard, target.player, damage);
 
               // Check counter-attack damage to self card
-              if (!effect.battlecry && typeof card.health !== "undefined") {
-                const damageEnemy =
-                  typeof effect.value === "string"
-                    ? (targetCard[effect.value] as number)
-                    : effect.value;
+              if (!effect.battlecry && targetCard.isMinion) {
+                const damageEnemy = getAttack(targetCard);
 
                 dealDamageToCard(G, targetCard.id, card, playerID, damageEnemy);
               }
@@ -370,7 +379,7 @@ const doEffects = (
             const targetCard = G.board[target.player].find(
               (c) => c.id === target.id,
             );
-            if (targetCard && typeof targetCard.health !== "undefined") {
+            if (targetCard && targetCard.isMinion) {
               applyBoolEffectToCard(
                 G,
                 cardId,
@@ -432,7 +441,8 @@ const doEffects = (
             const targetCard = G.board[target.player].find(
               (c) => c.id === target.id,
             );
-            healCard(G, cardId, targetCard, target.player, healValue);
+            if (targetCard)
+              healCard(G, cardId, targetCard, target.player, healValue);
           }
 
           if (target.type === "lane") {
@@ -515,6 +525,48 @@ const doEffects = (
           });
         }
         break;
+      case "applyModifier": {
+        // 1. Cast your generic effect block to our typed structure
+        const modEffect = effect;
+
+        // 1. Single Selected Target Logic
+        if (effect.target === "user-select" && target) {
+          if (target.type === "card") {
+            const targetCard = G.board[target.player].find(
+              (c) => c.id === target.id,
+            );
+            if (targetCard)
+              proccessApplyModifier(G, cardId, targetCard, playerID, modEffect);
+          }
+
+          if (target.type === "lane") {
+            G.board[target.player].forEach((c) => {
+              proccessApplyModifier(G, cardId, c, playerID, modEffect);
+            });
+          }
+        }
+
+        // 2. Global / AoE Effects
+        else if (effect.target === "friendly-all") {
+          // Heal all friendly minions
+          G.board[playerID].forEach((c) =>
+            proccessApplyModifier(G, cardId, c, playerID, modEffect),
+          );
+        } else if (effect.target === "enemy-all") {
+          const targetPlayerId = playerID === "0" ? "1" : "0";
+          G.board[targetPlayerId].forEach((c) =>
+            proccessApplyModifier(G, cardId, c, playerID, modEffect),
+          );
+        } else if (effect.target === "board") {
+          Object.entries(G.board).forEach(([player, lane]) => {
+            lane.forEach((c) => {
+              proccessApplyModifier(G, cardId, c, playerID, modEffect);
+            });
+          });
+        }
+
+        break;
+      }
       case "summon":
         // const enemyPlayerId = playerID === "0" ? "1" : "0";
         // check if the board can fit the summoned card
@@ -550,7 +602,7 @@ const doEffects = (
               (c) => c.id === target.id,
             );
             if (targetCard) {
-              targetCard.health = 0;
+              targetCard.damageTaken = getMaxHealth(targetCard);
             }
           }
         } else if (effect.target === "enemy-board") {
@@ -604,24 +656,12 @@ function dealDamageToCard(
   targetPlayerId: string,
   damageAmount: number,
 ) {
-  if (!targetCard || typeof targetCard.health === "undefined") return;
+  if (!targetCard || !targetCard.isMinion) return;
 
   // 1. DIVINE SHIELD CHECK: Intercept positive damage values
   if (targetCard.divineShield && damageAmount > 0) {
     // Pop the bubble!
     targetCard.divineShield = false;
-
-    recordEvent(G, {
-      type: "damage",
-      sourceId: sourceId,
-      targetId: targetCard.id,
-      targetType: "card",
-      playerId: targetPlayerId,
-      value: 0, // Reduces damage to 0
-      timestamp: Date.now(),
-    });
-
-    return;
   }
 
   // 2. STANDARD DAMAGE FALLBACK (If no shield is present or damage is 0)
@@ -631,11 +671,61 @@ function dealDamageToCard(
     targetId: targetCard.id,
     targetType: "card",
     playerId: targetPlayerId,
-    value: damageAmount,
+    value: targetCard.divineShield && damageAmount > 0 ? 0 : damageAmount,
     timestamp: Date.now(),
   });
 
-  targetCard.health -= damageAmount;
+  // Instead of subtracting directly from health, increase damage taken!
+  targetCard.damageTaken += damageAmount;
+}
+
+function proccessApplyModifier(
+  G: GameState,
+  sourceId: string,
+  targetCard: Card, // This is our target minion
+  playerId: string,
+  effect: ApplyModifierEffect,
+) {
+  // Determine what lifecycle layer this modifier belongs to
+  const isTemporary = !!effect.duration;
+
+  // 3. Build out the unified clean modifier instance object
+  const newModifier: CardModifier = {
+    // Generate a simple deterministic unique ID for tracking/debugging
+    id: `mod-${sourceId}-${effect.stat}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+    sourceCardId: sourceId, // Tracks which card created this buff
+    stat: effect.stat,
+    value: effect.value,
+    type: isTemporary ? "temporary" : "permanent",
+
+    // 4. Inject runtime tracking data into the modifier lifecycle if it has a duration
+    lifecycle:
+      isTemporary && effect.duration
+        ? {
+            sourcePlayerId: playerId, // The active player casting the spell/battlecry
+            expiryTrigger: effect.duration.expiryTrigger,
+            expiryOwner: effect.duration.expiryOwner,
+            turnsRemaining: effect.duration.turnsRemaining ?? 1,
+          }
+        : undefined,
+  };
+
+  // 5. Safely push it into our card's modifier scratchpad
+  if (targetCard.modifiers === undefined) {
+    targetCard.modifiers = [];
+  }
+  targetCard.modifiers.push(newModifier);
+
+  recordEvent(G, {
+    type: "applyModifier",
+    sourceId: sourceId,
+    key: effect.stat,
+    value: effect.value,
+    playerId: playerId,
+    timestamp: Date.now(),
+    targetId: targetCard.id,
+    targetType: "card",
+  });
 }
 
 function applyBoolEffectToCard(
@@ -720,21 +810,19 @@ function healPlayer(
 function healCard(
   G: GameState,
   sourceId: string,
-  targetCard: any,
+  targetCard: Card,
   playerId: string,
   amount: number,
 ) {
-  if (
-    !targetCard ||
-    targetCard.health === undefined ||
-    targetCard.maxHealth === undefined
-  )
-    return;
+  if (!targetCard || !targetCard.isMinion) return;
 
-  const actualHeal = Math.min(amount, targetCard.maxHealth - targetCard.health);
+  const actualHeal = Math.min(
+    amount,
+    getMaxHealth(targetCard) - getCurrentHealth(targetCard),
+  );
   if (actualHeal <= 0) return; // Already at full health
 
-  targetCard.health += actualHeal;
+  targetCard.damageTaken -= actualHeal;
 
   recordEvent(G, {
     type: "heal",
@@ -755,7 +843,7 @@ function processDeaths(G: GameState, ctx: Ctx) {
   playerIds.forEach((playerId) => {
     // 1. Find all minions on this board marked for death
     const deadMinions = G.board[playerId].filter(
-      (card) => typeof card.health !== "undefined" && card.health <= 0,
+      (card) => getCurrentHealth(card) <= 0,
     );
 
     if (deadMinions.length > 0) {
@@ -793,7 +881,7 @@ function processDeaths(G: GameState, ctx: Ctx) {
 
       // 4. Clean sweep: Remove dead minions from the board simultaneously
       G.board[playerId] = G.board[playerId].filter(
-        (card) => typeof card.health === "undefined" || card.health > 0,
+        (card) => getCurrentHealth(card) > 0,
       );
     }
   });
@@ -803,6 +891,71 @@ function processDeaths(G: GameState, ctx: Ctx) {
   if (deathsOccurred) {
     processDeaths(G, ctx);
   }
+}
+
+export function refreshAuras(G: GameState) {
+  const playerIds: ("0" | "1")[] = ["0", "1"];
+
+  playerIds.forEach((pId) => {
+    G.board[pId].forEach((card) => {
+      // 1. Clear out historical temporary aura instances, retaining permanent buffs
+      card.modifiers = card.modifiers?.filter((m) => m.type !== "aura");
+    });
+  });
+
+  // 2. Scan the entire board and look for active aura providers
+  // playerIds.forEach((pId) => {
+  //   G.board[pId].forEach((providerCard) => {
+  //     // Add more dynamic data-driven aura checks here...
+  //   });
+  // });
+}
+
+function processModifierLifecycle(
+  G: GameState,
+  activePlayerId: string,
+  triggerType: "START_OF_TURN" | "END_OF_TURN",
+) {
+  const allPlayers: ("0" | "1")[] = ["0", "1"];
+
+  allPlayers.forEach((pId) => {
+    G.board[pId].forEach((card) => {
+      // Filter the card's modifiers, keeping only the ones that haven't expired
+      card.modifiers = card.modifiers?.filter((mod) => {
+        // Permanent modifications or auras are handled elsewhere and shouldn't be processed here
+        if (mod.type !== "temporary" || !mod.lifecycle) return true;
+
+        const lifecycle = mod.lifecycle;
+
+        // 1. Check if the current game loop state matches the expiry trigger phase
+        if (lifecycle.expiryTrigger !== triggerType) return true;
+
+        // 2. Identify whose turn boundary we are currently executing
+        let isOwnerMatch = false;
+        if (lifecycle.expiryOwner === "ANY_PLAYER") isOwnerMatch = true;
+        if (
+          lifecycle.expiryOwner === "BUFF_CASTER" &&
+          lifecycle.sourcePlayerId === activePlayerId
+        )
+          isOwnerMatch = true;
+        if (lifecycle.expiryOwner === "BUFF_RECEIVER" && pId === activePlayerId)
+          isOwnerMatch = true;
+
+        // If it's not the right player's turn phase, keep the modifier active
+        if (!isOwnerMatch) return true;
+
+        // 3. Handle multi-turn countdown decrements
+        if (lifecycle.turnsRemaining !== undefined) {
+          lifecycle.turnsRemaining -= 1;
+          // If turns are still remaining, keep it alive
+          if (lifecycle.turnsRemaining > 0) return true;
+        }
+
+        // Return false to cleanly strip out the expired modifier from the array!
+        return false;
+      });
+    });
+  });
 }
 
 export const HeathStoneGame: Game<GameState> = {
@@ -832,42 +985,57 @@ export const HeathStoneGame: Game<GameState> = {
         }
       },
       turn: {
-        onEnd: ({ G, ctx }) => {
-          // Clear last move metadata at the end of the turn
-          G.gameEvents = [];
-          G.activeBattlecryMinion = null;
-
-          G.board[ctx.currentPlayer].forEach((card) => {
-            card.frozen = false; // unfreeze minions
-          });
-          recordEvent(G, {
-            type: "endTurn",
-            playerId: ctx.currentPlayer,
-            timestamp: Date.now(),
-          });
-        },
         onBegin: ({ G, ctx }) => {
-          // Reset mana at the start of each turn
-          // Draw a card at the start of the turn
+          // 1. Process anything that expires at the START of a turn
+          processModifierLifecycle(G, ctx.currentPlayer, "START_OF_TURN");
 
           if (ctx.turn % 2) {
             G.maxMana = Math.min(G.maxMana + 1, 10);
           }
           G.players[ctx.currentPlayer].mana = G.maxMana;
+
+          // draw card if the player has less than 10 cards in hand
           if (ctx.turn > 2) {
-            // draw card if the player has less than 10 cards in hand
             const player = G.players[ctx.currentPlayer];
             if (player.hand.length < 10) {
               handleDrawCard(G, ctx);
             }
           }
 
+          // reset
           G.board[ctx.currentPlayer].forEach((card) => {
             card.hasAttacked = false; // Reset attack status for all cards
             card.summoningSickness = false; // Remove summoning sickness
           });
+
+          // 2. Always refresh static auras and evaluate cascading health drop deaths[cite: 1]
+          refreshAuras(G);
+          processDeaths(G, ctx); //[cite: 1]
+
           recordEvent(G, {
             type: "beginTurn",
+            playerId: ctx.currentPlayer,
+            timestamp: Date.now(),
+          });
+        },
+        onEnd: ({ G, ctx }) => {
+          // Clear last move metadata at the end of the turn
+          G.gameEvents = [];
+          G.activeBattlecryMinion = null;
+
+          // 1. Process anything that expires at the END of a turn (like Abusive Sergeant)
+          processModifierLifecycle(G, ctx.currentPlayer, "END_OF_TURN");
+
+          G.board[ctx.currentPlayer].forEach((card) => {
+            card.frozen = false; // unfreeze minions
+          });
+
+          // 2. Refresh auras/deaths again in case losing an attack/health buff altered the board state[cite: 1]
+          refreshAuras(G);
+          processDeaths(G, ctx); //[cite: 1]
+
+          recordEvent(G, {
+            type: "endTurn",
             playerId: ctx.currentPlayer,
             timestamp: Date.now(),
           });

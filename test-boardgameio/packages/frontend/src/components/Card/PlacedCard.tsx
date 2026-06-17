@@ -6,6 +6,7 @@ import { useAudioStore } from "@/stores/audioStore";
 import { useEffect } from "react";
 import FrozenOverlay from "./Overlays/FrozenOverlay";
 import DivineShieldOverlay from "./Overlays/DivineShieldOverlay";
+import { getAttack, getCurrentHealth, getMaxHealth } from "@project/shared";
 
 const attackIcon = "assets/attack.png";
 const healthIcon = "assets/health.png";
@@ -169,13 +170,13 @@ const PlacedCard = ({
         </motion.div>
       )}
       {/* Attack & Health */}
-      {(card.attack !== undefined || card.health !== undefined) && (
+      {(card.baseAttack !== undefined || card.baseHealth !== undefined) && (
         <>
-          {card.attack !== undefined && (
+          {card.baseAttack !== undefined && (
             <div className="absolute select-none text-[1.1vw] left-[0.5vw] bottom-[0.6vw]  rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center font-bold shadow-lg z-10">
               <img
                 src={attackIcon}
-                alt="Card Back"
+                alt="Attack"
                 className="object-cover w-full h-full absolute scale-130 -left-1 bottom-1"
                 // no drag
                 draggable="false"
@@ -185,17 +186,20 @@ const PlacedCard = ({
                   WebkitTextStroke: "0.5px black",
                   textShadow: "0 1px 0px black",
                 }}
-                className="absolute font-belwe   scale-130  translate-y-[-5%] translate-x-[-5%]"
+                className={twMerge(
+                  "absolute font-belwe   scale-130  translate-y-[-5%] translate-x-[-5%]",
+                  getAttack(card) > card.baseAttack ? "text-green-400 " : " ",
+                )}
               >
-                {card.attack}
+                {getAttack(card)}
               </span>
             </div>
           )}
-          {card.health !== undefined && (
+          {card.baseHealth !== undefined && (
             <div className="absolute select-none text-[1.1vw] right-[0.3vw] bottom-[0.5vw]  rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center font-bold  shadow-lg z-10">
               <img
                 src={healthIcon}
-                alt="Card Back"
+                alt="Health Icon"
                 className=" object-contain w-full h-full absolute scale-130  bottom-[0.25vw]"
                 // no drag
                 draggable="false"
@@ -205,9 +209,16 @@ const PlacedCard = ({
                   WebkitTextStroke: "0.5px black",
                   textShadow: "0 1px 0px black",
                 }}
-                className="absolute font-belwe  scale-140 translate-y-[-5%] translate-x-[4%]"
+                className={twMerge(
+                  "absolute font-belwe  scale-140 translate-y-[-5%] translate-x-[4%]",
+                  getCurrentHealth(card) == card.baseHealth
+                    ? ""
+                    : getCurrentHealth(card) < getMaxHealth(card)
+                      ? "text-red-500"
+                      : "text-green-400",
+                )}
               >
-                {card.health}
+                {getCurrentHealth(card)}
               </span>
             </div>
           )}

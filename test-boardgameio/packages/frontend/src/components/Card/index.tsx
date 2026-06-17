@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { twMerge } from "tailwind-merge";
 import { useMemo, useRef, useState, useEffect } from "react";
 import KeywordPopover from "./KeywordPopover";
+import { getAttack, getCurrentHealth, getManaCost } from "@project/shared";
 
 const cardBack = "assets/Card_Back.png";
 const mana_crystal = "assets/mana.png";
@@ -229,7 +230,7 @@ const Card = ({
         />
 
         {/* Mana Crystal */}
-        {card.mana !== null && card.mana !== undefined && (
+        {card.baseMana !== undefined && (
           <div className=" select-none absolute text-lg top-[-0.5vw] left-[-0.3vw]  w-[1.7vw] h-[1.7vw] flex items-center justify-center font-bold   z-10 ">
             <img
               src={mana_crystal}
@@ -239,13 +240,20 @@ const Card = ({
               draggable="false"
             />
             <span
-              className="relative z-20 text-[1.1vw] font-extrabold font-belwe  scale-160 translate-y-[-10%] translate-x-[-5%]"
+              className={twMerge(
+                "relative z-20 text-[1.1vw] font-extrabold font-belwe  scale-160 translate-y-[-10%] translate-x-[-5%]",
+                getManaCost(card) == card.baseMana
+                  ? ""
+                  : getManaCost(card) > card.baseMana
+                    ? "text-red-500"
+                    : "text-green-500",
+              )}
               style={{
                 WebkitTextStroke: "0.5px black",
                 textShadow: "0 1px 0px black",
               }}
             >
-              {card.mana}
+              {getManaCost(card)}
             </span>
           </div>
         )}
@@ -293,8 +301,7 @@ const Card = ({
             {card.type.map((t) => (
               <span
                 style={{
-                  WebkitTextStroke: "0.5px black",
-                  textShadow: "0 1px 0px black",
+                  WebkitTextStroke: "0.03vw black",
                 }}
                 className="relative z-10 font-belwe text-[0.6vw]  scale-130  translate-y-[-5%] translate-x-[-5%]"
               >
@@ -305,9 +312,9 @@ const Card = ({
         )}
 
         {/* Attack & Health */}
-        {(card.attack !== undefined || card.health !== undefined) && (
+        {(card.baseAttack !== undefined || card.baseHealth !== undefined) && (
           <>
-            {card.attack !== undefined && (
+            {card.baseAttack !== undefined && (
               <div className="absolute select-none left-[-0.1vw] bottom-[-0.2vw] rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center text-[1.1vw] font-bold shadow-lg">
                 <img
                   src={attackIcon}
@@ -323,11 +330,11 @@ const Card = ({
                   }}
                   className="absolute font-belwe  scale-130  translate-y-[-0.1vw] translate-x-[-0.05vw]"
                 >
-                  {card.attack}
+                  {getAttack(card)}
                 </span>
               </div>
             )}
-            {card.health !== undefined && (
+            {card.baseHealth !== undefined && (
               <div className="absolute select-none right-[-0.5vw] bottom-[-0.2vw] rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center text-[1.1vw] font-bold  shadow-lg">
                 <img
                   src={healthIcon}
@@ -343,7 +350,7 @@ const Card = ({
                   }}
                   className="absolute font-belwe  scale-140 translate-y-[-0.1vw] translate-x-[0vw]"
                 >
-                  {card.health}
+                  {getCurrentHealth(card)}
                 </span>
               </div>
             )}

@@ -16,12 +16,9 @@ export interface Card {
   originalID: string;
   title: string;
   description: string;
-  mana: number | null;
-  attack?: number;
-  health?: number;
-  maxAttack?: number;
-  maxHealth?: number;
-  maxMana?: number;
+  baseMana?: number;
+  baseAttack?: number;
+  baseHealth?: number;
   type?: string[]; // e.g., "Spell", "Beast", "Demon", etc.
   imageUrl?: string; // URL to the card image
   effects: Array<EffectTypes>;
@@ -39,7 +36,12 @@ export interface Card {
   divineShield?: boolean;
   charge?: boolean;
   rush?: boolean;
-  keywords?: string[];
+  // 2. Structural tracking for real-time damage
+  damageTaken: number;
+  // 3. Volatile attachment array
+  modifiers?: CardModifier[];
+
+  tags?: string[];
   targets: TargetTypes[]; // Optional, to specify valid targets for the card
   battlecryTargets?: TargetTypes[]; // Optional, valid targets for battlecry (bypasses taunt)
   class: string;
@@ -60,6 +62,27 @@ export interface Player {
   mana: number;
   hand: Card[];
   deck: Card[];
+}
+
+export interface ModifierLifecycle {
+  // Who cast the buff? ("0" or "1")
+  sourcePlayerId: string;
+  // At what point in the game loop should this expire?
+  expiryTrigger: "END_OF_TURN" | "START_OF_TURN" | "PERMANENT";
+  // Whose turn timeline triggers the expiry?
+  expiryOwner: "BUFF_CASTER" | "BUFF_RECEIVER" | "ANY_PLAYER";
+  // Optional counter for multi-turn effects (e.g., lasts 2 turns)
+  turnsRemaining?: number;
+}
+
+export interface CardModifier {
+  id: string;
+  label?: string;
+  sourceCardId: string;
+  type: "aura" | "permanent" | "temporary"; // "temporary" modifications have a lifecycle
+  stat: "attack" | "health" | "mana" | "taunt" | "divineShield" | "frozen";
+  value: number;
+  lifecycle?: ModifierLifecycle; // Optional metadata for temporal mechanics
 }
 
 export type TargetValue = {
@@ -94,7 +117,20 @@ export type EffectTypes =
   | TauntEffect
   | StealthEffect
   | ChargeEffect
-  | RushEffect;
+  | RushEffect
+  | ApplyModifierEffect;
+
+export interface ApplyModifierEffect {
+  type: "applyModifier";
+  stat: "attack" | "health" | "mana" | "taunt" | "divineShield" | "frozen";
+  value: number;
+  target: "user-select" | "board" | "enemy-all" | "friendly-all"; // Your target routing style[cite: 2]
+  duration?: {
+    expiryTrigger: "END_OF_TURN" | "START_OF_TURN";
+    expiryOwner: "BUFF_CASTER" | "BUFF_RECEIVER" | "ANY_PLAYER";
+    turnsRemaining?: number;
+  };
+}
 
 export type BaseBoolEffect = {
   battlecry?: boolean; // Indicates if this damage is part of a battlecry (bypasses taunt)
@@ -215,7 +251,19 @@ export type GameEvent =
   | TauntEvent
   | StealthEvent
   | ChargeEvent
-  | RushEvent;
+  | RushEvent
+  | ApplyModifierEvent;
+
+type ApplyModifierEvent = {
+  type: "applyModifier";
+  sourceId?: string; // Card/effect that caused this status change
+  targetId: string; // Card/minion gaining the status
+  targetType: "card" | "player";
+  playerId: PlayerID;
+  timestamp: number;
+  key: string;
+  value: any;
+};
 
 type BaseGameBoolEvent = {
   sourceId?: string; // Card/effect that caused this status change
