@@ -53,7 +53,7 @@ export interface Card {
 export interface Player {
   id: PlayerID;
   name: string;
-  heroPortrait: string; // Optional, if you want to display a hero portrait
+  heroPortrait: string;
   maxHealth: number;
   health: number;
   armor: number;

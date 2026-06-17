@@ -10,6 +10,8 @@ export const SFX_MANIFEST = {
   // === UI Sounds (Preloaded) ===
   "button-click": { path: "/ui/button_click.ogg", preload: true },
   "button-over": { path: "/ui/button_over.ogg", preload: true },
+  "play-over": { path: "/ui/play_button_mouseover.ogg", preload: true },
+
   "card-over": {
     path: "/ui/collection_manager_card_mouse_over.ogg",
     preload: true,

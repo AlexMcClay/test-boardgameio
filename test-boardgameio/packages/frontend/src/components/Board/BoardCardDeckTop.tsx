@@ -25,7 +25,7 @@ const BoardCardDeckTop = ({ deck, ctx }: Props) => {
             style={{
               left: "0",
               top: "0",
-              transform: `rotateY(-72deg) rotateX(2deg) rotateZ(76deg) translateZ(${idx * 4}px)`,
+              transform: `rotateY(-72deg) rotateX(2deg) rotateZ(76deg) translateZ(${idx * 0.21}vw)`,
               transformOrigin: "center center",
 
               // --- THE NEW FIXED COMPONENT CLIP ---

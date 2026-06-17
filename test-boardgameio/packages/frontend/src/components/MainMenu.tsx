@@ -7,9 +7,6 @@ import SettingsButton from "./SettingsButton";
 const backgroundImage = "assets/menu/main_menu.png";
 
 const MainMenu = () => {
-  const [hoveredButton, setHoveredButton] = useState<
-    "play" | "collection" | null
-  >(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const playSfx = useAudioStore((state) => state.playSfx);
@@ -24,9 +21,9 @@ const MainMenu = () => {
       }}
     >
       {/* Main circular container */}
-      <div className="relative flex flex-col items-center justify-center w-[600px] h-[600px]">
+      <div className="relative flex flex-col items-center justify-center w-[32vw] h-[32vw]">
         {/* Content */}
-        <div className="relative z-10 flex flex-col items-center gap-6 w-[400px] font-belwe">
+        <div className="relative z-10 flex flex-col items-center gap-[1vw] w-[24vw] font-belwe">
           {/* Play Button */}
           <button
             onClick={() => {
@@ -34,27 +31,16 @@ const MainMenu = () => {
               setView("play");
             }}
             onMouseEnter={() => {
-              setHoveredButton("play");
               playSfx("button-over");
             }}
-            onMouseLeave={() => setHoveredButton(null)}
-            className={`
-              relative w-full py-6 px-8
-              bg-[#bda393]
-              rounded-lg
-              border-4 border-[#8d7037]
-              outline-2 outline-black
-              shadow-[0_6px_0_rgba(92,64,51,1),0_8px_20px_rgba(0,0,0,0.6),inset_0_2px_0_rgba(255,255,255,0.3)]
-              transition-all duration-200
-              ${hoveredButton === "play" ? "translate-y-1 shadow-[0_4px_0_rgba(92,64,51,1),0_6px_15px_rgba(0,0,0,0.6),inset_0_2px_0_rgba(255,255,255,0.3)] brightness-110" : ""}
-            `}
+            className="relative  w-[20vw] py-[0.25vw] px-[2.5vw] bg-[#bda393] rounded-[1.5vw/1vw] border-[0.3vw] border-[#8d7037] shadow-[0_0.4vw_0_rgba(92,64,51,1),0_0.6vw_1.5vw_rgba(0,0,0,0.6),inset_0_0.2vw_0_rgba(255,255,255,0.3)] transition-all duration-200 hover:translate-y-[0.15vw] hover:shadow-[0_0.2vw_0_rgba(92,64,51,1),0_0.4vw_1vw_rgba(0,0,0,0.6)] hover:brightness-110"
           >
-            <span className="text-4xl font-belwe font-bold text-stone-800 drop-shadow-[0_2px_2px_rgba(255,255,255,0.3)] tracking-wide">
+            <span className="text-[2.25vw] font-bold text-stone-800 drop-shadow-[0_0.1vw_0.1vw_rgba(255,255,255,0.3)]">
               Play
             </span>
             {/* Bevel effect */}
-            <div className="absolute inset-0 rounded-lg border-t-2 border-l-2 border-white/20 pointer-events-none" />
-            <div className="absolute inset-0 rounded-lg border-b-2 border-r-2 border-black/20 pointer-events-none" />
+            <div className="absolute inset-0 rounded-[1.5vw/1vw] border-t-[0.15vw] border-l-[0.15vw] border-white/20 pointer-events-none" />
+            <div className="absolute inset-0 rounded-[1.5vw/1vw] border-b-[0.15vw] border-r-[0.15vw] border-black/20 pointer-events-none" />
           </button>
 
           {/* Collection Button */}
@@ -65,26 +51,15 @@ const MainMenu = () => {
             }}
             onMouseEnter={() => {
               playSfx("button-over");
-              setHoveredButton("collection");
             }}
-            onMouseLeave={() => setHoveredButton(null)}
-            className={`
-              relative w-full py-6 px-8
-              bg-[#bda393]
-              rounded-lg
-              border-4 border-[#8d7037]
-              outline-2 outline-black
-              shadow-[0_6px_0_rgba(92,64,51,1),0_8px_20px_rgba(0,0,0,0.6),inset_0_2px_0_rgba(255,255,255,0.3)]
-              transition-all duration-200
-              ${hoveredButton === "collection" ? "translate-y-1 shadow-[0_4px_0_rgba(92,64,51,1),0_6px_15px_rgba(0,0,0,0.6),inset_0_2px_0_rgba(255,255,255,0.3)] brightness-110" : ""}
-            `}
+            className="relative w-[20vw] py-[0.25vw] px-[2.5vw] bg-[#bda393] rounded-[1.5vw/1vw] border-[0.3vw] border-[#8d7037] shadow-[0_0.4vw_0_rgba(92,64,51,1),0_0.6vw_1.5vw_rgba(0,0,0,0.6),inset_0_0.2vw_0_rgba(255,255,255,0.3)] transition-all duration-200 hover:translate-y-[0.15vw] hover:shadow-[0_0.2vw_0_rgba(92,64,51,1),0_0.4vw_1vw_rgba(0,0,0,0.6)] hover:brightness-110"
           >
-            <span className="text-4xl font-belwe font-bold text-stone-800 drop-shadow-[0_2px_2px_rgba(255,255,255,0.3)] tracking-wide">
+            <span className="text-[2.25vw] font-bold text-stone-800 drop-shadow-[0_0.1vw_0.1vw_rgba(255,255,255,0.3)]">
               Collection
             </span>
             {/* Bevel effect */}
-            <div className="absolute inset-0 rounded-lg border-t-2 border-l-2 border-white/20 pointer-events-none" />
-            <div className="absolute inset-0 rounded-lg border-b-2 border-r-2 border-black/20 pointer-events-none" />
+            <div className="absolute inset-0 rounded-[1.5vw/1vw] border-t-[0.15vw] border-l-[0.15vw] border-white/20 pointer-events-none" />
+            <div className="absolute inset-0 rounded-[1.5vw/1vw] border-b-[0.15vw] border-r-[0.15vw] border-black/20 pointer-events-none" />
           </button>
         </div>
       </div>

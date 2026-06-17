@@ -97,8 +97,8 @@ const PlacedCard = ({
       <div className={twMerge("w-full h-full")}>
         <div
           className={twMerge(
-            "absolute top-1 left-2! h-[90%] w-[90%] inset-[2px] overflow-hidden rounded-[50%/50%]",
-            card.taunt && "top-4 left-2! w-[87%]",
+            "absolute top-[0.2vw]! left-[0.4vw]! h-[90%] w-[90%] inset-[0.1vw] overflow-hidden rounded-[50%/50%]",
+            card.taunt && "top-[0.8vw] left-[0.4vw]! w-[87%]",
           )}
         >
           <img

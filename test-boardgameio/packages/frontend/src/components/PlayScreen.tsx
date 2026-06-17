@@ -14,8 +14,12 @@ import Deck from "./Deck";
 import GameModeModal from "./GameModeModal";
 import MatchmakingModal from "./MatchmakingModal";
 import { IoChevronBack, IoChevronForward } from "react-icons/io5";
+import { twMerge } from "tailwind-merge";
 
 const backgroundImage = "assets/play_screen/background.png";
+const playActive = "assets/play_screen/play.png";
+const playInactive = "assets/play_screen/play_inactive.png";
+
 const DECKS_PER_PAGE = 9;
 
 interface PlayScreenProps {
@@ -193,7 +197,7 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
       }}
     >
       {/* Left Panel - Deck Selection */}
-      <div className="flex-1 flex flex-col h-full bg-black/30 absolute left-[13vw] w-[48vw]">
+      <div className="flex-1 flex flex-col h-full  absolute left-[13vw] w-[48vw]">
         {/* Header */}
         <div className="flex flex-col items-center mb-[2vw]">
           <h1 className="text-[2vw] font-bold text-amber-100 drop-shadow-[0_0.3vw_0.3vw_rgba(0,0,0,0.8)]">
@@ -272,7 +276,7 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
       </div>
 
       {/* Right Panel - Hero Portrait */}
-      <div className="w-[22vw] bg-black/50 absolute left-[64vw]  h-full">
+      <div className="w-[22vw]  absolute left-[64vw]  h-full">
         <div className="flex justify-start absolute top-[1vw] left-[5vw] z-50">
           <button
             onClick={() => {
@@ -329,17 +333,30 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
               <div className=" absolute top-[35.6vw] left-[5vw] w-[12vw] rounded-full   flex items-center justify-center">
                 <p className="text-[1.5vw] text-white">{selectedDeck.name}</p>
               </div>
-              <button
-                onClick={handleStartGame}
-                onMouseEnter={() => playSfx("button-over")}
-                className="absolute top-[42vw] left-[5vw] w-[12vw] h-[12vw] rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center transition-all duration-200 hover:scale-105 cursor-pointer"
-              >
-                <p className="text-[3.5vw] font-bold text-white">Play</p>
-              </button>
             </>
           ) : (
             <></>
           )}
+          <button
+            onClick={() => {
+              if (selectedDeck) {
+                handleStartGame();
+              }
+            }}
+            onMouseEnter={() => {
+              if (selectedDeck) playSfx("play-over");
+            }}
+            style={{
+              backgroundImage: `url(${selectedDeck ? playActive : playInactive})`,
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+              backgroundSize: "cover",
+            }}
+            className={twMerge(
+              "absolute  top-[41.6vw]  left-[5.2vw] w-[12vw] h-[12vw] rounded-full  flex items-center justify-center duration-100  cursor-pointer",
+              selectedDeck && "top-[41.3vw] playGlow",
+            )}
+          ></button>
         </div>
       </div>
 
