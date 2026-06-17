@@ -59,6 +59,8 @@ export interface Player {
   maxHealth: number;
   health: number;
   armor: number;
+  frozen?: boolean;
+  divineShield?: boolean;
   mana: number;
   hand: Card[];
   deck: Card[];
@@ -111,14 +113,14 @@ export type EffectTypes =
   | SummonEffect
   | DestroyEffect
   | ManaEffect
-  | IncrementValueEffect
   | FreezeEffect
   | DivineShieldEffect
   | TauntEffect
   | StealthEffect
   | ChargeEffect
   | RushEffect
-  | ApplyModifierEffect;
+  | ApplyModifierEffect
+  | ArmorEffect;
 
 export interface ApplyModifierEffect {
   type: "applyModifier";
@@ -206,16 +208,16 @@ type ChangeKeyEffect = {
   target: "user-select" | "self"; // Target of the change, either "other" or "self"
 };
 
-type IncrementValueEffect = {
-  type: "incrementValue";
-  key: keyof Card; // Key to change in the card object
-  value: any; // New value for the key
-  target: "user-select" | "self"; // Target of the change, either "other" or "self"
-};
-
 type SummonEffect = {
   type: "summon";
+  target: "self" | "enemy";
   cardID: string; // ID of the card to summon
+};
+
+type ArmorEffect = {
+  type: "armor";
+  target: "self" | "enemy";
+  value: number;
 };
 
 type ManaEffect = {
@@ -252,7 +254,8 @@ export type GameEvent =
   | StealthEvent
   | ChargeEvent
   | RushEvent
-  | ApplyModifierEvent;
+  | ApplyModifierEvent
+  | ArmorEvent;
 
 type ApplyModifierEvent = {
   type: "applyModifier";
@@ -303,6 +306,14 @@ export type SummonEvent = {
   playerId: PlayerID;
   timestamp: number;
   card: Card; // Include full card data for easier animation handling
+};
+
+export type ArmorEvent = {
+  type: "armor";
+  cardId: string;
+  playerId: PlayerID;
+  timestamp: number;
+  value: number;
 };
 
 export type SpellEvent = {

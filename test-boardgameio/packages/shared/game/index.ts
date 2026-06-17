@@ -186,8 +186,11 @@ const placeCard: Move<GameState> = (
           (e.type === "damage" && e.target === "user-select") ||
           (e.type === "heal" && e.target === "user-select") ||
           (e.type === "changeKey" && e.target === "user-select") ||
-          (e.type === "incrementValue" && e.target === "user-select") ||
           (e.type === "divineShield" && e.target === "user-select") ||
+          (e.type === "taunt" && e.target === "user-select") ||
+          (e.type === "freeze" && e.target === "user-select") ||
+          (e.type === "charge" && e.target === "user-select") ||
+          (e.type === "rush" && e.target === "user-select") ||
           (e.type === "applyModifier" && e.target === "user-select"),
       );
     if (needsTargetedBattlecry) {
@@ -479,30 +482,7 @@ const doEffects = (
           timestamp: Date.now(),
         });
         break;
-      case "incrementValue": {
-        let cardToUpdate: typeof card | undefined;
 
-        if (effect.target === "self") {
-          cardToUpdate = card;
-        } else if (effect.target === "user-select" && target?.type === "card") {
-          cardToUpdate = G.board[target.player].find((c) => c.id === target.id);
-        }
-
-        if (cardToUpdate && cardToUpdate[effect.key] !== undefined) {
-          // @ts-ignore
-          cardToUpdate[effect.key] += effect.value;
-
-          recordEvent(G, {
-            type: "changeKey",
-            playerId: ctx.currentPlayer,
-            timestamp: Date.now(),
-            cardId: cardToUpdate.id,
-            key: effect.key,
-            value: effect.value,
-          });
-        }
-        break;
-      }
       case "changeKey":
         let cardToUpdate: typeof card | undefined;
 
@@ -567,10 +547,12 @@ const doEffects = (
 
         break;
       }
-      case "summon":
-        // const enemyPlayerId = playerID === "0" ? "1" : "0";
+      case "summon": {
+        const enemyPlayerId = playerID === "0" ? "1" : "0";
+        const playerTarget =
+          effect.target === "self" ? playerID : enemyPlayerId;
         // check if the board can fit the summoned card
-        if (G.board[playerID].length >= 7) {
+        if (G.board[playerTarget].length >= 7) {
           console.warn("Cannot summon more than 7 cards on the board");
           break; // Cannot summon more than 7 cards on the board
         }
@@ -581,14 +563,23 @@ const doEffects = (
           recordEvent(G, {
             type: "summon",
             cardId: summonedCard.id,
-            playerId: playerID,
+            playerId: playerTarget,
             timestamp: Date.now(),
             card: summonedCard,
           });
-          G.board[playerID].push(summonedCard);
+          G.board[playerTarget].push(summonedCard);
         } else {
           console.warn(`Card with ID ${effect.cardID} not found.`);
         }
+        break;
+      }
+      case "armor":
+        const enemyPlayerId = playerID === "0" ? "1" : "0";
+        const playerTarget =
+          effect.target === "self" ? playerID : enemyPlayerId;
+        // check if the board can fit the summoned card
+        G.players[playerTarget].armor += effect.value;
+
         break;
       case "draw":
         for (let i = 0; i < effect.value; i++) {
@@ -647,36 +638,6 @@ function handleDrawCard(G: GameState, ctx: Ctx, playerID?: PlayerID) {
     // Handle case when deck is empty, e.g., damage player or reshuffle
     console.warn("Deck is empty, cannot draw a card.");
   }
-}
-
-function dealDamageToCard(
-  G: GameState,
-  sourceId: string,
-  targetCard: Card, // This is our target minion
-  targetPlayerId: string,
-  damageAmount: number,
-) {
-  if (!targetCard || !targetCard.isMinion) return;
-
-  // 1. DIVINE SHIELD CHECK: Intercept positive damage values
-  if (targetCard.divineShield && damageAmount > 0) {
-    // Pop the bubble!
-    targetCard.divineShield = false;
-  }
-
-  // 2. STANDARD DAMAGE FALLBACK (If no shield is present or damage is 0)
-  recordEvent(G, {
-    type: "damage",
-    sourceId: sourceId,
-    targetId: targetCard.id,
-    targetType: "card",
-    playerId: targetPlayerId,
-    value: targetCard.divineShield && damageAmount > 0 ? 0 : damageAmount,
-    timestamp: Date.now(),
-  });
-
-  // Instead of subtracting directly from health, increase damage taken!
-  targetCard.damageTaken += damageAmount;
 }
 
 function proccessApplyModifier(
@@ -766,6 +727,15 @@ function dealDamageToPlayer(
 ) {
   const targetPlayer = G.players[targetPlayerId];
   if (!targetPlayer) return;
+  let hadDivineShield = false;
+
+  // 1. DIVINE SHIELD CHECK: Intercept positive damage values
+  if (targetPlayer.divineShield && damageAmount > 0) {
+    // Pop the bubble!
+    targetPlayer.divineShield = false;
+    hadDivineShield = true;
+    damageAmount = 0;
+  }
 
   const armorDamage = Math.min(targetPlayer.armor, damageAmount);
   targetPlayer.armor -= armorDamage;
@@ -778,7 +748,7 @@ function dealDamageToPlayer(
     targetId: targetPlayerId,
     targetType: "player",
     playerId: targetPlayerId,
-    value: damageAmount,
+    value: hadDivineShield && damageAmount > 0 ? 0 : damageAmount,
     timestamp: Date.now(),
   });
 }
@@ -805,6 +775,38 @@ function healPlayer(
     value: actualHeal,
     timestamp: Date.now(),
   });
+}
+
+function dealDamageToCard(
+  G: GameState,
+  sourceId: string,
+  targetCard: Card, // This is our target minion
+  targetPlayerId: string,
+  damageAmount: number,
+) {
+  if (!targetCard || !targetCard.isMinion) return;
+  let hadDivineShield = false;
+
+  // 1. DIVINE SHIELD CHECK: Intercept positive damage values
+  if (targetCard.divineShield && damageAmount > 0) {
+    // Pop the bubble!
+    targetCard.divineShield = false;
+    hadDivineShield = true;
+  }
+
+  // 2. STANDARD DAMAGE FALLBACK (If no shield is present or damage is 0)
+  recordEvent(G, {
+    type: "damage",
+    sourceId: sourceId,
+    targetId: targetCard.id,
+    targetType: "card",
+    playerId: targetPlayerId,
+    value: hadDivineShield && damageAmount > 0 ? 0 : damageAmount,
+    timestamp: Date.now(),
+  });
+
+  // Instead of subtracting directly from health, increase damage taken!
+  targetCard.damageTaken += damageAmount;
 }
 
 function healCard(

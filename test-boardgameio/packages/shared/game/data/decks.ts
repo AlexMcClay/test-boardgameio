@@ -15,6 +15,8 @@ export const warriorDeckString: DeckString = {
   "korkron-elite": 2,
   "warsong-outrider": 2,
   "cruel-taskmaster": 2,
+  "shield-block": 2,
+  bash: 1,
 
   // Mandatory Battlecry/Deathrattle Requirements (6 cards)
   "loot-hoarder": 2, // Deathrattle
@@ -22,10 +24,10 @@ export const warriorDeckString: DeckString = {
   "murloc-tidehunter": 1, // Battlecry
 
   // Valid Collectible Neutrals to fill up to 30 (12 cards)
-  "bluegill-warrior": 2,
-  wolfrider: 2,
+  "bluegill-warrior": 1,
+  wolfrider: 1,
   "goldshire-footman": 2,
-  "chillwind-yeti": 2,
+  "chillwind-yeti": 1,
   "senjin-shieldmasta": 2,
   "boulderfist-ogre": 2,
   "core-hound": 2,

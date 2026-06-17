@@ -10,6 +10,7 @@ interface Props extends BoardProps<GameState> {
 }
 
 const healthIcon = "assets/health.png";
+const armorIcon = "assets/icons/Armor.webp";
 
 const HeroSection = ({ player }: Props) => {
   const { setNodeRef, isOver } = useDroppable({
@@ -93,6 +94,27 @@ const HeroSection = ({ player }: Props) => {
           style={{ clipPath: archClipPath }}
         />
       </div>
+      {/* ARMOR SECTIOn */}
+      {player.armor ? (
+        <div className="absolute bottom-[20%] right-[-20%] z-30 w-[40%] aspect-square flex items-center justify-center pointer-events-none">
+          <img
+            src={armorIcon}
+            alt="Armor"
+            className="w-full h-full object-contain inset-0 pointer-events-none"
+            draggable="false"
+          />
+
+          <span
+            className="z-10 text-[175%] absolute font-extrabold text-center leading-none font-belwe scale-140 pointer-events-none"
+            style={{
+              WebkitTextStroke: "1px black",
+              textShadow: "0 1px 0px black",
+            }}
+          >
+            {player.armor}
+          </span>
+        </div>
+      ) : null}
 
       {/* Health Icon (Pushed underneath the invisible hitbox layer using z-30) */}
       <div className="absolute bottom-[-10%] right-[-20%] z-20 w-[40%] aspect-square flex items-center justify-center pointer-events-none">
