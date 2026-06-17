@@ -5,7 +5,7 @@ import { Local, SocketIO } from "boardgame.io/multiplayer";
 import { MCTSBot } from "boardgame.io/ai";
 import MainMenu from "@/components/MainMenu";
 import CollectionManager from "@/components/CollectionManager";
-import PlayScreen from "@/components/PlayScreen";
+import PlayScreen from "@/components/PlayScreen/PlayScreen";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { useAudioStore } from "@/stores/audioStore";
 import { useDeckStore } from "@/stores/deckStore";

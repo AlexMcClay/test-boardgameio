@@ -12,6 +12,7 @@ export interface CardProps {
   isDragging?: boolean;
   playerID?: PlayerID;
   ctx?: Ctx;
+  type?: "game" | "preview" | "popover";
   animate?:
     | boolean
     | TargetAndTransition

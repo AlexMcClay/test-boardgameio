@@ -102,18 +102,13 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
 
   // Hover handlers for popover
   const handleMouseEnter = () => {
-    console.log("MOUSE ENTERED");
     // Don't show popover during attack mode
     if (isAttackingWithArrow || attackingCardId) return;
-
-    console.log("HERE");
 
     // Clear any existing timer
     if (hoverTimerRef.current) {
       clearTimeout(hoverTimerRef.current);
     }
-
-    console.log("HERE 2");
 
     // Start 1-second timer
     hoverTimerRef.current = setTimeout(() => {
@@ -367,6 +362,7 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
             card={{ ...card, mana: card.mana }}
             position={popoverPosition}
             ctx={ctx}
+            type="popover"
           />
         )}
       </AnimatePresence>

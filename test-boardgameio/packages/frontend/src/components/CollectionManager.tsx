@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence } from "motion/react";
 import Card from "./Card";
+import MinionCardPopover from "./MinionCardPopover";
+
 import {
   cardTemplates,
   heros,
@@ -19,6 +22,7 @@ import { twMerge } from "tailwind-merge";
 import SettingsOverlay from "./SettingsOverlay";
 import SettingsButton from "./SettingsButton";
 import Deck from "./Deck";
+import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 
 const backgroundImage = "assets/collection/collection.png";
 const sheet = "assets/collection/sheet.png";
@@ -66,13 +70,32 @@ const CollectionManager = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+  // Singleton hover-preview popover state (card-select mode)
+  const [hoveredCard, setHoveredCard] = useState<CardType | null>(null);
+  const [popoverPosition, setPopoverPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const playSfx = useAudioStore((state) => state.playSfx);
+
   const { saveUserDeck, deleteUserDeck, getAllDecks } = useDeckStore();
   const setView = useViewStore((state) => state.setView);
 
   const CARDS_PER_PAGE = 8; // 2 rows × 4 columns
 
   const isPremade = editingDeck?.id.startsWith("premade-") ?? false;
+
+  useBackgroundMusic({
+    autoplay: true,
+  });
+
+  const setGlobalTrack = useAudioStore((state) => state.setGlobalTrack);
+
+  useEffect(() => {
+    setGlobalTrack("assets/audio/music/Collection_Manager.ogg");
+  }, [setGlobalTrack]);
 
   function handleBackToMenu() {
     playSfx("button-click");
@@ -171,6 +194,71 @@ const CollectionManager = () => {
       return newDeck;
     });
   }
+
+  // Show the singleton preview popover to the LEFT of a hovered deck-list entry
+  function handleEntryMouseEnter(
+    e: React.MouseEvent<HTMLDivElement>,
+    card: CardType,
+  ) {
+    const rect = e.currentTarget.getBoundingClientRect();
+
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+    }
+
+    hoverTimerRef.current = setTimeout(() => {
+      // Card base width is 7.8vw and the popover scales it 200% (origin-left horizontally, center vertically)
+      const baseWidth = window.innerWidth * 0.078;
+      const baseHeight = baseWidth * (7 / 5); // Card aspect ratio is 5/7
+      const scaledWidth = baseWidth * 2;
+      const spacing = 16;
+
+      // Position to the left of the entry, clamped to the viewport
+      let x = rect.left - scaledWidth - spacing;
+      if (x < 8) x = 8;
+
+      // With scale-200 and default origin (center vertical), the card extends baseHeight above
+      // and below the positioned Y. Center the Y on the row middle.
+      let y = rect.top + rect.height / 2;
+
+      // Clamp so scaled card doesn't go off-screen (extends baseHeight above/below Y)
+      const minY = 8 + baseHeight;
+      const maxY = window.innerHeight - 8 - baseHeight * 2;
+      if (y < minY) y = minY;
+      if (y > maxY) y = maxY;
+
+      setPopoverPosition({ x, y });
+      setHoveredCard(card);
+    }, 0);
+  }
+
+  function handleEntryMouseLeave() {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    setHoveredCard(null);
+  }
+
+  // Cleanup hover timer on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current) {
+        clearTimeout(hoverTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Hide the preview popover whenever we leave card-select mode
+  useEffect(() => {
+    if (mode !== "card-select") {
+      setHoveredCard(null);
+      if (hoverTimerRef.current) {
+        clearTimeout(hoverTimerRef.current);
+        hoverTimerRef.current = null;
+      }
+    }
+  }, [mode]);
 
   function handleClassSelect(className: string) {
     playSfx("collection-manager-page-flip");
@@ -373,12 +461,18 @@ const CollectionManager = () => {
                 <div
                   className={`w-[11.7vw] aspect-[5/7] items-center justify-center relative transition-all ease-in `}
                 >
-                  <div className="scale-140 absolute origin-top-left minion-card">
+                  <div
+                    className="scale-140 absolute origin-top-left minion-card"
+                    onMouseEnter={() => {
+                      playSfx("card-over");
+                    }}
+                  >
                     <Card
                       key={id}
                       card={{ ...card, id, originalID: id }}
                       back={false}
                       isDragging={false}
+                      type="game"
                     />
                   </div>
                 </div>
@@ -483,7 +577,15 @@ const CollectionManager = () => {
                         );
                       }
                     }}
-                    onMouseEnter={() => !isPremade && playSfx("card-over")}
+                    onMouseEnter={(e) => {
+                      playSfx("card-over");
+                      handleEntryMouseEnter(e, {
+                        ...cardTemplates[k as CardTemplateKey],
+                        id: `${k}-preview`,
+                        originalID: `${k}-preview`,
+                      } as CardType);
+                    }}
+                    onMouseLeave={handleEntryMouseLeave}
                   >
                     <img
                       src={cardTemplates[k as CardTemplateKey].imageUrl}
@@ -544,7 +646,7 @@ const CollectionManager = () => {
       <div className=" absolute bottom-[2.4vw] left-[78.9vw] w-[8vw] text-[1.25vw]  text-white px-[0.5vw] py-[0.25vw] rounded-lg flex flex-col gap-0 ">
         <button
           onMouseEnter={() => playSfx("button-over")}
-          className="clear-deck-button w-full h-full"
+          className="relative py-[0.25vw] bg-[#bda393] rounded-lg border-[0.3vw] border-[#8d7037] shadow-[0_0.4vw_0_rgba(92,64,51,1),0_0.6vw_1.5vw_rgba(0,0,0,0.6),inset_0_0.2vw_0_rgba(255,255,255,0.3)] transition-all duration-200 hover:translate-y-[0.15vw] hover:shadow-[0_0.2vw_0_rgba(92,64,51,1),0_0.4vw_1vw_rgba(0,0,0,0.6)] hover:brightness-110"
           onClick={
             mode === "card-select"
               ? isPremade
@@ -553,13 +655,15 @@ const CollectionManager = () => {
               : handleBackToMenu
           }
         >
-          <span className="button-text text-[1vw]">
+          <span className="text-[1.25vw] font-bold text-stone-800 drop-shadow-[0_0.1vw_0.1vw_rgba(255,255,255,0.3)]">
             {mode === "card-select"
               ? isPremade
                 ? "Back"
                 : "Save Deck"
               : "Back"}
           </span>
+          <div className="absolute inset-0 rounded-lg border-t-[0.15vw] border-l-[0.15vw] border-white/20 pointer-events-none" />
+          <div className="absolute inset-0 rounded-lg border-b-[0.15vw] border-r-[0.15vw] border-black/20 pointer-events-none" />
         </button>
       </div>
 
@@ -619,6 +723,16 @@ const CollectionManager = () => {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Singleton hover-preview popover (rendered via portal to document.body) */}
+      {mode === "card-select" && hoveredCard && (
+        <MinionCardPopover
+          key="collection-card-preview"
+          card={hoveredCard}
+          position={popoverPosition}
+          animate={false}
+        />
       )}
 
       {/* Settings Button */}

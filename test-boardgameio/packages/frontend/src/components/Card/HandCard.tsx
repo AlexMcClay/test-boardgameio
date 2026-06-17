@@ -163,7 +163,12 @@ const DragCard = (props: DargCardProps) => {
       {/* FIX 3: Clean, readable condition. If delayedDrag is true, hide it. */}
 
       {!isDragging ? (
-        <Card {...props} isDragging={isDragging} back={props.back} />
+        <Card
+          type="game"
+          {...props}
+          isDragging={isDragging}
+          back={props.back}
+        />
       ) : (
         <div className="w-[7.8vw] relative aspect-[5/7] bg-[#37373b00]  opacity-0 rounded-2xl flex-col flex gap-1 items-center shadow-xl overflow-hidden"></div>
       )}

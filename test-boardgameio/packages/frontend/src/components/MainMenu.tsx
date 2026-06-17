@@ -1,8 +1,9 @@
 import { useAudioStore } from "@/stores/audioStore";
 import { useViewStore } from "@/stores/viewStore";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SettingsOverlay from "./SettingsOverlay";
 import SettingsButton from "./SettingsButton";
+import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 
 const backgroundImage = "assets/menu/main_menu.png";
 
@@ -11,6 +12,16 @@ const MainMenu = () => {
 
   const playSfx = useAudioStore((state) => state.playSfx);
   const setView = useViewStore((state) => state.setView);
+
+  useBackgroundMusic({
+    autoplay: true,
+  });
+
+  const setGlobalTrack = useAudioStore((state) => state.setGlobalTrack);
+
+  useEffect(() => {
+    setGlobalTrack("assets/audio/music/01_Main_Theme.mp3");
+  }, [setGlobalTrack]);
 
   return (
     <div
