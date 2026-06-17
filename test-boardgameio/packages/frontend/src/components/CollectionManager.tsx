@@ -23,39 +23,11 @@ import SettingsOverlay from "./SettingsOverlay";
 import SettingsButton from "./SettingsButton";
 import Deck from "./Deck";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
+import { classIcons } from "@/utils";
 
 const backgroundImage = "assets/collection/collection.png";
 const sheet = "assets/collection/sheet.png";
 const mana_crystal = "assets/mana.png";
-
-// class icons
-const deathKnightIcon = "assets/icons/Death_Knight_icon.webp";
-const demonHunterIcon = "assets/icons/Demon_Hunter_icon.webp";
-const druidIcon = "assets/icons/Druid_icon.webp";
-const hunterIcon = "assets/icons/Hunter_icon.webp";
-const mageIcon = "assets/icons/Mage_icon.webp";
-const paladinIcon = "assets/icons/Paladin_icon.webp";
-const priestIcon = "assets/icons/Priest_icon.webp";
-const rogueIcon = "assets/icons/Rogue_icon.webp";
-const shamanIcon = "assets/icons/Shaman_icon.webp";
-const warlockIcon = "assets/icons/Warlock_icon.webp";
-const warriorIcon = "assets/icons/Warrior_icon.webp";
-const neutralIcon = "assets/icons/Neutral_icon.webp";
-
-const icons = [
-  { icon: deathKnightIcon, name: "Death Knight" },
-  { icon: demonHunterIcon, name: "Demon Hunter" },
-  { icon: druidIcon, name: "Druid" },
-  { icon: hunterIcon, name: "Hunter" },
-  { icon: mageIcon, name: "Mage" },
-  { icon: paladinIcon, name: "Paladin" },
-  { icon: priestIcon, name: "Priest" },
-  { icon: rogueIcon, name: "Rogue" },
-  { icon: shamanIcon, name: "Shaman" },
-  { icon: warlockIcon, name: "Warlock" },
-  { icon: warriorIcon, name: "Warrior" },
-  { icon: neutralIcon, name: "Neutral" },
-];
 
 type Mode = "viewer" | "card-select";
 
@@ -341,7 +313,7 @@ const CollectionManager = () => {
 
       {/* Top Bar */}
       <div className="absolute h-[5.9vh] w-[56vw] left-[12.6vw] top-[1vh] pl-[1vw] flex items-end gap-[0.5vw]">
-        {icons.map((i) => (
+        {classIcons.map((i) => (
           <button
             key={i.name}
             onClick={() => handleClassSelect(i.name)}

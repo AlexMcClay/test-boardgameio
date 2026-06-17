@@ -16,10 +16,12 @@ import MatchmakingModal from "./MatchmakingModal";
 import { IoChevronBack, IoChevronForward } from "react-icons/io5";
 import { twMerge } from "tailwind-merge";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
+import { classIcons } from "@/utils";
 
 const backgroundImage = "assets/play_screen/background.png";
 const playActive = "assets/play_screen/play.png";
 const playInactive = "assets/play_screen/play_inactive.png";
+const parchment = "assets/gamemode_parchment.png";
 
 const DECKS_PER_PAGE = 9;
 
@@ -237,40 +239,46 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
           )}
 
           {/* Deck Grid */}
-          <div className="relative  w-[90%]">
-            {allDecks.length > 0 ? (
-              <div className="grid grid-cols-3 grid-rows-3 gap-[6vw] p-[3vw] h-full">
-                {" "}
-                {/* Increased gap to give scale breathing room */}
-                {visibleDecks.map((deck) => (
+          <div className="relative  w-[90%] ">
+            (
+            <div className="grid grid-cols-3 grid-rows-3 gap-x-[6vw] gap-y-[3vw] px-[3vw] h-[80%] ">
+              {" "}
+              {/* Increased gap to give scale breathing room */}
+              {visibleDecks.map((deck) => (
+                <div
+                  onClick={() => handleSelectDeck(deck)}
+                  key={deck.id}
+                  className={`relative minion-shadow transition-all duration-200 scale-125  origin-center flex flex-col items-center`}
+                >
                   <div
-                    key={deck.id}
-                    className={`relative transition-all duration-200 scale-125 origin-center ${
-                      selectedDeck?.id === deck.id
-                        ? "drop-shadow-[0_0_1.5vw_rgba(251,191,36,0.8)]"
-                        : ""
-                    }`}
+                    className={selectedDeck?.id === deck.id ? "playGlow" : ""}
                   >
                     <Deck
                       type="play"
                       id={deck.id}
                       name={deck.name}
                       image={deck.hero.portrait}
-                      handleEditDeck={() => handleSelectDeck(deck)}
                     />
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center min-h-[40vh] gap-[1vw]">
-                <p className="text-[2vw] text-amber-300 font-bold">
-                  No decks available!
-                </p>
-                <p className="text-[1.3vw] text-gray-300">
-                  Create a deck in the Collection Manager first.
-                </p>
-              </div>
-            )}
+
+                  <img
+                    className=" left-[3%] top-[35%] scale-150 absolute z-[-1]"
+                    src={parchment}
+                  />
+
+                  <img
+                    src={
+                      classIcons.find((c) => c.name === deck.hero.class)?.icon
+                    }
+                    className=" mt-[1.5vw] w-[3vw] h-[3vw] object-cover border-[0.15vw] rounded-full border-amber-600 ring-[0.35vw] ring-amber-600 outline-[0.3vw] outline-black"
+                    alt={
+                      classIcons.find((c) => c.name === deck.hero.class)?.name
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+            )
           </div>
 
           {/* Right Arrow */}

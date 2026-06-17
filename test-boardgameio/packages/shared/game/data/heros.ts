@@ -45,7 +45,7 @@ export const druidHero: Hero = {
 
 export const warlockHero: Hero = {
   name: "Warlock",
-  portrait: "assets/heros/Gul'dan.jpg",
+  portrait: "assets/heros/Guldan.jpg",
   class: "Warlock",
   heroName: "Gul'dan",
 };
