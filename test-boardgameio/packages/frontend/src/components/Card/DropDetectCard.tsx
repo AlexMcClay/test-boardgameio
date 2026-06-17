@@ -345,7 +345,7 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
         )}
       >
         <PlacedCard
-          card={{ ...card, mana: null }}
+          card={{ ...card }}
           playerID={playerID}
           ctx={ctx}
           isAttacking={isAttackAnimating}
@@ -359,7 +359,7 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
         {showPopover && (
           <MinionCardPopover
             key={"minion-card-overlay"}
-            card={{ ...card, mana: card.mana }}
+            card={{ ...card }}
             position={popoverPosition}
             ctx={ctx}
             type="popover"

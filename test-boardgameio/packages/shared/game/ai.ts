@@ -35,12 +35,12 @@ export function enumerateAIMoves(G: GameState, ctx: Ctx): AIMove[] {
   if (G.activeBattlecryMinion) {
     const battlecryMoves = enumerateBattlecryTargets(G, ctx);
     // Also allow canceling the battlecry
-    battlecryMoves.push({
-      move: "cancelBattlecry",
-      args: [],
-      score: -50, // Low priority - prefer to use battlecry
-      description: "Cancel battlecry",
-    });
+    // battlecryMoves.push({
+    //   move: "cancelBattlecry",
+    //   args: [],
+    //   score: -50, // Low priority - prefer to use battlecry
+    //   description: "Cancel battlecry",
+    // });
     return battlecryMoves;
   }
 
@@ -52,23 +52,51 @@ export function enumerateAIMoves(G: GameState, ctx: Ctx): AIMove[] {
   const attackMoves = enumerateAttacks(G, ctx);
   moves.push(...attackMoves);
 
-  if (moves.length === 0) {
-    moves.push({
-      move: "endTurn",
-      args: [],
-      score: -100, // Very low priority - only use if no other moves available
-      description: "End turn",
-    });
+  // Calculate intelligent endTurn score based on game state
+  const wastedMana = player.mana;
+  const handSize = player.hand.length;
+  const boardSize = G.board[ctx.currentPlayer].length;
+  let endTurnScore = 0;
+
+  // Heavily penalize wasting mana
+  if (wastedMana >= 5) {
+    endTurnScore -= 60; // Big penalty for wasting lots of mana
+  } else if (wastedMana >= 3) {
+    endTurnScore -= 40; // Moderate penalty
+  } else if (wastedMana >= 1) {
+    endTurnScore -= 20; // Small penalty for wasting a little mana
+  }
+
+  // Bonus if hand is empty or nearly empty
+  if (handSize === 0) {
+    endTurnScore += 30; // No cards to play anyway
+  } else if (handSize <= 2 && wastedMana < 3) {
+    endTurnScore += 10; // Few cards, might want to save them
+  }
+
+  // If board is full and no attacks available, passing might be reasonable
+  if (boardSize >= 7 && attackMoves.length === 0) {
+    endTurnScore += 15;
   }
 
   // Score all moves and sort by score (highest first)
+  // Note: With objectives, MCTS uses evaluateGameState during simulations
+  // So we don't need to add it here - keeps scores positive and interpretable
   const scoredMoves = moves.map((move) => ({
     ...move,
-    score: move.score + evaluateGameState(G, ctx),
+    score: move.score, // Pure move value without game state adjustment
   }));
 
   // Sort by score descending
   scoredMoves.sort((a, b) => b.score - a.score);
+  if (scoredMoves.length < 3) {
+    scoredMoves.push({
+      move: "endTurn",
+      args: [],
+      score: endTurnScore - 200,
+      description: "End turn",
+    });
+  }
 
   // Return only top 10 moves to prevent infinite loops
   // console.log("SCORE MOVES", scoredMoves);
@@ -298,13 +326,13 @@ function enumerateAttacks(G: GameState, ctx: Ctx): AIMove[] {
 
   G.board[ctx.currentPlayer].forEach((card) => {
     // Can only attack if not summoning sick and hasn't attacked
-    if (
-      card.hasAttacked ||
-      card.summoningSickness ||
-      card.frozen ||
-      !getAttack(card) ||
-      getAttack(card) <= 0
-    ) {
+
+    const isSicknessActive =
+      card.summoningSickness && !card.charge && !card.rush;
+    const disabled =
+      (card.hasAttacked || isSicknessActive || card.frozen) &&
+      !G?.activeBattlecryMinion;
+    if (disabled || !getAttack(card) || getAttack(card) <= 0) {
       return;
     }
 
@@ -319,7 +347,14 @@ function enumerateAttacks(G: GameState, ctx: Ctx): AIMove[] {
           id: tauntCard.id,
           player: enemyPlayerId,
         };
-        const score = scoreAttack(card, tauntCard, enemyPlayer, "card");
+        const score = scoreAttack(
+          card,
+          tauntCard,
+          enemyPlayer,
+          "card",
+          G,
+          enemyPlayerId,
+        );
         moves.push({
           move: "placeCard",
           args: [card.id, "board", target],
@@ -336,7 +371,14 @@ function enumerateAttacks(G: GameState, ctx: Ctx): AIMove[] {
           id: enemyCard.id,
           player: enemyPlayerId,
         };
-        const score = scoreAttack(card, enemyCard, enemyPlayer, "card");
+        const score = scoreAttack(
+          card,
+          enemyCard,
+          enemyPlayer,
+          "card",
+          G,
+          enemyPlayerId,
+        );
         moves.push({
           move: "placeCard",
           args: [card.id, "board", target],
@@ -351,7 +393,14 @@ function enumerateAttacks(G: GameState, ctx: Ctx): AIMove[] {
         id: enemyPlayerId,
         player: enemyPlayerId,
       };
-      const scoreFace = scoreAttack(card, enemyPlayer, enemyPlayer, "player");
+      const scoreFace = scoreAttack(
+        card,
+        enemyPlayer,
+        enemyPlayer,
+        "player",
+        G,
+        enemyPlayerId,
+      );
       moves.push({
         move: "placeCard",
         args: [card.id, "board", targetFace],
@@ -395,6 +444,40 @@ function enumerateTargets(
 
   card.targets.forEach((targetType) => {
     switch (targetType) {
+      case "card":
+        // Generic card targeting - enumerate both friendly and enemy minions
+        // Enemy minions
+        G.board[enemyPlayerId].forEach((enemyCard) => {
+          const target: TargetValue = {
+            type: "card",
+            id: enemyCard.id,
+            player: enemyPlayerId,
+          };
+          const score = scoreCardPlay(G, ctx, card, target);
+          moves.push({
+            move: "placeCard",
+            args: [card.id, location, target],
+            score,
+            description: `Play ${card.title} on ${enemyCard.title}`,
+          });
+        });
+        // Friendly minions
+        G.board[ctx.currentPlayer].forEach((friendlyCard) => {
+          const target: TargetValue = {
+            type: "card",
+            id: friendlyCard.id,
+            player: ctx.currentPlayer,
+          };
+          const score = scoreCardPlay(G, ctx, card, target);
+          moves.push({
+            move: "placeCard",
+            args: [card.id, location, target],
+            score,
+            description: `Play ${card.title} on ${friendlyCard.title}`,
+          });
+        });
+        break;
+
       case "card-opponent":
       case "opponent":
         // Target enemy minions
@@ -411,6 +494,47 @@ function enumerateTargets(
             score,
             description: `Play ${card.title} on ${enemyCard.title}`,
           });
+        });
+        break;
+
+      case "player":
+        // Generic player targeting - enumerate both friendly and enemy heroes
+        // Enemy hero
+        const targetEnemyHeroGeneric: TargetValue = {
+          type: "player",
+          id: enemyPlayerId,
+          player: enemyPlayerId,
+        };
+        const scoreEnemyHeroGeneric = scoreCardPlay(
+          G,
+          ctx,
+          card,
+          targetEnemyHeroGeneric,
+        );
+        moves.push({
+          move: "placeCard",
+          args: [card.id, location, targetEnemyHeroGeneric],
+          score: scoreEnemyHeroGeneric,
+          description: `Cast ${card.title} on enemy hero`,
+        });
+
+        // Friendly hero
+        const targetFriendlyHeroGeneric: TargetValue = {
+          type: "player",
+          id: ctx.currentPlayer,
+          player: ctx.currentPlayer,
+        };
+        const scoreFriendlyHeroGeneric = scoreCardPlay(
+          G,
+          ctx,
+          card,
+          targetFriendlyHeroGeneric,
+        );
+        moves.push({
+          move: "placeCard",
+          args: [card.id, location, targetFriendlyHeroGeneric],
+          score: scoreFriendlyHeroGeneric,
+          description: `Cast ${card.title} on friendly hero`,
         });
         break;
 
@@ -468,6 +592,43 @@ function enumerateTargets(
           description: `Play ${card.title} on own hero`,
         });
         break;
+
+      case "lane-opponent":
+        // Target enemy lane (for AoE spells)
+        const targetEnemyLane: TargetValue = {
+          type: "lane",
+          id: `lane-${enemyPlayerId}`,
+          player: enemyPlayerId,
+        };
+        const scoreEnemyLane = scoreCardPlay(G, ctx, card, targetEnemyLane);
+        moves.push({
+          move: "placeCard",
+          args: [card.id, location, targetEnemyLane],
+          score: scoreEnemyLane,
+          description: `Cast ${card.title} on enemy board`,
+        });
+        break;
+
+      case "lane-friendly":
+        // Target friendly lane (for AoE spells)
+        const targetFriendlyLane: TargetValue = {
+          type: "lane",
+          id: `lane-${ctx.currentPlayer}`,
+          player: ctx.currentPlayer,
+        };
+        const scoreFriendlyLane = scoreCardPlay(
+          G,
+          ctx,
+          card,
+          targetFriendlyLane,
+        );
+        moves.push({
+          move: "placeCard",
+          args: [card.id, location, targetFriendlyLane],
+          score: scoreFriendlyLane,
+          description: `Cast ${card.title} on friendly board`,
+        });
+        break;
     }
   });
 
@@ -501,7 +662,18 @@ function scoreCardPlay(
     score += 20; // Base value for board presence
     if (getAttack(card)) score += getAttack(card) * 8; // Attack is valuable
     if (getCurrentHealth(card)) score += getCurrentHealth(card) * 6; // Health is valuable
-    if (card.taunt) score += 15; // Taunt is valuable
+
+    // Keyword bonuses
+    if (card.taunt) score += 15; // Protection
+    if (card.divineShield) score += 12; // Survives first hit
+    if (card.charge) score += 15; // Immediate impact
+    if (card.rush) score += 10; // Can trade immediately
+    if (card.stealth) score += 5; // Protected for one turn
+  }
+
+  // Spell value - balance with minions
+  if (card.isSpell) {
+    score += 25; // Base spell value to balance with minion scoring
   }
 
   // Spell/Effect value
@@ -516,17 +688,35 @@ function scoreCardPlay(
     });
   }
 
+  // Deathrattle value (if minion)
+  if (card.isMinion && card.deathrattle && card.deathrattle.length > 0) {
+    card.deathrattle.forEach((effect) => {
+      // Deathrattles are worth less than battlecries (only trigger on death)
+      const deathrattleValue = evaluateEffect(
+        effect,
+        card,
+        target,
+        G,
+        ctx,
+        enemyPlayer,
+      );
+      score += deathrattleValue * 0.4; // 40% of full effect value
+    });
+  }
+
   return score;
 }
 
 /**
- * Score an attack
+ * Score an attack (Board control priority with threat assessment)
  */
 function scoreAttack(
   attacker: Card,
   target: Card | Player,
   enemyPlayer: Player,
   targetType: "card" | "player",
+  G?: GameState,
+  enemyPlayerId?: string,
 ): number {
   let score = 0;
 
@@ -535,46 +725,69 @@ function scoreAttack(
   if (targetType === "card") {
     const targetCard = target as Card;
 
-    // Check if this kills the target
+    // BOARD CONTROL PRIORITY: Killing minions is highly valuable
     if (
       getCurrentHealth(targetCard) &&
       getCurrentHealth(targetCard) <= getAttack(attacker)
     ) {
-      score += 40; // Killing is good
-      score += (getAttack(targetCard) || 0) * 5; // Prefer killing high attack minions
-      score += (getCurrentHealth(targetCard) || 0) * 3; // Value of health removed
+      score += 50; // High removal value (increased from 40)
+      score += (getAttack(targetCard) || 0) * 6; // Prefer removing threats (increased from 5)
+      score += (getCurrentHealth(targetCard) || 0) * 3;
+
+      // THREAT PRIORITY: Extra bonus for removing high-attack minions
+      const targetAttack = getAttack(targetCard) || 0;
+      if (targetAttack >= 6) {
+        score += 40; // Major threat - prioritize removal
+      } else if (targetAttack >= 4) {
+        score += 20; // Significant threat
+      }
+
+      // Extra value for taunt removal
+      if (targetCard.taunt) score += 25; // Increased from 20
     } else {
-      // Partial damage
-      score += getAttack(attacker) * 2;
+      // Partial damage (still board control)
+      score += getAttack(attacker) * 3; // Increased from 2
     }
 
-    // Check if we survive the counter-attack
+    // Survival check (negative if we die)
     if (getCurrentHealth(attacker) && getAttack(targetCard)) {
       if (getCurrentHealth(attacker) <= getAttack(targetCard)) {
-        score -= 30; // We die in the trade
-        // But if it's a favorable trade (we kill high value), it's okay
+        score -= 25; // We die in the trade (reduced penalty from 30)
+
+        // But if it's a favorable trade, still okay
         if (
           getCurrentHealth(targetCard) &&
           getCurrentHealth(targetCard) <= getAttack(attacker)
         ) {
-          score +=
-            (getAttack(targetCard) || 0) * 3 +
-            (getCurrentHealth(targetCard) || 0) * 2;
+          const theirValue =
+            (getAttack(targetCard) || 0) * 4 +
+            (getCurrentHealth(targetCard) || 0) * 3;
+          const ourValue =
+            (getAttack(attacker) || 0) * 4 +
+            (getCurrentHealth(attacker) || 0) * 3;
+          if (theirValue > ourValue) {
+            score += 20; // Favorable trade despite death
+          }
         }
       }
     }
-
-    // Prefer removing taunts
-    if (targetCard.taunt) {
-      score += 20;
-    }
   } else {
-    // Attacking face
-    score += getAttack(attacker) * 10; // Face damage is valuable
+    // Attacking face (secondary priority to board control)
+    score += getAttack(attacker) * 8; // Reduced from 10 to prioritize board control
 
-    // Check for lethal
+    // THREAT ASSESSMENT: Penalize face attacks when enemy has threatening minions
+    if (G && enemyPlayerId) {
+      const enemyThreats = G.board[enemyPlayerId].filter(
+        (c) => (getAttack(c) || 0) >= 5 && !c.summoningSickness,
+      );
+      if (enemyThreats.length > 0) {
+        score -= 30; // Penalty for ignoring threats
+      }
+    }
+
+    // Lethal is always priority
     if (enemyPlayer.health <= getAttack(attacker)) {
-      score += 1000; // LETHAL! Always go for it
+      score += 1000; // LETHAL!
     }
   }
 
@@ -608,8 +821,17 @@ function evaluateEffect(
           score += 1000; // LETHAL!
         }
       } else if (effect.target === "enemy-board") {
-        // minions
-        G.board[enemyPlayer.id].forEach((targetCard) => {
+        // AoE damage - check if it's worth using
+        const enemyBoard = G.board[enemyPlayer.id];
+
+        if (enemyBoard.length === 0) {
+          score -= 100; // Don't waste AoE on empty board
+        } else if (enemyBoard.length === 1) {
+          score -= 50; // Prefer single-target removal for 1 minion
+        }
+
+        // Evaluate damage on each minion
+        enemyBoard.forEach((targetCard) => {
           if (targetCard && getCurrentHealth(targetCard)) {
             if (getCurrentHealth(targetCard) <= damage) {
               score += 40; // Killing minion
@@ -637,22 +859,38 @@ function evaluateEffect(
           }
         });
       } else if (effect.target === "user-select" && target) {
+        // Check if target is friendly or enemy
+        const isFriendly = target.player === ctx.currentPlayer;
+
         if (target.type === "player") {
-          score += damage * 8;
           const targetPlayer = G.players[target.player];
-          if (targetPlayer.health <= damage) {
-            score += 1000; // LETHAL!
+
+          if (isFriendly) {
+            // NEVER damage own hero!
+            score -= 1000;
+          } else {
+            // Damage enemy hero
+            score += damage * 16;
+            if (targetPlayer.health <= damage) {
+              score += 1000; // LETHAL!
+            }
           }
         } else if (target.type === "card") {
           const targetCard = G.board[target.player].find(
             (c) => c.id === target.id,
           );
           if (targetCard && getCurrentHealth(targetCard)) {
-            if (getCurrentHealth(targetCard) <= damage) {
-              score += 40; // Killing minion
-              score += (getAttack(targetCard) || 0) * 5;
+            if (isFriendly) {
+              // Penalize damaging own minions (unless it's a buff card like Inner Rage)
+              score -= 100 + (damage ?? getAttack(targetCard) * 50);
             } else {
-              score += damage * 4;
+              // Damage enemy minions
+              if (getCurrentHealth(targetCard) <= damage) {
+                score += 40; // Killing minion
+                score += (getAttack(targetCard) || 0) * 5;
+              } else {
+                score += damage * 4;
+              }
             }
           }
         }
@@ -667,10 +905,19 @@ function evaluateEffect(
       } else if (effect.target === "friendly-all") {
         score += effect.value * (G.board[ctx.currentPlayer].length + 1) * 2; // Heal on multiple minions is good
       } else if (effect.target === "user-select" && target) {
+        const isFriendly = target.player === ctx.currentPlayer;
+
         if (target.type === "player") {
           const targetPlayer = G.players[target.player];
           const missingHp = targetPlayer.maxHealth - targetPlayer.health;
-          score += Math.min(missingHp, effect.value) * 3;
+
+          if (isFriendly) {
+            // Good - heal own hero
+            score += Math.min(missingHp, effect.value) * 3;
+          } else {
+            // Bad - don't waste heals on enemy
+            score -= 100;
+          }
         } else if (target.type === "card") {
           const targetCard = G.board[target.player].find(
             (c) => c.id === target.id,
@@ -682,7 +929,14 @@ function evaluateEffect(
           ) {
             const missingHealth =
               getMaxHealth(targetCard) - getCurrentHealth(targetCard);
-            score += Math.min(missingHealth, effect.value) * 3;
+
+            if (isFriendly) {
+              // Good - heal own minion
+              score += Math.min(missingHealth, effect.value) * 3;
+            } else {
+              // Bad - don't heal enemy minions
+              score -= 100;
+            }
           }
         }
       }
@@ -696,9 +950,187 @@ function evaluateEffect(
       score += 25; // Summoning minions is valuable
       break;
 
-    case "mana":
-      score += effect.value * 8; // Mana is valuable
+    case "mana": {
+      // Smart mana card logic - check if we have cards that become playable
+      const player = G.players[ctx.currentPlayer];
+      const currentMana = player.mana;
+      const extraMana = effect.value;
+
+      // Find the best card we can play with extra mana (prefer bigger cards)
+      const bestPlayableCard = player.hand
+        .filter(
+          (c) =>
+            getManaCost(c) > currentMana &&
+            getManaCost(c) <= currentMana + extraMana,
+        )
+        .sort((a, b) => getManaCost(b) - getManaCost(a))[0];
+
+      if (bestPlayableCard) {
+        // High value if enables a big play
+        score += getManaCost(bestPlayableCard) * 10;
+      } else {
+        // Still check if it enables multiple smaller cards
+        const smallCards = player.hand.filter(
+          (c) => getManaCost(c) <= extraMana && getManaCost(c) > 0,
+        );
+        if (smallCards.length > 0) {
+          score += smallCards.length * 8; // Multiple small plays
+        } else {
+          score -= 30; // Wasted mana card
+        }
+      }
       break;
+    }
+
+    case "armor": {
+      // Defensive value - more valuable when low on health
+      const player = G.players[ctx.currentPlayer];
+      const healthPercent = player.health / player.maxHealth;
+      if (healthPercent < 0.5) {
+        score += effect.value * 5; // High value when low health
+      } else {
+        score += effect.value * 3; // Still valuable for survivability
+      }
+      break;
+    }
+
+    case "freeze": {
+      // Control/tempo value - evaluate enemy board
+      if (effect.target === "enemy-board") {
+        const enemyBoardValue = G.board[enemyPlayer.id].reduce(
+          (sum, c) => sum + (getAttack(c) || 0) * 2,
+          0,
+        );
+        score += Math.min(enemyBoardValue * 0.4, 30); // Cap at 30 points
+      } else if (effect.target === "user-select" && target?.type === "card") {
+        const isFriendly = target.player === ctx.currentPlayer;
+        const targetCard = G.board[target.player].find(
+          (c) => c.id === target.id,
+        );
+        if (targetCard) {
+          if (isFriendly) {
+            // Bad - don't freeze own minions
+            score -= 100;
+          } else {
+            // Good - freeze enemy minions
+            score += (getAttack(targetCard) || 0) * 4; // Value based on attack prevented
+          }
+        }
+      }
+      break;
+    }
+
+    case "destroy": {
+      // Extremely high value for hard removal
+      if (effect.target === "user-select" && target?.type === "card") {
+        const isFriendly = target.player === ctx.currentPlayer;
+        const targetCard = G.board[target.player].find(
+          (c) => c.id === target.id,
+        );
+        if (targetCard) {
+          if (isFriendly) {
+            // NEVER destroy own minions!
+            score -= 1000;
+          } else {
+            // Great - destroy enemy minions
+            score += 60; // Base destroy value
+            score += (getAttack(targetCard) || 0) * 6;
+            score += (getCurrentHealth(targetCard) || 0) * 4;
+            if (targetCard.taunt) score += 20; // Extra value for taunt removal
+          }
+        }
+      }
+      break;
+    }
+
+    case "divineShield": {
+      // Survivability buff - only good on friendly minions
+      if (effect.target === "user-select" && target?.type === "card") {
+        const isFriendly = target.player === ctx.currentPlayer;
+        const targetCard = G.board[target.player].find(
+          (c) => c.id === target.id,
+        );
+        if (targetCard && !targetCard.divineShield) {
+          if (isFriendly) {
+            // Good - buff own minions
+            score += 15; // Base value
+            score += (getAttack(targetCard) || 0) * 2; // More value on big attackers
+          } else {
+            // Bad - don't buff enemy minions
+            score -= 100;
+          }
+        }
+      }
+      break;
+    }
+
+    case "taunt":
+    case "charge":
+    case "rush":
+    case "stealth": {
+      // These are buffs - only good on friendly minions
+      if (effect.target === "user-select" && target?.type === "card") {
+        const isFriendly = target.player === ctx.currentPlayer;
+
+        if (isFriendly) {
+          // Good - buff own minions
+          if (effect.type === "taunt") score += 15; // Protection
+          if (effect.type === "charge") score += 12; // Immediate value
+          if (effect.type === "rush") score += 10; // Can trade immediately
+          if (effect.type === "stealth") score += 5; // Protected for one turn
+        } else {
+          // Bad - don't buff enemy minions
+          score -= 100;
+        }
+      }
+      break;
+    }
+
+    case "applyModifier": {
+      // Buff evaluation - good for friendly, bad for enemy
+      const modEffect = effect;
+
+      // If targeted buff, check if friendly or enemy
+      if (effect.target === "user-select" && target?.type === "card") {
+        const isFriendly = target.player === ctx.currentPlayer;
+        const targetCard = G.board[target.player].find(
+          (c) => c.id === target.id,
+        );
+        if (targetCard) {
+          if (isFriendly) {
+            // Good - buff own minions
+            if (modEffect.stat === "attack") {
+              score += modEffect.value * 6; // Attack is valuable
+            } else if (modEffect.stat === "health") {
+              score += modEffect.value * 5; // Health is valuable
+            }
+            // Better to buff already strong minions
+            score += (getAttack(targetCard) || 0) * 1.5;
+          } else {
+            // Bad - don't buff enemy minions
+            score -= 100;
+          }
+        }
+      } else {
+        // Non-targeted buffs (like friendly-all)
+        if (modEffect.stat === "attack") {
+          score += modEffect.value * 6;
+        } else if (modEffect.stat === "health") {
+          score += modEffect.value * 5;
+        }
+      }
+      break;
+    }
+
+    case "changeKey": {
+      // Evaluate based on what key is being changed
+      if (effect.key === "taunt" && effect.value === true) {
+        score += 15; // Taunt is protective
+      } else if (effect.key === "charge" && effect.value === true) {
+        score += 12; // Charge adds immediate value
+      }
+      break;
+    }
   }
 
   return score;
@@ -706,14 +1138,16 @@ function evaluateEffect(
 
 /**
  * Evaluate overall game state
+ * IMPORTANT: These weights are critical for MCTS simulations!
+ * MCTS uses this function to evaluate game positions during playouts.
  */
-function evaluateGameState(G: GameState, ctx: Ctx): number {
+export function evaluateGameState(G: GameState, ctx: Ctx): number {
   let score = 0;
   const player = G.players[ctx.currentPlayer];
   const enemyPlayerId = ctx.currentPlayer === "0" ? "1" : "0";
   const enemyPlayer = G.players[enemyPlayerId];
 
-  // Board control
+  // Board control - HEAVILY weighted for MCTS
   const ourBoard = G.board[ctx.currentPlayer];
   const theirBoard = G.board[enemyPlayerId];
 
@@ -729,13 +1163,25 @@ function evaluateGameState(G: GameState, ctx: Ctx): number {
     0,
   );
 
-  score += (ourBoardValue - theirBoardValue) * 0.5;
+  // Board control is CRITICAL - increased 10x for MCTS
+  score += (ourBoardValue - theirBoardValue) * 5;
 
-  // HP difference
-  score += (player.health - enemyPlayer.health) * 0.3;
+  // HP difference - increased 7x for MCTS
+  score += (player.health - enemyPlayer.health) * 2;
 
-  // Hand size
-  score += player.hand.length * 2;
+  // Hand size (card advantage) - increased 5x for MCTS
+  score += player.hand.length * 10;
+
+  // Tempo advantage - having mana available is good
+  score += player.mana * 0.5;
+
+  // Win condition checks
+  if (enemyPlayer.health <= 0) {
+    score += 10000; // WE WIN!
+  }
+  if (player.health <= 0) {
+    score -= 10000; // WE LOSE!
+  }
 
   return score;
 }

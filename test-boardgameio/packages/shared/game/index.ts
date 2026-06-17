@@ -806,7 +806,8 @@ function dealDamageToCard(
   });
 
   // Instead of subtracting directly from health, increase damage taken!
-  targetCard.damageTaken += damageAmount;
+  targetCard.damageTaken +=
+    hadDivineShield && damageAmount > 0 ? 0 : damageAmount;
 }
 
 function healCard(

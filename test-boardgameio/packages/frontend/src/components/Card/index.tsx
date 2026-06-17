@@ -63,7 +63,6 @@ const Card = ({
   }, [card.description]);
 
   useEffect(() => {
-    console.log("TYPE", type);
     if (type === "popover") {
       handleCardMouseEnter();
     }

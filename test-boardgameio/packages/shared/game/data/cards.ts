@@ -491,11 +491,7 @@ export const cardTemplates = {
     baseMana: 2,
     type: ["Spell"],
     imageUrl: "assets/cards/Mark_of_the_Wild.jpg",
-    effects: [
-      applyModifier("attack", 2),
-      applyModifier("health", 3),
-      changeKey("taunt", true),
-    ],
+    effects: [applyModifier("attack", 2), applyModifier("health", 3), taunt()],
     onPlace: [],
     isSpell: true,
     targets: ["card-friendly"],

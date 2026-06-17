@@ -10,12 +10,14 @@ import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { useAudioStore } from "@/stores/audioStore";
 import { useDeckStore } from "@/stores/deckStore";
 import { useViewStore } from "@/stores/viewStore";
-import type { State } from "boardgame.io";
+import type { Ctx, State } from "boardgame.io";
 import Gameboard from "@/components/GameBoard";
 import {
   enumerateAIMoves,
+  evaluateGameState,
   generateCardsFromDeckstring,
   HeathStoneGame,
+  type GameState,
 } from "@project/shared";
 
 export const Route = createFileRoute("/")({
@@ -29,10 +31,23 @@ class FastMCTSBot extends MCTSBot {
   constructor(config: any) {
     super({
       ...config,
-      iterations: 80,
-      playoutDepth: 15,
+      iterations: 100,
+      playoutDepth: 40,
       enumerate: enumerateAIMoves,
       game: HeathStoneGame,
+      objectives: () => ({
+        winGame: {
+          checker: (G: GameState, ctx: Ctx) => {
+            const player = G.players[ctx.currentPlayer];
+            const enemyId = ctx.currentPlayer === "0" ? "1" : "0";
+            const enemy = G.players[enemyId];
+
+            // Use evaluateGameState for scoring
+            return evaluateGameState(G, ctx);
+          },
+          weight: 1.0,
+        },
+      }),
     });
   }
 
