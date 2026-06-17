@@ -10,6 +10,7 @@ import { DEATH_ANIMATION } from "@/utils/animationDurations";
 import PlacedCard from "./PlacedCard";
 import { useAudioStore } from "@/stores/audioStore";
 import MinionCardPopover from "../MinionCardPopover";
+import { getAttack } from "@project/shared";
 
 interface Props extends CardProps {
   playerID: PlayerID;
@@ -341,6 +342,7 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
             ctx.currentPlayer === playerID &&
             !isAttackingWithArrow &&
             !isValid &&
+            getAttack(card) &&
             "canAttack cursor-pointer",
         )}
       >

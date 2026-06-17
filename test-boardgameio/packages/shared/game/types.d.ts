@@ -42,8 +42,8 @@ export interface Card {
   modifiers?: CardModifier[];
 
   tags?: string[];
-  targets: TargetTypes[]; // Optional, to specify valid targets for the card
-  battlecryTargets?: TargetTypes[]; // Optional, valid targets for battlecry (bypasses taunt)
+  targetQuery: TargetQuery;
+  battlecryQuery?: TargetQuery;
   class: string;
   sfx?: {
     death?: string[];
@@ -93,17 +93,43 @@ export type TargetValue = {
   player: PlayerID;
 };
 
-type TargetTypes =
-  | "card"
-  | "player"
-  | "card-friendly"
-  | "card-opponent"
-  | "player-friendly"
-  | "player-opponent"
-  | "lane-friendly"
-  | "lane-opponent"
-  | "friendly"
-  | "opponent"; // Added more specific target types for validation
+// Strongly type the valid keys of your Card interface that can be checked numerically
+export type NumericCardKey = "attack" | "health" | "mana";
+
+export type BooleanCardKey =
+  | "taunt"
+  | "divineShield"
+  | "frozen"
+  | "stealth"
+  | "charge"
+  | "rush"
+  | "isMinion"
+  | "isSpell";
+
+export type TargetCondition =
+  | { type: "boolean"; key: BooleanCardKey; value: boolean }
+  | {
+      type: "numeric";
+      key: NumericCardKey;
+      operator: "==" | "!=" | ">" | ">=" | "<" | "<=";
+      value: number;
+    }
+  | {
+      type: "text-contains";
+      key: "title" | "description" | "class";
+      value: string;
+    }
+  | { type: "tags-include"; key: "types" | "keywords"; value: string } // For "Wisp", "Demon", "Murloc"
+  | { type: "state-match"; condition: "isDamaged" | "isUndamaged" } // Special derived states
+  | { type: "exclude-self" }; // Prevent hitting self with AoE
+
+export interface TargetQuery {
+  side: "friendly" | "enemy" | "all";
+  type: ("card" | "player" | "hand" | "lane")[];
+  conditions?: TargetCondition[]; // Chain multiple rules seamlessly
+}
+
+// EFFECT TYPES
 
 export type EffectTypes =
   | DamageEffect

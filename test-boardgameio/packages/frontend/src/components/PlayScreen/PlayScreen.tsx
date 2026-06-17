@@ -63,8 +63,9 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isGameModeModalOpen, setIsGameModeModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
-  const [selectedGameMode, setSelectedGameMode] = useState<GameMode | null>(
-    null,
+  const selectedGameMode = useViewStore((state) => state.selectedGameMode);
+  const setSelectedGameMode = useViewStore(
+    (state) => state.setSelectedGameMode,
   );
 
   useBackgroundMusic({
@@ -98,10 +99,9 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
     return unsubscribe;
   }, [onGameStart]);
 
-  const [selectedDeck, setSelectedDeck] = useState<SavedDeck | null>(null);
-
   const playSfx = useAudioStore((state) => state.playSfx);
-  const { getAllDecks, selectDeckForPlay } = useDeckStore();
+  const { getAllDecks, selectDeckForPlay, selectedDeckForPlay } =
+    useDeckStore();
   const setView = useViewStore((state) => state.setView);
 
   const allDecks = getAllDecks();
@@ -112,7 +112,6 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
   function handleSelectDeck(deck: SavedDeck) {
     playSfx("button-click");
     // Just select the deck (remove modal trigger)
-    setSelectedDeck(deck);
     selectDeckForPlay(deck);
   }
 
@@ -123,7 +122,7 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
   }
 
   function handleStartGame() {
-    if (!selectedGameMode || !selectedDeck) {
+    if (!selectedGameMode || !selectedDeckForPlay) {
       playSfx("button-click");
       alert("Please select both a game mode and a deck!");
       return;
@@ -139,7 +138,7 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
       setIsSearchingMatch(false);
       return;
     }
-    if (!selectedDeck) {
+    if (!selectedDeckForPlay) {
       alert("Please select a deck first!");
       return;
     }
@@ -156,8 +155,8 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
       matchmakingWebSocketService.send({
         type: "find_match",
         playerID: localStorage.getItem("user_id") || "",
-        playerDeck: generateCardsFromDeckstring(selectedDeck.deckString),
-        playerHero: selectedDeck.hero,
+        playerDeck: generateCardsFromDeckstring(selectedDeckForPlay.deckString),
+        playerHero: selectedDeckForPlay.hero,
       });
       setIsSearchingMatch(true);
       return;
@@ -251,7 +250,9 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
                   className={`relative minion-shadow transition-all duration-200 scale-125  origin-center flex flex-col items-center`}
                 >
                   <div
-                    className={selectedDeck?.id === deck.id ? "playGlow" : ""}
+                    className={
+                      selectedDeckForPlay?.id === deck.id ? "playGlow" : ""
+                    }
                   >
                     <Deck
                       type="play"
@@ -318,7 +319,7 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
         </div>
 
         <div className="">
-          {selectedDeck ? (
+          {selectedDeckForPlay ? (
             <>
               <div className="absolute top-[17.7vw] w-[15vw]  left-[4vw]   overflow-hidden">
                 <div
@@ -327,8 +328,8 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
                 >
                   {/* The Hero Image (Added pointer-events-none) */}
                   <img
-                    src={selectedDeck.hero.portrait}
-                    alt={selectedDeck.hero.name}
+                    src={selectedDeckForPlay.hero.portrait}
+                    alt={selectedDeckForPlay.hero.name}
                     className="h-full w-full object-cover opacity-100 pointer-events-none"
                     draggable="false"
                   />
@@ -350,7 +351,9 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
                 </div>
               </div>
               <div className=" absolute top-[35.6vw] left-[5vw] w-[12vw] rounded-full   flex items-center justify-center">
-                <p className="text-[1.5vw] text-white">{selectedDeck.name}</p>
+                <p className="text-[1.5vw] text-white">
+                  {selectedDeckForPlay.name}
+                </p>
               </div>
             </>
           ) : (
@@ -358,22 +361,22 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
           )}
           <button
             onClick={() => {
-              if (selectedDeck) {
+              if (selectedDeckForPlay) {
                 handleStartGame();
               }
             }}
             onMouseEnter={() => {
-              if (selectedDeck) playSfx("play-over");
+              if (selectedDeckForPlay) playSfx("play-over");
             }}
             style={{
-              backgroundImage: `url(${selectedDeck ? playActive : playInactive})`,
+              backgroundImage: `url(${selectedDeckForPlay ? playActive : playInactive})`,
               backgroundPosition: "center",
               backgroundRepeat: "no-repeat",
               backgroundSize: "cover",
             }}
             className={twMerge(
               "absolute  top-[41.6vw]  left-[5.2vw] w-[12vw] h-[12vw] rounded-full  flex items-center justify-center duration-100  cursor-pointer",
-              selectedDeck && "top-[41.3vw] playGlow",
+              selectedDeckForPlay && "top-[41.3vw] playGlow",
             )}
           ></button>
         </div>

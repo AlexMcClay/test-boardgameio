@@ -46,7 +46,7 @@ export const SFX_MANIFEST = {
     path: "/gameplay/minion_attack_impact.ogg",
     preload: false,
   },
-  "minion-death": { path: "/gameplay/Minion_Deat_01.ogg", preload: true },
+  "minion-death": { path: "/gameplay/Minion_Death_01.ogg", preload: true },
   "minion-drop-med": {
     path: "/gameplay/Minion_Drop_Medium.ogg",
     preload: true,

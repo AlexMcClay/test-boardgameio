@@ -112,92 +112,106 @@ function enumerateBattlecryTargets(G: GameState, ctx: Ctx): AIMove[] {
 
   // Find the card on board
   const card = G.board[playerId].find((c) => c.id === cardId);
-  if (!card || !card.battlecryTargets) return moves;
+  if (!card || !card.battlecryQuery) return moves;
 
   const enemyPlayerId = ctx.currentPlayer === "0" ? "1" : "0";
 
   // Get valid targets based on battlecryTargets
-  card.battlecryTargets.forEach((targetType) => {
+  card.battlecryQuery?.type.forEach((targetType) => {
     switch (targetType) {
-      case "card-opponent":
-      case "opponent":
-        // Target enemy minions
-        G.board[enemyPlayerId].forEach((enemyCard) => {
-          const target: TargetValue = {
-            type: "card",
-            id: enemyCard.id,
-            player: enemyPlayerId,
-          };
-          const score = scoreBattlecryTarget(card, enemyCard, "card");
-          moves.push({
-            move: "placeCard",
-            args: [cardId, "board", target],
-            score,
-            description: `Battlecry target: ${enemyCard.title}`,
-          });
-        });
-        break;
-
-      case "player-opponent":
-        // Target enemy hero
-        const targetHero: TargetValue = {
-          type: "player",
-          id: enemyPlayerId,
-          player: enemyPlayerId,
-        };
-        const scoreHero = scoreBattlecryTarget(
-          card,
-          G.players[enemyPlayerId],
-          "player",
-        );
-        moves.push({
-          move: "placeCard",
-          args: [cardId, "board", targetHero],
-          score: scoreHero,
-          description: `Battlecry target: Enemy hero`,
-        });
-        break;
-
-      case "card-friendly":
-      case "friendly":
-        // Target friendly minions
-        G.board[ctx.currentPlayer].forEach((friendlyCard) => {
-          if (friendlyCard.id !== cardId) {
+      case "card": {
+        if (
+          card.battlecryQuery?.side === "all" ||
+          card.battlecryQuery?.side === "enemy"
+        ) {
+          // Target enemy minions
+          G.board[enemyPlayerId].forEach((enemyCard) => {
             const target: TargetValue = {
               type: "card",
-              id: friendlyCard.id,
-              player: ctx.currentPlayer,
+              id: enemyCard.id,
+              player: enemyPlayerId,
             };
-            const score = scoreBattlecryTarget(card, friendlyCard, "card");
+            const score = scoreBattlecryTarget(card, enemyCard, "card");
             moves.push({
               move: "placeCard",
               args: [cardId, "board", target],
               score,
-              description: `Battlecry target: ${friendlyCard.title}`,
+              description: `Battlecry target: ${enemyCard.title}`,
             });
-          }
-        });
-        break;
+          });
+        }
 
-      case "player-friendly":
-        // Target friendly hero
-        const targetOwnHero: TargetValue = {
-          type: "player",
-          id: ctx.currentPlayer,
-          player: ctx.currentPlayer,
-        };
-        const scoreOwnHero = scoreBattlecryTarget(
-          card,
-          G.players[ctx.currentPlayer],
-          "player",
-        );
-        moves.push({
-          move: "placeCard",
-          args: [cardId, "board", targetOwnHero],
-          score: scoreOwnHero,
-          description: `Battlecry target: Own hero`,
-        });
+        // Target friendly minions
+        if (
+          card.battlecryQuery?.side === "all" ||
+          card.battlecryQuery?.side === "friendly"
+        ) {
+          G.board[ctx.currentPlayer].forEach((friendlyCard) => {
+            if (friendlyCard.id !== cardId) {
+              const target: TargetValue = {
+                type: "card",
+                id: friendlyCard.id,
+                player: ctx.currentPlayer,
+              };
+              const score = scoreBattlecryTarget(card, friendlyCard, "card");
+              moves.push({
+                move: "placeCard",
+                args: [cardId, "board", target],
+                score,
+                description: `Battlecry target: ${friendlyCard.title}`,
+              });
+            }
+          });
+        }
+
         break;
+      }
+      case "player": {
+        if (
+          card.battlecryQuery?.side === "all" ||
+          card.battlecryQuery?.side === "enemy"
+        ) {
+          // Target enemy minions
+          const targetHero: TargetValue = {
+            type: "player",
+            id: enemyPlayerId,
+            player: enemyPlayerId,
+          };
+          const scoreHero = scoreBattlecryTarget(
+            card,
+            G.players[enemyPlayerId],
+            "player",
+          );
+          moves.push({
+            move: "placeCard",
+            args: [cardId, "board", targetHero],
+            score: scoreHero,
+            description: `Battlecry target: Enemy hero`,
+          });
+        }
+
+        if (
+          card.battlecryQuery?.side === "all" ||
+          card.battlecryQuery?.side === "friendly"
+        ) {
+          const targetOwnHero: TargetValue = {
+            type: "player",
+            id: ctx.currentPlayer,
+            player: ctx.currentPlayer,
+          };
+          const scoreOwnHero = scoreBattlecryTarget(
+            card,
+            G.players[ctx.currentPlayer],
+            "player",
+          );
+          moves.push({
+            move: "placeCard",
+            args: [cardId, "board", targetOwnHero],
+            score: scoreOwnHero,
+            description: `Battlecry target: Own hero`,
+          });
+        }
+      }
     }
   });
 
@@ -288,12 +302,8 @@ function enumerateHandPlays(G: GameState, ctx: Ctx, player: Player): AIMove[] {
       return; // Board is full
     }
 
-    // If card requires targeting, enumerate targets
-    if (card.targets && card.targets.length > 0) {
-      const targetMoves = enumerateTargets(G, ctx, card, "hand");
-      moves.push(...targetMoves);
-    } else if (card.isMinion) {
-      // Minion without targeting - just needs to be placed
+    // Minion without targeting - just needs to be placed
+    if (card.isMinion) {
       const score = scoreCardPlay(G, ctx, card, null);
       moves.push({
         move: "placeCard",
@@ -303,13 +313,8 @@ function enumerateHandPlays(G: GameState, ctx: Ctx, player: Player): AIMove[] {
       });
     } else {
       // Spell without targeting
-      const score = scoreCardPlay(G, ctx, card, null);
-      moves.push({
-        move: "placeCard",
-        args: [card.id, "hand"], // Don't pass undefined target
-        score,
-        description: `Cast ${card.title}`,
-      });
+      const targetMoves = enumerateTargets(G, ctx, card, "hand");
+      moves.push(...targetMoves);
     }
   });
 
@@ -442,192 +447,148 @@ function enumerateTargets(
     return moves; // Minions from hand can only be placed on lane, so return early
   }
 
-  card.targets.forEach((targetType) => {
+  card.targetQuery.type.forEach((targetType) => {
     switch (targetType) {
       case "card":
         // Generic card targeting - enumerate both friendly and enemy minions
         // Enemy minions
-        G.board[enemyPlayerId].forEach((enemyCard) => {
-          const target: TargetValue = {
-            type: "card",
-            id: enemyCard.id,
-            player: enemyPlayerId,
-          };
-          const score = scoreCardPlay(G, ctx, card, target);
-          moves.push({
-            move: "placeCard",
-            args: [card.id, location, target],
-            score,
-            description: `Play ${card.title} on ${enemyCard.title}`,
+        if (
+          card.targetQuery.side == "all" ||
+          card.targetQuery.side == "enemy"
+        ) {
+          G.board[enemyPlayerId].forEach((enemyCard) => {
+            const target: TargetValue = {
+              type: "card",
+              id: enemyCard.id,
+              player: enemyPlayerId,
+            };
+            const score = scoreCardPlay(G, ctx, card, target);
+            moves.push({
+              move: "placeCard",
+              args: [card.id, location, target],
+              score,
+              description: `Play ${card.title} on ${enemyCard.title}`,
+            });
           });
-        });
-        // Friendly minions
-        G.board[ctx.currentPlayer].forEach((friendlyCard) => {
-          const target: TargetValue = {
-            type: "card",
-            id: friendlyCard.id,
-            player: ctx.currentPlayer,
-          };
-          const score = scoreCardPlay(G, ctx, card, target);
-          moves.push({
-            move: "placeCard",
-            args: [card.id, location, target],
-            score,
-            description: `Play ${card.title} on ${friendlyCard.title}`,
-          });
-        });
-        break;
+        }
 
-      case "card-opponent":
-      case "opponent":
-        // Target enemy minions
-        G.board[enemyPlayerId].forEach((enemyCard) => {
-          const target: TargetValue = {
-            type: "card",
-            id: enemyCard.id,
-            player: enemyPlayerId,
-          };
-          const score = scoreCardPlay(G, ctx, card, target);
-          moves.push({
-            move: "placeCard",
-            args: [card.id, location, target],
-            score,
-            description: `Play ${card.title} on ${enemyCard.title}`,
+        // Friendly minions
+        if (
+          card.targetQuery.side == "all" ||
+          card.targetQuery.side == "friendly"
+        ) {
+          G.board[ctx.currentPlayer].forEach((friendlyCard) => {
+            const target: TargetValue = {
+              type: "card",
+              id: friendlyCard.id,
+              player: ctx.currentPlayer,
+            };
+            const score = scoreCardPlay(G, ctx, card, target);
+            moves.push({
+              move: "placeCard",
+              args: [card.id, location, target],
+              score,
+              description: `Play ${card.title} on ${friendlyCard.title}`,
+            });
           });
-        });
+        }
+
         break;
 
       case "player":
         // Generic player targeting - enumerate both friendly and enemy heroes
         // Enemy hero
-        const targetEnemyHeroGeneric: TargetValue = {
-          type: "player",
-          id: enemyPlayerId,
-          player: enemyPlayerId,
-        };
-        const scoreEnemyHeroGeneric = scoreCardPlay(
-          G,
-          ctx,
-          card,
-          targetEnemyHeroGeneric,
-        );
-        moves.push({
-          move: "placeCard",
-          args: [card.id, location, targetEnemyHeroGeneric],
-          score: scoreEnemyHeroGeneric,
-          description: `Cast ${card.title} on enemy hero`,
-        });
-
-        // Friendly hero
-        const targetFriendlyHeroGeneric: TargetValue = {
-          type: "player",
-          id: ctx.currentPlayer,
-          player: ctx.currentPlayer,
-        };
-        const scoreFriendlyHeroGeneric = scoreCardPlay(
-          G,
-          ctx,
-          card,
-          targetFriendlyHeroGeneric,
-        );
-        moves.push({
-          move: "placeCard",
-          args: [card.id, location, targetFriendlyHeroGeneric],
-          score: scoreFriendlyHeroGeneric,
-          description: `Cast ${card.title} on friendly hero`,
-        });
-        break;
-
-      case "player-opponent":
-        // Target enemy hero
-        const targetHero: TargetValue = {
-          type: "player",
-          id: enemyPlayerId,
-          player: enemyPlayerId,
-        };
-        const scoreHero = scoreCardPlay(G, ctx, card, targetHero);
-        if (card.isMinion && !card.isPlaced) {
-          // can't place minion on hero, skip this move
-          break;
-        }
-        moves.push({
-          move: "placeCard",
-          args: [card.id, location, targetHero],
-          score: scoreHero,
-          description: `Play ${card.title} on enemy hero`,
-        });
-        break;
-
-      case "card-friendly":
-      case "friendly":
-        // Target friendly minions
-        G.board[ctx.currentPlayer].forEach((friendlyCard) => {
-          const target: TargetValue = {
-            type: "card",
-            id: friendlyCard.id,
-            player: ctx.currentPlayer,
+        if (
+          card.targetQuery.side == "all" ||
+          card.targetQuery.side == "enemy"
+        ) {
+          const targetEnemyHeroGeneric: TargetValue = {
+            type: "player",
+            id: enemyPlayerId,
+            player: enemyPlayerId,
           };
-          const score = scoreCardPlay(G, ctx, card, target);
+          const scoreEnemyHeroGeneric = scoreCardPlay(
+            G,
+            ctx,
+            card,
+            targetEnemyHeroGeneric,
+          );
           moves.push({
             move: "placeCard",
-            args: [card.id, location, target],
-            score,
-            description: `Play ${card.title} on ${friendlyCard.title}`,
+            args: [card.id, location, targetEnemyHeroGeneric],
+            score: scoreEnemyHeroGeneric,
+            description: `Cast ${card.title} on enemy hero`,
           });
-        });
-        break;
+        }
 
-      case "player-friendly":
-        // Target friendly hero
-        const targetOwnHero: TargetValue = {
-          type: "player",
-          id: ctx.currentPlayer,
-          player: ctx.currentPlayer,
-        };
-        const scoreOwnHero = scoreCardPlay(G, ctx, card, targetOwnHero);
-        moves.push({
-          move: "placeCard",
-          args: [card.id, location, targetOwnHero],
-          score: scoreOwnHero,
-          description: `Play ${card.title} on own hero`,
-        });
-        break;
+        // Friendly hero
+        if (
+          card.targetQuery.side == "all" ||
+          card.targetQuery.side == "friendly"
+        ) {
+          const targetFriendlyHeroGeneric: TargetValue = {
+            type: "player",
+            id: ctx.currentPlayer,
+            player: ctx.currentPlayer,
+          };
+          const scoreFriendlyHeroGeneric = scoreCardPlay(
+            G,
+            ctx,
+            card,
+            targetFriendlyHeroGeneric,
+          );
+          moves.push({
+            move: "placeCard",
+            args: [card.id, location, targetFriendlyHeroGeneric],
+            score: scoreFriendlyHeroGeneric,
+            description: `Cast ${card.title} on friendly hero`,
+          });
+        }
 
-      case "lane-opponent":
-        // Target enemy lane (for AoE spells)
-        const targetEnemyLane: TargetValue = {
-          type: "lane",
-          id: `lane-${enemyPlayerId}`,
-          player: enemyPlayerId,
-        };
-        const scoreEnemyLane = scoreCardPlay(G, ctx, card, targetEnemyLane);
-        moves.push({
-          move: "placeCard",
-          args: [card.id, location, targetEnemyLane],
-          score: scoreEnemyLane,
-          description: `Cast ${card.title} on enemy board`,
-        });
         break;
-
-      case "lane-friendly":
+      case "lane":
+        // Target enemy lane (for AoE spells)  if (
+        if (
+          card.targetQuery.side == "all" ||
+          card.targetQuery.side == "enemy"
+        ) {
+          const targetEnemyLane: TargetValue = {
+            type: "lane",
+            id: `lane-${enemyPlayerId}`,
+            player: enemyPlayerId,
+          };
+          const scoreEnemyLane = scoreCardPlay(G, ctx, card, targetEnemyLane);
+          moves.push({
+            move: "placeCard",
+            args: [card.id, location, targetEnemyLane],
+            score: scoreEnemyLane,
+            description: `Cast ${card.title} on enemy board`,
+          });
+        }
         // Target friendly lane (for AoE spells)
-        const targetFriendlyLane: TargetValue = {
-          type: "lane",
-          id: `lane-${ctx.currentPlayer}`,
-          player: ctx.currentPlayer,
-        };
-        const scoreFriendlyLane = scoreCardPlay(
-          G,
-          ctx,
-          card,
-          targetFriendlyLane,
-        );
-        moves.push({
-          move: "placeCard",
-          args: [card.id, location, targetFriendlyLane],
-          score: scoreFriendlyLane,
-          description: `Cast ${card.title} on friendly board`,
-        });
+
+        if (
+          card.targetQuery.side == "all" ||
+          card.targetQuery.side == "friendly"
+        ) {
+          const targetFriendlyLane: TargetValue = {
+            type: "lane",
+            id: `lane-${ctx.currentPlayer}`,
+            player: ctx.currentPlayer,
+          };
+          const scoreFriendlyLane = scoreCardPlay(
+            G,
+            ctx,
+            card,
+            targetFriendlyLane,
+          );
+          moves.push({
+            move: "placeCard",
+            args: [card.id, location, targetFriendlyLane],
+            score: scoreFriendlyLane,
+            description: `Cast ${card.title} on friendly board`,
+          });
+        }
         break;
     }
   });

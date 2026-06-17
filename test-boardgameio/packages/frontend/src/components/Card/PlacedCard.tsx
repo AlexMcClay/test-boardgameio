@@ -33,7 +33,6 @@ const PlacedCard = ({
   const isSicknessActive = card.summoningSickness && !card.charge && !card.rush;
 
   useEffect(() => {
-    console.log("IS ATTACKING", isAttacking, card.title);
     if (isAttacking) {
       setTimeout(() => {
         playSfx("minion-attack");

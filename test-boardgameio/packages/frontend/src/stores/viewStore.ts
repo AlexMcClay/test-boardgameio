@@ -18,11 +18,13 @@ interface ViewState {
 
   // Game state
   gameMode: GameMode | null;
+  selectedGameMode: GameMode | null;
   gameKey: number;
   multiplayerSession: MultiplayerSession | null;
 
   // Game actions
   setGameMode: (mode: GameMode | null) => void;
+  setSelectedGameMode: (mode: GameMode | null) => void;
   incrementGameKey: () => void;
   setMultiplayerSession: (session: MultiplayerSession | null) => void;
   startGame: (mode: GameMode, session?: MultiplayerSession) => void;
@@ -37,11 +39,14 @@ export const useViewStore = create<ViewState>((set) => ({
 
   // Game state
   gameMode: null,
+  selectedGameMode: null,
   gameKey: 0,
   multiplayerSession: null,
 
   // Game actions
   setGameMode: (mode) => set({ gameMode: mode }),
+  setSelectedGameMode: (mode) => set({ selectedGameMode: mode }),
+
   incrementGameKey: () => set((state) => ({ gameKey: state.gameKey + 1 })),
   setMultiplayerSession: (session) => set({ multiplayerSession: session }),
 

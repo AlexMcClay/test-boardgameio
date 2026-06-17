@@ -1,13 +1,4 @@
-import type {
-  Card,
-  GameState,
-  Player,
-  TargetValue,
-  GameEvent,
-  Hero,
-  ApplyModifierEffect,
-  CardModifier,
-} from "./types";
+import type { Card, GameState, Player, TargetValue, Hero } from "./types";
 import {
   createCardFromID,
   getAttack,
@@ -15,20 +6,18 @@ import {
   getManaCost,
   getMaxHealth,
   shuffleDeck,
-} from "./utils/index";
+  applyBoolEffectToCard,
+  proccessApplyModifier,
+  dealDamageToCard,
+  dealDamageToPlayer,
+  healCard,
+  healPlayer,
+  recordEvent,
+} from "./utils";
 import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
 import { validateMove } from "./utils/validateMove";
 import type { CardTemplateKey } from "./data/cards";
 import { enumerateAIMoves } from "./ai";
-
-// Helper function to record game events
-function recordEvent(G: GameState, event: GameEvent) {
-  // Add to current move events
-  G.gameEvents.push(event);
-
-  // Also add to persistent history for debugging
-  G.eventHistory.push(event);
-}
 
 export const isVictory = ({ G }: { G: GameState; ctx: Ctx }) => {
   if (G.players[0].health <= 0) {
@@ -179,8 +168,7 @@ const placeCard: Move<GameState> = (
 
     // Check if card needs targeted battlecry (damage or heal)
     const needsTargetedBattlecry =
-      card.battlecryTargets &&
-      card.battlecryTargets.length > 0 &&
+      card.battlecryQuery &&
       card.onPlace.some(
         (e) =>
           (e.type === "damage" && e.target === "user-select") ||
@@ -638,204 +626,6 @@ function handleDrawCard(G: GameState, ctx: Ctx, playerID?: PlayerID) {
     // Handle case when deck is empty, e.g., damage player or reshuffle
     console.warn("Deck is empty, cannot draw a card.");
   }
-}
-
-function proccessApplyModifier(
-  G: GameState,
-  sourceId: string,
-  targetCard: Card, // This is our target minion
-  playerId: string,
-  effect: ApplyModifierEffect,
-) {
-  // Determine what lifecycle layer this modifier belongs to
-  const isTemporary = !!effect.duration;
-
-  // 3. Build out the unified clean modifier instance object
-  const newModifier: CardModifier = {
-    // Generate a simple deterministic unique ID for tracking/debugging
-    id: `mod-${sourceId}-${effect.stat}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-    sourceCardId: sourceId, // Tracks which card created this buff
-    stat: effect.stat,
-    value: effect.value,
-    type: isTemporary ? "temporary" : "permanent",
-
-    // 4. Inject runtime tracking data into the modifier lifecycle if it has a duration
-    lifecycle:
-      isTemporary && effect.duration
-        ? {
-            sourcePlayerId: playerId, // The active player casting the spell/battlecry
-            expiryTrigger: effect.duration.expiryTrigger,
-            expiryOwner: effect.duration.expiryOwner,
-            turnsRemaining: effect.duration.turnsRemaining ?? 1,
-          }
-        : undefined,
-  };
-
-  // 5. Safely push it into our card's modifier scratchpad
-  if (targetCard.modifiers === undefined) {
-    targetCard.modifiers = [];
-  }
-  targetCard.modifiers.push(newModifier);
-
-  recordEvent(G, {
-    type: "applyModifier",
-    sourceId: sourceId,
-    key: effect.stat,
-    value: effect.value,
-    playerId: playerId,
-    timestamp: Date.now(),
-    targetId: targetCard.id,
-    targetType: "card",
-  });
-}
-
-function applyBoolEffectToCard(
-  G: GameState,
-  sourceId: string,
-  targetCard: Card,
-  targetPlayerId: string,
-  effectType:
-    | "freeze"
-    | "divineShield"
-    | "taunt"
-    | "stealth"
-    | "charge"
-    | "rush",
-  cardKey: keyof Card,
-) {
-  if (!targetCard) return;
-
-  // Dynamically set the card property to true (e.g. targetCard.taunt = true)
-  (targetCard as any)[cardKey] = true;
-
-  // This matches your GameEvent type definitions exactly
-  recordEvent(G, {
-    type: effectType,
-    sourceId: sourceId,
-    targetId: targetCard.id,
-    targetType: "card",
-    playerId: targetPlayerId,
-    timestamp: Date.now(),
-  } as GameEvent);
-}
-
-function dealDamageToPlayer(
-  G: GameState,
-  sourceId: string,
-  targetPlayerId: string,
-  damageAmount: number,
-) {
-  const targetPlayer = G.players[targetPlayerId];
-  if (!targetPlayer) return;
-  let hadDivineShield = false;
-
-  // 1. DIVINE SHIELD CHECK: Intercept positive damage values
-  if (targetPlayer.divineShield && damageAmount > 0) {
-    // Pop the bubble!
-    targetPlayer.divineShield = false;
-    hadDivineShield = true;
-    damageAmount = 0;
-  }
-
-  const armorDamage = Math.min(targetPlayer.armor, damageAmount);
-  targetPlayer.armor -= armorDamage;
-  const remainingDamage = damageAmount - armorDamage;
-  targetPlayer.health -= remainingDamage;
-
-  recordEvent(G, {
-    type: "damage",
-    sourceId: sourceId,
-    targetId: targetPlayerId,
-    targetType: "player",
-    playerId: targetPlayerId,
-    value: hadDivineShield && damageAmount > 0 ? 0 : damageAmount,
-    timestamp: Date.now(),
-  });
-}
-function healPlayer(
-  G: GameState,
-  sourceId: string,
-  targetPlayerId: string,
-  amount: number,
-) {
-  const player = G.players[targetPlayerId];
-  if (!player) return;
-
-  const actualHeal = Math.min(amount, player.maxHealth - player.health);
-  if (actualHeal <= 0) return; // No healing needed (already at full health)
-
-  player.health += actualHeal;
-
-  recordEvent(G, {
-    type: "heal",
-    sourceId,
-    targetId: targetPlayerId,
-    targetType: "player",
-    playerId: targetPlayerId,
-    value: actualHeal,
-    timestamp: Date.now(),
-  });
-}
-
-function dealDamageToCard(
-  G: GameState,
-  sourceId: string,
-  targetCard: Card, // This is our target minion
-  targetPlayerId: string,
-  damageAmount: number,
-) {
-  if (!targetCard || !targetCard.isMinion) return;
-  let hadDivineShield = false;
-
-  // 1. DIVINE SHIELD CHECK: Intercept positive damage values
-  if (targetCard.divineShield && damageAmount > 0) {
-    // Pop the bubble!
-    targetCard.divineShield = false;
-    hadDivineShield = true;
-  }
-
-  // 2. STANDARD DAMAGE FALLBACK (If no shield is present or damage is 0)
-  recordEvent(G, {
-    type: "damage",
-    sourceId: sourceId,
-    targetId: targetCard.id,
-    targetType: "card",
-    playerId: targetPlayerId,
-    value: hadDivineShield && damageAmount > 0 ? 0 : damageAmount,
-    timestamp: Date.now(),
-  });
-
-  // Instead of subtracting directly from health, increase damage taken!
-  targetCard.damageTaken +=
-    hadDivineShield && damageAmount > 0 ? 0 : damageAmount;
-}
-
-function healCard(
-  G: GameState,
-  sourceId: string,
-  targetCard: Card,
-  playerId: string,
-  amount: number,
-) {
-  if (!targetCard || !targetCard.isMinion) return;
-
-  const actualHeal = Math.min(
-    amount,
-    getMaxHealth(targetCard) - getCurrentHealth(targetCard),
-  );
-  if (actualHeal <= 0) return; // Already at full health
-
-  targetCard.damageTaken -= actualHeal;
-
-  recordEvent(G, {
-    type: "heal",
-    sourceId,
-    targetId: targetCard.id,
-    targetType: "card",
-    playerId,
-    value: actualHeal,
-    timestamp: Date.now(),
-  });
 }
 
 function processDeaths(G: GameState, ctx: Ctx) {

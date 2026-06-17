@@ -1,6 +1,12 @@
 // utils/validateMove.ts
-import { getManaCost } from ".";
-import type { Card, TargetValue, GameState } from "../types";
+import { getAttack, getCurrentHealth, getManaCost, getMaxHealth } from ".";
+import type {
+  Card,
+  TargetValue,
+  GameState,
+  TargetCondition,
+  TargetQuery,
+} from "../types";
 import type { Ctx, PlayerID } from "boardgame.io";
 
 export type MoveValidationError =
@@ -37,75 +43,47 @@ export function isTauntBypassAllowed(card: Card): boolean {
 }
 
 /**
- * Core validation: Check if target matches card's target types
+ * Validates a target against a TargetQuery specification
+ * Used for the new targeting system
  */
-export function isValidTargetType(
-  card: Card,
-  targetType: "card" | "player" | "lane",
-  targetPlayerID: PlayerID,
+export function validateTargetQuery(
+  query: TargetQuery,
+  sourceID: string,
+  G: GameState | null,
   currentPlayerID: PlayerID,
-): boolean {
-  const isFriendly = targetPlayerID === currentPlayerID;
+  targetValue: TargetValue,
+) {
+  const isFriendly = targetValue.player === currentPlayerID;
 
-  return card.targets.some((validTarget) => {
-    switch (validTarget) {
-      case "card":
-        return targetType === "card";
-      case "player":
-        return targetType === "player";
-      case "card-friendly":
-        return targetType === "card" && isFriendly;
-      case "card-opponent":
-        return targetType === "card" && !isFriendly;
-      case "player-friendly":
-        return targetType === "player" && isFriendly;
-      case "player-opponent":
-        return targetType === "player" && !isFriendly;
-      case "lane-friendly":
-        return targetType === "lane" && isFriendly;
-      case "lane-opponent":
-        return targetType === "lane" && !isFriendly;
-      default:
-        return false;
-    }
-  });
-}
+  const targetCard =
+    targetValue.type === "card"
+      ? G?.board[targetValue.player].find((c) => c.id === targetValue.id)
+      : undefined;
 
-/**
- * Battlecry validation: Check if target matches card's battlecryTargets (bypasses taunt)
- */
-export function isValidTargetTypeForBattlecry(
-  card: Card,
-  targetType: "card" | "player" | "lane",
-  targetPlayerID: PlayerID,
-  currentPlayerID: PlayerID,
-): boolean {
-  if (!card.battlecryTargets || card.battlecryTargets.length === 0) {
-    return false;
-  }
-
-  const isFriendly = targetPlayerID === currentPlayerID;
-
-  return card.battlecryTargets.some((validTarget) => {
-    switch (validTarget) {
-      case "card":
-        return targetType === "card";
-      case "player":
-        return targetType === "player";
-      case "card-friendly":
-        return targetType === "card" && isFriendly;
-      case "card-opponent":
-        return targetType === "card" && !isFriendly;
-      case "player-friendly":
-        return targetType === "player" && isFriendly;
-      case "player-opponent":
-        return targetType === "player" && !isFriendly;
-      case "lane-friendly":
-        return targetType === "lane" && isFriendly;
-      case "lane-opponent":
-        return targetType === "lane" && !isFriendly;
-      default:
-        return false;
+  return query.type.some((type) => {
+    switch (type) {
+      case "card": {
+        if (!targetCard) return false;
+        if (query.side === "enemy" && isFriendly) return false;
+        if (query.side === "friendly" && !isFriendly) return false;
+        return (
+          query.conditions?.every((condition) =>
+            matchCondition(targetCard, condition, sourceID),
+          ) ?? true
+        );
+      }
+      case "player": {
+        if (targetValue.type !== "player") return false;
+        if (query.side === "enemy" && isFriendly) return false;
+        if (query.side === "friendly" && !isFriendly) return false;
+        return true;
+      }
+      case "lane": {
+        if (targetValue.type !== "lane") return false;
+        if (query.side === "enemy" && isFriendly) return false;
+        if (query.side === "friendly" && !isFriendly) return false;
+        return true;
+      }
     }
   });
 }
@@ -144,11 +122,12 @@ export function validateMove(
       location === "board" &&
       target
     ) {
-      const validTarget = isValidTargetTypeForBattlecry(
-        card,
-        target.type,
-        target.player,
+      const validTarget = validateTargetQuery(
+        card.battlecryQuery!,
+        card.id,
+        G,
         ctx.currentPlayer,
+        target,
       );
 
       if (!validTarget) {
@@ -192,17 +171,18 @@ export function validateMove(
   }
 
   // Spell cards with required targets
-  if (card.isSpell && card.targets.length > 0 && !target) {
+  if (card.isSpell && !target) {
     return { valid: false, error: "spell-needs-target" };
   }
 
   // Check if valid target is provided
-  if (target && card.targets.length > 0) {
-    const validTarget = isValidTargetType(
-      card,
-      target.type,
-      target.player,
+  if (target) {
+    const validTarget = validateTargetQuery(
+      card.targetQuery,
+      card.id,
+      G,
       ctx.currentPlayer,
+      target,
     );
 
     // check if target is minion and if minion is stealthed
@@ -294,11 +274,16 @@ export function canTargetHighlight(
 
   // For battlecry minions, use battlecryTargets for validation
   if (isBattlecryMinion) {
-    const isValidType = isValidTargetTypeForBattlecry(
-      activeCard,
-      targetType,
-      targetPlayerID,
+    const isValidType = validateTargetQuery(
+      activeCard.battlecryQuery!,
+      activeCard.id,
+      gameState,
       currentPlayer,
+      {
+        type: targetType,
+        player: targetPlayerID,
+        id: targetCardId || "",
+      },
     );
 
     // Battlecries bypass taunt, so return immediately
@@ -306,11 +291,16 @@ export function canTargetHighlight(
   }
 
   // Check basic target type validity
-  const isValidType = isValidTargetType(
-    activeCard,
-    targetType,
-    targetPlayerID,
+  const isValidType = validateTargetQuery(
+    activeCard.targetQuery,
+    activeCard.id,
+    gameState,
     currentPlayer,
+    {
+      type: targetType,
+      player: targetPlayerID,
+      id: targetCardId || "",
+    },
   );
 
   if (!isValidType) return false;
@@ -353,4 +343,70 @@ export function canTargetHighlight(
   }
 
   return true;
+}
+
+/**
+ * Evaluates whether a single card satisfies a specific targeted rule condition
+ */
+function matchCondition(
+  card: Card,
+  condition: TargetCondition,
+  conditionSourceID: string,
+): boolean {
+  switch (condition.type) {
+    case "boolean":
+      // Safely evaluates truthiness (handles undefined properties as false)
+      return !!card[condition.key] === condition.value;
+
+    case "numeric": {
+      const cardValue =
+        condition.key === "attack"
+          ? getAttack(card)
+          : condition.key === "health"
+            ? getCurrentHealth(card)
+            : getManaCost(card);
+      const targetValue = condition.value;
+      switch (condition.operator) {
+        case "==":
+          return cardValue === targetValue;
+        case "!=":
+          return cardValue !== targetValue;
+        case ">":
+          return cardValue > targetValue;
+        case ">=":
+          return cardValue >= targetValue;
+        case "<":
+          return cardValue < targetValue;
+        case "<=":
+          return cardValue <= targetValue;
+      }
+    }
+
+    case "text-contains": {
+      const text = card[condition.key]?.toLowerCase() ?? "";
+      return text.includes(condition.value.toLowerCase());
+    }
+
+    case "tags-include": {
+      // Assuming your card type array is card.tags: string[] (e.g. ["Wisp", "Token"])
+      const tags = card.type ?? [];
+      return tags.some(
+        (tag) => tag.toLowerCase() === condition.value.toLowerCase(),
+      );
+    }
+
+    case "state-match": {
+      const health = getCurrentHealth(card);
+      const maxHealth = getMaxHealth(card);
+      if (condition.condition === "isDamaged") return health < maxHealth;
+      if (condition.condition === "isUndamaged") return health === maxHealth;
+      return true;
+    }
+
+    case "exclude-self":
+      return card.id !== conditionSourceID;
+
+    default:
+      return false;
+  }
 }

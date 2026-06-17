@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence } from "motion/react";
 import Card from "./Card";
 import MinionCardPopover from "./MinionCardPopover";
 
@@ -258,7 +257,11 @@ const CollectionManager = () => {
 
   // Filter cards by class and collectibility
   const filteredCards = Object.entries(cardTemplates)
-    .filter(([_, card]) => !(card as Omit<CardType, "id">).isUncollectible)
+    .filter(
+      ([_, card]) =>
+        !(card as Omit<CardType, "id" | "damageTaken" | "originalID">)
+          .isUncollectible,
+    )
     .filter(([_, card]) => {
       // If a class is specifically selected, filter by that class
       if (selectedClass) {
@@ -342,7 +345,12 @@ const CollectionManager = () => {
               Object.entries(cardTemplates)
                 .filter(
                   ([k, card]) =>
-                    !(card as Omit<CardType, "id">).isUncollectible,
+                    !(
+                      card as Omit<
+                        CardType,
+                        "id" | "damageTaken" | "originalID"
+                      >
+                    ).isUncollectible,
                 )
                 .map(([k, card]) => {
                   return {
@@ -555,6 +563,7 @@ const CollectionManager = () => {
                         ...cardTemplates[k as CardTemplateKey],
                         id: `${k}-preview`,
                         originalID: `${k}-preview`,
+                        damageTaken: 0,
                       } as CardType);
                     }}
                     onMouseLeave={handleEntryMouseLeave}

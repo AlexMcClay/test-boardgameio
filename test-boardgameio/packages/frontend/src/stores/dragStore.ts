@@ -46,6 +46,7 @@ export const useDragStore = create<DragStore>((set, get) => ({
 
   isValidTarget: (targetType, playerID, targetCardId) => {
     const { activeCard, currentPlayer, gameState } = get();
+
     return canTargetHighlight(
       activeCard,
       currentPlayer,

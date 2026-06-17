@@ -105,7 +105,7 @@ const HeroSection = ({ player }: Props) => {
           />
 
           <span
-            className="z-10 text-[175%] absolute font-extrabold text-center leading-none font-belwe scale-140 pointer-events-none"
+            className="z-10 text-[1.5vw] absolute font-extrabold text-center leading-none font-belwe scale-140 pointer-events-none"
             style={{
               WebkitTextStroke: "1px black",
               textShadow: "0 1px 0px black",
@@ -126,7 +126,7 @@ const HeroSection = ({ player }: Props) => {
         />
 
         <span
-          className="text-red-500 z-10 text-[175%] absolute font-extrabold text-center leading-none font-belwe scale-140 pointer-events-none"
+          className="text-red-500 z-10 text-[1.5vw] absolute font-extrabold text-center leading-none font-belwe scale-140 pointer-events-none"
           style={{
             WebkitTextStroke: "1px black",
             textShadow: "0 1px 0px black",

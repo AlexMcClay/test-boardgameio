@@ -32,15 +32,13 @@ class FastMCTSBot extends MCTSBot {
     super({
       ...config,
       iterations: 100,
-      playoutDepth: 40,
+      playoutDepth: 50,
       enumerate: enumerateAIMoves,
       game: HeathStoneGame,
       objectives: () => ({
         winGame: {
           checker: (G: GameState, ctx: Ctx) => {
-            const player = G.players[ctx.currentPlayer];
             const enemyId = ctx.currentPlayer === "0" ? "1" : "0";
-            const enemy = G.players[enemyId];
 
             // Use evaluateGameState for scoring
             return evaluateGameState(G, ctx);
@@ -92,6 +90,7 @@ function App() {
       playerCredentials: string;
     },
   ) => {
+    console.log(selectedDeckForPlay);
     if (!selectedDeckForPlay) {
       console.error("No deck selected!");
       return;
