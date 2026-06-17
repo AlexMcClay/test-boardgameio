@@ -1,13 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect } from "react";
 import { Client } from "boardgame.io/react";
 import { Local, SocketIO } from "boardgame.io/multiplayer";
 import { MCTSBot } from "boardgame.io/ai";
 import MainMenu from "@/components/MainMenu";
 import CollectionManager from "@/components/CollectionManager";
 import PlayScreen from "@/components/PlayScreen/PlayScreen";
-import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
-import { useAudioStore } from "@/stores/audioStore";
+
 import { useDeckStore } from "@/stores/deckStore";
 import { useViewStore } from "@/stores/viewStore";
 import type { Ctx, State } from "boardgame.io";
@@ -70,16 +68,6 @@ function App() {
   const startGame = useViewStore((state) => state.startGame);
 
   const { selectedDeckForPlay, generateOpponentDeck } = useDeckStore();
-
-  useBackgroundMusic({
-    autoplay: true,
-  });
-
-  const setGlobalTrack = useAudioStore((state) => state.setGlobalTrack);
-
-  useEffect(() => {
-    setGlobalTrack("assets/audio/music/01_Main_Theme.mp3");
-  }, [setGlobalTrack]);
 
   // Handle game start from PlayScreen
   const handleGameStart = (
