@@ -7,6 +7,7 @@ import {
   type EffectContext,
   type GameState,
   type TargetValue,
+  type EffectContextWithOptionalCard,
 } from "@project/shared";
 
 type DragStore = {
@@ -23,7 +24,7 @@ type DragStore = {
   setGameState: (gameState: GameState) => void;
   isValidTarget: (
     target: TargetValue,
-    context: Omit<EffectContext, "card"> & Partial<Pick<EffectContext, "card">>,
+    context: EffectContextWithOptionalCard,
   ) => boolean;
 
   // Attack arrow state

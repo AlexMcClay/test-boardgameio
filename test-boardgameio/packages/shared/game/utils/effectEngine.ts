@@ -11,6 +11,8 @@ import type {
   DynamicValue,
   EffectContext,
   TargetCondition,
+  DamageEffect,
+  BaseEffectSelection,
 } from "../types";
 
 export function resolveDynamicValue(
@@ -31,6 +33,9 @@ export function resolveDynamicValue(
       else if (val.player === "enemy") baseValue = G.players[enemyId].armor;
       else baseValue = G.players["0"].armor + G.players["1"].armor;
       break;
+    case "temp": {
+      return context.temp ?? 0;
+    }
 
     case "player-health":
       if (val.player === "friendly") baseValue = G.players[playerID].health;
@@ -151,4 +156,127 @@ export function checkSingleTargetCondition(
     default:
       return false;
   }
+}
+
+export interface ResolvedTarget {
+  type: "card" | "player";
+  id: string;
+  ownerId: string;
+  cardRef?: Card; // Direct reference if it's a minion
+}
+
+export function resolveTargets(
+  effect: BaseEffectSelection,
+  context: EffectContext,
+): ResolvedTarget[] {
+  const { G, playerID, target } = context;
+  const enemyId = playerID === "0" ? "1" : "0";
+  let pool: ResolvedTarget[] = [];
+
+  // 1. Gather Base Structural Targets
+  switch (effect.target) {
+    case "user-select":
+      if (target) {
+        pool.push({
+          type: target.type === "lane" ? "card" : target.type,
+          id: target.id,
+          ownerId: target.player,
+          cardRef:
+            target.type === "card"
+              ? G.board[target.player].find((c) => c.id === target.id)
+              : undefined,
+        });
+      }
+      break;
+    case "self": {
+      pool.push({
+        type: "card",
+        id: context.card.id,
+        ownerId: playerID,
+        cardRef: context.card,
+      });
+
+      break;
+    }
+
+    case "friendly-hero":
+      pool.push({ type: "player", id: playerID, ownerId: playerID });
+      break;
+
+    case "friendly-board":
+      G.board[playerID].forEach((c) => {
+        pool.push({ type: "card", id: c.id, ownerId: playerID, cardRef: c });
+      });
+      break;
+
+    case "friendly-all":
+      pool.push({ type: "player", id: playerID, ownerId: playerID });
+      G.board[playerID].forEach((c) => {
+        pool.push({ type: "card", id: c.id, ownerId: playerID, cardRef: c });
+      });
+      break;
+
+    case "enemy-hero":
+      pool.push({ type: "player", id: enemyId, ownerId: enemyId });
+      break;
+
+    case "enemy-board":
+      G.board[enemyId].forEach((c) => {
+        pool.push({ type: "card", id: c.id, ownerId: enemyId, cardRef: c });
+      });
+      break;
+
+    case "enemy-all":
+      pool.push({ type: "player", id: enemyId, ownerId: enemyId });
+      G.board[enemyId].forEach((c) => {
+        pool.push({ type: "card", id: c.id, ownerId: enemyId, cardRef: c });
+      });
+      break;
+
+    case "board":
+      Object.entries(G.board).forEach(([player, minions]) => {
+        minions.forEach((c) => {
+          pool.push({ type: "card", id: c.id, ownerId: player, cardRef: c });
+        });
+      });
+      break;
+  }
+
+  // 2. Filter Targets based on specific card conditions (e.g., "to all TAUNT minions")
+  if (effect.conditions && effect.conditions.length > 0) {
+    pool = pool.filter((t) => {
+      if (t.type === "player") return false; // Conditions typically inspect cards
+      if (!t.cardRef) return false;
+      return effect.conditions!.every((cond) =>
+        checkSingleTargetCondition(t.cardRef!, cond, context),
+      );
+    });
+  }
+
+  // 3. Apply Random Sampling (e.g., "deal damage to 3 random minions" or "destroy all except 1")
+  if (effect.rand) {
+    pool = applyRandomFilters(pool, effect.rand);
+  }
+
+  return pool;
+}
+
+// Simple deterministic shuffle sample helper for boardgame.io context
+function applyRandomFilters(
+  pool: ResolvedTarget[],
+  rand: { split: boolean; n: number },
+): ResolvedTarget[] {
+  if (pool.length === 0) return pool;
+
+  // Clone array to safely mutate or shuffle
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+
+  if (rand.n > 0) {
+    return shuffled.slice(0, rand.n); // "3 random minions"
+  } else if (rand.n < 0) {
+    const takeCount = Math.max(0, pool.length + rand.n); // pool.length - 1 ("All except 1")
+    return shuffled.slice(0, takeCount);
+  }
+
+  return pool;
 }

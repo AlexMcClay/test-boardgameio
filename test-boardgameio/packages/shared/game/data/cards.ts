@@ -25,6 +25,7 @@ const applyModifier = (
   stat: ApplyModifierEffect["stat"],
   value: ApplyModifierEffect["value"],
   target: ApplyModifierEffect["target"] = "user-select",
+  override: boolean = false,
   duration?: ApplyModifierEffect["duration"],
 ): ApplyModifierEffect => {
   return {
@@ -33,6 +34,7 @@ const applyModifier = (
     value: value,
     target: target,
     duration: duration,
+    override: override,
   };
 };
 
@@ -1718,6 +1720,241 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Warrior",
+  },
+  "mortal-strike": {
+    title: "Mortal Strike",
+    description:
+      "Deal 4 damage. If you have 12 or less Health, deal 6 instead.",
+    baseMana: 4,
+    imageUrl: "assets/cards/Mortal_Strike.jpg",
+    effects: [
+      {
+        type: "conditional",
+        conditions: [
+          {
+            type: "numeric",
+            key: { type: "player-health", player: "friendly" },
+            operator: "<=",
+            value: 12,
+          },
+        ],
+        then: [{ type: "damage", value: 6, target: "user-select" }],
+        else: [{ type: "damage", value: 4, target: "user-select" }],
+      },
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: false,
+    class: "Warrior",
+  },
+  shadowflame: {
+    title: "Shadowflame",
+    description:
+      "Destroy a friendly minion and deal its Attack damage to all enemy minions.",
+    baseMana: 4,
+    imageUrl: "assets/cards/Shadowflame.jpg",
+    effects: [
+      {
+        type: "sequence",
+        steps: [
+          {
+            type: "storeVar",
+            target: "user-select",
+            value: { type: "card-stat", stat: "attack" },
+          },
+          {
+            type: "damage",
+            value: { type: "temp" }, // inspects the user-selected friendly minion
+            target: "enemy-board",
+          },
+          { type: "destroy", target: "user-select" },
+        ],
+      },
+    ],
+    onPlace: [],
+    type: ["Shadow"],
+    isSpell: true,
+    targetQuery: {
+      side: "friendly",
+      type: ["card"],
+    },
+    isMinion: false,
+    class: "Warlock",
+  },
+  rampage: {
+    title: "Rampage",
+    description: "Give a damaged minion +3/+3.",
+    baseMana: 2,
+    imageUrl: "assets/cards/Rampage.jpg",
+    effects: [
+      applyModifier("health", 3, "user-select"),
+      applyModifier("attack", 3, "user-select"),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card"],
+      conditions: [
+        {
+          type: "state-match",
+          condition: "isDamaged",
+        },
+      ],
+    },
+    isMinion: false,
+    class: "Warrior",
+  },
+  righteousness: {
+    title: "Righteousness",
+    description: "Give your minions Divine Shield.",
+    baseMana: 5,
+    type: ["Holy"],
+    imageUrl: "assets/cards/Righteousness.jpg",
+    effects: [divineShield("friendly-board")],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane", "card"],
+    },
+    isMinion: false,
+    class: "Paladin",
+  },
+  "arcane-missiles": {
+    title: "Arcane Missiles",
+    description: "Deal 3 damage randomly split among all enemies.",
+    baseMana: 1,
+    imageUrl: "assets/cards/Arcane_Missiles.jpg",
+    type: ["Arcane"],
+    effects: [
+      {
+        type: "damage",
+        value: 3,
+        target: "enemy-all", // Routes to enemy hero + enemy board pool
+        rand: {
+          split: true,
+          n: 0, // 0 for targeting all potential candidates in the pool
+        },
+      },
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane", "card"],
+    },
+    isMinion: false,
+    class: "Mage",
+  },
+  "ice-lance": {
+    title: "Ice Lance",
+    description:
+      "Freeze a character. If they were already Frozen, deal 4 damage instead.",
+    baseMana: 1,
+    imageUrl: "assets/cards/Ice_Lance.jpg",
+    class: "Mage",
+    isMinion: false,
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card", "player"],
+    },
+    effects: [
+      {
+        type: "conditional",
+        conditions: [
+          {
+            type: "boolean",
+            key: "frozen",
+            value: true,
+          },
+        ],
+        // If already frozen: deal 4 damage, then re-apply freeze (maintains frozen flag state)
+        then: [
+          { type: "damage", value: 4, target: "user-select" },
+          { type: "freeze", target: "user-select" },
+        ],
+        // If NOT frozen: just freeze them!
+        else: [{ type: "freeze", target: "user-select" }],
+      },
+    ],
+    onPlace: [],
+  },
+  "water-elemental": {
+    title: "Water Elemental",
+    description: "Freeze any character damaged by this minion.",
+    baseMana: 4,
+    baseAttack: 3,
+    baseHealth: 6,
+    type: ["Elemental"],
+    imageUrl: "assets/cards/Water_Elemental.jpg",
+    class: "Mage",
+    isMinion: true,
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+      freeze(),
+    ],
+    onPlace: [],
+  },
+  "deep-freeze": {
+    title: "Deep Freeze",
+    description: "Freeze a enemy. Summon two 3/6 Water Elementals.",
+    baseMana: 7,
+    imageUrl: "assets/cards/Deep_Freeze.jpg",
+    class: "Mage",
+    type: ["Frost"],
+    isMinion: false,
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card"], // Strictly targets a minion on the board
+    },
+    effects: [freeze(), summon("water-elemental", "self", 2)],
+    onPlace: [],
+  },
+  icicle: {
+    title: "Icicle",
+    description: "Deal 2 damage to a minion. If it's Frozen, draw a card.",
+    baseMana: 2,
+    imageUrl: "assets/cards/Icicle.jpg",
+    class: "Mage",
+    type: ["Frost"],
+    isMinion: false,
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card"], // Strictly restricts targeting to minions on board, bypassing heroes
+    },
+    effects: [
+      // Step 1: Fire the baseline 2 damage at the selected target
+      damage(2),
+      // Step 2: Check if that target is frozen to trigger the draw effect
+      {
+        type: "conditional",
+        conditions: [
+          {
+            type: "boolean",
+            key: "frozen",
+            value: true,
+          },
+        ],
+        then: [draw(1)],
+        // No 'else' needed here since nothing happens if it isn't frozen
+      },
+    ],
+    onPlace: [],
   },
 } satisfies Record<string, Omit<Card, "id" | "originalID" | "damageTaken">>;
 

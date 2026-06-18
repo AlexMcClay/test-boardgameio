@@ -90,19 +90,25 @@ export function hasToEndTurn(playedID: string, gameState: GameState): boolean {
 
 // Get the current attack, combining base values + permanent buffs + environmental auras
 export function getAttack(card: Card): number {
-  const bonus =
-    card.modifiers
-      ?.filter((m) => m.stat === "attack")
-      .reduce((sum, m) => sum + m.value, 0) ?? 0;
+  const mods = card.modifiers?.filter((m) => m.stat === "attack") ?? [];
+  const sets = mods.filter((m) => m.override);
+  if (sets.length) {
+    // return newest one
+    return sets[sets.length - 1].value;
+  }
+  const bonus = mods.reduce((sum, m) => sum + m.value, 0) ?? 0;
   return Math.max(0, (card?.baseAttack ?? 0) + bonus);
 }
 
 // Maximum health capacity is dynamically scaled by modifiers
 export function getMaxHealth(card: Card): number {
-  const bonus =
-    card.modifiers
-      ?.filter((m) => m.stat === "health")
-      .reduce((sum, m) => sum + m.value, 0) ?? 0;
+  const mods = card.modifiers?.filter((m) => m.stat === "health") ?? [];
+  const sets = mods.filter((m) => m.override);
+  if (sets.length) {
+    // return newest one
+    return sets[sets.length - 1].value;
+  }
+  const bonus = mods.reduce((sum, m) => sum + m.value, 0) ?? 0;
   return Math.max(1, (card.baseHealth ?? 0) + bonus);
 }
 
@@ -114,10 +120,13 @@ export function getCurrentHealth(card: Card): number {
 
 // Dynamic mana cost parsing (e.g., Sorcerer's Apprentice effects)
 export function getManaCost(card: Card): number {
-  const bonus =
-    card.modifiers
-      ?.filter((m) => m.stat === "mana")
-      .reduce((sum, m) => sum + m.value, 0) ?? 0;
+  const mods = card.modifiers?.filter((m) => m.stat === "mana") ?? [];
+  const sets = mods.filter((m) => m.override);
+  if (sets.length) {
+    // return newest one
+    return sets[sets.length - 1].value;
+  }
+  const bonus = mods.reduce((sum, m) => sum + m.value, 0) ?? 0;
   return Math.max(0, (card.baseMana ?? 0) + bonus);
 }
 

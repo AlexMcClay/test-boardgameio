@@ -76,7 +76,11 @@ export interface EffectContext {
   lastTargetDied?: boolean;
   excessDamageDealt?: number; // Stores math for cards like Piercing Shot
   lastDamageDealt?: number;
+  temp?: number;
 }
+
+type EffectContextWithOptionalCard = Omit<EffectContext, "card"> &
+  Partial<Pick<EffectContext, "card">>;
 
 export interface ModifierLifecycle {
   // Who cast the buff? ("0" or "1")
@@ -97,6 +101,7 @@ export interface CardModifier {
   stat: "attack" | "health" | "mana" | "taunt" | "divineShield" | "frozen";
   value: number;
   lifecycle?: ModifierLifecycle; // Optional metadata for temporal mechanics
+  override: boolean;
 }
 
 export type TargetValue = {
@@ -112,6 +117,10 @@ export type DynamicValue =
   | {
       type: "player-armor";
       player: "friendly" | "enemy" | "all";
+      mult?: number;
+    }
+  | {
+      type: "temp";
       mult?: number;
     }
   | {
@@ -161,7 +170,7 @@ export type TargetCondition =
       type: "numeric";
       key: DynamicValue;
       operator: "==" | "!=" | ">" | ">=" | "<" | "<=";
-      value: DynamicValue;
+      value: DynamicValue | number;
     }
   | {
       type: "text-contains";
@@ -198,7 +207,14 @@ export type EffectTypes =
   | ArmorEffect
   | ConditionalEffect
   | SequenceEffect
-  | BounceEffect;
+  | BounceEffect
+  | StoreTempVarEffect;
+
+export interface StoreTempVarEffect {
+  type: "storeVar";
+  target: "user-select";
+  value: DynamicValue;
+}
 
 export interface ConditionalEffect {
   type: "conditional";
@@ -218,33 +234,27 @@ export interface BounceEffect {
   modifiers?: ApplyModifierEffect[]; // For giving it "Costs (2) less"
 }
 
-export interface ApplyModifierEffect {
-  type: "applyModifier";
-  stat: "attack" | "health" | "mana" | "taunt" | "divineShield" | "frozen";
-  value: number;
-  target: "user-select" | "board" | "enemy-all" | "friendly-all";
-  duration?: {
-    expiryTrigger: "END_OF_TURN" | "START_OF_TURN";
-    expiryOwner: "BUFF_CASTER" | "BUFF_RECEIVER" | "ANY_PLAYER";
-    turnsRemaining?: number;
-  };
-}
-
-export type BaseBoolEffect = {
-  battlecry?: boolean; // Indicates if this damage is part of a battlecry (bypasses taunt)
+export type BaseEffectSelection = {
   target:
     | "user-select"
     | "friendly-hero"
+    | "friendly-all"
+    | "friendly-board"
     | "enemy-hero"
     | "enemy-board"
     | "enemy-all"
-    | "board";
+    | "board"
+    | "self";
+  conditions?: TargetCondition[]; // filter conditions, so like "2 damage to all taunt minions"
   rand?: {
-    type: "random" | "random-split";
+    split: boolean; // random split, just for damage for now, maybe for healing later
     n: number; // 0 for all, positive for specific, negative for size - n
   };
-  conditions?: TargetCondition[]; // filter conditions, so like "2 damage to all taunt minions"
 };
+
+export type BaseBoolEffect = {
+  battlecry?: boolean; // Indicates if this damage is part of a battlecry (bypasses taunt)
+} & BaseEffectSelection;
 
 export type FreezeEffect = {
   type: "freeze";
@@ -274,42 +284,30 @@ export type DamageEffect = {
   type: "damage";
   value: number | DynamicValue;
   battlecry?: boolean; // Indicates if this damage is part of a battlecry (bypasses taunt)
-  target:
-    | "user-select"
-    | "friendly-hero"
-    | "enemy-hero"
-    | "enemy-board"
-    | "enemy-all" // Target can be user-select, self-hero, enemy-hero, or hero
-    | "board";
-  rand?: {
-    type: "random" | "random-split";
-    n: number; // 0 for all, positive for specific, negative for size - n
-  };
-  conditions?: TargetCondition[]; // filter conditions, so like "2 damage to all taunt minions"
-};
+} & BaseEffectSelection;
 
 type DestroyEffect = {
   type: "destroy";
-  target: "user-select" | "self" | "enemy-board" | "board"; // Target can be user-select, self, or enemy
   battlecry?: boolean; // Indicates if this destroy effect is part of a battlecry (bypasses taunt)
-  rand?: {
-    type: "random" | "random-split";
-    n: number; // 0 for all, positive for specific, negative for size - n
-  };
-  conditions?: TargetCondition[]; // filter conditions, so like "2 damage to all taunt minions"
-};
+} & BaseEffectSelection;
 
 type HealEffect = {
   type: "heal";
   value: number | DynamicValue;
-  target?: "user-select" | "friendly-hero" | "friendly-all" | "friendly-board";
   battlecry?: boolean;
-  rand?: {
-    type: "random" | "random-split";
-    n: number; // 0 for all, positive for specific, negative for size - n
+} & BaseEffectSelection;
+
+export type ApplyModifierEffect = {
+  type: "applyModifier";
+  stat: "attack" | "health" | "mana" | "taunt" | "divineShield" | "frozen";
+  override: boolean;
+  value: number | DynamicValue;
+  duration?: {
+    expiryTrigger: "END_OF_TURN" | "START_OF_TURN";
+    expiryOwner: "BUFF_CASTER" | "BUFF_RECEIVER" | "ANY_PLAYER";
+    turnsRemaining?: number;
   };
-  conditions?: TargetCondition[]; // filter conditions, so like "2 damage to all taunt minions"
-};
+} & BaseEffectSelection;
 
 type DrawEffect = {
   type: "draw";

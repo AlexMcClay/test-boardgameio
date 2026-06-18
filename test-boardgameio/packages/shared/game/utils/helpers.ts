@@ -1,8 +1,11 @@
 import { getCurrentHealth, getMaxHealth } from ".";
 import {
   type ApplyModifierEffect,
+  type BaseEffectSelection,
   type Card,
   type CardModifier,
+  type DynamicValue,
+  type EffectTypes,
   type GameEvent,
   type GameState,
 } from "../types";
@@ -21,6 +24,7 @@ export function proccessApplyModifier(
   targetCard: Card, // This is our target minion
   playerId: string,
   effect: ApplyModifierEffect,
+  value: number,
 ) {
   // Determine what lifecycle layer this modifier belongs to
   const isTemporary = !!effect.duration;
@@ -31,8 +35,9 @@ export function proccessApplyModifier(
     id: `mod-${sourceId}-${effect.stat}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
     sourceCardId: sourceId, // Tracks which card created this buff
     stat: effect.stat,
-    value: effect.value,
+    value: value,
     type: isTemporary ? "temporary" : "permanent",
+    override: effect.override,
 
     // 4. Inject runtime tracking data into the modifier lifecycle if it has a duration
     lifecycle:
@@ -56,7 +61,7 @@ export function proccessApplyModifier(
     type: "applyModifier",
     sourceId: sourceId,
     key: effect.stat,
-    value: effect.value,
+    value: value,
     playerId: playerId,
     timestamp: Date.now(),
     targetId: targetCard.id,
@@ -212,4 +217,25 @@ export function healCard(
     value: actualHeal,
     timestamp: Date.now(),
   });
+}
+
+const types: EffectTypes["type"][] = [
+  "applyModifier",
+  "damage",
+  "destroy",
+  "divineShield",
+  "freeze",
+  "charge",
+  "heal",
+  "rush",
+  "stealth",
+  "taunt",
+];
+
+//  as BaseEffectSelection
+export function isBaseEffectSelection(
+  effect: EffectTypes,
+  // @ts-ignore
+): effect is BaseEffectSelection {
+  return types.includes(effect.type);
 }

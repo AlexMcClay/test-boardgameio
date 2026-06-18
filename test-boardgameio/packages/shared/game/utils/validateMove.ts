@@ -7,6 +7,7 @@ import type {
   TargetCondition,
   TargetQuery,
   EffectContext,
+  EffectContextWithOptionalCard,
 } from "../types";
 import type { Ctx, PlayerID } from "boardgame.io";
 
@@ -51,16 +52,15 @@ export function isTauntBypassAllowed(card: Card): boolean {
  */
 export function validateTargetQuery(
   query: TargetQuery,
+  context: EffectContextWithOptionalCard,
   sourceID: string,
-  G: GameState,
-  currentPlayerID: PlayerID,
-  targetValue: TargetValue,
 ) {
-  const isFriendly = targetValue.player === currentPlayerID;
+  const { G, target, playerID } = context;
+  const isFriendly = target?.player === playerID;
 
   const targetCard =
-    targetValue.type === "card"
-      ? G?.board[targetValue.player].find((c) => c.id === targetValue.id)
+    target?.type === "card"
+      ? G?.board[target?.player].find((c) => c.id === target?.id)
       : undefined;
 
   return query.type.some((type) => {
@@ -77,8 +77,8 @@ export function validateTargetQuery(
               condition,
               {
                 G,
-                playerID: currentPlayerID,
-                ctx: {},
+                playerID: playerID,
+                ctx: context.ctx,
                 location: "board",
                 card: targetCard,
               },
@@ -88,13 +88,13 @@ export function validateTargetQuery(
         );
       }
       case "player": {
-        if (targetValue.type !== "player") return false;
+        if (target?.type !== "player") return false;
         if (query.side === "enemy" && isFriendly) return false;
         if (query.side === "friendly" && !isFriendly) return false;
         return true;
       }
       case "lane": {
-        if (targetValue.type !== "lane") return false;
+        if (target?.type !== "lane") return false;
         if (query.side === "enemy" && isFriendly) return false;
         if (query.side === "friendly" && !isFriendly) return false;
         return true;
@@ -139,20 +139,16 @@ export function validateMove(
     ) {
       const validTarget = validateTargetQuery(
         card.battlecryQuery!,
+        {
+          card: card,
+          G,
+          ctx,
+          target,
+          location: location,
+          playerID: ctx.currentPlayer,
+        },
         card.id,
-        G,
-        ctx.currentPlayer,
-        target,
       );
-
-      const context: EffectContext = {
-        card: card,
-        G,
-        ctx,
-        target,
-        location: location,
-        playerID: ctx.currentPlayer,
-      };
 
       if (!validTarget) {
         return { valid: false, error: "invalid-target" };
@@ -203,20 +199,16 @@ export function validateMove(
   if (target) {
     const validTarget = validateTargetQuery(
       card.targetQuery,
+      {
+        card: card,
+        G,
+        ctx,
+        target,
+        location: location,
+        playerID: ctx.currentPlayer,
+      },
       card.id,
-      G,
-      ctx.currentPlayer,
-      target,
     );
-
-    const context: EffectContext = {
-      card: card,
-      G,
-      ctx,
-      target,
-      location: location,
-      playerID: ctx.currentPlayer,
-    };
 
     // check if target is minion and if minion is stealthed
     if (target.type === "card" && target.id) {
@@ -283,7 +275,7 @@ export function validateMove(
  */
 export function canTargetHighlight(
   activeCard: Card | null,
-  context: Omit<EffectContext, "card">,
+  context: EffectContextWithOptionalCard,
 ): boolean {
   if (!activeCard || !context.playerID) return false;
 
@@ -308,10 +300,8 @@ export function canTargetHighlight(
   if (isBattlecryMinion && context.target) {
     const isValidType = validateTargetQuery(
       activeCard.battlecryQuery!,
+      { ...context, card: activeCard },
       activeCard.id,
-      context.G,
-      context.playerID,
-      context.target,
     );
 
     // Battlecries bypass taunt, so return immediately
@@ -322,20 +312,9 @@ export function canTargetHighlight(
   if (!context.target) return false;
   const isValidType = validateTargetQuery(
     activeCard.targetQuery,
+    { ...context, card: activeCard },
     activeCard.id,
-    context.G,
-    context.playerID,
-    context.target,
   );
-
-  // const context: EffectContext = {
-  //   card: activeCard,
-  //   G,
-  //   ctx,
-  //   target,
-  //   location: "board",
-  //   playerID: ctx.currentPlayer,
-  // };
 
   if (!isValidType) return false;
 
