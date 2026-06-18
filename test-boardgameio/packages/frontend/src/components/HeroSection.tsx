@@ -12,7 +12,7 @@ interface Props extends BoardProps<GameState> {
 const healthIcon = "assets/health.png";
 const armorIcon = "assets/icons/Armor.webp";
 
-const HeroSection = ({ player }: Props) => {
+const HeroSection = ({ player, ...props }: Props) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `player-${player.id}`,
     data: {
@@ -23,7 +23,19 @@ const HeroSection = ({ player }: Props) => {
   });
 
   const isValidTarget = useDragStore((state) => state.isValidTarget);
-  const isValid = isValidTarget("player", player.id);
+  const isValid = isValidTarget(
+    {
+      type: "player",
+      player: player.id, // Include playerID to match the Lane component
+      id: player.id,
+    },
+    {
+      G: props.G,
+      ctx: props.ctx,
+      playerID: props.ctx.currentPlayer,
+      location: "board",
+    },
+  );
 
   const heroPortrait = player.heroPortrait || "src/assets/default-hero.jpg";
 

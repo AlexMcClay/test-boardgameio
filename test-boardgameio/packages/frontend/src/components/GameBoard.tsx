@@ -429,23 +429,25 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
             }}
           >
             {/* Player 1 Board */}
-            <Lane playerID={enemyPlayer}>
+            <Lane playerID={enemyPlayer} G={visualGameState} ctx={visualCtx}>
               {topBoard.map((card) => (
                 <DropDetectCard
                   playerID={enemyPlayer}
                   key={card.id}
                   card={card}
                   ctx={visualCtx}
+                  G={visualGameState}
                 />
               ))}
             </Lane>
-            <Lane playerID={mainPlayer}>
+            <Lane playerID={mainPlayer} G={visualGameState} ctx={visualCtx}>
               {bottomBoard.map((card) => (
                 <DropDetectCard
                   playerID={mainPlayer}
                   key={card.id}
                   card={card}
                   ctx={visualCtx}
+                  G={visualGameState}
                 />
               ))}
             </Lane>

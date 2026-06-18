@@ -10,12 +10,13 @@ import { DEATH_ANIMATION } from "@/utils/animationDurations";
 import PlacedCard from "./PlacedCard";
 import { useAudioStore } from "@/stores/audioStore";
 import MinionCardPopover from "../MinionCardPopover";
-import { getAttack } from "@project/shared";
+import { getAttack, type GameState } from "@project/shared";
 
 interface Props extends CardProps {
   playerID: PlayerID;
   ctx: Ctx;
   isValid: boolean;
+  G: GameState;
 }
 
 // MinionCard component with attack arrow behavior and attack animations
@@ -375,7 +376,20 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
 const DropDetectCard = (props: Omit<Props, "isValid">) => {
   const isFirstRender = useRef(true);
   const isValidTarget = useDragStore((state) => state.isValidTarget);
-  const isValid = isValidTarget("card", props.playerID, props.card.id);
+  const isValid = isValidTarget(
+    {
+      type: "card",
+      player: props.playerID, // Include playerID to match the Lane component
+      id: props.card.id,
+    },
+    {
+      ctx: props.ctx,
+      location: "board",
+      playerID: props.ctx.currentPlayer,
+      card: props.card,
+      G: props.G,
+    },
+  );
   const playSfx = useAudioStore((state) => state.playSfx);
 
   useEffect(() => {

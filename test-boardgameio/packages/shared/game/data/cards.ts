@@ -4,11 +4,12 @@ import type {
   BaseBoolEffect,
   Card,
   DamageEffect,
+  DynamicValue,
   EffectTypes,
 } from "../types";
 
 const damage = (
-  value: number | keyof Card,
+  value: number | DynamicValue,
   target: DamageEffect["target"] = "user-select",
   battlecry: boolean = false,
 ): EffectTypes => {
@@ -24,6 +25,7 @@ const applyModifier = (
   stat: ApplyModifierEffect["stat"],
   value: ApplyModifierEffect["value"],
   target: ApplyModifierEffect["target"] = "user-select",
+  override: boolean = false,
   duration?: ApplyModifierEffect["duration"],
 ): ApplyModifierEffect => {
   return {
@@ -32,6 +34,7 @@ const applyModifier = (
     value: value,
     target: target,
     duration: duration,
+    override: override,
   };
 };
 
@@ -72,7 +75,7 @@ const mana = (value: number): EffectTypes => {
 };
 
 const heal = (
-  value: number,
+  value: number | DynamicValue,
   target:
     | "user-select"
     | "friendly-hero"
@@ -88,7 +91,7 @@ const heal = (
   };
 };
 
-const draw = (value: number): EffectTypes => {
+const draw = (value: number | DynamicValue): EffectTypes => {
   return {
     type: "draw",
     value: value,
@@ -97,7 +100,7 @@ const draw = (value: number): EffectTypes => {
 
 const changeKey = (
   key: keyof Card,
-  value: any,
+  value: DynamicValue,
   target: "user-select" | "self" = "self",
 ): EffectTypes => {
   return {
@@ -111,11 +114,13 @@ const changeKey = (
 const summon = (
   cardID: string,
   target: "self" | "enemy" = "self",
+  count: number = 1,
 ): EffectTypes => {
   return {
     type: "summon",
     cardID: cardID,
     target: target,
+    value: count,
   };
 };
 
@@ -140,7 +145,12 @@ export const cardTemplates = {
     baseHealth: 2,
     type: ["Demon"],
     imageUrl: "assets/cards/Flame_Imp.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [damage(3, "friendly-hero")],
     targetQuery: {
       side: "enemy",
@@ -157,7 +167,12 @@ export const cardTemplates = {
     baseHealth: 5,
     type: ["Beast"],
     imageUrl: "assets/cards/Chillwind_Yeti.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -246,7 +261,12 @@ export const cardTemplates = {
     baseAttack: 6,
     baseHealth: 7,
     imageUrl: "assets/cards/Boulderfist_Ogre_full.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -263,7 +283,12 @@ export const cardTemplates = {
     baseHealth: 1,
     type: ["Beast"],
     imageUrl: "assets/cards/Wolfrider.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     charge: true,
     onPlace: [],
     targetQuery: {
@@ -297,7 +322,12 @@ export const cardTemplates = {
     baseHealth: 2,
     type: ["Beast"],
     imageUrl: "assets/cards/Bloodfen_Raptor.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -314,7 +344,12 @@ export const cardTemplates = {
     baseHealth: 3,
     type: ["Beast"],
     imageUrl: "assets/cards/River_Crocolisk.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -332,7 +367,12 @@ export const cardTemplates = {
     baseHealth: 3,
     type: ["Beast"],
     imageUrl: "assets/cards/Ironfur_Grizzly.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -371,7 +411,12 @@ export const cardTemplates = {
     baseMana: 1,
     type: ["Murloc"],
     imageUrl: "assets/cards/Murloc_Raider.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -388,7 +433,12 @@ export const cardTemplates = {
     baseHealth: 2,
     baseMana: 2,
     imageUrl: "assets/cards/Frostwolf_Grunt.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -405,7 +455,12 @@ export const cardTemplates = {
     baseMana: 2,
     type: ["Murloc"],
     imageUrl: "assets/cards/Murloc_Raider.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [summon("murloc-scout")],
     targetQuery: {
       side: "enemy",
@@ -422,7 +477,12 @@ export const cardTemplates = {
     baseMana: 1,
     type: ["Murloc"],
     imageUrl: "assets/cards/Murloc_Raider.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -439,7 +499,12 @@ export const cardTemplates = {
     baseHealth: 3,
     baseMana: 3,
     imageUrl: "assets/cards/Razorfen_Hunter.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [summon("boar")],
     targetQuery: {
       side: "enemy",
@@ -456,7 +521,12 @@ export const cardTemplates = {
     baseMana: 1,
     type: ["Beast"],
     imageUrl: "assets/cards/Boar.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -473,7 +543,12 @@ export const cardTemplates = {
     baseHealth: 4,
     baseMana: 4,
     imageUrl: "assets/cards/Dragonling_Mechanic.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [summon("mechanical-dragonling")],
     targetQuery: {
       side: "enemy",
@@ -490,7 +565,12 @@ export const cardTemplates = {
     baseMana: 2,
     type: ["Mechanical"],
     imageUrl: "assets/cards/Mechanical_Dragonling.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -508,7 +588,12 @@ export const cardTemplates = {
     baseHealth: 5,
     baseMana: 4,
     imageUrl: "assets/cards/Senjin_Shieldmasta.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -525,7 +610,12 @@ export const cardTemplates = {
     baseHealth: 5,
     baseMana: 6,
     imageUrl: "assets/cards/Lord_of_the_Arena.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -543,7 +633,12 @@ export const cardTemplates = {
     baseMana: 4,
     charge: true,
     imageUrl: "assets/cards/Stormwind_Knight.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -608,7 +703,12 @@ export const cardTemplates = {
     baseMana: 5,
     type: ["Naga"],
     imageUrl: "assets/cards/Darkscale_Healer.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [heal(2, "friendly-all", true)],
     targetQuery: {
       side: "enemy",
@@ -625,7 +725,12 @@ export const cardTemplates = {
     baseMana: 5,
     type: ["Human"],
     imageUrl: "assets/cards/Nightblade.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [damage(3, "enemy-hero")],
     targetQuery: {
       side: "enemy",
@@ -641,7 +746,12 @@ export const cardTemplates = {
     baseHealth: 1,
     baseMana: 1,
     imageUrl: "assets/cards/Elven_Archer.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [damage(1, "user-select", true)], // Battlecry damage that can target any character, bypassing taunt
     targetQuery: {
       side: "enemy",
@@ -661,7 +771,12 @@ export const cardTemplates = {
     baseHealth: 2,
     baseMana: 3,
     imageUrl: "assets/cards/Ironforge_Rifleman.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [damage(1, "user-select", true)],
     targetQuery: {
       side: "enemy",
@@ -682,7 +797,12 @@ export const cardTemplates = {
     type: ["Beast"],
     description: "",
     imageUrl: "assets/cards/Core_Hound.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -700,7 +820,12 @@ export const cardTemplates = {
     baseMana: 3,
     type: ["Beast"],
     imageUrl: "assets/cards/Silverback_Patriarch.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -717,7 +842,12 @@ export const cardTemplates = {
     baseHealth: 1,
     type: ["Elemental"],
     imageUrl: "assets/cards/Magma_Rager.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -734,7 +864,12 @@ export const cardTemplates = {
     baseHealth: 7,
     type: ["Beast"],
     imageUrl: "assets/cards/Oasis_Snapjaw.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -751,7 +886,12 @@ export const cardTemplates = {
     baseHealth: 4,
     type: ["Human"],
     imageUrl: "assets/cards/Silver_Hand_Knight.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [summon("squire")],
     targetQuery: {
       side: "enemy",
@@ -768,7 +908,12 @@ export const cardTemplates = {
     baseHealth: 2,
     type: ["Human"],
     imageUrl: "assets/cards/Squire.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -785,7 +930,12 @@ export const cardTemplates = {
     baseAttack: 2,
     baseHealth: 1,
     imageUrl: "assets/cards/Voodoo_Doctor.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [heal(2)], // Reuses your healing-touch payload architecture on a targeted entity
     battlecryQuery: {
       side: "friendly",
@@ -805,7 +955,12 @@ export const cardTemplates = {
     baseAttack: 1,
     baseHealth: 1,
     imageUrl: "assets/cards/Novice_Engineer.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [draw(1)], // Draw a card when placed
     targetQuery: {
       side: "enemy",
@@ -821,7 +976,12 @@ export const cardTemplates = {
     baseAttack: 4,
     baseHealth: 2,
     imageUrl: "assets/cards/Stormpike_Commando.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [damage(2, "user-select", true)], // Uses elven archer battlecry logic scaled to 2
     targetQuery: {
       side: "enemy",
@@ -841,7 +1001,12 @@ export const cardTemplates = {
     baseAttack: 2,
     baseHealth: 4,
     imageUrl: "assets/cards/Gnomish_Inventor.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [draw(1)], // Draw a card when placed
     targetQuery: {
       side: "enemy",
@@ -904,7 +1069,12 @@ export const cardTemplates = {
     baseHealth: 2,
     baseMana: 1,
     imageUrl: "assets/cards/Goldshire_Footman.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -921,7 +1091,12 @@ export const cardTemplates = {
     baseHealth: 4,
     baseMana: 5,
     imageUrl: "assets/cards/Booty_Bay_Bodyguard.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -937,7 +1112,12 @@ export const cardTemplates = {
     baseAttack: 5,
     baseHealth: 2,
     imageUrl: "assets/cards/Reckless_Rocketeer.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     charge: true,
     onPlace: [],
     targetQuery: {
@@ -970,7 +1150,12 @@ export const cardTemplates = {
     baseHealth: 1,
     type: ["Murloc"],
     imageUrl: "assets/cards/Bluegill_Warrior.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     charge: true,
     onPlace: [],
     targetQuery: {
@@ -1025,7 +1210,12 @@ export const cardTemplates = {
       side: "enemy",
       type: ["card", "player"],
     },
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     deathrattle: [damage(2, "enemy-hero")],
   },
@@ -1042,7 +1232,12 @@ export const cardTemplates = {
       side: "enemy",
       type: ["card", "player"],
     },
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     deathrattle: [draw(1)],
   },
@@ -1057,7 +1252,12 @@ export const cardTemplates = {
     isMinion: true,
     divineShield: true, // Spawns with the effect active
     class: "Neutral",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -1075,7 +1275,12 @@ export const cardTemplates = {
     isMinion: true,
     divineShield: true,
     class: "Paladin",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -1097,7 +1302,12 @@ export const cardTemplates = {
       side: "enemy",
       type: ["card", "player"],
     },
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
   },
   sunwalker: {
@@ -1115,7 +1325,12 @@ export const cardTemplates = {
       side: "enemy",
       type: ["card", "player"],
     },
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
   },
   "argent-protector": {
@@ -1133,7 +1348,12 @@ export const cardTemplates = {
       side: "enemy",
       type: ["card", "player"],
     },
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [divineShield("user-select", true)],
     battlecryQuery: {
       side: "friendly",
@@ -1190,7 +1410,12 @@ export const cardTemplates = {
     baseHealth: 2,
     charge: true,
     imageUrl: "assets/cards/Treant.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -1209,7 +1434,12 @@ export const cardTemplates = {
     baseHealth: 8,
     type: ["Minion"],
     imageUrl: "assets/cards/Ironbark_Protector.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -1293,7 +1523,12 @@ export const cardTemplates = {
     baseAttack: 4,
     baseHealth: 3,
     imageUrl: "assets/cards/Korkron_Elite.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     charge: true,
     onPlace: [],
     targetQuery: {
@@ -1330,7 +1565,12 @@ export const cardTemplates = {
     baseHealth: 7,
     taunt: true,
     imageUrl: "assets/cards/Guardian_of_Kings.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     // Restores 6 baseHealth directly to the friendly hero on placement
     onPlace: [heal(6, "friendly-hero", true)],
     targetQuery: {
@@ -1348,7 +1588,12 @@ export const cardTemplates = {
     baseHealth: 4,
     rush: true,
     imageUrl: "assets/cards/Warsong_Outrider.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -1364,7 +1609,12 @@ export const cardTemplates = {
     baseAttack: 2,
     baseHealth: 3,
     imageUrl: "assets/cards/Cruel_Taskmaster.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [damage(1, "user-select", true), applyModifier("attack", 2)],
     battlecryQuery: {
       side: "all",
@@ -1435,7 +1685,12 @@ export const cardTemplates = {
     baseHealth: 3,
     type: ["Beast"],
     imageUrl: "assets/cards/Coliseum_Crocolisk.jpg",
-    effects: [damage("baseAttack")],
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -1444,6 +1699,262 @@ export const cardTemplates = {
     isMinion: true,
     isUncollectible: true, // Generated by the parent spell
     class: "Warrior",
+  },
+  execute: {
+    title: "Execute",
+    description: "Destroy a damaged enemy minion.",
+    baseMana: 1,
+    imageUrl: "assets/cards/Execute.jpg",
+    effects: [destroy("user-select")],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "enemy",
+      type: ["card"],
+      conditions: [
+        {
+          type: "state-match",
+          condition: "isDamaged",
+        },
+      ],
+    },
+    isMinion: false,
+    class: "Warrior",
+  },
+  "mortal-strike": {
+    title: "Mortal Strike",
+    description:
+      "Deal 4 damage. If you have 12 or less Health, deal 6 instead.",
+    baseMana: 4,
+    imageUrl: "assets/cards/Mortal_Strike.jpg",
+    effects: [
+      {
+        type: "conditional",
+        conditions: [
+          {
+            type: "numeric",
+            key: { type: "player-health", player: "friendly" },
+            operator: "<=",
+            value: 12,
+          },
+        ],
+        then: [{ type: "damage", value: 6, target: "user-select" }],
+        else: [{ type: "damage", value: 4, target: "user-select" }],
+      },
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: false,
+    class: "Warrior",
+  },
+  shadowflame: {
+    title: "Shadowflame",
+    description:
+      "Destroy a friendly minion and deal its Attack damage to all enemy minions.",
+    baseMana: 4,
+    imageUrl: "assets/cards/Shadowflame.jpg",
+    effects: [
+      {
+        type: "sequence",
+        steps: [
+          {
+            type: "storeVar",
+            target: "user-select",
+            value: { type: "card-stat", stat: "attack" },
+          },
+          {
+            type: "damage",
+            value: { type: "temp" }, // inspects the user-selected friendly minion
+            target: "enemy-board",
+          },
+          { type: "destroy", target: "user-select" },
+        ],
+      },
+    ],
+    onPlace: [],
+    type: ["Shadow"],
+    isSpell: true,
+    targetQuery: {
+      side: "friendly",
+      type: ["card"],
+    },
+    isMinion: false,
+    class: "Warlock",
+  },
+  rampage: {
+    title: "Rampage",
+    description: "Give a damaged minion +3/+3.",
+    baseMana: 2,
+    imageUrl: "assets/cards/Rampage.jpg",
+    effects: [
+      applyModifier("health", 3, "user-select"),
+      applyModifier("attack", 3, "user-select"),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card"],
+      conditions: [
+        {
+          type: "state-match",
+          condition: "isDamaged",
+        },
+      ],
+    },
+    isMinion: false,
+    class: "Warrior",
+  },
+  righteousness: {
+    title: "Righteousness",
+    description: "Give your minions Divine Shield.",
+    baseMana: 5,
+    type: ["Holy"],
+    imageUrl: "assets/cards/Righteousness.jpg",
+    effects: [divineShield("friendly-board")],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane", "card"],
+    },
+    isMinion: false,
+    class: "Paladin",
+  },
+  "arcane-missiles": {
+    title: "Arcane Missiles",
+    description: "Deal 3 damage randomly split among all enemies.",
+    baseMana: 1,
+    imageUrl: "assets/cards/Arcane_Missiles.jpg",
+    type: ["Arcane"],
+    effects: [
+      {
+        type: "damage",
+        value: 3,
+        target: "enemy-all", // Routes to enemy hero + enemy board pool
+        rand: {
+          split: true,
+          n: 0, // 0 for targeting all potential candidates in the pool
+        },
+      },
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane", "card"],
+    },
+    isMinion: false,
+    class: "Mage",
+  },
+  "ice-lance": {
+    title: "Ice Lance",
+    description:
+      "Freeze a character. If they were already Frozen, deal 4 damage instead.",
+    baseMana: 1,
+    imageUrl: "assets/cards/Ice_Lance.jpg",
+    class: "Mage",
+    isMinion: false,
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card", "player"],
+    },
+    effects: [
+      {
+        type: "conditional",
+        conditions: [
+          {
+            type: "boolean",
+            key: "frozen",
+            value: true,
+          },
+        ],
+        // If already frozen: deal 4 damage, then re-apply freeze (maintains frozen flag state)
+        then: [
+          { type: "damage", value: 4, target: "user-select" },
+          { type: "freeze", target: "user-select" },
+        ],
+        // If NOT frozen: just freeze them!
+        else: [{ type: "freeze", target: "user-select" }],
+      },
+    ],
+    onPlace: [],
+  },
+  "water-elemental": {
+    title: "Water Elemental",
+    description: "Freeze any character damaged by this minion.",
+    baseMana: 4,
+    baseAttack: 3,
+    baseHealth: 6,
+    type: ["Elemental"],
+    imageUrl: "assets/cards/Water_Elemental.jpg",
+    class: "Mage",
+    isMinion: true,
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+      freeze(),
+    ],
+    onPlace: [],
+  },
+  "deep-freeze": {
+    title: "Deep Freeze",
+    description: "Freeze a enemy. Summon two 3/6 Water Elementals.",
+    baseMana: 7,
+    imageUrl: "assets/cards/Deep_Freeze.jpg",
+    class: "Mage",
+    type: ["Frost"],
+    isMinion: false,
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card"], // Strictly targets a minion on the board
+    },
+    effects: [freeze(), summon("water-elemental", "self", 2)],
+    onPlace: [],
+  },
+  icicle: {
+    title: "Icicle",
+    description: "Deal 2 damage to a minion. If it's Frozen, draw a card.",
+    baseMana: 2,
+    imageUrl: "assets/cards/Icicle.jpg",
+    class: "Mage",
+    type: ["Frost"],
+    isMinion: false,
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card"], // Strictly restricts targeting to minions on board, bypassing heroes
+    },
+    effects: [
+      // Step 1: Fire the baseline 2 damage at the selected target
+      damage(2),
+      // Step 2: Check if that target is frozen to trigger the draw effect
+      {
+        type: "conditional",
+        conditions: [
+          {
+            type: "boolean",
+            key: "frozen",
+            value: true,
+          },
+        ],
+        then: [draw(1)],
+        // No 'else' needed here since nothing happens if it isn't frozen
+      },
+    ],
+    onPlace: [],
   },
 } satisfies Record<string, Omit<Card, "id" | "originalID" | "damageTaken">>;
 

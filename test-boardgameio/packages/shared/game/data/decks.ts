@@ -58,6 +58,7 @@ export const druidDeckString: DeckString = {
 
 export const mageDeckString: DeckString = {
   // ALL 8 Available Mage Class Cards (16 cards total)
+  "ice-lance": 2,
   "mirror-image-spell": 2,
   frostbolt: 2,
   "arcane-intellect": 2,
@@ -73,11 +74,10 @@ export const mageDeckString: DeckString = {
   "gnomish-inventor": 2, // Battlecry
 
   // Valid Collectible Neutrals to fill up to 30 (8 cards)
-  "murloc-raider": 2,
-  "chillwind-yeti": 2,
+  "murloc-raider": 1,
+  "chillwind-yeti": 1,
   "senjin-shieldmasta": 2,
-  "magma-rager": 1,
-  "silver-hand-knight": 1,
+  "water-elemental": 2,
   "boulderfist-ogre": 2,
 }; // Total: 30 cards
 

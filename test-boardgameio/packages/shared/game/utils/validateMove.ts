@@ -6,8 +6,12 @@ import type {
   GameState,
   TargetCondition,
   TargetQuery,
+  EffectContext,
+  EffectContextWithOptionalCard,
 } from "../types";
 import type { Ctx, PlayerID } from "boardgame.io";
+
+import { checkSingleTargetCondition } from "./effectEngine";
 
 export type MoveValidationError =
   | "card-not-found"
@@ -48,38 +52,49 @@ export function isTauntBypassAllowed(card: Card): boolean {
  */
 export function validateTargetQuery(
   query: TargetQuery,
+  context: EffectContextWithOptionalCard,
   sourceID: string,
-  G: GameState | null,
-  currentPlayerID: PlayerID,
-  targetValue: TargetValue,
 ) {
-  const isFriendly = targetValue.player === currentPlayerID;
+  const { G, target, playerID } = context;
+  const isFriendly = target?.player === playerID;
 
   const targetCard =
-    targetValue.type === "card"
-      ? G?.board[targetValue.player].find((c) => c.id === targetValue.id)
+    target?.type === "card"
+      ? G?.board[target?.player].find((c) => c.id === target?.id)
       : undefined;
 
   return query.type.some((type) => {
     switch (type) {
       case "card": {
         if (!targetCard) return false;
+
         if (query.side === "enemy" && isFriendly) return false;
         if (query.side === "friendly" && !isFriendly) return false;
         return (
           query.conditions?.every((condition) =>
-            matchCondition(targetCard, condition, sourceID),
+            checkSingleTargetCondition(
+              targetCard,
+              condition,
+              {
+                G,
+                playerID: playerID,
+                ctx: context.ctx,
+                location: "board",
+                card: targetCard,
+              },
+              sourceID,
+            ),
           ) ?? true
         );
       }
       case "player": {
-        if (targetValue.type !== "player") return false;
+        if (target?.type !== "player") return false;
         if (query.side === "enemy" && isFriendly) return false;
         if (query.side === "friendly" && !isFriendly) return false;
         return true;
       }
       case "lane": {
-        if (targetValue.type !== "lane") return false;
+        if (target?.type !== "lane") return false;
         if (query.side === "enemy" && isFriendly) return false;
         if (query.side === "friendly" && !isFriendly) return false;
         return true;
@@ -124,10 +139,15 @@ export function validateMove(
     ) {
       const validTarget = validateTargetQuery(
         card.battlecryQuery!,
+        {
+          card: card,
+          G,
+          ctx,
+          target,
+          location: location,
+          playerID: ctx.currentPlayer,
+        },
         card.id,
-        G,
-        ctx.currentPlayer,
-        target,
       );
 
       if (!validTarget) {
@@ -179,10 +199,15 @@ export function validateMove(
   if (target) {
     const validTarget = validateTargetQuery(
       card.targetQuery,
+      {
+        card: card,
+        G,
+        ctx,
+        target,
+        location: location,
+        playerID: ctx.currentPlayer,
+      },
       card.id,
-      G,
-      ctx.currentPlayer,
-      target,
     );
 
     // check if target is minion and if minion is stealthed
@@ -250,22 +275,21 @@ export function validateMove(
  */
 export function canTargetHighlight(
   activeCard: Card | null,
-  currentPlayer: PlayerID | null,
-  targetType: "card" | "player" | "lane",
-  targetPlayerID: PlayerID,
-  gameState: GameState | null,
-  targetCardId?: string,
+  context: EffectContextWithOptionalCard,
 ): boolean {
-  if (!activeCard || !currentPlayer) return false;
+  if (!activeCard || !context.playerID) return false;
 
   // Unplaced minions can only target lanes
   if (!activeCard.isPlaced && activeCard.isMinion) {
-    return targetType === "lane" && targetPlayerID === currentPlayer;
+    return (
+      context?.target?.type === "lane" &&
+      context?.target?.player === context.playerID
+    );
   }
 
   // Check if this is a battlecry minion
   const isBattlecryMinion =
-    gameState?.activeBattlecryMinion?.cardId === activeCard.id;
+    context.G?.activeBattlecryMinion?.cardId === activeCard.id;
 
   // Placed cards that already attacked can't target anything (unless battlecry)
   if (activeCard.isPlaced && activeCard.hasAttacked && !isBattlecryMinion) {
@@ -273,17 +297,11 @@ export function canTargetHighlight(
   }
 
   // For battlecry minions, use battlecryTargets for validation
-  if (isBattlecryMinion) {
+  if (isBattlecryMinion && context.target) {
     const isValidType = validateTargetQuery(
       activeCard.battlecryQuery!,
+      { ...context, card: activeCard },
       activeCard.id,
-      gameState,
-      currentPlayer,
-      {
-        type: targetType,
-        player: targetPlayerID,
-        id: targetCardId || "",
-      },
     );
 
     // Battlecries bypass taunt, so return immediately
@@ -291,16 +309,11 @@ export function canTargetHighlight(
   }
 
   // Check basic target type validity
+  if (!context.target) return false;
   const isValidType = validateTargetQuery(
     activeCard.targetQuery,
+    { ...context, card: activeCard },
     activeCard.id,
-    gameState,
-    currentPlayer,
-    {
-      type: targetType,
-      player: targetPlayerID,
-      id: targetCardId || "",
-    },
   );
 
   if (!isValidType) return false;
@@ -313,27 +326,29 @@ export function canTargetHighlight(
     activeCard.rush &&
     !activeCard.charge
   ) {
-    if (targetType === "player") {
+    if (context.target.type === "player") {
       return false;
     }
   }
 
   // TAUNT MECHANIC: Check if trying to bypass taunt in UI
-  if (gameState) {
-    const isTargetingEnemy = targetPlayerID !== currentPlayer;
+  if (context.G) {
+    const isTargetingEnemy = context.target.player !== context.playerID;
     if (isTargetingEnemy && !isTauntBypassAllowed(activeCard)) {
-      const enemyBoard = gameState.board[targetPlayerID];
+      const enemyBoard = context.G.board[context.target.player];
       const enemyHasTaunt = hasTauntMinions(enemyBoard);
 
       if (enemyHasTaunt) {
         // If targeting enemy hero, must attack taunt instead
-        if (targetType === "player") {
+        if (context.target.type === "player") {
           return false;
         }
 
         // If targeting an enemy card, it must be a taunt minion
-        if (targetType === "card" && targetCardId) {
-          const targetCard = enemyBoard.find((c) => c.id === targetCardId);
+        if (context.target.type === "card" && context.target.id) {
+          const targetCard = enemyBoard.find(
+            (c) => c.id === context?.target?.id,
+          );
           if (!targetCard || !targetCard.taunt) {
             return false;
           }
@@ -343,70 +358,4 @@ export function canTargetHighlight(
   }
 
   return true;
-}
-
-/**
- * Evaluates whether a single card satisfies a specific targeted rule condition
- */
-function matchCondition(
-  card: Card,
-  condition: TargetCondition,
-  conditionSourceID: string,
-): boolean {
-  switch (condition.type) {
-    case "boolean":
-      // Safely evaluates truthiness (handles undefined properties as false)
-      return !!card[condition.key] === condition.value;
-
-    case "numeric": {
-      const cardValue =
-        condition.key === "attack"
-          ? getAttack(card)
-          : condition.key === "health"
-            ? getCurrentHealth(card)
-            : getManaCost(card);
-      const targetValue = condition.value;
-      switch (condition.operator) {
-        case "==":
-          return cardValue === targetValue;
-        case "!=":
-          return cardValue !== targetValue;
-        case ">":
-          return cardValue > targetValue;
-        case ">=":
-          return cardValue >= targetValue;
-        case "<":
-          return cardValue < targetValue;
-        case "<=":
-          return cardValue <= targetValue;
-      }
-    }
-
-    case "text-contains": {
-      const text = card[condition.key]?.toLowerCase() ?? "";
-      return text.includes(condition.value.toLowerCase());
-    }
-
-    case "tags-include": {
-      // Assuming your card type array is card.tags: string[] (e.g. ["Wisp", "Token"])
-      const tags = card.type ?? [];
-      return tags.some(
-        (tag) => tag.toLowerCase() === condition.value.toLowerCase(),
-      );
-    }
-
-    case "state-match": {
-      const health = getCurrentHealth(card);
-      const maxHealth = getMaxHealth(card);
-      if (condition.condition === "isDamaged") return health < maxHealth;
-      if (condition.condition === "isUndamaged") return health === maxHealth;
-      return true;
-    }
-
-    case "exclude-self":
-      return card.id !== conditionSourceID;
-
-    default:
-      return false;
-  }
 }
