@@ -89,7 +89,7 @@ export function enumerateAIMoves(G: GameState, ctx: Ctx): AIMove[] {
 
   // Sort by score descending
   scoredMoves.sort((a, b) => b.score - a.score);
-  if (scoredMoves.length < 3) {
+  if (scoredMoves.length < 2) {
     scoredMoves.push({
       move: "endTurn",
       args: [],

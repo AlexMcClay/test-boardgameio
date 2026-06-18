@@ -1,26 +1,42 @@
 import { useDragStore } from "@/stores/dragStore";
 import { useDroppable } from "@dnd-kit/core";
-import type { PlayerID } from "boardgame.io";
+import type { Ctx, PlayerID } from "boardgame.io";
 import React from "react";
 import { twMerge } from "tailwind-merge";
 import { AnimatePresence } from "motion/react";
+import type { GameState } from "@project/shared";
 
 type Props = {
   children: React.ReactNode;
   playerID: PlayerID; // Added playerID to match the Board component
+  G: GameState;
+  ctx: Ctx;
 };
 
-const Lane = ({ children, playerID }: Props) => {
+const Lane = ({ children, playerID, ...props }: Props) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `lane-${playerID}`,
     data: {
       type: "lane",
       id: `lane-${playerID}`,
+      player: playerID,
     },
   });
 
   const isValidTarget = useDragStore((state) => state.isValidTarget);
-  const isValid = isValidTarget("lane", playerID);
+  const isValid = isValidTarget(
+    {
+      type: "lane",
+      id: `lane-${playerID}`,
+      player: playerID,
+    },
+    {
+      G: props.G,
+      ctx: props.ctx,
+      playerID: props.ctx.currentPlayer,
+      location: "board",
+    },
+  );
 
   return (
     <div

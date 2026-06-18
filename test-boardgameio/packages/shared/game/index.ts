@@ -1,4 +1,12 @@
-import type { Card, GameState, Player, TargetValue, Hero } from "./types";
+import type {
+  Card,
+  GameState,
+  Player,
+  TargetValue,
+  Hero,
+  EffectTypes,
+  EffectContext,
+} from "./types";
 import {
   createCardFromID,
   getAttack,
@@ -18,6 +26,7 @@ import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
 import { validateMove } from "./utils/validateMove";
 import type { CardTemplateKey } from "./data/cards";
 import { enumerateAIMoves } from "./ai";
+import { resolveDynamicValue } from "./utils/effectEngine.js";
 
 export const isVictory = ({ G }: { G: GameState; ctx: Ctx }) => {
   if (G.players[0].health <= 0) {
@@ -104,10 +113,12 @@ const placeCard: Move<GameState> = (
   target?: TargetValue,
   boardIndex?: number, // Insert position on the board
 ) => {
-  // console.log(
-  //   `Attempting to place card ${cardId} from ${location} (AI Move #${G.aiMoveCount}) with target:`,
-  //   target,
-  // );
+  const player = G.players[ctx.currentPlayer];
+  const card =
+    location === "hand"
+      ? player.hand.find((c) => c.id === cardId)!
+      : G.board[ctx.currentPlayer].find((c) => c.id === cardId)!;
+
   // Check if this is a battlecry resolution
   const isResolvingBattlecry =
     G.activeBattlecryMinion?.cardId === cardId &&
@@ -117,14 +128,15 @@ const placeCard: Move<GameState> = (
   if (isResolvingBattlecry) {
     // console.log("Resolving battlecry for card:", cardId);
     // Execute the battlecry onPlace effects with target
-    doEffects(
-      { G, ctx },
-      cardId,
-      "onPlace",
-      "board",
-      ctx.currentPlayer,
+
+    executeEffects(card.onPlace, {
+      card: card,
+      G,
+      ctx,
+      location: "board",
+      playerID: ctx.currentPlayer,
       target,
-    );
+    });
     // Clear the battlecry state
     G.activeBattlecryMinion = null;
     processDeaths(G, ctx);
@@ -150,15 +162,16 @@ const placeCard: Move<GameState> = (
     timestamp: Date.now(),
   };
 
-  const player = G.players[ctx.currentPlayer];
-  const card =
-    location === "hand"
-      ? player.hand.find((c) => c.id === cardId)!
-      : G.board[ctx.currentPlayer].find((c) => c.id === cardId)!;
-
   player.mana -= !card.isPlaced ? getManaCost(card) : 0;
 
-  doEffects({ G, ctx }, cardId, "effects", location, ctx.currentPlayer, target);
+  executeEffects(card.effects, {
+    card: card,
+    G,
+    ctx,
+    location,
+    playerID: ctx.currentPlayer,
+    target,
+  });
 
   // See if the card can be placed on the board
   if (card.isMinion && !card.isPlaced) {
@@ -190,14 +203,14 @@ const placeCard: Move<GameState> = (
       };
     } else {
       // Execute onPlace immediately for non-targeted battlecries
-      doEffects(
-        { G, ctx },
-        cardId,
-        "onPlace",
+      executeEffects(card.onPlace, {
+        card: card,
+        G,
+        ctx,
         location,
-        ctx.currentPlayer,
+        playerID: ctx.currentPlayer,
         target,
-      );
+      });
     }
 
     if (boardIndex !== undefined) {
@@ -238,39 +251,15 @@ const placeCard: Move<GameState> = (
   processDeaths(G, ctx);
 };
 
-const doEffects = (
-  {
-    G,
-    ctx,
-  }: {
-    G: GameState;
-    ctx: Ctx;
-  },
-  cardId: string,
-  key: "effects" | "onPlace" | "deathrattle" = "effects",
-  location: "hand" | "board",
-  playerID: PlayerID,
-  target?: TargetValue,
-) => {
-  const player = G.players[playerID];
-  const card =
-    location === "hand"
-      ? player.hand.find((c) => c.id === cardId)
-      : G.board[playerID].find((c) => c.id === cardId);
-  if (!card) {
-    console.warn("Card not found in the specified location");
-    return; // Card not found in the specified location
-  }
+const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
+  const { card, target, location, playerID, G, ctx } = context;
+  const cardId = card.id;
 
-  card[key]?.forEach((effect) => {
+  effects.forEach((effect) => {
     switch (effect.type) {
       case "damage": {
-        const damage =
-          effect.value === "baseAttack"
-            ? getAttack(card)
-            : typeof effect.value === "string"
-              ? (card[effect.value] as number)
-              : effect.value;
+        const damage = resolveDynamicValue(effect.value, context);
+        console.log(`${effect.value}: ${damage}`);
 
         if (target && effect.target === "user-select") {
           if (card.isPlaced && !effect.battlecry && card.isMinion) {
@@ -420,7 +409,7 @@ const doEffects = (
         break;
       }
       case "heal": {
-        const healValue = effect.value;
+        const healValue = resolveDynamicValue(effect.value, context);
 
         // 1. Single Selected Target Logic
         if (effect.target === "user-select" && target) {
@@ -463,7 +452,7 @@ const doEffects = (
       }
       case "mana":
         // increment current   player's mana
-        G.players[playerID].mana += effect.value;
+        G.players[playerID].mana += resolveDynamicValue(effect.value, context);
         recordEvent(G, {
           type: "mana",
           playerId: ctx.currentPlayer,
@@ -566,11 +555,14 @@ const doEffects = (
         const playerTarget =
           effect.target === "self" ? playerID : enemyPlayerId;
         // check if the board can fit the summoned card
-        G.players[playerTarget].armor += effect.value;
+        G.players[playerTarget].armor += resolveDynamicValue(
+          effect.value,
+          context,
+        );
 
         break;
       case "draw":
-        for (let i = 0; i < effect.value; i++) {
+        for (let i = 0; i < resolveDynamicValue(effect.value, context); i++) {
           handleDrawCard(G, ctx, playerID);
         }
         break;
@@ -645,16 +637,13 @@ function processDeaths(G: GameState, ctx: Ctx) {
       deadMinions.forEach((deadCard) => {
         // 2. TRIGGER DEATHRATTLES:
         if (deadCard.deathrattle && deadCard.deathrattle.length > 0) {
-          doEffects(
-            {
-              G,
-              ctx,
-            },
-            deadCard.id,
-            "deathrattle",
-            "board",
-            playerId,
-          );
+          executeEffects(deadCard.deathrattle, {
+            card: deadCard,
+            G,
+            ctx,
+            location: "board",
+            playerID: playerId,
+          });
         }
 
         // 3. Record death event for frontend UI animations

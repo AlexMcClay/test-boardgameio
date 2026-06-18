@@ -66,6 +66,18 @@ export interface Player {
   deck: Card[];
 }
 
+export interface EffectContext {
+  G: GameState;
+  ctx: Ctx;
+  card: Card;
+  target?: TargetValue;
+  playerID: string;
+  location: "hand" | "board";
+  lastTargetDied?: boolean;
+  excessDamageDealt?: number; // Stores math for cards like Piercing Shot
+  lastDamageDealt?: number;
+}
+
 export interface ModifierLifecycle {
   // Who cast the buff? ("0" or "1")
   sourcePlayerId: string;
@@ -96,6 +108,42 @@ export type TargetValue = {
 // Strongly type the valid keys of your Card interface that can be checked numerically
 export type NumericCardKey = "attack" | "health" | "mana";
 
+export type DynamicValue =
+  | {
+      type: "player-armor";
+      player: "friendly" | "enemy" | "all";
+      mult?: number;
+    }
+  | {
+      type: "player-health";
+      player: "friendly" | "enemy" | "all";
+      mult?: number;
+    }
+  | {
+      type: "cards-played";
+      player: "friendly" | "enemy" | "all";
+      mult?: number;
+    }
+  | {
+      type: "card-stat";
+      stat: "attack" | "health" | "mana" | "maxHealth";
+      mult?: number;
+    } // inspects current target
+  | {
+      type: "minion-count";
+      side: "friendly" | "enemy" | "all";
+      conditions?: TargetCondition[];
+      mult?: number;
+    }
+  | {
+      type: "hand-count";
+      side: "friendly" | "enemy" | "all";
+      conditions?: TargetCondition[];
+      mult?: number;
+    }
+  | { type: "excess-damage"; mult?: number }
+  | { type: "damage-dealt"; mult?: number }; // most recent damage delt
+
 export type BooleanCardKey =
   | "taunt"
   | "divineShield"
@@ -104,22 +152,23 @@ export type BooleanCardKey =
   | "charge"
   | "rush"
   | "isMinion"
-  | "isSpell";
+  | "isSpell"
+  | "summoningSickness";
 
 export type TargetCondition =
   | { type: "boolean"; key: BooleanCardKey; value: boolean }
   | {
       type: "numeric";
-      key: NumericCardKey;
+      key: DynamicValue;
       operator: "==" | "!=" | ">" | ">=" | "<" | "<=";
-      value: number;
+      value: DynamicValue;
     }
   | {
       type: "text-contains";
       key: "title" | "description" | "class";
       value: string;
     }
-  | { type: "tags-include"; key: "types" | "keywords"; value: string } // For "Wisp", "Demon", "Murloc"
+  | { type: "tags-include"; key: "types" | "tags"; value: string } // For "Wisp", "Demon", "Murloc"
   | { type: "state-match"; condition: "isDamaged" | "isUndamaged" } // Special derived states
   | { type: "exclude-self" }; // Prevent hitting self with AoE
 
@@ -146,13 +195,34 @@ export type EffectTypes =
   | ChargeEffect
   | RushEffect
   | ApplyModifierEffect
-  | ArmorEffect;
+  | ArmorEffect
+  | ConditionalEffect
+  | SequenceEffect
+  | BounceEffect;
+
+export interface ConditionalEffect {
+  type: "conditional";
+  conditions: TargetCondition[];
+  then: EffectTypes[];
+  else?: EffectTypes[];
+}
+
+export interface SequenceEffect {
+  type: "sequence";
+  steps: EffectTypes[];
+}
+
+export interface BounceEffect {
+  type: "bounce";
+  target: "user-select";
+  modifiers?: ApplyModifierEffect[]; // For giving it "Costs (2) less"
+}
 
 export interface ApplyModifierEffect {
   type: "applyModifier";
   stat: "attack" | "health" | "mana" | "taunt" | "divineShield" | "frozen";
   value: number;
-  target: "user-select" | "board" | "enemy-all" | "friendly-all"; // Your target routing style[cite: 2]
+  target: "user-select" | "board" | "enemy-all" | "friendly-all";
   duration?: {
     expiryTrigger: "END_OF_TURN" | "START_OF_TURN";
     expiryOwner: "BUFF_CASTER" | "BUFF_RECEIVER" | "ANY_PLAYER";
@@ -169,7 +239,11 @@ export type BaseBoolEffect = {
     | "enemy-board"
     | "enemy-all"
     | "board";
-  // Target can be user-select, self-hero, enemy-hero, or hero
+  rand?: {
+    type: "random" | "random-split";
+    n: number; // 0 for all, positive for specific, negative for size - n
+  };
+  conditions?: TargetCondition[]; // filter conditions, so like "2 damage to all taunt minions"
 };
 
 export type FreezeEffect = {
@@ -198,7 +272,7 @@ export type RushEffect = {
 
 export type DamageEffect = {
   type: "damage";
-  value: number | keyof Card;
+  value: number | DynamicValue;
   battlecry?: boolean; // Indicates if this damage is part of a battlecry (bypasses taunt)
   target:
     | "user-select"
@@ -207,30 +281,45 @@ export type DamageEffect = {
     | "enemy-board"
     | "enemy-all" // Target can be user-select, self-hero, enemy-hero, or hero
     | "board";
+  rand?: {
+    type: "random" | "random-split";
+    n: number; // 0 for all, positive for specific, negative for size - n
+  };
+  conditions?: TargetCondition[]; // filter conditions, so like "2 damage to all taunt minions"
 };
 
 type DestroyEffect = {
   type: "destroy";
   target: "user-select" | "self" | "enemy-board" | "board"; // Target can be user-select, self, or enemy
   battlecry?: boolean; // Indicates if this destroy effect is part of a battlecry (bypasses taunt)
+  rand?: {
+    type: "random" | "random-split";
+    n: number; // 0 for all, positive for specific, negative for size - n
+  };
+  conditions?: TargetCondition[]; // filter conditions, so like "2 damage to all taunt minions"
 };
 
 type HealEffect = {
   type: "heal";
-  value: number;
+  value: number | DynamicValue;
   target?: "user-select" | "friendly-hero" | "friendly-all" | "friendly-board";
   battlecry?: boolean;
+  rand?: {
+    type: "random" | "random-split";
+    n: number; // 0 for all, positive for specific, negative for size - n
+  };
+  conditions?: TargetCondition[]; // filter conditions, so like "2 damage to all taunt minions"
 };
 
 type DrawEffect = {
   type: "draw";
-  value: number; // Number of cards to draw
+  value: number | DynamicValue;
 };
 
 type ChangeKeyEffect = {
   type: "changeKey";
   key: keyof Card; // Key to change in the card object
-  value: any; // New value for the key
+  value: number | DynamicValue;
   target: "user-select" | "self"; // Target of the change, either "other" or "self"
 };
 
@@ -238,17 +327,18 @@ type SummonEffect = {
   type: "summon";
   target: "self" | "enemy";
   cardID: string; // ID of the card to summon
+  value: number | DynamicValue; // count
 };
 
 type ArmorEffect = {
   type: "armor";
   target: "self" | "enemy";
-  value: number;
+  value: number | DynamicValue;
 };
 
 type ManaEffect = {
   type: "mana";
-  value: number;
+  value: number | DynamicValue;
 };
 
 // Move metadata for animation detection

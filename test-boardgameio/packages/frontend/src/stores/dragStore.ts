@@ -1,7 +1,13 @@
 // stores/dragStore.ts
 import { create } from "zustand";
 import type { PlayerID } from "boardgame.io";
-import { canTargetHighlight, type Card, type GameState } from "@project/shared";
+import {
+  canTargetHighlight,
+  type Card,
+  type EffectContext,
+  type GameState,
+  type TargetValue,
+} from "@project/shared";
 
 type DragStore = {
   activeCard: Card | null;
@@ -16,9 +22,8 @@ type DragStore = {
   setCurrentPlayer: (player: PlayerID) => void;
   setGameState: (gameState: GameState) => void;
   isValidTarget: (
-    targetType: "card" | "player" | "lane",
-    playerID: PlayerID,
-    targetCardId?: string,
+    target: TargetValue,
+    context: Omit<EffectContext, "card"> & Partial<Pick<EffectContext, "card">>,
   ) => boolean;
 
   // Attack arrow state
@@ -44,17 +49,10 @@ export const useDragStore = create<DragStore>((set, get) => ({
   setCurrentPlayer: (player) => set({ currentPlayer: player }),
   setGameState: (gameState) => set({ gameState }),
 
-  isValidTarget: (targetType, playerID, targetCardId) => {
-    const { activeCard, currentPlayer, gameState } = get();
+  isValidTarget: (target, context) => {
+    const { activeCard } = get();
 
-    return canTargetHighlight(
-      activeCard,
-      currentPlayer,
-      targetType,
-      playerID,
-      gameState,
-      targetCardId,
-    );
+    return canTargetHighlight(activeCard, { ...context, target: target });
   },
 
   // Attack arrow state
