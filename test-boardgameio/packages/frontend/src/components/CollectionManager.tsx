@@ -153,6 +153,75 @@ const CollectionManager = () => {
     setDeck({});
   }
 
+  function handleGenerateDeck() {
+    playSfx("button-click");
+
+    if (!selectedHero) return;
+
+    // Filter all collectible cards
+    const collectibleCards = Object.entries(cardTemplates).filter(
+      ([_, card]) =>
+        !(card as Omit<CardType, "id" | "damageTaken" | "originalID">)
+          .isUncollectible,
+    );
+
+    // Separate into class and neutral pools
+    const classCards = collectibleCards.filter(
+      ([_, card]) => card.class === selectedHero.class,
+    );
+    const neutralCards = collectibleCards.filter(
+      ([_, card]) => card.class === "Neutral",
+    );
+
+    // Shuffle helper
+    const shuffle = <T,>(array: T[]): T[] => {
+      const shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    };
+
+    const newDeck: DeckString = {};
+    let totalCards = 0;
+
+    // Target: 60% class cards (18 out of 30)
+    const targetClassCards = 18;
+    const shuffledClassCards = shuffle(classCards);
+
+    // Add class cards (up to 2 copies each)
+    for (const [cardId] of shuffledClassCards) {
+      if (totalCards >= targetClassCards) break;
+
+      // Random number of copies (1 or 2)
+      const copiesToAdd = Math.min(
+        Math.floor(Math.random() * 2) + 1,
+        targetClassCards - totalCards,
+      );
+
+      newDeck[cardId as CardTemplateKey] = copiesToAdd;
+      totalCards += copiesToAdd;
+    }
+
+    // Fill remaining with neutral cards (up to 2 copies each)
+    const shuffledNeutralCards = shuffle(neutralCards);
+    for (const [cardId] of shuffledNeutralCards) {
+      if (totalCards >= 30) break;
+
+      // Random number of copies (1 or 2)
+      const copiesToAdd = Math.min(
+        Math.floor(Math.random() * 2) + 1,
+        30 - totalCards,
+      );
+
+      newDeck[cardId as CardTemplateKey] = copiesToAdd;
+      totalCards += copiesToAdd;
+    }
+
+    setDeck(newDeck);
+  }
+
   function handleDeckChange(cardId: CardTemplateKey, count: number) {
     if (isPremade) return;
     setDeck((prevDeck) => {
@@ -477,21 +546,40 @@ const CollectionManager = () => {
       </div>
 
       {mode === "card-select" && selectedHero && (
-        <div className="absolute top-[0vh] left-[72vw] z-50">
-          <Deck
-            type="edit"
-            key={editingDeck?.id}
-            image={
-              selectedHero
-                ? selectedHero.portrait
-                : (editingDeck?.hero.portrait ?? "")
-            }
-            name={deckName}
-            id={editingDeck?.id ?? "NEW DECK"}
-            setDeckName={setDeckName}
-            isPremade={isPremade}
-          />
-        </div>
+        <>
+          <div className="absolute top-[0vh] left-[72vw] z-50">
+            <Deck
+              type="edit"
+              key={editingDeck?.id}
+              image={
+                selectedHero
+                  ? selectedHero.portrait
+                  : (editingDeck?.hero.portrait ?? "")
+              }
+              name={deckName}
+              id={editingDeck?.id ?? "NEW DECK"}
+              setDeckName={setDeckName}
+              isPremade={isPremade}
+            />
+          </div>
+
+          {/* Generate Deck Button */}
+          {!isPremade && (
+            <div className="absolute top-[28vh] left-[86.5vw] z-50">
+              <button
+                onMouseEnter={() => playSfx("button-over")}
+                className="relative px-[0.8vw] py-[0.4vw] bg-[#bda393] rounded-lg border-[0.3vw] border-[#8d7037] shadow-[0_0.4vw_0_rgba(92,64,51,1),0_0.6vw_1.5vw_rgba(0,0,0,0.6),inset_0_0.2vw_0_rgba(255,255,255,0.3)] transition-all duration-200 hover:translate-y-[0.15vw] hover:shadow-[0_0.2vw_0_rgba(92,64,51,1),0_0.4vw_1vw_rgba(0,0,0,0.6)] hover:brightness-110"
+                onClick={handleGenerateDeck}
+              >
+                <span className="text-[1vw] font-bold text-stone-800 drop-shadow-[0_0.1vw_0.1vw_rgba(255,255,255,0.3)] whitespace-nowrap">
+                  Generate Deck
+                </span>
+                <div className="absolute inset-0 rounded-lg border-t-[0.15vw] border-l-[0.15vw] border-white/20 pointer-events-none" />
+                <div className="absolute inset-0 rounded-lg border-b-[0.15vw] border-r-[0.15vw] border-black/20 pointer-events-none" />
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* Right Panel - Changes based on mode */}
