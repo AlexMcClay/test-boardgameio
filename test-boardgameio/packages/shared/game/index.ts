@@ -319,10 +319,8 @@ const executeEffects = (
             ),
           )
         ) {
-          console.log("THEN");
           executeEffects(effect.then, context);
         } else if (effect.else) {
-          console.log("ELSE");
           executeEffects(effect.else, context);
         }
         break;
@@ -626,26 +624,33 @@ const executeEffects = (
         const enemyPlayerId = playerID === "0" ? "1" : "0";
         const playerTarget =
           effect.target === "self" ? playerID : enemyPlayerId;
+        const value = resolveDynamicValue(effect.value, context);
+
         // check if the board can fit the summoned card
-        if (G.board[playerTarget].length >= 7) {
-          console.warn("Cannot summon more than 7 cards on the board");
-          break; // Cannot summon more than 7 cards on the board
+        for (let index = 0; index < value; index++) {
+          if (G.board[playerTarget].length >= 7) {
+            console.warn("Cannot summon more than 7 cards on the board");
+            break; // Cannot summon more than 7 cards on the board
+          }
+          const summonedCard = createCardFromID(
+            effect.cardID as CardTemplateKey,
+          );
+          if (summonedCard) {
+            summonedCard.isPlaced = true; // Mark the summoned card as placed
+            summonedCard.summoningSickness = true; // Summoned minions have summoning sickness
+            recordEvent(G, {
+              type: "summon",
+              cardId: summonedCard.id,
+              playerId: playerTarget,
+              timestamp: Date.now(),
+              card: summonedCard,
+            });
+            G.board[playerTarget].push(summonedCard);
+          } else {
+            console.warn(`Card with ID ${effect.cardID} not found.`);
+          }
         }
-        const summonedCard = createCardFromID(effect.cardID as CardTemplateKey);
-        if (summonedCard) {
-          summonedCard.isPlaced = true; // Mark the summoned card as placed
-          summonedCard.summoningSickness = true; // Summoned minions have summoning sickness
-          recordEvent(G, {
-            type: "summon",
-            cardId: summonedCard.id,
-            playerId: playerTarget,
-            timestamp: Date.now(),
-            card: summonedCard,
-          });
-          G.board[playerTarget].push(summonedCard);
-        } else {
-          console.warn(`Card with ID ${effect.cardID} not found.`);
-        }
+
         break;
       }
       case "armor":

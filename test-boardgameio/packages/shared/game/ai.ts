@@ -5,6 +5,7 @@ import type {
   Player,
   TargetValue,
   EffectTypes,
+  EffectContext,
 } from "./types";
 import {
   getAttack,
@@ -12,6 +13,7 @@ import {
   getManaCost,
   getMaxHealth,
 } from "./utils";
+import { resolveDynamicValue } from "./utils/effectEngine";
 
 // Types for AI moves
 export type AIMove = {
@@ -131,7 +133,14 @@ function enumerateBattlecryTargets(G: GameState, ctx: Ctx): AIMove[] {
               id: enemyCard.id,
               player: enemyPlayerId,
             };
-            const score = scoreBattlecryTarget(card, enemyCard, "card");
+            const score = scoreBattlecryTarget(card, enemyCard, {
+              G,
+              ctx,
+              card: card,
+              target: target,
+              playerID: ctx.currentPlayer,
+              location: "board",
+            });
             moves.push({
               move: "placeCard",
               args: [cardId, "board", target],
@@ -153,7 +162,14 @@ function enumerateBattlecryTargets(G: GameState, ctx: Ctx): AIMove[] {
                 id: friendlyCard.id,
                 player: ctx.currentPlayer,
               };
-              const score = scoreBattlecryTarget(card, friendlyCard, "card");
+              const score = scoreBattlecryTarget(card, friendlyCard, {
+                G,
+                ctx,
+                card: card,
+                target: target,
+                playerID: ctx.currentPlayer,
+                location: "board",
+              });
               moves.push({
                 move: "placeCard",
                 args: [cardId, "board", target],
@@ -180,7 +196,14 @@ function enumerateBattlecryTargets(G: GameState, ctx: Ctx): AIMove[] {
           const scoreHero = scoreBattlecryTarget(
             card,
             G.players[enemyPlayerId],
-            "player",
+            {
+              G,
+              ctx,
+              card: card,
+              target: targetHero,
+              playerID: ctx.currentPlayer,
+              location: "board",
+            },
           );
           moves.push({
             move: "placeCard",
@@ -202,7 +225,14 @@ function enumerateBattlecryTargets(G: GameState, ctx: Ctx): AIMove[] {
           const scoreOwnHero = scoreBattlecryTarget(
             card,
             G.players[ctx.currentPlayer],
-            "player",
+            {
+              G,
+              ctx,
+              card: card,
+              target: targetOwnHero,
+              playerID: ctx.currentPlayer,
+              location: "board",
+            },
           );
           moves.push({
             move: "placeCard",
@@ -224,9 +254,11 @@ function enumerateBattlecryTargets(G: GameState, ctx: Ctx): AIMove[] {
 function scoreBattlecryTarget(
   card: Card,
   target: Card | Player,
-  targetType: "card" | "player",
+  context: EffectContext,
 ): number {
   let score = 0;
+  const { target: targetTypes } = context;
+  const targetType = targetTypes?.type;
 
   // Check if battlecry does damage or healing
   const battlecryEffects = card.onPlace;
@@ -234,10 +266,7 @@ function scoreBattlecryTarget(
   battlecryEffects.forEach((effect) => {
     if (effect.type === "damage" && effect.target === "user-select") {
       // Damage battlecry
-      const damage =
-        typeof effect.value === "string"
-          ? (card[effect.value] as number)
-          : effect.value;
+      const damage = resolveDynamicValue(effect.value, context);
 
       if (targetType === "card") {
         const targetCard = target as Card;
@@ -271,13 +300,19 @@ function scoreBattlecryTarget(
         if (getCurrentHealth(targetCard) && getMaxHealth(targetCard)) {
           const missingHealth =
             getMaxHealth(targetCard) - getCurrentHealth(targetCard);
-          score += Math.min(missingHealth, effect.value) * 3;
+          score +=
+            Math.min(
+              missingHealth,
+              resolveDynamicValue(effect.value, context),
+            ) * 3;
         }
       } else {
         // Healing player
         const targetPlayer = target as Player;
         const missingHealth = targetPlayer.maxHealth - targetPlayer.health;
-        score += Math.min(missingHealth, effect.value) * 2;
+        score +=
+          Math.min(missingHealth, resolveDynamicValue(effect.value, context)) *
+          2;
       }
     }
   });
@@ -304,7 +339,7 @@ function enumerateHandPlays(G: GameState, ctx: Ctx, player: Player): AIMove[] {
 
     // Minion without targeting - just needs to be placed
     if (card.isMinion) {
-      const score = scoreCardPlay(G, ctx, card, null);
+      const score = scoreCardPlay(G, ctx, card, undefined);
       moves.push({
         move: "placeCard",
         args: [card.id, "hand"], // Don't pass undefined target
@@ -603,7 +638,7 @@ function scoreCardPlay(
   G: GameState,
   ctx: Ctx,
   card: Card,
-  target: TargetValue | null,
+  target: TargetValue | undefined,
 ): number {
   let score = 0;
   const player = G.players[ctx.currentPlayer];
@@ -639,13 +674,27 @@ function scoreCardPlay(
 
   // Spell/Effect value
   card.effects.forEach((effect) => {
-    score += evaluateEffect(effect, card, target, G, ctx, enemyPlayer);
+    score += evaluateEffect(effect, {
+      card: card,
+      G,
+      ctx,
+      location: "board",
+      playerID: ctx.currentPlayer,
+      target,
+    });
   });
 
   // Battlecry value (if minion)
   if (card.isMinion && card.onPlace.length > 0) {
     card.onPlace.forEach((effect) => {
-      score += evaluateEffect(effect, card, target, G, ctx, enemyPlayer);
+      score += evaluateEffect(effect, {
+        card: card,
+        G,
+        ctx,
+        location: "board",
+        playerID: ctx.currentPlayer,
+        target,
+      });
     });
   }
 
@@ -653,14 +702,14 @@ function scoreCardPlay(
   if (card.isMinion && card.deathrattle && card.deathrattle.length > 0) {
     card.deathrattle.forEach((effect) => {
       // Deathrattles are worth less than battlecries (only trigger on death)
-      const deathrattleValue = evaluateEffect(
-        effect,
-        card,
-        target,
+      const deathrattleValue = evaluateEffect(effect, {
+        card: card,
         G,
         ctx,
-        enemyPlayer,
-      );
+        location: "board",
+        playerID: ctx.currentPlayer,
+        target,
+      });
       score += deathrattleValue * 0.4; // 40% of full effect value
     });
   }
@@ -758,22 +807,14 @@ function scoreAttack(
 /**
  * Evaluate an effect's value
  */
-function evaluateEffect(
-  effect: EffectTypes,
-  card: Card,
-  target: TargetValue | null,
-  G: GameState,
-  ctx: Ctx,
-  enemyPlayer: Player,
-): number {
+function evaluateEffect(effect: EffectTypes, context: EffectContext): number {
   let score = 0;
-
+  const { ctx, G, card, playerID, target } = context;
+  const enemyPlayerId = ctx.currentPlayer === "0" ? "1" : "0";
+  const enemyPlayer = G.players[enemyPlayerId];
   switch (effect.type) {
     case "damage":
-      const damage =
-        typeof effect.value === "string"
-          ? (card[effect.value as keyof Card] as number)
-          : effect.value;
+      const damage = resolveDynamicValue(effect.value, context);
 
       if (effect.target === "enemy-hero") {
         score += damage * 8;
@@ -859,12 +900,13 @@ function evaluateEffect(
       break;
 
     case "heal":
+      const heal = resolveDynamicValue(effect.value, context);
       if (effect.target === "friendly-hero") {
         const player = G.players[ctx.currentPlayer];
         const missingHp = player.maxHealth - player.health;
-        score += Math.min(missingHp, effect.value) * 3;
+        score += Math.min(missingHp, heal) * 3;
       } else if (effect.target === "friendly-all") {
-        score += effect.value * (G.board[ctx.currentPlayer].length + 1) * 2; // Heal on multiple minions is good
+        score += heal * (G.board[ctx.currentPlayer].length + 1) * 2; // Heal on multiple minions is good
       } else if (effect.target === "user-select" && target) {
         const isFriendly = target.player === ctx.currentPlayer;
 
@@ -874,7 +916,7 @@ function evaluateEffect(
 
           if (isFriendly) {
             // Good - heal own hero
-            score += Math.min(missingHp, effect.value) * 3;
+            score += Math.min(missingHp, heal) * 3;
           } else {
             // Bad - don't waste heals on enemy
             score -= 100;
@@ -893,7 +935,7 @@ function evaluateEffect(
 
             if (isFriendly) {
               // Good - heal own minion
-              score += Math.min(missingHealth, effect.value) * 3;
+              score += Math.min(missingHealth, heal) * 3;
             } else {
               // Bad - don't heal enemy minions
               score -= 100;
@@ -904,7 +946,7 @@ function evaluateEffect(
       break;
 
     case "draw":
-      score += effect.value * 12; // Card draw is very valuable
+      score += resolveDynamicValue(effect.value, context) * 12; // Card draw is very valuable
       break;
 
     case "summon":
@@ -915,7 +957,7 @@ function evaluateEffect(
       // Smart mana card logic - check if we have cards that become playable
       const player = G.players[ctx.currentPlayer];
       const currentMana = player.mana;
-      const extraMana = effect.value;
+      const extraMana = resolveDynamicValue(effect.value, context);
 
       // Find the best card we can play with extra mana (prefer bigger cards)
       const bestPlayableCard = player.hand
@@ -948,9 +990,9 @@ function evaluateEffect(
       const player = G.players[ctx.currentPlayer];
       const healthPercent = player.health / player.maxHealth;
       if (healthPercent < 0.5) {
-        score += effect.value * 5; // High value when low health
+        score += resolveDynamicValue(effect.value, context) * 5; // High value when low health
       } else {
-        score += effect.value * 3; // Still valuable for survivability
+        score += resolveDynamicValue(effect.value, context) * 3; // Still valuable for survivability
       }
       break;
     }
@@ -1061,9 +1103,9 @@ function evaluateEffect(
           if (isFriendly) {
             // Good - buff own minions
             if (modEffect.stat === "attack") {
-              score += modEffect.value * 6; // Attack is valuable
+              score += resolveDynamicValue(effect.value, context) * 6; // Attack is valuable
             } else if (modEffect.stat === "health") {
-              score += modEffect.value * 5; // Health is valuable
+              score += resolveDynamicValue(effect.value, context) * 5; // Health is valuable
             }
             // Better to buff already strong minions
             score += (getAttack(targetCard) || 0) * 1.5;
@@ -1075,9 +1117,9 @@ function evaluateEffect(
       } else {
         // Non-targeted buffs (like friendly-all)
         if (modEffect.stat === "attack") {
-          score += modEffect.value * 6;
+          score += resolveDynamicValue(effect.value, context) * 6;
         } else if (modEffect.stat === "health") {
-          score += modEffect.value * 5;
+          score += resolveDynamicValue(effect.value, context) * 5;
         }
       }
       break;
@@ -1085,11 +1127,11 @@ function evaluateEffect(
 
     case "changeKey": {
       // Evaluate based on what key is being changed
-      if (effect.key === "taunt" && effect.value === true) {
-        score += 15; // Taunt is protective
-      } else if (effect.key === "charge" && effect.value === true) {
-        score += 12; // Charge adds immediate value
-      }
+      // if (effect.key === "taunt" && resolveDynamicValue(effect.value, context) === true) {
+      //   score += 15; // Taunt is protective
+      // } else if (effect.key === "charge" && resolveDynamicValue(effect.value, context) === true) {
+      //   score += 12; // Charge adds immediate value
+      // }
       break;
     }
   }

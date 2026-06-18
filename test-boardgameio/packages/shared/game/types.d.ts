@@ -302,6 +302,8 @@ export type ApplyModifierEffect = {
   stat: "attack" | "health" | "mana" | "taunt" | "divineShield" | "frozen";
   override: boolean;
   value: number | DynamicValue;
+  min?: number;
+  max?: number;
   duration?: {
     expiryTrigger: "END_OF_TURN" | "START_OF_TURN";
     expiryOwner: "BUFF_CASTER" | "BUFF_RECEIVER" | "ANY_PLAYER";
