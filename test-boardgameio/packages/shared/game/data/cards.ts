@@ -61,12 +61,10 @@ const rush = createBoolEffectUtil("rush");
 
 const destroy = (
   target: "user-select" | "self" | "enemy-board" | "board",
-  battlecry: boolean = false,
 ): EffectTypes => {
   return {
     type: "destroy",
     target: target,
-    battlecry: battlecry,
   };
 };
 
@@ -81,13 +79,11 @@ const heal = (
     | "friendly-hero"
     | "friendly-all"
     | "friendly-board" = "user-select",
-  battlecry: boolean = false,
 ): EffectTypes => {
   return {
     type: "heal",
     value: value,
     target: target,
-    battlecry: battlecry,
   };
 };
 
@@ -712,7 +708,7 @@ export const cardTemplates = {
         type: "card-stat",
       }),
     ],
-    onPlace: [heal(2, "friendly-all", true)],
+    onPlace: [heal(2, "friendly-all")],
     targetQuery: {
       side: "enemy",
       type: ["card", "player"],
@@ -1607,7 +1603,7 @@ export const cardTemplates = {
         type: "card-stat",
       }),
     ],
-    onPlace: [heal(6, "friendly-hero", true)],
+    onPlace: [heal(6, "friendly-hero")],
     targetQuery: {
       side: "enemy",
       type: ["card", "player"],
@@ -2008,6 +2004,419 @@ export const cardTemplates = {
     ],
     rarity: "Epic",
     onPlace: [],
+  },
+  "mortal-coil": {
+    title: "Mortal Coil",
+    description: "Deal 1 damage to a minion. If it dies, draw a card.",
+    baseMana: 1,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Mortal_Coil.jpg",
+    class: "Warlock",
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "all",
+      type: ["card"], // Restricted strictly to minions on the board, bypassing heroes
+    },
+    effects: [
+      // Step 1: Baseline 1 damage to the selected minion target
+      damage(1),
+      // Step 2: Use a conditional effect to see if that damage resulted in its death
+      {
+        type: "conditional",
+        conditions: [
+          {
+            type: "numeric",
+            key: {
+              type: "card-stat",
+              stat: "health",
+            },
+            value: 1,
+            operator: "<",
+          },
+        ],
+        then: [draw(1)],
+      },
+    ],
+    onPlace: [],
+  },
+  voidwalker: {
+    title: "Voidwalker",
+    description: "Taunt.",
+    taunt: true,
+    baseMana: 1,
+    baseAttack: 1,
+    baseHealth: 3,
+    type: ["Demon"],
+    tags: ["Taunt"],
+    imageUrl: "assets/cards/Voidwalker.jpg",
+    class: "Warlock",
+    isMinion: true,
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+  },
+  demonfire: {
+    title: "Demonfire",
+    description:
+      "Deal 2 damage to a minion. If it's a friendly Demon, give it +2/+2 instead.",
+    baseMana: 2,
+    baseAttack: undefined,
+    baseHealth: undefined,
+    type: ["Fel"],
+    imageUrl: "assets/cards/Demonfire.jpg",
+    class: "Warlock",
+    rarity: "Common",
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "all",
+      type: ["card"], // Strictly restricts targeting to minions on the board, bypassing heroes
+    },
+    effects: [
+      {
+        type: "conditional",
+        conditions: [
+          {
+            type: "tags-include",
+            value: "Demon",
+          },
+          {
+            type: "boolean",
+            key: "isMinion", // Ensures it's a valid minion card entity
+            value: true,
+          },
+          {
+            type: "is-friendly",
+          },
+        ],
+
+        then: [
+          applyModifier("attack", 2, "user-select"),
+          applyModifier("health", 2, "user-select"),
+        ],
+        // Otherwise, deal the baseline 2 damage to it
+        else: [damage(2, "user-select")],
+      },
+    ],
+    onPlace: [],
+  },
+  "drain-life": {
+    title: "Drain Life",
+    description: "Deal 2 damage. Restore 2 Health to your hero.",
+    baseMana: 3,
+    baseAttack: undefined,
+    baseHealth: undefined,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Drain_Life.jpg",
+    class: "Warlock",
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "all",
+      type: ["card", "player"], // Can target any minion or hero on the board
+    },
+    effects: [
+      // Step 1: Deal 2 damage to the selected target
+      damage(2),
+      // Step 2: Restore 2 health specifically targeting the user's hero
+      heal(2, "friendly-hero"),
+    ],
+    onPlace: [],
+  },
+  hellfire: {
+    title: "Hellfire",
+    description: "Deal 3 damage to ALL characters.",
+    baseMana: 3,
+    baseAttack: undefined,
+    baseHealth: undefined,
+    type: ["Fire"],
+    imageUrl: "assets/cards/Hellfire.jpg",
+    class: "Warlock",
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "all",
+      type: ["lane"], // Board-wide spell targeting matching your AoE framework layout
+    },
+    effects: [
+      // 1. Deal 3 damage to all minions on the entire board (friendly and enemy)
+      damage(3, "board"),
+      // 2. Deal 3 damage to the friendly hero
+      damage(3, "friendly-hero"),
+      // 3. Deal 3 damage to the enemy hero
+      damage(3, "enemy-hero"),
+    ],
+    onPlace: [],
+  },
+  "siphon-soul": {
+    title: "Siphon Soul",
+    description: "Destroy a minion. Restore 3 Health to your hero.",
+    baseMana: 4,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Siphon_Soul.jpg",
+    class: "Warlock",
+    rarity: "Rare",
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "all",
+      type: ["card"], // Restricts targeting strictly to minions on the board, bypassing heroes
+    },
+    effects: [
+      // Step 1: Instantly destroy the selected minion target
+      destroy("user-select"),
+      // Step 2: Restore 3 health to the casting player's hero
+      heal(3, "friendly-hero"),
+    ],
+    onPlace: [],
+  },
+  "shadow-bolt": {
+    title: "Shadow Bolt",
+    description: "Deal 4 damage to a minion.",
+    baseMana: 3,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Shadow_Bolt.jpg",
+    class: "Warlock",
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "all",
+      type: ["card"], // Restricts targeting strictly to minions on the board, bypassing heroes
+    },
+    effects: [
+      // Deal 4 damage to the selected minion target
+      damage(4, "user-select"),
+    ],
+    onPlace: [],
+  },
+  "pit-lord": {
+    title: "Pit Lord",
+    description: "Battlecry: Deal 5 damage to your hero.",
+    baseMana: 4,
+    baseAttack: 5,
+    baseHealth: 6,
+    type: ["Demon"],
+    imageUrl: "assets/cards/Pit_Lord.jpg",
+    class: "Warlock",
+    rarity: "Epic",
+    isMinion: true,
+    effects: [
+      // Standard minion combat architecture mapping to your base stats logic
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    // Battlecry logic triggers when the minion hits the board
+    onPlace: [damage(5, "friendly-hero")],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+  },
+  "dread-infernal": {
+    title: "Dread Infernal",
+    description: "Battlecry: Deal 1 damage to ALL other characters.",
+    baseMana: 6,
+    baseAttack: 6,
+    baseHealth: 6,
+    type: ["Demon"],
+    imageUrl: "assets/cards/Dread_Infernal.jpg",
+    class: "Warlock",
+    isMinion: true,
+    effects: [
+      // Handles standard minion attacking behaviors
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    // Triggers upon hitting the board
+    onPlace: [
+      {
+        type: "damage",
+        value: 1,
+        target: "board",
+        conditions: [
+          {
+            type: "exclude-self",
+          },
+        ],
+      },
+      // 2. Deal 1 damage to both hero players
+      damage(1, "friendly-hero"),
+      damage(1, "enemy-hero"),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+  },
+  "twisting-nether": {
+    title: "Twisting Nether",
+    description: "Destroy all minions and locations.",
+    baseMana: 8,
+
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Twisting_Nether.jpg",
+    class: "Warlock",
+    rarity: "Epic",
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "all",
+      type: ["lane"], // Indicates a board-wide, non-targeted spell alignment
+    },
+    effects: [
+      // Clears everything sitting on the battlefield space
+      destroy("board"),
+    ],
+    onPlace: [],
+  },
+  "drain-soul": {
+    title: "Drain Soul",
+    description: "Lifesteal. Deal 3 damage to a minion.",
+    baseMana: 2,
+    baseAttack: undefined,
+    baseHealth: undefined,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Drain_Soul.jpg",
+    class: "Warlock",
+    rarity: "Common",
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "all",
+      type: ["card"], // Restricts targeting strictly to minions on the board, bypassing heroes
+    },
+    effects: [
+      // Deal 3 damage with the lifesteal flag to trigger your engine's healing wrapper
+      damage(3, "user-select"),
+      heal(3, "friendly-hero"),
+    ],
+    onPlace: [],
+  },
+  "vulgar-homunculus": {
+    title: "Vulgar Homunculus",
+    description: "Taunt. Battlecry: Deal 2 damage to your hero.",
+    taunt: true,
+    baseMana: 2,
+    baseAttack: 2,
+    baseHealth: 4,
+    type: ["Demon"],
+    tags: ["Taunt"],
+    imageUrl: "assets/cards/Vulgar_Homunculus.jpg",
+    class: "Warlock",
+    rarity: "Common",
+    isMinion: true,
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [damage(2, "friendly-hero")],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+  },
+  "demonic-assault": {
+    title: "Demonic Assault",
+    description: "Deal 3 damage. Summon two 1/3 Voidwalkers with Taunt.",
+    baseMana: 4,
+
+    type: ["Fel"],
+    imageUrl: "assets/cards/Demonic_Assault.jpg",
+    class: "Warlock",
+    rarity: "Common",
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "all",
+      type: ["card", "player"],
+    },
+    effects: [damage(3, "user-select"), summon("voidwalker", "self", 2)],
+    onPlace: [],
+  },
+  riftcleaver: {
+    title: "Riftcleaver",
+    description:
+      "Battlecry: Destroy a minion. Your hero takes damage equal to its Health.",
+    baseMana: 6,
+    baseAttack: 7,
+    baseHealth: 5,
+    type: ["Demon"],
+    imageUrl: "assets/cards/Riftcleaver.jpg",
+    class: "Warlock",
+    rarity: "Epic",
+    isMinion: true,
+    effects: [
+      // Standard minion combat architecture mapping to your base stats logic
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    // Battlecry execution that requires a target selection upon playing
+    onPlace: [
+      {
+        type: "storeVar",
+        target: "user-select",
+        value: { type: "card-stat", stat: "health" },
+      },
+      {
+        type: "damage",
+        value: { type: "temp" },
+        target: "friendly-hero",
+      },
+      destroy("user-select"),
+    ],
+    battlecryQuery: {
+      side: "all",
+      type: ["card"], // The Battlecry requires selecting a minion on the board
+    },
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+  },
+  voidlord: {
+    title: "Voidlord",
+    description: "Taunt. Deathrattle: Summon three 1/3 Demons with Taunt.",
+    taunt: true,
+    baseMana: 9,
+    baseAttack: 3,
+    baseHealth: 9,
+    type: ["Demon"],
+    tags: ["Taunt", "Deathrattle"],
+    imageUrl: "assets/cards/Voidlord.jpg",
+    class: "Warlock",
+    rarity: "Epic",
+    isMinion: true,
+    effects: [
+      // Standard minion combat architecture mapping to your base stats logic
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    // Deathrattle execution hook array evaluated upon card destruction
+    deathrattle: [summon("voidwalker", "self", 3)],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
   },
 } satisfies Record<string, Omit<Card, "id" | "originalID" | "damageTaken">>;
 

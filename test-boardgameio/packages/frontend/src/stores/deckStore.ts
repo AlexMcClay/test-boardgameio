@@ -8,7 +8,7 @@ import {
 export type DeckString = Partial<Record<CardTemplateKey, number>>;
 
 // Configuration: Set to true to filter cards by hero class + neutral when building decks
-export const FILTER_BY_CLASS_WHEN_BUILDING = false;
+export const FILTER_BY_CLASS_WHEN_BUILDING = true;
 
 // LocalStorage key for user decks
 const USER_DECKS_KEY = "hearthstone_user_decks";

@@ -177,9 +177,10 @@ export type TargetCondition =
       key: "title" | "description" | "class";
       value: string;
     }
-  | { type: "tags-include"; key: "types" | "tags"; value: string } // For "Wisp", "Demon", "Murloc"
+  | { type: "tags-include"; value: string } // For "Wisp", "Demon", "Murloc"
   | { type: "state-match"; condition: "isDamaged" | "isUndamaged" } // Special derived states
-  | { type: "exclude-self" }; // Prevent hitting self with AoE
+  | { type: "exclude-self" }
+  | { type: "is-friendly" }; // Prevent hitting self with AoE
 
 export interface TargetQuery {
   side: "friendly" | "enemy" | "all";
@@ -252,9 +253,7 @@ export type BaseEffectSelection = {
   };
 };
 
-export type BaseBoolEffect = {
-  battlecry?: boolean; // Indicates if this damage is part of a battlecry (bypasses taunt)
-} & BaseEffectSelection;
+export type BaseBoolEffect = {} & BaseEffectSelection;
 
 export type FreezeEffect = {
   type: "freeze";
@@ -288,13 +287,11 @@ export type DamageEffect = {
 
 type DestroyEffect = {
   type: "destroy";
-  battlecry?: boolean; // Indicates if this destroy effect is part of a battlecry (bypasses taunt)
 } & BaseEffectSelection;
 
 type HealEffect = {
   type: "heal";
   value: number | DynamicValue;
-  battlecry?: boolean;
 } & BaseEffectSelection;
 
 export type ApplyModifierEffect = {

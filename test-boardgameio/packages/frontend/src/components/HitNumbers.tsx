@@ -152,7 +152,6 @@ const HitNumber = ({
               ? "0 0 10px rgba(220, 38, 38, 0.8), 0 0 20px rgba(220, 38, 38, 0.6), 2px 2px 4px rgba(0, 0, 0, 0.9)"
               : "0 0 10px rgba(34, 197, 94, 0.8), 0 0 20px rgba(34, 197, 94, 0.6), 2px 2px 4px rgba(0, 0, 0, 0.9)",
             WebkitTextStroke: isDamage ? "1px #000000" : "2px #14532d",
-            fontFamily: "'Arial Black', sans-serif",
           }}
         >
           {isDamage ? "-" : "+"}

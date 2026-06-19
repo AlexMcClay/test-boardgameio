@@ -338,12 +338,13 @@ const CollectionManager = () => {
           .isUncollectible,
     )
     .filter(([_, card]) => {
+      // In card-select mode with FILTER_BY_CLASS_WHEN_BUILDING enabled
+
       // If a class is specifically selected, filter by that class
       if (selectedClass) {
         return card.class === selectedClass;
       }
 
-      // In card-select mode with FILTER_BY_CLASS_WHEN_BUILDING enabled
       if (
         mode === "card-select" &&
         FILTER_BY_CLASS_WHEN_BUILDING &&
@@ -391,24 +392,37 @@ const CollectionManager = () => {
 
       {/* Top Bar */}
       <div className="absolute h-[5.9vh] w-[56vw] left-[12.6vw] top-[1vh] pl-[1vw] flex items-end gap-[0.5vw]">
-        {classIcons.map((i) => (
-          <button
-            key={i.name}
-            onClick={() => handleClassSelect(i.name)}
-            className={twMerge(
-              `bg-black h-[2.7vw] w-[2.7vw] rounded-[50%/20%] overflow-hidden border border-[#b7a27e] border-x-4 border-t-4 transition-all duration-200 origin-bottom`,
-              "hover:scale-110 cursor-pointer",
-              selectedClass === i.name ? "scale-125 hover:scale-125" : "",
-            )}
-            style={{ clipPath: "inset(0px 0px 20% 0px)" }}
-          >
-            <img
-              src={i.icon}
-              className="w-full h-full object-cover"
-              alt={i.name}
-            />
-          </button>
-        ))}
+        {classIcons
+          .filter((icon) => {
+            if (
+              mode === "card-select" &&
+              FILTER_BY_CLASS_WHEN_BUILDING &&
+              selectedHero
+            ) {
+              return (
+                icon.name === selectedHero.class || icon.name === "Neutral"
+              );
+            }
+            return true;
+          })
+          .map((i) => (
+            <button
+              key={i.name}
+              onClick={() => handleClassSelect(i.name)}
+              className={twMerge(
+                `bg-black h-[2.7vw] w-[2.7vw] rounded-[50%/20%] overflow-hidden border border-[#b7a27e] border-x-4 border-t-4 transition-all duration-200 origin-bottom`,
+                "hover:scale-110 cursor-pointer",
+                selectedClass === i.name ? "scale-125 hover:scale-125" : "",
+              )}
+              style={{ clipPath: "inset(0px 0px 20% 0px)" }}
+            >
+              <img
+                src={i.icon}
+                className="w-full h-full object-cover"
+                alt={i.name}
+              />
+            </button>
+          ))}
       </div>
 
       <div

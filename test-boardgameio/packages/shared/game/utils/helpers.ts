@@ -230,6 +230,7 @@ const types: EffectTypes["type"][] = [
   "rush",
   "stealth",
   "taunt",
+  "storeVar",
 ];
 
 //  as BaseEffectSelection

@@ -188,18 +188,10 @@ const placeCard: Move<GameState> = (
     // Check if card needs targeted battlecry (damage or heal)
     const needsTargetedBattlecry =
       card.battlecryQuery &&
-      card.onPlace.some(
-        (e) =>
-          (e.type === "damage" && e.target === "user-select") ||
-          (e.type === "heal" && e.target === "user-select") ||
-          (e.type === "changeKey" && e.target === "user-select") ||
-          (e.type === "divineShield" && e.target === "user-select") ||
-          (e.type === "taunt" && e.target === "user-select") ||
-          (e.type === "freeze" && e.target === "user-select") ||
-          (e.type === "charge" && e.target === "user-select") ||
-          (e.type === "rush" && e.target === "user-select") ||
-          (e.type === "applyModifier" && e.target === "user-select"),
-      );
+      card.onPlace.some((e) => {
+        const test = isSelectValue(e);
+        return test;
+      });
     if (needsTargetedBattlecry) {
       // console.log("Setting pending battlecry for card:", card.id);
       // Set pending battlecry, DON'T execute onPlace yet
@@ -290,6 +282,7 @@ const executeEffects = (
   effects.forEach((effect) => {
     switch (effect.type) {
       case "storeVar": {
+        console.log(`RUNNING STORE VAR FOR ${card.title} : 'TARGET"`, target);
         if (target && effect.target === "user-select") {
           const targetCard = G.board[target.player].find(
             (c) => c.id === target.id,
