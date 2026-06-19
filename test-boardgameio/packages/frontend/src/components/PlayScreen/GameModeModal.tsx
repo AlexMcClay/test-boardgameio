@@ -75,15 +75,7 @@ const GameModeModal = ({
                   <img src={pvpIcon} className="w-[14vw]" />
                   <img className="ml-[1vw]" src={parchment} />
                   <div className=" absolute text-white top-[15vw] w-[8vw] ">
-                    <p
-                      className="text-[2vw] text-center"
-                      style={{
-                        WebkitTextStroke: "0.1vw black",
-                        textShadow: "0 1px 0px black",
-                      }}
-                    >
-                      PvP
-                    </p>
+                    <p className="text-[2vw] text-center text-shadow-A">PvP</p>
                     <hr className="w-full border-black" />
                     <p className="text-black text-[1vw] text-center">
                       Player vs Player
@@ -99,15 +91,7 @@ const GameModeModal = ({
                   <img src={aiIcon} className="w-[14vw]" />
                   <img className="ml-[1vw]" src={parchment} />
                   <div className=" absolute text-white top-[15vw] w-[8vw] ">
-                    <p
-                      className="text-[2vw] text-center"
-                      style={{
-                        WebkitTextStroke: "0.1vw black",
-                        textShadow: "0 1px 0px black",
-                      }}
-                    >
-                      AI
-                    </p>
+                    <p className="text-[2vw] text-center text-shadow-A">AI</p>
                     <hr className="w-full border-black" />
                     <p className="text-black text-[1vw] text-center">
                       Player vs AI

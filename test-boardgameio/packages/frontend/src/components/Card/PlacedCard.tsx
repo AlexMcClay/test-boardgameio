@@ -181,12 +181,8 @@ const PlacedCard = ({
                 draggable="false"
               />
               <span
-                style={{
-                  WebkitTextStroke: "0.5px black",
-                  textShadow: "0 1px 0px black",
-                }}
                 className={twMerge(
-                  "absolute font-belwe   scale-130  translate-y-[-5%] translate-x-[-5%]",
+                  "absolute font-belwe   scale-130  translate-y-[-5%] translate-x-[-5%] text-shadow-A",
                   getAttack(card) > card.baseAttack ? "text-green-400 " : " ",
                 )}
               >
@@ -204,12 +200,8 @@ const PlacedCard = ({
                 draggable="false"
               />
               <span
-                style={{
-                  WebkitTextStroke: "0.5px black",
-                  textShadow: "0 1px 0px black",
-                }}
                 className={twMerge(
-                  "absolute font-belwe  scale-140 translate-y-[-5%] translate-x-[4%]",
+                  "absolute font-belwe  scale-140 translate-y-[-5%] translate-x-[4%] text-shadow-A",
                   getCurrentHealth(card) == card.baseHealth
                     ? ""
                     : getCurrentHealth(card) < getMaxHealth(card)

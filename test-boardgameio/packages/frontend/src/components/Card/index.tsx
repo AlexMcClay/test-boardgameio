@@ -240,17 +240,13 @@ const Card = ({
             />
             <span
               className={twMerge(
-                "relative z-20 text-[1.1vw] font-extrabold font-belwe  scale-160 translate-y-[-10%] translate-x-[-5%]",
+                "relative z-20 text-[1.1vw] font-extrabold font-belwe  scale-160 translate-y-[-10%] translate-x-[-5%] text-shadow-A",
                 getManaCost(card) == card.baseMana
                   ? ""
                   : getManaCost(card) > card.baseMana
                     ? "text-red-500"
                     : "text-green-500",
               )}
-              style={{
-                WebkitTextStroke: "0.5px black",
-                textShadow: "0 1px 0px black",
-              }}
             >
               {getManaCost(card)}
             </span>
@@ -310,6 +306,16 @@ const Card = ({
           </div>
         )}
 
+        {card.rarity && (
+          <img
+            src={`/assets/icons/${card.rarity}.webp`}
+            alt="Card Back"
+            className="object-cover w-[0.5vw] absolute scale-130  top-[57%] smallShadow"
+            // no drag
+            draggable="false"
+          />
+        )}
+
         {/* Attack & Health */}
         {(card.baseAttack !== undefined || card.baseHealth !== undefined) && (
           <>
@@ -322,13 +328,7 @@ const Card = ({
                   // no drag
                   draggable="false"
                 />
-                <span
-                  style={{
-                    WebkitTextStroke: "0.5px black",
-                    textShadow: "0 1px 0px black",
-                  }}
-                  className="absolute font-belwe  scale-130  translate-y-[-0.1vw] translate-x-[-0.05vw]"
-                >
+                <span className="absolute font-belwe  scale-130  translate-y-[-0.1vw] translate-x-[-0.05vw] text-shadow-A">
                   {getAttack(card)}
                 </span>
               </div>
@@ -342,13 +342,7 @@ const Card = ({
                   // no drag
                   draggable="false"
                 />
-                <span
-                  style={{
-                    WebkitTextStroke: "0.5px black",
-                    textShadow: "0 1px 0px black",
-                  }}
-                  className="absolute font-belwe  scale-140 translate-y-[-0.1vw] translate-x-[0vw]"
-                >
+                <span className="absolute font-belwe  scale-140 translate-y-[-0.1vw] translate-x-[0vw] text-shadow-A">
                   {getCurrentHealth(card)}
                 </span>
               </div>

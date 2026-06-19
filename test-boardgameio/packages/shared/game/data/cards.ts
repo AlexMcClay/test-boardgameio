@@ -157,6 +157,7 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     isMinion: true,
+    rarity: "Common",
     class: "Warlock",
   },
   "chillwind-yeti": {
@@ -273,6 +274,7 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     isMinion: true,
+    rarity: "Common",
     class: "Neutral",
   },
   wolfrider: {
@@ -312,6 +314,7 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     isMinion: false,
+    rarity: "Common",
     class: "Mage",
   },
   "bloodfen-raptor": {
@@ -697,7 +700,7 @@ export const cardTemplates = {
   },
   "darkscale-healer": {
     title: "Darkscale Healer",
-    description: "Battlecry: Restore 2 baseHealth to all friendly characters.",
+    description: "Battlecry: Restore 2 health to all friendly characters.",
     baseAttack: 4,
     baseHealth: 5,
     baseMana: 5,
@@ -761,6 +764,7 @@ export const cardTemplates = {
       side: "enemy",
       type: ["card", "player"],
     }, // Can target any character for battlecry damage
+    tags: ["Battlecry"],
     isMinion: true,
     class: "Neutral",
   },
@@ -787,6 +791,7 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     isMinion: true,
+    tags: ["Battlecry"],
     class: "Neutral",
   },
   "core-hound": {
@@ -794,7 +799,7 @@ export const cardTemplates = {
     baseAttack: 9,
     baseHealth: 7,
     baseMana: 7,
-    type: ["Beast"],
+    type: ["Elemental", "Beast"],
     description: "",
     imageUrl: "assets/cards/Core_Hound.jpg",
     effects: [
@@ -819,6 +824,7 @@ export const cardTemplates = {
     baseHealth: 4,
     baseMana: 3,
     type: ["Beast"],
+    tags: ["Taunt"],
     imageUrl: "assets/cards/Silverback_Patriarch.jpg",
     effects: [
       damage({
@@ -898,6 +904,7 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     isMinion: true,
+    rarity: "Common",
     class: "Neutral",
   },
   squire: {
@@ -930,6 +937,7 @@ export const cardTemplates = {
     baseAttack: 2,
     baseHealth: 1,
     imageUrl: "assets/cards/Voodoo_Doctor.jpg",
+    tags: ["Battlecry"],
     effects: [
       damage({
         stat: "attack",
@@ -976,6 +984,7 @@ export const cardTemplates = {
     baseAttack: 4,
     baseHealth: 2,
     imageUrl: "assets/cards/Stormpike_Commando.jpg",
+    tags: ["Battlecry"],
     effects: [
       damage({
         stat: "attack",
@@ -1000,6 +1009,7 @@ export const cardTemplates = {
     baseMana: 4,
     baseAttack: 2,
     baseHealth: 4,
+    tags: ["Battlecry"],
     imageUrl: "assets/cards/Gnomish_Inventor.jpg",
     effects: [
       damage({
@@ -1069,6 +1079,7 @@ export const cardTemplates = {
     baseHealth: 2,
     baseMana: 1,
     imageUrl: "assets/cards/Goldshire_Footman.jpg",
+    tags: ["Taunt"],
     effects: [
       damage({
         stat: "attack",
@@ -1091,6 +1102,7 @@ export const cardTemplates = {
     baseHealth: 4,
     baseMana: 5,
     imageUrl: "assets/cards/Booty_Bay_Bodyguard.jpg",
+    tags: ["Taunt"],
     effects: [
       damage({
         stat: "attack",
@@ -1112,6 +1124,7 @@ export const cardTemplates = {
     baseAttack: 5,
     baseHealth: 2,
     imageUrl: "assets/cards/Reckless_Rocketeer.jpg",
+    tags: ["Charge"],
     effects: [
       damage({
         stat: "attack",
@@ -1140,6 +1153,7 @@ export const cardTemplates = {
     },
     isSpell: true,
     isMinion: false,
+    rarity: "Common",
     class: "Warrior",
   },
   "bluegill-warrior": {
@@ -1149,6 +1163,7 @@ export const cardTemplates = {
     baseAttack: 2,
     baseHealth: 1,
     type: ["Murloc"],
+    tags: ["Charge"],
     imageUrl: "assets/cards/Bluegill_Warrior.jpg",
     effects: [
       damage({
@@ -1204,6 +1219,7 @@ export const cardTemplates = {
     baseMana: 1,
     baseAttack: 2,
     baseHealth: 1,
+    tags: ["Deathrattle"],
     isMinion: true,
     class: "Neutral",
     targetQuery: {
@@ -1217,6 +1233,7 @@ export const cardTemplates = {
       }),
     ],
     onPlace: [],
+    rarity: "Common",
     deathrattle: [damage(2, "enemy-hero")],
   },
   "loot-hoarder": {
@@ -1227,6 +1244,7 @@ export const cardTemplates = {
     baseAttack: 2,
     baseHealth: 1,
     isMinion: true,
+    tags: ["Deathrattle"],
     class: "Neutral",
     targetQuery: {
       side: "enemy",
@@ -1239,6 +1257,7 @@ export const cardTemplates = {
       }),
     ],
     onPlace: [],
+    rarity: "Common",
     deathrattle: [draw(1)],
   },
   "argent-squire": {
@@ -1259,6 +1278,8 @@ export const cardTemplates = {
       }),
     ],
     onPlace: [],
+    rarity: "Common",
+
     targetQuery: {
       side: "enemy",
       type: ["card", "player"],
@@ -1272,6 +1293,7 @@ export const cardTemplates = {
     baseAttack: 2,
     baseHealth: 2,
     type: ["Mech"],
+    tags: ["Divine Shield"],
     isMinion: true,
     divineShield: true,
     class: "Paladin",
@@ -1286,6 +1308,7 @@ export const cardTemplates = {
       side: "enemy",
       type: ["card", "player"],
     },
+    rarity: "Common",
   },
   "tirion-fordring": {
     title: "Tirion Fordring",
@@ -1297,6 +1320,7 @@ export const cardTemplates = {
     isMinion: true,
     taunt: true,
     divineShield: true,
+    tags: ["Divine Shield", "Taunt", "Deathrattle"],
     class: "Paladin",
     targetQuery: {
       side: "enemy",
@@ -1308,6 +1332,7 @@ export const cardTemplates = {
         type: "card-stat",
       }),
     ],
+    rarity: "Legendary",
     onPlace: [],
   },
   sunwalker: {
@@ -1318,8 +1343,9 @@ export const cardTemplates = {
     baseAttack: 4,
     baseHealth: 5,
     isMinion: true,
-    taunt: true, // Forces enemies to baseAttack this card
-    divineShield: true, // Absorbs the first baseAttack completely
+    tags: ["Divine Shield", "Taunt"],
+    taunt: true,
+    divineShield: true,
     class: "Neutral",
     targetQuery: {
       side: "enemy",
@@ -1331,6 +1357,7 @@ export const cardTemplates = {
         type: "card-stat",
       }),
     ],
+    rarity: "Rare",
     onPlace: [],
   },
   "argent-protector": {
@@ -1343,6 +1370,7 @@ export const cardTemplates = {
     isMinion: true,
     taunt: false,
     divineShield: false,
+    tags: ["Divine Shield", "Battlecry"],
     class: "Paladin",
     targetQuery: {
       side: "enemy",
@@ -1354,6 +1382,7 @@ export const cardTemplates = {
         type: "card-stat",
       }),
     ],
+    rarity: "Common",
     onPlace: [divineShield("user-select", true)],
     battlecryQuery: {
       side: "friendly",
@@ -1401,6 +1430,7 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Druid",
+    rarity: "Epic",
   },
   "treant-token": {
     title: "Treant",
@@ -1410,6 +1440,7 @@ export const cardTemplates = {
     baseHealth: 2,
     charge: true,
     imageUrl: "assets/cards/Treant.jpg",
+    tags: ["Charge"],
     effects: [
       damage({
         stat: "attack",
@@ -1432,7 +1463,7 @@ export const cardTemplates = {
     baseMana: 8,
     baseAttack: 8,
     baseHealth: 8,
-    type: ["Minion"],
+    tags: ["Taunt"],
     imageUrl: "assets/cards/Ironbark_Protector.jpg",
     effects: [
       damage({
@@ -1485,6 +1516,7 @@ export const cardTemplates = {
     description: "Deal 2 damage to all enemy minions and Freeze them.",
     baseMana: 6,
     type: ["Frost"],
+    tags: ["Freeze"],
     imageUrl: "assets/cards/Blizzard.jpg",
     effects: [damage(2, "enemy-board"), freeze("enemy-board")],
     onPlace: [],
@@ -1495,6 +1527,7 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Mage",
+    rarity: "Rare",
   },
   whirlwind: {
     title: "Whirlwind",
@@ -1522,6 +1555,7 @@ export const cardTemplates = {
     baseMana: 4,
     baseAttack: 4,
     baseHealth: 3,
+    tags: ["Charge"],
     imageUrl: "assets/cards/Korkron_Elite.jpg",
     effects: [
       damage({
@@ -1545,18 +1579,19 @@ export const cardTemplates = {
     description: "Restore 8 Health. Draw 3 cards.",
     baseMana: 8,
     type: ["Holy"],
+    tags: ["Heal"],
     imageUrl: "assets/cards/Lay_on_Hands.jpg",
     effects: [heal(8), draw(3)],
     onPlace: [],
     isSpell: true,
     targetQuery: {
       side: "friendly",
-      type: ["card"],
+      type: ["card", "player"],
     },
     isMinion: false,
     class: "Paladin",
+    rarity: "Epic",
   },
-  // Add this to your cardTemplates object in cards.ts
   "guardian-of-kings": {
     title: "Guardian of Kings",
     description: "Battlecry: Restore 6 baseHealth to your hero.",
@@ -1564,6 +1599,7 @@ export const cardTemplates = {
     baseAttack: 5,
     baseHealth: 7,
     taunt: true,
+    tags: ["Taunt", "Battlecry"],
     imageUrl: "assets/cards/Guardian_of_Kings.jpg",
     effects: [
       damage({
@@ -1571,7 +1607,6 @@ export const cardTemplates = {
         type: "card-stat",
       }),
     ],
-    // Restores 6 baseHealth directly to the friendly hero on placement
     onPlace: [heal(6, "friendly-hero", true)],
     targetQuery: {
       side: "enemy",
@@ -1587,6 +1622,7 @@ export const cardTemplates = {
     baseAttack: 5,
     baseHealth: 4,
     rush: true,
+    tags: ["Rush"],
     imageUrl: "assets/cards/Warsong_Outrider.jpg",
     effects: [
       damage({
@@ -1601,6 +1637,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Warrior",
+    rarity: "Common",
   },
   "cruel-taskmaster": {
     title: "Cruel Taskmaster",
@@ -1609,6 +1646,7 @@ export const cardTemplates = {
     baseAttack: 2,
     baseHealth: 3,
     imageUrl: "assets/cards/Cruel_Taskmaster.jpg",
+    tags: ["Battlecry"],
     effects: [
       damage({
         stat: "attack",
@@ -1626,6 +1664,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Warrior",
+    rarity: "Common",
   },
   "shield-block": {
     title: "Shield Block",
@@ -1656,6 +1695,7 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     class: "Warrior",
+    rarity: "Common",
   },
   "unleash-the-crocolisks": {
     title: "Unleash the Crocolisks",
@@ -1675,6 +1715,7 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Warrior",
+    rarity: "Common",
   },
 
   "coliseum-crocolisk": {
@@ -1750,6 +1791,7 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Warrior",
+    rarity: "Rare",
   },
   shadowflame: {
     title: "Shadowflame",
@@ -1784,6 +1826,7 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Warlock",
+    rarity: "Rare",
   },
   rampage: {
     title: "Rampage",
@@ -1808,12 +1851,14 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Warrior",
+    rarity: "Common",
   },
   righteousness: {
     title: "Righteousness",
     description: "Give your minions Divine Shield.",
     baseMana: 5,
     type: ["Holy"],
+    tags: ["Divine Shield"],
     imageUrl: "assets/cards/Righteousness.jpg",
     effects: [divineShield("friendly-board")],
     onPlace: [],
@@ -1823,6 +1868,7 @@ export const cardTemplates = {
       type: ["lane", "card"],
     },
     isMinion: false,
+    rarity: "Rare",
     class: "Paladin",
   },
   "arcane-missiles": {
@@ -1858,6 +1904,8 @@ export const cardTemplates = {
     baseMana: 1,
     imageUrl: "assets/cards/Ice_Lance.jpg",
     class: "Mage",
+    tags: ["Freeze"],
+    rarity: "Common",
     isMinion: false,
     isSpell: true,
     targetQuery: {
@@ -1892,6 +1940,7 @@ export const cardTemplates = {
     baseAttack: 3,
     baseHealth: 6,
     type: ["Elemental"],
+    tags: ["Freeze"],
     imageUrl: "assets/cards/Water_Elemental.jpg",
     class: "Mage",
     isMinion: true,
@@ -1915,6 +1964,7 @@ export const cardTemplates = {
     imageUrl: "assets/cards/Deep_Freeze.jpg",
     class: "Mage",
     type: ["Frost"],
+    tags: ["Freeze"],
     isMinion: false,
     isSpell: true,
     targetQuery: {
@@ -1923,6 +1973,7 @@ export const cardTemplates = {
     },
     effects: [freeze(), summon("water-elemental", "self", 2)],
     onPlace: [],
+    rarity: "Rare",
   },
   icicle: {
     title: "Icicle",
@@ -1931,6 +1982,7 @@ export const cardTemplates = {
     imageUrl: "assets/cards/Icicle.jpg",
     class: "Mage",
     type: ["Frost"],
+    tags: ["Freeze"],
     isMinion: false,
     isSpell: true,
     targetQuery: {
@@ -1954,6 +2006,7 @@ export const cardTemplates = {
         // No 'else' needed here since nothing happens if it isn't frozen
       },
     ],
+    rarity: "Epic",
     onPlace: [],
   },
 } satisfies Record<string, Omit<Card, "id" | "originalID" | "damageTaken">>;

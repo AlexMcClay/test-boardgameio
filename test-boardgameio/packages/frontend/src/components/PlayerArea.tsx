@@ -88,13 +88,7 @@ const PlayerArea = ({
             backgroundColor: "rgba(59, 130, 246, 0.5)",
           }}
         >
-          <span
-            className="text-[1.1vw] scale-150 text-center font-extrabold text-white font-belwe"
-            style={{
-              WebkitTextStroke: "1px black",
-              textShadow: "0 1px 0px black",
-            }}
-          >
+          <span className="text-[1.1vw] scale-150 text-center font-extrabold text-white font-belwe text-shadow-A">
             {player.mana}/{G.maxMana}
           </span>
         </div>

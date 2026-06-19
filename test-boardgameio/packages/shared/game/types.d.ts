@@ -1,5 +1,5 @@
 import type { CardTemplateKey } from "./data/cards";
-import type { PlayerID } from "boardgame.io";
+import type { Ctx, PlayerID } from "boardgame.io";
 
 export type DeckString = Partial<Record<CardTemplateKey, number>>;
 
@@ -40,7 +40,7 @@ export interface Card {
   damageTaken: number;
   // 3. Volatile attachment array
   modifiers?: CardModifier[];
-
+  rarity?: "Common" | "Rare" | "Epic" | "Legendary";
   tags?: string[];
   targetQuery: TargetQuery;
   battlecryQuery?: TargetQuery;

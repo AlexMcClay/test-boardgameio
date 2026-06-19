@@ -297,7 +297,7 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
 
       {/* Right Panel - Hero Portrait */}
       <div className="w-[22vw]  absolute left-[64vw]  h-full">
-        <div className="flex justify-start absolute top-[1vw] left-[5vw] z-50">
+        {/* <div className="flex justify-start absolute top-[1vw] left-[5vw] z-50">
           <button
             onClick={() => {
               playSfx("button-click");
@@ -316,21 +316,47 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
             <div className="absolute inset-0 rounded-lg border-t-[0.15vw] border-l-[0.15vw] border-white/20 pointer-events-none" />
             <div className="absolute inset-0 rounded-lg border-b-[0.15vw] border-r-[0.15vw] border-black/20 pointer-events-none" />
           </button>
+        </div> */}
+
+        <div className="flex justify-start absolute top-[0.9vw] left-[9.4vw] z-50 h-[4.5vw]">
+          <button
+            onClick={() => {
+              playSfx("button-click");
+              setIsGameModeModalOpen(true);
+            }}
+            className="cursor-pointer flex items-center justify-center hover:brightness-150"
+            onMouseEnter={() => playSfx("button-over")}
+          >
+            <img
+              src="assets/icons/Gamemode_None.webp"
+              className={twMerge(
+                "h-[4.5vw]",
+                !(selectedGameMode == "pvp" || selectedGameMode == "ai") &&
+                  "playGlow",
+              )}
+            />
+            {selectedGameMode && (
+              <img
+                src={`assets/icons/${selectedGameMode == "pvp" ? "Icon_Duels" : "Icon_Standard"}.webp`}
+                className={"h-[3vw] absolute top-[6%]"}
+              />
+            )}
+          </button>
         </div>
 
         <div className="">
           {selectedDeckForPlay ? (
             <>
-              <div className="absolute top-[17.7vw] w-[15vw]  left-[4vw]   overflow-hidden">
+              <div className="absolute top-[17.7vw] w-[15vw]  left-[4vw]   overflow-hidden  smallShadow ">
                 <div
-                  className="relative h-full w-full overflow-hidden pointer-events-none"
+                  className="relative h-full w-full overflow-hidden pointer-events-none  "
                   style={{ clipPath: archClipPath }}
                 >
                   {/* The Hero Image (Added pointer-events-none) */}
                   <img
                     src={selectedDeckForPlay.hero.portrait}
                     alt={selectedDeckForPlay.hero.name}
-                    className="h-full w-full object-cover opacity-100 pointer-events-none"
+                    className="h-full w-full object-cover opacity-100 pointer-events-none  "
                     draggable="false"
                   />
 
@@ -350,7 +376,7 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
                   />
                 </div>
               </div>
-              <div className=" absolute top-[35.6vw] left-[5vw] w-[12vw] rounded-full   flex items-center justify-center">
+              <div className=" absolute top-[35.6vw] left-[5vw] w-[12vw] rounded-full   flex items-center justify-center ">
                 <p className="text-[1.5vw] text-white">
                   {selectedDeckForPlay.name}
                 </p>

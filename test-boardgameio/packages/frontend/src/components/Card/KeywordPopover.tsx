@@ -80,13 +80,9 @@ const KeywordPopover = ({ keywords, position }: Props) => {
                 text-white
                 tracking-tight
                 mb-[0.45vw]
-
+text-shadow-A
          
               "
-              style={{
-                WebkitTextStroke: "0.075vw black",
-                textShadow: "0 0.02vw 0px black",
-              }}
             >
               {keyword}
             </div>
@@ -98,12 +94,8 @@ const KeywordPopover = ({ keywords, position }: Props) => {
                 leading-[1.2]
                 font-semibold
                 text-[#f0f0f0]
-
+text-shadow-A
               "
-              style={{
-                WebkitTextStroke: "0.02vw black",
-                textShadow: "0 0.02vw 0px black",
-              }}
             >
               {KEYWORD_DEFINITIONS[keyword] || "Unknown keyword"}
             </div>

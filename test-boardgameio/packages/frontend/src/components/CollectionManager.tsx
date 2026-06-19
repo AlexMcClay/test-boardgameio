@@ -195,8 +195,14 @@ const CollectionManager = () => {
       if (totalCards >= targetClassCards) break;
 
       // Random number of copies (1 or 2)
+
+      const maxInstance =
+        ((cardTemplates as any)[cardId] as CardType).rarity === "Legendary"
+          ? 1
+          : 2;
+
       const copiesToAdd = Math.min(
-        Math.floor(Math.random() * 2) + 1,
+        Math.floor(Math.random() * maxInstance) + 1,
         targetClassCards - totalCards,
       );
 
@@ -489,7 +495,9 @@ const CollectionManager = () => {
                 onClick={() => {
                   if (mode === "card-select" && !isPremade) {
                     const currentCount = deck[id as CardTemplateKey] || 0;
-                    if (currentCount < 2 && totalCards < maxCards) {
+                    const maxInstance =
+                      (card as CardType).rarity === "Legendary" ? 1 : 2;
+                    if (currentCount < maxInstance && totalCards < maxCards) {
                       const newCount = currentCount + 1;
                       handleDeckChange(id as CardTemplateKey, newCount);
                     }
@@ -679,24 +687,12 @@ const CollectionManager = () => {
                         className="object-cover w-full h-full absolute scale-100 brightness-90"
                         draggable="false"
                       />
-                      <span
-                        className="relative z-20 text-[1.1vw] font-extrabold font-belwe  scale-160 translate-y-[-10%] translate-x-[-5%]"
-                        style={{
-                          WebkitTextStroke: "0.5px black",
-                          textShadow: "0 1px 0px black",
-                        }}
-                      >
+                      <span className="relative z-20 text-[1.1vw] font-extrabold font-belwe  scale-160 translate-y-[-10%] translate-x-[-5%] text-shadow-A">
                         {cardTemplates[k as CardTemplateKey].baseMana ?? ""}
                       </span>
                     </div>
 
-                    <span
-                      className="pl-[2vw] text-[0.8vw] z-20"
-                      style={{
-                        WebkitTextStroke: "0.2px black",
-                        textShadow: "0 1px 0px black",
-                      }}
-                    >
+                    <span className="pl-[2vw] text-[0.8vw] z-20 text-shadow-A">
                       {cardTemplates[k as CardTemplateKey].title}
                     </span>
 

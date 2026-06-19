@@ -64,7 +64,7 @@ const HeroSection = ({ player, ...props }: Props) => {
       data-player-id={player.id}
       data-player-bounds="true"
       className={twMerge(
-        `flex items-center w-[7%] pointer-events-auto relative transition-all duration-100 no-shadow`,
+        `flex items-center w-[7%] pointer-events-auto relative transition-all duration-100    smallShadow`,
         "minion-card",
         isValid && !isOver && "valid-target-shadow ",
         isValid && isOver && "highlight-shadow",
@@ -116,13 +116,7 @@ const HeroSection = ({ player, ...props }: Props) => {
             draggable="false"
           />
 
-          <span
-            className="z-10 text-[1.5vw] absolute font-extrabold text-center leading-none font-belwe scale-140 pointer-events-none"
-            style={{
-              WebkitTextStroke: "1px black",
-              textShadow: "0 1px 0px black",
-            }}
-          >
+          <span className="z-10 text-[1.5vw] absolute font-extrabold text-center leading-none font-belwe scale-140 pointer-events-none text-shadow-A">
             {player.armor}
           </span>
         </div>
@@ -137,13 +131,7 @@ const HeroSection = ({ player, ...props }: Props) => {
           draggable="false"
         />
 
-        <span
-          className="text-red-500 z-10 text-[1.5vw] absolute font-extrabold text-center leading-none font-belwe scale-140 pointer-events-none"
-          style={{
-            WebkitTextStroke: "1px black",
-            textShadow: "0 1px 0px black",
-          }}
-        >
+        <span className="text-red-500 z-10 text-[1.5vw] absolute font-extrabold text-center leading-none font-belwe scale-140 pointer-events-none text-shadow-A">
           {player.health}
         </span>
       </div>
