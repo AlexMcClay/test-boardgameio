@@ -759,6 +759,11 @@ export const cardTemplates = {
     battlecryQuery: {
       side: "enemy",
       type: ["card", "player"],
+      conditions: [
+        {
+          type: "exclude-self",
+        },
+      ],
     }, // Can target any character for battlecry damage
     tags: ["Battlecry"],
     isMinion: true,
@@ -785,6 +790,11 @@ export const cardTemplates = {
     battlecryQuery: {
       side: "enemy",
       type: ["card", "player"],
+      conditions: [
+        {
+          type: "exclude-self",
+        },
+      ],
     },
     isMinion: true,
     tags: ["Battlecry"],
@@ -944,6 +954,11 @@ export const cardTemplates = {
     battlecryQuery: {
       side: "friendly",
       type: ["card", "player"],
+      conditions: [
+        {
+          type: "exclude-self",
+        },
+      ],
     },
     targetQuery: {
       side: "enemy",
@@ -995,6 +1010,11 @@ export const cardTemplates = {
     battlecryQuery: {
       side: "enemy",
       type: ["card", "player"],
+      conditions: [
+        {
+          type: "exclude-self",
+        },
+      ],
     }, // Can target any character for battlecry damage
     isMinion: true,
     class: "Neutral",
@@ -1383,6 +1403,11 @@ export const cardTemplates = {
     battlecryQuery: {
       side: "friendly",
       type: ["card"],
+      conditions: [
+        {
+          type: "exclude-self",
+        },
+      ],
     },
   },
   "hand-of-protection": {
@@ -1653,6 +1678,11 @@ export const cardTemplates = {
     battlecryQuery: {
       side: "all",
       type: ["card"],
+      conditions: [
+        {
+          type: "exclude-self",
+        },
+      ],
     },
     targetQuery: {
       side: "enemy",
@@ -2356,6 +2386,7 @@ export const cardTemplates = {
     baseAttack: 7,
     baseHealth: 5,
     type: ["Demon"],
+    tags: ["Battlecry"],
     imageUrl: "assets/cards/Riftcleaver.jpg",
     class: "Warlock",
     rarity: "Epic",
@@ -2384,6 +2415,11 @@ export const cardTemplates = {
     battlecryQuery: {
       side: "all",
       type: ["card"], // The Battlecry requires selecting a minion on the board
+      conditions: [
+        {
+          type: "exclude-self",
+        },
+      ],
     },
     targetQuery: {
       side: "enemy",

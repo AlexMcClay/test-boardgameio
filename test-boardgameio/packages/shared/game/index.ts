@@ -663,19 +663,16 @@ const executeEffects = (
         }
         break;
       case "destroy": {
-        if (effect.target === "user-select" && target) {
-          if (target.type === "card") {
-            const targetCard = G.board[target.player].find(
-              (c) => c.id === target.id,
-            );
+        const targets = resolveTargets(effect, context);
+        targets.forEach((t) => {
+          if (t.type === "card") {
+            const targetCard = G.board[t.ownerId].find((c) => c.id === t.id);
             if (targetCard) {
               targetCard.damageTaken = getMaxHealth(targetCard);
             }
           }
-        } else if (effect.target === "enemy-board") {
-          // Optional: For random or non-targeted destroy spell variants in the future
-          console.warn("Non-targeted destroy effects are not yet implemented.");
-        }
+        });
+
         break;
       }
     }
