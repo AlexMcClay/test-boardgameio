@@ -75,6 +75,7 @@ const setupData = (
     maxHealth: 30,
     health: 30,
     armor: 0,
+    manaCrystals: 0,
     mana: 1,
     hand: [],
     deck: playerDeck,
@@ -88,6 +89,7 @@ const setupData = (
     maxHealth: 30,
     health: 30,
     armor: 0,
+    manaCrystals: 0,
     mana: 1,
     hand: [],
     deck: opponentDeck,
@@ -102,7 +104,6 @@ const setupData = (
       "0": [],
       "1": [],
     },
-    maxMana: 0,
     gameEvents: [],
     eventHistory: [],
     activeBattlecryMinion: null,
@@ -478,7 +479,8 @@ const executeEffects = (
       case "taunt":
       case "stealth":
       case "charge":
-      case "rush": {
+      case "rush":
+      case "windfury": {
         const targets = resolveTargets(effect, context);
 
         // Map effect types directly to your schema keys
@@ -866,10 +868,13 @@ export const HeathStoneGame: Game<GameState> = {
           // 1. Process anything that expires at the START of a turn
           processModifierLifecycle(G, ctx.currentPlayer, "START_OF_TURN");
 
-          if (ctx.turn % 2) {
-            G.maxMana = Math.min(G.maxMana + 1, 10);
-          }
-          G.players[ctx.currentPlayer].mana = G.maxMana;
+          const manaCrystals = G.players[ctx.currentPlayer].manaCrystals;
+          G.players[ctx.currentPlayer].manaCrystals = Math.min(
+            manaCrystals + 1,
+            10,
+          );
+          G.players[ctx.currentPlayer].mana =
+            G.players[ctx.currentPlayer].manaCrystals;
 
           // draw card if the player has less than 10 cards in hand
           if (ctx.turn > 2) {

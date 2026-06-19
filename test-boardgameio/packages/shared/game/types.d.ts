@@ -36,6 +36,7 @@ export interface Card {
   divineShield?: boolean;
   charge?: boolean;
   rush?: boolean;
+  windfury?: boolean;
   // 2. Structural tracking for real-time damage
   damageTaken: number;
   // 3. Volatile attachment array
@@ -55,6 +56,7 @@ export interface Card {
 export interface Player {
   id: PlayerID;
   name: string;
+  manaCrystals: number;
   heroPortrait: string;
   maxHealth: number;
   health: number;
@@ -204,6 +206,7 @@ export type EffectTypes =
   | StealthEffect
   | ChargeEffect
   | RushEffect
+  | WindfuryEffect
   | ApplyModifierEffect
   | ArmorEffect
   | ConditionalEffect
@@ -277,6 +280,10 @@ export type ChargeEffect = {
 
 export type RushEffect = {
   type: "rush";
+} & BaseBoolEffect;
+
+export type WindfuryEffect = {
+  type: "windfury";
 } & BaseBoolEffect;
 
 export type DamageEffect = {
@@ -367,6 +374,7 @@ export type GameEvent =
   | StealthEvent
   | ChargeEvent
   | RushEvent
+  | WindfuryEvent
   | ApplyModifierEvent
   | ArmorEvent;
 
@@ -411,6 +419,10 @@ export type ChargeEvent = {
 
 export type RushEvent = {
   type: "rush";
+} & BaseGameBoolEvent;
+
+export type WindfuryEvent = {
+  type: "windfury";
 } & BaseGameBoolEvent;
 
 export type SummonEvent = {
@@ -527,7 +539,6 @@ export interface SavedDeck {
 export interface GameState {
   players: Record<PlayerID, Player>;
   board: Record<PlayerID, Card[]>;
-  maxMana: number; // Optional, if you want to track max mana globally
   lastMove?: MoveMetadata; // Track last move for animation detection
   gameEvents: GameEvent[]; // Current move events (cleared each move)
   eventHistory: GameEvent[]; // Full game history (debug log)

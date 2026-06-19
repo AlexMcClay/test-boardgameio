@@ -80,7 +80,8 @@ export function applyBoolEffectToCard(
     | "taunt"
     | "stealth"
     | "charge"
-    | "rush",
+    | "rush"
+    | "windfury",
   cardKey: keyof Card,
 ) {
   if (!targetCard) return;

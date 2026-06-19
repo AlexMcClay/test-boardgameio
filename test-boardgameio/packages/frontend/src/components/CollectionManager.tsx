@@ -383,11 +383,17 @@ const CollectionManager = () => {
         background: "black",
       }}
     >
-      <img src={backgroundImage} className="absolute z-[0]" alt="Background" />
+      <img
+        src={backgroundImage}
+        className="absolute z-[0]"
+        alt="Background"
+        draggable={false}
+      />
       <img
         src={sheet}
         className="absolute z-[0] left-[12vw] w-[57.5vw]"
         alt="Sheet"
+        draggable={false}
       />
 
       {/* Top Bar */}
@@ -418,8 +424,9 @@ const CollectionManager = () => {
             >
               <img
                 src={i.icon}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover select-none"
                 alt={i.name}
+                draggable={false}
               />
             </button>
           ))}
@@ -681,7 +688,7 @@ const CollectionManager = () => {
                     <img
                       src={cardTemplates[k as CardTemplateKey].imageUrl}
                       className={twMerge(
-                        "absolute h-[2.8vh] min-h-[2.8vh] w-[40%] right-0",
+                        "absolute h-[2.8vh] min-h-[2.8vh] w-[40%] right-0 select-none",
                         "object-cover object-center",
                         count > 1 && "right-[1.1vw]",
                       )}
@@ -691,6 +698,7 @@ const CollectionManager = () => {
                         maskImage:
                           "linear-gradient(to left, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%)",
                       }}
+                      draggable={false}
                       alt="card-image"
                     />
                     {/* Mana Crystal */}
@@ -699,7 +707,7 @@ const CollectionManager = () => {
                         src={mana_crystal}
                         alt="cardTemplates[k as CardTemplateKey] Back"
                         className="object-cover w-full h-full absolute scale-100 brightness-90"
-                        draggable="false"
+                        draggable={false}
                       />
                       <span className="relative z-20 text-[1.1vw] font-extrabold font-belwe  scale-160 translate-y-[-10%] translate-x-[-5%] text-shadow-A">
                         {cardTemplates[k as CardTemplateKey].baseMana ?? ""}
@@ -782,7 +790,8 @@ const CollectionManager = () => {
                   <img
                     src={hero.portrait}
                     alt={hero.heroName}
-                    className="w-[8vw] h-[8vw] rounded-full border-4 border-amber-900"
+                    className="w-[8vw] h-[8vw] rounded-full border-4 border-amber-900 select-none"
+                    draggable={false}
                   />
                   <span className="text-[1vw] text-amber-200 text-center">
                     {hero.heroName}

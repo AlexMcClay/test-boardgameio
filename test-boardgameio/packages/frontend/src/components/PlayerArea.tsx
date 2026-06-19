@@ -76,7 +76,7 @@ const PlayerArea = ({
       >
         <div
           className="flex items-center justify-center  px-[0.5vw] py-[0.1vw] rounded-full w-[4.5vw] text-center "
-          title={`${player.mana} / ${G.maxMana} Mana`}
+          title={`${player.mana} / ${player.manaCrystals} Mana`}
           style={{
             backgroundImage: `url(${mana_bar})`,
             backgroundSize: "cover",
@@ -89,12 +89,12 @@ const PlayerArea = ({
           }}
         >
           <span className="text-[1.1vw] scale-150 text-center font-extrabold text-white font-belwe text-shadow-A">
-            {player.mana}/{G.maxMana}
+            {player.mana}/{player.manaCrystals}
           </span>
         </div>
         {!isTop && (
           <div className="ml-[0.5vw] mt-[0.05vw] flex items-center justify-center">
-            {Array.from({ length: G.maxMana }, (_, i) => (
+            {Array.from({ length: player.manaCrystals }, (_, i) => (
               <img
                 key={i}
                 src={mana_crystal}
