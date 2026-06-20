@@ -13,13 +13,13 @@ export function shuffleDeck(deck: Card[]): Card[] {
 // cardFactory.ts
 
 export function createCardInstance(
-  template: Omit<Card, "id" | "originalID" | "damageTaken">,
+  template: Omit<Card, "id" | "originalID" | "damageTaken" | "attacksLeft">,
   originalID: string,
 ): Card {
   return {
     ...template,
     id: randomIDGen(),
-    hasAttacked: false,
+    attacksLeft: template.windfury ? 2 : 1,
     originalID: originalID,
     damageTaken: 0,
   };
@@ -83,7 +83,7 @@ export function hasToEndTurn(playedID: string, gameState: GameState): boolean {
     (card) => getManaCost(card) <= player.mana,
   );
   const canAttack = gameState.board[playedID].some(
-    (card) => !card.summoningSickness && !card.hasAttacked && !card.frozen,
+    (card) => !card.summoningSickness && !card.attacksLeft && !card.frozen,
   );
   return !canPlayCards && !canAttack;
 }

@@ -202,7 +202,7 @@ const Card = ({
           isDragging &&
             card.isPlaced &&
             "ring-green-500 ring-2 shadow-green-400  shadow-[0px_0px_60px_rgba(0,0,0,0.5)]",
-          !card.hasAttacked &&
+          !(card.attacksLeft == 0) &&
             card.isPlaced &&
             ctx?.currentPlayer === playerID &&
             "ring-green-500 ring-2 shadow-green-400  shadow-[0px_0px_20px_rgba(0,0,0,0.5)]",

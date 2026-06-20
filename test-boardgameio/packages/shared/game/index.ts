@@ -330,7 +330,7 @@ const executeEffects = (
           !retaliateDamage;
 
         if (isManualMinionAttack && card.isPlaced) {
-          card.hasAttacked = true;
+          card.attacksLeft -= 1;
         }
 
         // --- BRANCH A: RANDOM SPLIT DAMAGE (e.g., Cinderstorm, Mad Bomber) ---
@@ -886,7 +886,7 @@ export const HeathStoneGame: Game<GameState> = {
 
           // reset
           G.board[ctx.currentPlayer].forEach((card) => {
-            card.hasAttacked = false; // Reset attack status for all cards
+            card.attacksLeft = card.windfury ? 2 : 1;
             card.summoningSickness = false; // Remove summoning sickness
           });
 

@@ -4,7 +4,6 @@ import type { PlayerID } from "boardgame.io";
 import {
   canTargetHighlight,
   type Card,
-  type EffectContext,
   type GameState,
   type TargetValue,
   type EffectContextWithOptionalCard,

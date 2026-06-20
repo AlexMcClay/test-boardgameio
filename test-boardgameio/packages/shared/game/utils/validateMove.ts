@@ -262,7 +262,7 @@ export function validateMove(
   }
 
   // Card already attacked
-  if (card.isPlaced && card.hasAttacked) {
+  if (card.isPlaced && card.attacksLeft == 0) {
     return { valid: false, error: "already-attacked" };
   }
 
@@ -292,7 +292,11 @@ export function canTargetHighlight(
     context.G?.activeBattlecryMinion?.cardId === activeCard.id;
 
   // Placed cards that already attacked can't target anything (unless battlecry)
-  if (activeCard.isPlaced && activeCard.hasAttacked && !isBattlecryMinion) {
+  if (
+    activeCard.isPlaced &&
+    activeCard.attacksLeft == 0 &&
+    !isBattlecryMinion
+  ) {
     return false;
   }
 

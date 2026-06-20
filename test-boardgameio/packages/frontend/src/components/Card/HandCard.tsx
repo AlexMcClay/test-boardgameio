@@ -116,7 +116,7 @@ interface DargCardProps extends CardProps {
 }
 
 const DragCard = (props: DargCardProps) => {
-  const disabled = props.card.isPlaced && props.card.hasAttacked;
+  const disabled = props.card.isPlaced && !!props.card.attacksLeft;
 
   const { isDragging, setNodeRef, listeners } = useDraggable({
     id: `${props.card.id}`,

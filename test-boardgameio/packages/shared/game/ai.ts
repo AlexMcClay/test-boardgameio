@@ -370,7 +370,7 @@ function enumerateAttacks(G: GameState, ctx: Ctx): AIMove[] {
     const isSicknessActive =
       card.summoningSickness && !card.charge && !card.rush;
     const disabled =
-      (card.hasAttacked || isSicknessActive || card.frozen) &&
+      (card.attacksLeft == 0 || isSicknessActive || card.frozen) &&
       !G?.activeBattlecryMinion;
     if (disabled || !getAttack(card) || getAttack(card) <= 0) {
       return;

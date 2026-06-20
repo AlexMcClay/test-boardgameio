@@ -36,7 +36,7 @@ class FastMCTSBot extends MCTSBot {
       objectives: () => ({
         winGame: {
           checker: (G: GameState, ctx: Ctx) => {
-            const enemyId = ctx.currentPlayer === "0" ? "1" : "0";
+            // const enemyId = ctx.currentPlayer === "0" ? "1" : "0";
 
             // Use evaluateGameState for scoring
             return evaluateGameState(G, ctx);

@@ -440,7 +440,7 @@ const CollectionManager = () => {
             JSON.stringify(
               Object.entries(cardTemplates)
                 .filter(
-                  ([k, card]) =>
+                  ([_k, card]) =>
                     !(
                       card as Omit<
                         CardType,
@@ -547,7 +547,13 @@ const CollectionManager = () => {
                   >
                     <Card
                       key={id}
-                      card={{ ...card, id, originalID: id, damageTaken: 0 }}
+                      card={{
+                        ...card,
+                        id,
+                        originalID: id,
+                        damageTaken: 0,
+                        attacksLeft: 1,
+                      }}
                       back={false}
                       isDragging={false}
                       type="game"

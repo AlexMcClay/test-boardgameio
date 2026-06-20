@@ -41,7 +41,7 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
   const isAttackingWithArrow = attackingCardId === card.id;
   const isSicknessActive = card.summoningSickness && !card.charge && !card.rush;
   const disabled =
-    (card.hasAttacked || isSicknessActive || card.frozen) &&
+    (card.attacksLeft == 0 || isSicknessActive || card.frozen) &&
     !gameState?.activeBattlecryMinion;
   const isBattlecryMinion =
     gameState?.activeBattlecryMinion?.cardId === card.id;

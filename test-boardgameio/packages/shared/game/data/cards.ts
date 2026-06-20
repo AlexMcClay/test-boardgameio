@@ -2454,7 +2454,10 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
   },
-} satisfies Record<string, Omit<Card, "id" | "originalID" | "damageTaken">>;
+} satisfies Record<
+  string,
+  Omit<Card, "id" | "originalID" | "damageTaken" | "attacksLeft">
+>;
 
 // 1. Automatically extracts: "flame-imp" | "chillwind-yeti" | ...
 export type CardTemplateKey = keyof typeof cardTemplates;
