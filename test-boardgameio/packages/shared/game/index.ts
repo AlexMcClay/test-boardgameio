@@ -287,6 +287,8 @@ const minionAttack: Move<GameState> = (
     target,
   };
 
+  G.gameEvents = [];
+
   executeEffects(attacker.effects, context);
 
   recordEvent(G, {
@@ -300,7 +302,6 @@ const minionAttack: Move<GameState> = (
     timestamp: Date.now(),
   });
 
-  G.gameEvents = [];
   attacker.attacksLeft -= 1;
 
   if (target.type === "card") {

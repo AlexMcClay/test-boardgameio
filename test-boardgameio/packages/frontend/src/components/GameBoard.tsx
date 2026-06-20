@@ -358,12 +358,12 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       if (!target) return;
 
       // Execute the move with validation and animations
-      // const validation = validateMove(G, ctx, attackerId, "board", target);
+      const validation = validateMove(G, ctx, attackerId, "board", target);
 
-      // if (!validation.valid) {
-      //   console.warn(`Cannot perform move (UI): ${validation.error}`);
-      //   return; // Don't execute invalid move
-      // }
+      if (!validation.valid) {
+        console.warn(`Cannot perform move (UI): ${validation.error}`);
+        return; // Don't execute invalid move
+      }
 
       // Execute the move - animations will be detected and played by useEffect
       moves.minionAttack(attackerId, target);
@@ -374,7 +374,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     return () => {
       window.removeEventListener("attack-target", handleAttackTarget);
     };
-  }, []);
+  }, [G, ctx, moves]);
 
   return (
     <div
