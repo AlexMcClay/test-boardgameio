@@ -158,6 +158,11 @@ const placeCard: Move<GameState> = (
     return;
   }
 
+  if (card.isPlaced) {
+    console.warn("Minion Already Placed");
+    return;
+  }
+
   // Clear current move events (history is kept for debugging)
   G.gameEvents = [];
 
@@ -170,15 +175,6 @@ const placeCard: Move<GameState> = (
   };
 
   player.mana -= !card.isPlaced ? getManaCost(card) : 0;
-
-  executeEffects(card.effects, {
-    card: card,
-    G,
-    ctx,
-    location,
-    playerID: ctx.currentPlayer,
-    target,
-  });
 
   // See if the card can be placed on the board
   if (card.isMinion && !card.isPlaced) {
@@ -227,6 +223,15 @@ const placeCard: Move<GameState> = (
   }
 
   if (card.isSpell) {
+    executeEffects(card.effects, {
+      card: card,
+      G,
+      ctx,
+      location,
+      playerID: ctx.currentPlayer,
+      target,
+    });
+
     recordEvent(G, {
       type: "spell",
       cardId: card.id,
@@ -250,6 +255,70 @@ const placeCard: Move<GameState> = (
   processDeaths(G, ctx);
 };
 
+const minionAttack: Move<GameState> = (
+  { G, ctx },
+  attackerId: string,
+  target: TargetValue,
+) => {
+  const attacker = G.board[ctx.currentPlayer].find((c) => c.id === attackerId);
+
+  if (!attacker) return;
+  const validation = validateMove(G, ctx, attackerId, "board", target);
+
+  if (!validation.valid) {
+    console.warn(`Invalid move: ${validation.error}`);
+    return;
+  }
+
+  // Track move metadata for animation detection
+  G.lastMove = {
+    cardId: attackerId,
+    location: "board",
+    target,
+    timestamp: Date.now(),
+  };
+
+  const context: EffectContext = {
+    card: attacker,
+    G,
+    ctx,
+    location: "board",
+    playerID: ctx.currentPlayer,
+    target,
+  };
+
+  executeEffects(attacker.effects, context);
+
+  recordEvent(G, {
+    type: "attack",
+    attackerId: attacker.id,
+    targetId: target.id,
+    targetType: target.type === "player" ? "player" : "card",
+    targetPlayerId: target.player,
+    attackerPlayerId: ctx.currentPlayer,
+    sourceId: attackerId,
+    timestamp: Date.now(),
+  });
+
+  G.gameEvents = [];
+  attacker.attacksLeft -= 1;
+
+  if (target.type === "card") {
+    const defender = G.board[target.player].find((c) => c.id === target.id);
+
+    if (!defender) return;
+
+    executeEffects(defender.effects, {
+      ...context,
+      card: defender,
+      target: { id: attacker.id, player: ctx.currentPlayer, type: "card" },
+    });
+  }
+
+  processDeaths(G, ctx);
+  return G;
+};
+
 function isSelectValue(e: EffectTypes): boolean {
   if (isBaseEffectSelection(e) && e.target === "user-select") {
     return true;
@@ -264,11 +333,7 @@ function isSelectValue(e: EffectTypes): boolean {
   return false;
 }
 
-const executeEffects = (
-  effects: EffectTypes[],
-  context: EffectContext,
-  retaliateDamage: boolean = false,
-) => {
+const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
   const { card, target, location, playerID, G, ctx } = context;
   const cardId = card.id;
   let isUserSelect = false;
@@ -320,18 +385,6 @@ const executeEffects = (
         break;
       case "damage": {
         const totalDamage = resolveDynamicValue(effect.value, context);
-
-        // 1. Structural Setup: Mark manual minion combat flags
-        const isManualMinionAttack =
-          effect.target === "user-select" &&
-          !effect.battlecry &&
-          !card.isSpell &&
-          card.isMinion &&
-          !retaliateDamage;
-
-        if (isManualMinionAttack && card.isPlaced) {
-          card.attacksLeft -= 1;
-        }
 
         // --- BRANCH A: RANDOM SPLIT DAMAGE (e.g., Cinderstorm, Mad Bomber) ---
         if (effect.rand?.split) {
@@ -399,23 +452,6 @@ const executeEffects = (
             // --- TARGET TYPE: PLAYER / HERO ---
             if (t.type === "player") {
               dealDamageToPlayer(G, cardId, t.ownerId, totalDamage);
-
-              if (
-                isManualMinionAttack &&
-                location === "board" &&
-                t.ownerId !== playerID
-              ) {
-                recordEvent(G, {
-                  type: "attack",
-                  attackerId: cardId,
-                  targetId: t.id,
-                  targetType: "player",
-                  targetPlayerId: t.ownerId,
-                  attackerPlayerId: playerID,
-                  sourceId: cardId,
-                  timestamp: Date.now(),
-                });
-              }
             }
 
             // --- TARGET TYPE: MINION / CARD ---
@@ -438,35 +474,6 @@ const executeEffects = (
                 }
 
                 dealDamageToCard(G, cardId, targetCard, t.ownerId, totalDamage);
-
-                if (
-                  isManualMinionAttack &&
-                  location === "board" &&
-                  t.ownerId !== playerID
-                ) {
-                  recordEvent(G, {
-                    type: "attack",
-                    attackerId: cardId,
-                    targetId: t.id,
-                    targetType: "card",
-                    targetPlayerId: t.ownerId,
-                    attackerPlayerId: playerID,
-                    sourceId: cardId,
-                    timestamp: Date.now(),
-                  });
-                }
-
-                if (isManualMinionAttack) {
-                  executeEffects(
-                    targetCard.effects,
-                    {
-                      ...context,
-                      card: targetCard,
-                      target: { id: card.id, player: playerID, type: "card" },
-                    },
-                    true,
-                  );
-                }
               }
             }
           });
@@ -683,8 +690,32 @@ const executeEffects = (
   context.temp = undefined;
 };
 
-const cancelBattlecry: Move<GameState> = ({ G }) => {
+const cancelBattlecry: Move<GameState> = ({ G, ctx }) => {
+  // place minion back on hand and give mana back
+  if (G.activeBattlecryMinion) {
+    const player = G.players[G.activeBattlecryMinion.playerId];
+    const card = G.board[G.activeBattlecryMinion.playerId].find(
+      (c) => c.id === G.activeBattlecryMinion?.cardId,
+    )!;
+
+    const cardIndex = G.board[G.activeBattlecryMinion.playerId].findIndex(
+      (c) => c.id === G.activeBattlecryMinion?.cardId,
+    );
+    G.board[G.activeBattlecryMinion.playerId].splice(cardIndex, 1); // Remove the card from hand
+
+    player.mana += getManaCost(card);
+
+    card.isPlaced = false;
+    player.hand.push(card);
+  }
   G.activeBattlecryMinion = null;
+  recordEvent(G, {
+    type: "debug",
+    timestamp: Date.now(),
+    playerId: ctx.currentPlayer,
+    details: "Cancel Battlecry",
+  });
+  return G;
 };
 
 const drawCard: Move<GameState> = ({ G, ctx }) => {
@@ -855,7 +886,7 @@ export const HeathStoneGame: Game<GameState> = {
   phases: {
     play: {
       start: true,
-      moves: { drawCard, placeCard, cancelBattlecry, endTurn },
+      moves: { drawCard, placeCard, cancelBattlecry, endTurn, minionAttack },
       onBegin: ({ G, ctx }) => {
         // Draw 5 cards for each player at the start
         for (let i = 0; i < 5; i++) {

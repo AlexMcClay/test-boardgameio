@@ -301,7 +301,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     }
 
     // Execute the move with validation and animations
-    await executeMove(active.id as string, location, target);
+    await executePlaceCard(active.id as string, location, target);
   };
 
   const handleDragOver = (_event: DragOverEvent) => {
@@ -309,7 +309,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   };
 
   // Simplified move execution - animations now handled by state-driven hook
-  const executeMove = useCallback(
+  const executePlaceCard = useCallback(
     async (
       cardId: string,
       location: "hand" | "board",
@@ -336,7 +336,6 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       const { attackerId, targetCardId, targetPlayerId } = customEvent.detail;
 
       let target: TargetValue | undefined;
-      const location: "hand" | "board" = "board";
 
       if (targetCardId) {
         // Find which player owns this card
@@ -359,7 +358,15 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       if (!target) return;
 
       // Execute the move with validation and animations
-      await executeMove(attackerId, location, target);
+      // const validation = validateMove(G, ctx, attackerId, "board", target);
+
+      // if (!validation.valid) {
+      //   console.warn(`Cannot perform move (UI): ${validation.error}`);
+      //   return; // Don't execute invalid move
+      // }
+
+      // Execute the move - animations will be detected and played by useEffect
+      moves.minionAttack(attackerId, target);
     };
 
     window.addEventListener("attack-target", handleAttackTarget);
@@ -367,7 +374,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     return () => {
       window.removeEventListener("attack-target", handleAttackTarget);
     };
-  }, [executeMove]);
+  }, []);
 
   return (
     <div

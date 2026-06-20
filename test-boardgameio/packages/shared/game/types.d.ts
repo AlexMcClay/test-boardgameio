@@ -376,7 +376,15 @@ export type GameEvent =
   | RushEvent
   | WindfuryEvent
   | ApplyModifierEvent
-  | ArmorEvent;
+  | ArmorEvent
+  | DebugEvent;
+
+type DebugEvent = {
+  type: "debug";
+  playerId: PlayerID;
+  timestamp: number;
+  details: string;
+};
 
 type ApplyModifierEvent = {
   type: "applyModifier";
