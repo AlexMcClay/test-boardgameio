@@ -153,7 +153,12 @@ export type DynamicValue =
       mult?: number;
     }
   | { type: "excess-damage"; mult?: number }
-  | { type: "damage-dealt"; mult?: number }; // most recent damage delt
+  | { type: "damage-dealt"; mult?: number }
+  | {
+      type: "combo-count";
+      mult?: number;
+    };
+// most recent damage delt
 
 export type BooleanCardKey =
   | "taunt"
@@ -456,6 +461,7 @@ export type SpellEvent = {
   playerId: PlayerID;
   timestamp: number;
   card: Card; // Include full card data for easier animation handling
+  turn: number;
 };
 
 export type ManaEvent = {
@@ -498,6 +504,7 @@ export type MinionPlacedEvent = {
   playerId: PlayerID;
   timestamp: number;
   card: Card; // Include full card data for easier animation handling
+  turn: number;
 };
 
 export type AttackEvent = {

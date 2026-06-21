@@ -17,6 +17,9 @@ const KEYWORD_DEFINITIONS: Record<string, string> = {
   Rush: "Can attack minions immediately.",
   Overkill: "Deal excess damage on your turn for a bonus.",
   Freeze: "Frozen characters lose their next attack.",
+  Combo: "A bonus if you already played a card this turn.",
+  Stealth: "Can't be attacked or targeted until it attacks.",
+  Poisonous: "Destroy any minion damaged by this.",
 };
 
 const KeywordPopover = ({ keywords, position }: Props) => {

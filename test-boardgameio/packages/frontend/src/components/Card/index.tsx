@@ -56,6 +56,9 @@ const Card = ({
       "Rush",
       "Overkill",
       "Freeze",
+      "Combo",
+      "Stealth",
+      "Poisonous",
     ];
     return keywords.filter((keyword) =>
       new RegExp(`\\b${keyword}\\b`, "i").test(card.description),

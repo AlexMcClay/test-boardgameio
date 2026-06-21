@@ -2440,19 +2440,99 @@ export const cardTemplates = {
     rarity: "Epic",
     isMinion: true,
     effects: [
-      // Standard minion combat architecture mapping to your base stats logic
       damage({
         stat: "attack",
         type: "card-stat",
       }),
     ],
     onPlace: [],
-    // Deathrattle execution hook array evaluated upon card destruction
     deathrattle: [summon("voidwalker", "self", 3)],
     targetQuery: {
       side: "enemy",
       type: ["card", "player"],
     },
+  },
+  backstab: {
+    title: "Backstab",
+    description: "Deal 2 damage to an undamaged minion.",
+    baseMana: 0,
+    imageUrl: "assets/cards/Backstab.jpg",
+    class: "Rogue",
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "all",
+      type: ["card"],
+      conditions: [
+        {
+          type: "state-match",
+          condition: "isUndamaged",
+        },
+      ],
+    },
+    effects: [damage(2, "user-select")],
+    onPlace: [],
+  },
+  eviscerate: {
+    title: "Eviscerate",
+    description: "Deal 2 damage. Combo: Deal 4 damage instead.",
+    baseMana: 2,
+    imageUrl: "assets/cards/Eviscerate.jpg",
+    class: "Rogue",
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "all",
+      type: ["card", "player"],
+    },
+    effects: [
+      {
+        type: "conditional",
+        conditions: [
+          {
+            type: "numeric",
+            key: {
+              type: "combo-count",
+            },
+            operator: ">",
+            value: 1,
+          },
+        ],
+        else: [damage(2, "user-select")],
+        then: [damage(4, "user-select")],
+      },
+    ],
+    onPlace: [],
+  },
+  "sinister-strike": {
+    title: "Sinister Strike",
+    description: "Deal 3 damage to the enemy hero.",
+    baseMana: 1,
+    imageUrl: "assets/cards/Sinister_Strike.jpg",
+    class: "Rogue",
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    effects: [damage(3, "enemy-hero")],
+    onPlace: [],
+  },
+  "fan-of-knives": {
+    title: "Fan of Knives",
+    description: "Deal 1 damage to all enemy minions. Draw a card.",
+    baseMana: 2,
+    imageUrl: "assets/cards/Fan_of_Knives.jpg",
+    effects: [damage(1, "enemy-board"), draw(1)],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane", "card"],
+    }, // Can target any minion or hero on the board
+    isMinion: false,
+    class: "Rogue",
   },
 } satisfies Record<
   string,

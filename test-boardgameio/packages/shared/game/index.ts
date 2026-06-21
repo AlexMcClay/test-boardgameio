@@ -152,9 +152,17 @@ const placeCard: Move<GameState> = (
 
   // See if the card can be placed on the board
   if (card.isMinion && !card.isPlaced) {
-    // console.log("Placing minion on the board");
-    card.isPlaced = true; // Mark the card as placed
-    card.summoningSickness = true; // Minion has summoning sickness
+    card.isPlaced = true;
+    card.summoningSickness = true;
+
+    recordEvent(G, {
+      type: "minionPlaced",
+      cardId: card.id,
+      playerId: ctx.currentPlayer,
+      timestamp: Date.now(),
+      card, // Include full card data for animation
+      turn: ctx.turn,
+    });
 
     // Check if card needs targeted battlecry (damage or heal)
     const needsTargetedBattlecry =
@@ -164,8 +172,6 @@ const placeCard: Move<GameState> = (
         return test;
       });
     if (needsTargetedBattlecry) {
-      // console.log("Setting pending battlecry for card:", card.id);
-      // Set pending battlecry, DON'T execute onPlace yet
       G.activeBattlecryMinion = {
         cardId: card.id,
         playerId: ctx.currentPlayer,
@@ -187,16 +193,18 @@ const placeCard: Move<GameState> = (
     } else {
       G.board[ctx.currentPlayer].push(card);
     }
-    recordEvent(G, {
-      type: "minionPlaced",
-      cardId: card.id,
-      playerId: ctx.currentPlayer,
-      timestamp: Date.now(),
-      card, // Include full card data for animation
-    });
   }
 
   if (card.isSpell) {
+    recordEvent(G, {
+      type: "spell",
+      cardId: card.id,
+      playerId: ctx.currentPlayer,
+      timestamp: Date.now(),
+      card,
+      turn: ctx.turn,
+    });
+
     executeEffects(card.effects, {
       card: card,
       G,
@@ -204,14 +212,6 @@ const placeCard: Move<GameState> = (
       location,
       playerID: ctx.currentPlayer,
       target,
-    });
-
-    recordEvent(G, {
-      type: "spell",
-      cardId: card.id,
-      playerId: ctx.currentPlayer,
-      timestamp: Date.now(),
-      card,
     });
     // ADD THIS: Push the resolved spell into the graveyard
     G.graveyard.push({

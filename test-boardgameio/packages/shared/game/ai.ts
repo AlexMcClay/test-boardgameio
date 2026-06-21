@@ -37,12 +37,12 @@ export function enumerateAIMoves(G: GameState, ctx: Ctx): AIMove[] {
   if (G.activeBattlecryMinion) {
     const battlecryMoves = enumerateBattlecryTargets(G, ctx);
     // Also allow canceling the battlecry
-    // battlecryMoves.push({
-    //   move: "cancelBattlecry",
-    //   args: [],
-    //   score: -50, // Low priority - prefer to use battlecry
-    //   description: "Cancel battlecry",
-    // });
+    battlecryMoves.push({
+      move: "cancelBattlecry",
+      args: [],
+      score: -50, // Low priority - prefer to use battlecry
+      description: "Cancel battlecry",
+    });
     return battlecryMoves;
   }
 

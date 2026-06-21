@@ -108,17 +108,18 @@ export const paladinDeckString: DeckString = {
 export const rogueDeckString: DeckString = {
   // ALL 1 Available Rogue Class Card (2 cards total)
   assassinate: 2,
+  backstab: 2,
+  "sinister-strike": 2,
+  eviscerate: 2,
+  "fan-of-knives": 1,
 
   // Mandatory Battlecry/Deathrattle Requirements (10 cards)
   "loot-hoarder": 2, // Deathrattle
-  "elven-archer": 2, // Battlecry
-  "voodoo-doctor": 2, // Battlecry
   "novice-engineer": 2, // Battlecry
   "gnomish-inventor": 2, // Battlecry
 
   // Valid Collectible Neutrals to fill up to 30 (18 cards)
-  "bloodfen-raptor": 2,
-  "river-crocolisk": 2,
+  "bloodfen-raptor": 1,
   wolfrider: 2,
   "chillwind-yeti": 2,
   "stormwind-knight": 2,

@@ -85,6 +85,15 @@ export function resolveDynamicValue(
       baseValue = excessDamageDealt ?? 0;
       break;
 
+    case "combo-count": {
+      baseValue = G.eventHistory.filter(
+        (e) =>
+          (e.type === "minionPlaced" || e.type === "spell") &&
+          e.turn === context.ctx.turn,
+      ).length;
+      break;
+    }
+
     case "damage-dealt":
       baseValue = lastDamageDealt ?? 0;
       break;
