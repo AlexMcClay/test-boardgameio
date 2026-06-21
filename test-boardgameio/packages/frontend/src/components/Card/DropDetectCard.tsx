@@ -24,10 +24,11 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
   const placedCardRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const startAttack = useDragStore((s) => s.startAttack);
-  const updateAttackCursor = useDragStore((s) => s.updateAttackCursor);
-  const endAttack = useDragStore((s) => s.endAttack);
-  const attackingCardId = useDragStore((s) => s.attackingCardId);
+  const startTargeting = useDragStore((s) => s.startTargeting);
+  const updateTargetingCursor = useDragStore((s) => s.updateTargetingCursor);
+  const endTargeting = useDragStore((s) => s.endTargeting);
+  const targetingCardId = useDragStore((s) => s.targetingCardId);
+  const targetingMode = useDragStore((s) => s.targetingMode);
   const activeAnimations = useAnimationStore((s) => s.activeAnimations);
   const gameState = useDragStore((s) => s.gameState);
 
@@ -38,7 +39,9 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
     y: number;
   } | null>(null);
 
-  const isAttackingWithArrow = attackingCardId === card.id;
+  const isTargeting = targetingCardId === card.id;
+  const isAttackingWithArrow = isTargeting && targetingMode === "attack";
+  const isBattlecryTargeting = isTargeting && targetingMode === "battlecry";
   const isSicknessActive = card.summoningSickness && !card.charge && !card.rush;
   const disabled =
     (card.attacksLeft == 0 || isSicknessActive || card.frozen) &&
@@ -104,8 +107,8 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
 
   // Hover handlers for popover
   const handleMouseEnter = () => {
-    // Don't show popover during attack mode
-    if (isAttackingWithArrow || attackingCardId) return;
+    // Don't show popover during targeting mode
+    if (isTargeting) return;
 
     // Clear any existing timer
     if (hoverTimerRef.current) {
@@ -157,16 +160,16 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
     };
   }, []);
 
-  // Hide popover when entering attack mode
+  // Hide popover when entering targeting mode
   useEffect(() => {
-    if (isAttackingWithArrow || attackingCardId) {
+    if (isTargeting) {
       setShowPopover(false);
       if (hoverTimerRef.current) {
         clearTimeout(hoverTimerRef.current);
         hoverTimerRef.current = null;
       }
     }
-  }, [isAttackingWithArrow, attackingCardId]);
+  }, [isTargeting]);
 
   const handleMouseDown = (_e: React.MouseEvent) => {
     if (disabled && !isBattlecryMinion) return;
@@ -180,17 +183,15 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
       y: rect.top + rect.height / 2,
     };
 
-    startAttack(card.id, origin, card);
+    // Determine mode based on battlecry state
+    const mode = isBattlecryMinion ? "battlecry" : "attack";
+    startTargeting(mode, card.id, origin, card);
   };
 
-  // Auto-trigger attack mode for battlecry minions
+  // Auto-trigger targeting mode for battlecry minions
   useEffect(() => {
-    if (
-      isBattlecryMinion &&
-      !isAttackingWithArrow &&
-      playerID === ctx.currentPlayer
-    ) {
-      // console.debug("Auto-triggering battlecry attack for:", card.id);
+    if (isBattlecryMinion && !isTargeting && playerID === ctx.currentPlayer) {
+      // console.debug("Auto-triggering battlecry targeting for:", card.id);
       const rect = wrapperRef.current?.getBoundingClientRect();
       if (!rect) return;
 
@@ -199,42 +200,36 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
         y: rect.top + rect.height / 2,
       };
 
-      startAttack(card.id, origin, card);
+      startTargeting("battlecry", card.id, origin, card);
     }
   }, [
     isBattlecryMinion,
-    isAttackingWithArrow,
+    isTargeting,
     card.id,
     playerID,
     ctx.currentPlayer,
-    startAttack,
+    startTargeting,
     card,
   ]);
 
-  // Clear attack arrow when battlecry is resolved or cancelled
+  // Clear targeting arrow when battlecry is resolved or cancelled
   useEffect(() => {
-    // If this card was the battlecry minion and now it's not, clear the attack
+    // If this card was the battlecry minion and now it's not, clear the targeting
     const wasBattlecry = prevIsBattlecryRef.current;
     prevIsBattlecryRef.current = isBattlecryMinion;
     if (
-      isAttackingWithArrow &&
+      isTargeting &&
       wasBattlecry &&
       !isBattlecryMinion &&
-      attackingCardId === card.id
+      targetingCardId === card.id
     ) {
-      // console.debug("Battlecry resolved, clearing attack arrow for:", card.id);
-      endAttack();
+      // console.debug("Battlecry resolved, clearing targeting arrow for:", card.id);
+      endTargeting();
     }
-  }, [
-    isBattlecryMinion,
-    isAttackingWithArrow,
-    attackingCardId,
-    card.id,
-    endAttack,
-  ]);
+  }, [isBattlecryMinion, isTargeting, targetingCardId, card.id, endTargeting]);
 
   useEffect(() => {
-    if (!isAttackingWithArrow) return;
+    if (!isTargeting) return;
 
     // Helper function to find target ID via coordinate bounding boxes
     const getTargetAtCoordinates = (clientX: number, clientY: number) => {
@@ -258,7 +253,7 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-      updateAttackCursor({ x: e.clientX, y: e.clientY });
+      updateTargetingCursor({ x: e.clientX, y: e.clientY });
 
       // 1. Check if hovering a player via geometry
       const targetPlayerId = getTargetAtCoordinates(e.clientX, e.clientY);
@@ -298,9 +293,12 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
       }
 
       if (targetCardId || targetPlayerId) {
-        const event = new CustomEvent("attack-target", {
+        // Dispatch event based on targeting mode
+        const eventType =
+          targetingMode === "battlecry" ? "battlecry-target" : "attack-target";
+        const event = new CustomEvent(eventType, {
           detail: {
-            attackerId: card.id,
+            sourceCardId: card.id,
             targetCardId,
             targetPlayerId,
           },
@@ -309,7 +307,7 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
       }
 
       useDragStore.setState({ hoveredTarget: null });
-      endAttack();
+      endTargeting();
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -319,7 +317,13 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isAttackingWithArrow, card.id, updateAttackCursor, endAttack]);
+  }, [
+    isTargeting,
+    card.id,
+    targetingMode,
+    updateTargetingCursor,
+    endTargeting,
+  ]);
 
   return (
     <>
@@ -329,7 +333,7 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         animate={
-          isAttackingWithArrow
+          isAttackingWithArrow || isBattlecryTargeting
             ? {
                 y: 0,
                 scale: 1.15,

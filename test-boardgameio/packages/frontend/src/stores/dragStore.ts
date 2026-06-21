@@ -9,11 +9,12 @@ import {
   type EffectContextWithOptionalCard,
 } from "@project/shared";
 
+type TargetingMode = "attack" | "battlecry" | "hero-power" | null;
+
 type DragStore = {
   activeCard: Card | null;
   currentPlayer: PlayerID | null;
   gameState: GameState | null;
-  // Add this to your store interface/state if it doesn't exist yet:
   hoveredTarget: {
     type: "card" | "player" | null;
     id: string | null;
@@ -26,10 +27,23 @@ type DragStore = {
     context: EffectContextWithOptionalCard,
   ) => boolean;
 
-  // Attack arrow state
-  attackingCardId: string | null;
-  attackOrigin: { x: number; y: number } | null;
+  // Extensible targeting system
+  targetingMode: TargetingMode;
+  targetingCardId: string | null;
+  targetingOrigin: { x: number; y: number } | null;
   cursorPosition: { x: number; y: number } | null;
+
+  startTargeting: (
+    mode: TargetingMode,
+    cardId: string,
+    origin: { x: number; y: number },
+    card: Card,
+  ) => void;
+  updateTargetingCursor: (position: { x: number; y: number }) => void;
+  endTargeting: () => void;
+
+  // Backward compatibility - Attack arrow state
+  get attackingCardId(): string | null;
   startAttack: (
     cardId: string,
     origin: { x: number; y: number },
@@ -51,34 +65,54 @@ export const useDragStore = create<DragStore>((set, get) => ({
 
   isValidTarget: (target, context) => {
     const { activeCard } = get();
-
     return canTargetHighlight(activeCard, { ...context, target: target });
   },
 
-  // Attack arrow state
-  attackingCardId: null,
-  attackOrigin: null,
+  // Extensible targeting system
+  targetingMode: null,
+  targetingCardId: null,
+  targetingOrigin: null,
   cursorPosition: null,
 
-  startAttack: (cardId, origin, card) => {
+  startTargeting: (mode, cardId, origin, card) => {
     set({
-      attackingCardId: cardId,
-      attackOrigin: origin,
+      targetingMode: mode,
+      targetingCardId: cardId,
+      targetingOrigin: origin,
       cursorPosition: origin,
-      activeCard: card, // Set activeCard for validation and highlighting
+      activeCard: card,
     });
   },
 
-  updateAttackCursor: (position) => {
+  updateTargetingCursor: (position) => {
     set({ cursorPosition: position });
   },
 
-  endAttack: () => {
+  endTargeting: () => {
     set({
-      attackingCardId: null,
-      attackOrigin: null,
+      targetingMode: null,
+      targetingCardId: null,
+      targetingOrigin: null,
       cursorPosition: null,
-      activeCard: null, // Clear activeCard when attack ends
+      activeCard: null,
     });
+  },
+
+  // Backward compatibility getters and methods
+  get attackingCardId() {
+    const state = get();
+    return state.targetingMode === "attack" ? state.targetingCardId : null;
+  },
+
+  startAttack: (cardId, origin, card) => {
+    get().startTargeting("attack", cardId, origin, card);
+  },
+
+  updateAttackCursor: (position) => {
+    get().updateTargetingCursor(position);
+  },
+
+  endAttack: () => {
+    get().endTargeting();
   },
 }));

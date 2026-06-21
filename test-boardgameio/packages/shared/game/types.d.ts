@@ -357,6 +357,7 @@ export type MoveMetadata = {
 // Game event types for comprehensive event tracking
 export type GameEvent =
   | AttackEvent
+  | BattlecryEvent
   | DamageEvent
   | HealEvent
   | DeathEvent
@@ -376,7 +377,15 @@ export type GameEvent =
   | RushEvent
   | WindfuryEvent
   | ApplyModifierEvent
-  | ArmorEvent;
+  | ArmorEvent
+  | DebugEvent;
+
+type DebugEvent = {
+  type: "debug";
+  playerId: PlayerID;
+  timestamp: number;
+  details: string;
+};
 
 type ApplyModifierEvent = {
   type: "applyModifier";
@@ -500,6 +509,15 @@ export type AttackEvent = {
   attackerPlayerId: PlayerID;
   sourceId?: string; // Optional for extensibility
   timestamp: number;
+};
+
+export type BattlecryEvent = {
+  type: "battlecry";
+  cardId: string;
+  playerId: PlayerID;
+  timestamp: number;
+  targetId: string;
+  targetType: "card" | "player";
 };
 
 export type DamageEvent = {

@@ -7,12 +7,12 @@ interface Props {
 }
 
 const AttackArrow = ({ playerID, ctx }: Props) => {
-  const attackingCardId = useDragStore((s) => s.attackingCardId);
-  const attackOrigin = useDragStore((s) => s.attackOrigin);
+  const targetingCardId = useDragStore((s) => s.targetingCardId);
+  const attackOrigin = useDragStore((s) => s.targetingOrigin);
   const cursorPosition = useDragStore((s) => s.cursorPosition);
   const hoveredTarget = useDragStore((s) => s.hoveredTarget);
 
-  if (!attackingCardId || !attackOrigin || !cursorPosition) return null;
+  if (!targetingCardId || !attackOrigin || !cursorPosition) return null;
   if (playerID && ctx.currentPlayer !== playerID) return null;
 
   const dx = cursorPosition.x - attackOrigin.x;
@@ -36,7 +36,7 @@ const AttackArrow = ({ playerID, ctx }: Props) => {
   const head2Y = cursorPosition.y + Math.sin(headAngle2) * arrowHeadSize;
 
   // Determine if bullseye should render
-  const isOverTarget = !!hoveredTarget && hoveredTarget.id !== attackingCardId;
+  const isOverTarget = !!hoveredTarget && hoveredTarget.id !== targetingCardId;
 
   return (
     <svg

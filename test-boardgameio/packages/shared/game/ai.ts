@@ -142,8 +142,8 @@ function enumerateBattlecryTargets(G: GameState, ctx: Ctx): AIMove[] {
               location: "board",
             });
             moves.push({
-              move: "placeCard",
-              args: [cardId, "board", target],
+              move: "resolveBattlecry",
+              args: [cardId, target],
               score,
               description: `Battlecry target: ${enemyCard.title}`,
             });
@@ -171,8 +171,8 @@ function enumerateBattlecryTargets(G: GameState, ctx: Ctx): AIMove[] {
                 location: "board",
               });
               moves.push({
-                move: "placeCard",
-                args: [cardId, "board", target],
+                move: "resolveBattlecry",
+                args: [cardId, target],
                 score,
                 description: `Battlecry target: ${friendlyCard.title}`,
               });
@@ -206,8 +206,8 @@ function enumerateBattlecryTargets(G: GameState, ctx: Ctx): AIMove[] {
             },
           );
           moves.push({
-            move: "placeCard",
-            args: [cardId, "board", targetHero],
+            move: "resolveBattlecry",
+            args: [cardId, targetHero],
             score: scoreHero,
             description: `Battlecry target: Enemy hero`,
           });
@@ -235,8 +235,8 @@ function enumerateBattlecryTargets(G: GameState, ctx: Ctx): AIMove[] {
             },
           );
           moves.push({
-            move: "placeCard",
-            args: [cardId, "board", targetOwnHero],
+            move: "resolveBattlecry",
+            args: [cardId, targetOwnHero],
             score: scoreOwnHero,
             description: `Battlecry target: Own hero`,
           });
@@ -396,8 +396,8 @@ function enumerateAttacks(G: GameState, ctx: Ctx): AIMove[] {
           enemyPlayerId,
         );
         moves.push({
-          move: "placeCard",
-          args: [card.id, "board", target],
+          move: "minionAttack",
+          args: [card.id, target],
           score,
           description: `Attack ${tauntCard.title} with ${card.title}`,
         });
@@ -420,8 +420,8 @@ function enumerateAttacks(G: GameState, ctx: Ctx): AIMove[] {
           enemyPlayerId,
         );
         moves.push({
-          move: "placeCard",
-          args: [card.id, "board", target],
+          move: "minionAttack",
+          args: [card.id, target],
           score,
           description: `Attack ${enemyCard.title} with ${card.title}`,
         });
@@ -442,8 +442,8 @@ function enumerateAttacks(G: GameState, ctx: Ctx): AIMove[] {
         enemyPlayerId,
       );
       moves.push({
-        move: "placeCard",
-        args: [card.id, "board", targetFace],
+        move: "minionAttack",
+        args: [card.id, targetFace],
         score: scoreFace,
         description: `Attack face with ${card.title}`,
       });

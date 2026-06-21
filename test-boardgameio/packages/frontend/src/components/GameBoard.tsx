@@ -301,7 +301,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     }
 
     // Execute the move with validation and animations
-    await executeMove(active.id as string, location, target);
+    await executePlaceCard(active.id as string, location, target);
   };
 
   const handleDragOver = (_event: DragOverEvent) => {
@@ -309,7 +309,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   };
 
   // Simplified move execution - animations now handled by state-driven hook
-  const executeMove = useCallback(
+  const executePlaceCard = useCallback(
     async (
       cardId: string,
       location: "hand" | "board",
@@ -333,10 +333,11 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   useEffect(() => {
     const handleAttackTarget = async (e: Event) => {
       const customEvent = e as CustomEvent;
-      const { attackerId, targetCardId, targetPlayerId } = customEvent.detail;
+      const { sourceCardId, attackerId, targetCardId, targetPlayerId } =
+        customEvent.detail;
+      const cardId = sourceCardId || attackerId; // Support both old and new format
 
       let target: TargetValue | undefined;
-      const location: "hand" | "board" = "board";
 
       if (targetCardId) {
         // Find which player owns this card
@@ -359,7 +360,15 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       if (!target) return;
 
       // Execute the move with validation and animations
-      await executeMove(attackerId, location, target);
+      const validation = validateMove(G, ctx, cardId, "board", target);
+
+      if (!validation.valid) {
+        console.warn(`Cannot perform move (UI): ${validation.error}`);
+        return; // Don't execute invalid move
+      }
+
+      // Execute the move - animations will be detected and played by useEffect
+      moves.minionAttack(cardId, target);
     };
 
     window.addEventListener("attack-target", handleAttackTarget);
@@ -367,7 +376,42 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     return () => {
       window.removeEventListener("attack-target", handleAttackTarget);
     };
-  }, [executeMove]);
+  }, [G, ctx, moves]);
+
+  // Handle battlecry arrow target selection
+  useEffect(() => {
+    const handleBattlecryTarget = async (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { sourceCardId, targetCardId, targetPlayerId } = customEvent.detail;
+
+      let target: TargetValue | undefined;
+
+      if (targetCardId) {
+        const player0HasCard = G.board["0"].some((c) => c.id === targetCardId);
+        const targetPlayer = player0HasCard ? "0" : "1";
+        target = { type: "card", id: targetCardId, player: targetPlayer };
+      } else if (targetPlayerId) {
+        target = { type: "player", id: targetPlayerId, player: targetPlayerId };
+      }
+
+      if (!target) return;
+
+      // Validate and execute
+      const validation = validateMove(G, ctx, sourceCardId, "board", target);
+      if (!validation.valid) {
+        console.warn(`Cannot resolve battlecry (UI): ${validation.error}`);
+        return;
+      }
+
+      moves.resolveBattlecry(sourceCardId, target);
+    };
+
+    window.addEventListener("battlecry-target", handleBattlecryTarget);
+
+    return () => {
+      window.removeEventListener("battlecry-target", handleBattlecryTarget);
+    };
+  }, [G, ctx, moves]);
 
   return (
     <div
