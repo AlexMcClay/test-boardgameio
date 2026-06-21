@@ -1,0 +1,19 @@
+{
+  "features": {
+    "ghcr.io/devcontainer-config/features/dot-config:4": {
+      "version": "4.0.0",
+      "resolved": "ghcr.io/devcontainer-config/features/dot-config@sha256:d9ca770ccb218e619d5725fd50f00dfacdf582d92a8c3901f11b53b1caddd878",
+      "integrity": "sha256:d9ca770ccb218e619d5725fd50f00dfacdf582d92a8c3901f11b53b1caddd878"
+    },
+    "ghcr.io/devcontainers-extra/features/angular-cli:2": {
+      "version": "2.0.16",
+      "resolved": "ghcr.io/devcontainers-extra/features/angular-cli@sha256:ce6e5b54a1da409b24f84c624ec8973e6027c6e1bad0385fe65d7fa3e2db5bc8",
+      "integrity": "sha256:ce6e5b54a1da409b24f84c624ec8973e6027c6e1bad0385fe65d7fa3e2db5bc8"
+    },
+    "ghcr.io/devcontainers-extra/features/deno:1": {
+      "version": "1.0.4",
+      "resolved": "ghcr.io/devcontainers-extra/features/deno@sha256:7013bf7726828a33579604fe1aa5c36a253b578d5991e55800b418b56fd2cca5",
+      "integrity": "sha256:7013bf7726828a33579604fe1aa5c36a253b578d5991e55800b418b56fd2cca5"
+    }
+  }
+}

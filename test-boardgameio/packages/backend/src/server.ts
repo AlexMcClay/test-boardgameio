@@ -26,10 +26,16 @@ const { Server, Origins } = require("boardgame.io/server") as {
 const queueManager = new QueueManager();
 const socketsByPlayerId = new Map<string, WebSocket>();
 
+const configuredOrigins = (process.env.FRONTEND_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean)
+  .map((origin) => new RegExp(`^${origin.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}$`));
+
 // Defaut Server configuration
 const server = Server({
   games: [game.HeathStoneGame],
-  origins: [Origins.LOCALHOST],
+  origins: [Origins.LOCALHOST, ...configuredOrigins],
 });
 
 // Default Lobby API configuration - can be customized as needed (Kept for example and if we want to use it )

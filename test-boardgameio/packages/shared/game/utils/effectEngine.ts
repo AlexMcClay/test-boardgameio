@@ -6,12 +6,10 @@ import {
   getMaxHealth,
 } from "./index";
 import type {
-  GameState,
   Card,
   DynamicValue,
   EffectContext,
   TargetCondition,
-  DamageEffect,
   BaseEffectSelection,
 } from "../types";
 

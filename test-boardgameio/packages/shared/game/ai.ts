@@ -642,8 +642,8 @@ function scoreCardPlay(
 ): number {
   let score = 0;
   const player = G.players[ctx.currentPlayer];
-  const enemyPlayerId = ctx.currentPlayer === "0" ? "1" : "0";
-  const enemyPlayer = G.players[enemyPlayerId];
+  // const enemyPlayerId = ctx.currentPlayer === "0" ? "1" : "0";
+  // const enemyPlayer = G.players[enemyPlayerId];
 
   // Mana efficiency - prefer using mana
   const mana = getManaCost(card);
@@ -809,7 +809,7 @@ function scoreAttack(
  */
 function evaluateEffect(effect: EffectTypes, context: EffectContext): number {
   let score = 0;
-  const { ctx, G, card, playerID, target } = context;
+  const { ctx, G, target } = context;
   const enemyPlayerId = ctx.currentPlayer === "0" ? "1" : "0";
   const enemyPlayer = G.players[enemyPlayerId];
   switch (effect.type) {

@@ -55,9 +55,9 @@ const createBoolEffectUtil = (type: EffectTypes["type"]) => {
 const freeze = createBoolEffectUtil("freeze");
 const divineShield = createBoolEffectUtil("divineShield");
 const taunt = createBoolEffectUtil("taunt");
-const stealth = createBoolEffectUtil("stealth");
+// const stealth = createBoolEffectUtil("stealth");
 const charge = createBoolEffectUtil("charge");
-const rush = createBoolEffectUtil("rush");
+// const rush = createBoolEffectUtil("rush");
 
 const destroy = (
   target: "user-select" | "self" | "enemy-board" | "board",
@@ -94,18 +94,18 @@ const draw = (value: number | DynamicValue): EffectTypes => {
   };
 };
 
-const changeKey = (
-  key: keyof Card,
-  value: DynamicValue,
-  target: "user-select" | "self" = "self",
-): EffectTypes => {
-  return {
-    type: "changeKey",
-    key: key,
-    value: value,
-    target: target,
-  };
-};
+// const changeKey = (
+//   key: keyof Card,
+//   value: DynamicValue,
+//   target: "user-select" | "self" = "self",
+// ): EffectTypes => {
+//   return {
+//     type: "changeKey",
+//     key: key,
+//     value: value,
+//     target: target,
+//   };
+// };
 
 const summon = (
   cardID: string,
