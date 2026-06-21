@@ -161,6 +161,9 @@ const Card = ({
       "Rush",
       "Overkill",
       "Freeze",
+      "Combo",
+      "Stealth",
+      "Poisonous",
     ];
     let parsedDescription = card.description;
     keywords.forEach((keyword) => {

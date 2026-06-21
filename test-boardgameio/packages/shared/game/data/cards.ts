@@ -2665,6 +2665,53 @@ export const cardTemplates = {
     isMinion: false,
     class: "Rogue",
   },
+  sap: {
+    title: "Sap",
+    description: "Return an enemy minion to your opponent's hand.",
+    baseMana: 2,
+    imageUrl: "assets/cards/Sap.jpg",
+    class: "Rogue",
+    isSpell: true,
+    isMinion: false,
+    effects: [returnToHand("user-select")],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card"], // Strictly restricts targeting to enemy minions on the board
+    },
+  },
+  shiv: {
+    title: "Shiv",
+    description: "Deal 1 damage. Draw a card.",
+    baseMana: 2,
+    imageUrl: "assets/cards/Shiv.jpg",
+    class: "Rogue",
+    isSpell: true,
+    isMinion: false,
+    effects: [damage(1), draw(1)],
+    onPlace: [],
+    targetQuery: {
+      side: "all",
+      type: ["card", "player"], // Allows targeting any minion or hero on the board
+    },
+  },
+  "call-of-the-void": {
+    title: "Call of the Void",
+    description: "Add a random Demon to your hand.",
+    baseMana: 1,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Call_of_the_Void.jpg",
+    class: "Warlock",
+    rarity: "Common",
+    isSpell: true,
+    isMinion: false,
+    effects: [addRandomCard([{ type: "tags-include", value: "Demon" }], 1)],
+    onPlace: [],
+    targetQuery: {
+      side: "all",
+      type: ["lane"], // Board-wide non-targeted spell alignment
+    },
+  },
 } satisfies Record<
   string,
   Omit<Card, "id" | "originalID" | "damageTaken" | "attacksLeft">
