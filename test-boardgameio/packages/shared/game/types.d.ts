@@ -66,6 +66,7 @@ export interface Player {
   mana: number;
   hand: Card[];
   deck: Card[];
+  burntCards: Card[]; // Cards that couldn't fit in hand (hand was full)
 }
 
 export interface EffectContext {
@@ -217,7 +218,9 @@ export type EffectTypes =
   | ConditionalEffect
   | SequenceEffect
   | BounceEffect
-  | StoreTempVarEffect;
+  | StoreTempVarEffect
+  | AddToHandEffect
+  | ReturnToHandEffect;
 
 export interface StoreTempVarEffect {
   type: "storeVar";
@@ -241,6 +244,38 @@ export interface BounceEffect {
   type: "bounce";
   target: "user-select";
   modifiers?: ApplyModifierEffect[]; // For giving it "Costs (2) less"
+}
+
+export interface AddToHandEffect {
+  type: "addToHand";
+  source: "deck" | "global" | "graveyard" | "hand" | "board";
+  removeFromSource?: boolean; // If true, removes from source (e.g., draw from deck)
+  target?:
+    | "user-select"
+    | "friendly-board"
+    | "enemy-board"
+    | "friendly-hand"
+    | "enemy-hand"; // For board/hand copies
+  conditions?: TargetCondition[]; // Filter cards (e.g., Demons, cost 7-10, etc.)
+  cardID?: string | string[]; // Specific card(s) to add (e.g., "Cub", "Arcane Bolt")
+  value: number | DynamicValue; // Count of cards to add
+  rand?: {
+    n: number; // How many random cards to pick
+  };
+  modifiers?: ApplyModifierEffect[]; // Apply modifiers after adding
+  fallback?: {
+    // If no matches found (e.g., "Sense Demons")
+    cardID: string;
+    value: number;
+  };
+}
+
+export interface ReturnToHandEffect {
+  type: "returnToHand";
+  target: "user-select" | "friendly-board" | "enemy-board" | "board";
+  conditions?: TargetCondition[];
+  rand?: { n: number }; // Random selection
+  modifiers?: ApplyModifierEffect[]; // Applied AFTER stripping all buffs
 }
 
 export type BaseEffectSelection = {
@@ -383,7 +418,10 @@ export type GameEvent =
   | WindfuryEvent
   | ApplyModifierEvent
   | ArmorEvent
-  | DebugEvent;
+  | DebugEvent
+  | AddToHandEvent
+  | ReturnToHandEvent
+  | BurnCardEvent;
 
 type DebugEvent = {
   type: "debug";
@@ -552,6 +590,32 @@ export type DeathEvent = {
   cardId: string;
   playerId: PlayerID;
   timestamp: number;
+};
+
+export type AddToHandEvent = {
+  type: "addToHand";
+  cardId: string;
+  playerId: PlayerID;
+  timestamp: number;
+  card: Card;
+  source: "deck" | "global" | "graveyard" | "hand" | "board";
+};
+
+export type ReturnToHandEvent = {
+  type: "returnToHand";
+  cardId: string;
+  playerId: PlayerID;
+  timestamp: number;
+  card: Card;
+  fromBoard: boolean;
+};
+
+export type BurnCardEvent = {
+  type: "burnCard";
+  cardId: string;
+  playerId: PlayerID;
+  timestamp: number;
+  card: Card;
 };
 
 export interface SavedDeck {

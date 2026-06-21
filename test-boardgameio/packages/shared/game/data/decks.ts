@@ -112,16 +112,17 @@ export const rogueDeckString: DeckString = {
   "sinister-strike": 2,
   eviscerate: 2,
   "fan-of-knives": 1,
+  shadowstep: 2,
 
   // Mandatory Battlecry/Deathrattle Requirements (10 cards)
   "loot-hoarder": 2, // Deathrattle
   "novice-engineer": 2, // Battlecry
-  "gnomish-inventor": 2, // Battlecry
+  "gnomish-inventor": 1, // Battlecry
 
   // Valid Collectible Neutrals to fill up to 30 (18 cards)
   "bloodfen-raptor": 1,
   wolfrider: 2,
-  "chillwind-yeti": 2,
+  "chillwind-yeti": 1,
   "stormwind-knight": 2,
   "booty-bay-bodyguard": 2,
   "reckless-rocketeer": 2,

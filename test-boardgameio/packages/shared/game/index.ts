@@ -21,6 +21,9 @@ import {
   healPlayer,
   recordEvent,
   isBaseEffectSelection,
+  addCardToHand,
+  findCardsInPool,
+  returnCardToHand,
 } from "./utils";
 import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
 import { validateMove } from "./utils/validateMove";
@@ -77,6 +80,7 @@ const setupData = (
     mana: 1,
     hand: [],
     deck: playerDeck,
+    burntCards: [],
   };
 
   const p1: Player = {
@@ -91,6 +95,7 @@ const setupData = (
     mana: 1,
     hand: [],
     deck: opponentDeck,
+    burntCards: [],
   };
 
   const G: GameState = {
@@ -705,6 +710,100 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
           }
         });
 
+        break;
+      }
+      case "addToHand": {
+        const count = resolveDynamicValue(effect.value, context);
+
+        // Find cards from the specified source
+        const cardsToAdd = findCardsInPool(G, playerID, effect, context);
+
+        // Handle fallback if no cards found
+        if (cardsToAdd.length === 0 && effect.fallback) {
+          for (let i = 0; i < effect.fallback.value; i++) {
+            const fallbackCard = createCardFromID(
+              effect.fallback.cardID as CardTemplateKey,
+            );
+            if (fallbackCard) {
+              addCardToHand(
+                G,
+                playerID,
+                fallbackCard,
+                effect.modifiers,
+                "global",
+              );
+            }
+          }
+        } else {
+          // Add cards to hand (up to the count specified)
+          const cardsToProcess = cardsToAdd.slice(0, count);
+          cardsToProcess.forEach((cardToAdd: Card) => {
+            addCardToHand(
+              G,
+              playerID,
+              cardToAdd,
+              effect.modifiers,
+              effect.source,
+            );
+          });
+        }
+
+        break;
+      }
+      case "returnToHand": {
+        // Build target pool based on effect.target
+        let targetPool: Card[] = [];
+        const enemyId = playerID === "0" ? "1" : "0";
+
+        if (effect.target === "user-select" && target?.type === "card") {
+          const card = G.board[target.player].find((c) => c.id === target.id);
+          if (card) targetPool.push(card);
+        } else if (effect.target === "friendly-board") {
+          targetPool = [...G.board[playerID]];
+        } else if (effect.target === "enemy-board") {
+          targetPool = [...G.board[enemyId]];
+        } else if (effect.target === "board") {
+          targetPool = [...G.board[playerID], ...G.board[enemyId]];
+        }
+
+        // Filter by conditions
+        if (effect.conditions && effect.conditions.length > 0) {
+          targetPool = targetPool.filter((card) =>
+            effect.conditions!.every((cond) =>
+              checkSingleTargetCondition(card, cond, context),
+            ),
+          );
+        }
+
+        // Apply randomization
+        if (effect.rand && effect.rand.n > 0) {
+          const shuffled = [...targetPool].sort(() => Math.random() - 0.5);
+          targetPool = shuffled.slice(
+            0,
+            Math.min(effect.rand.n, targetPool.length),
+          );
+        }
+
+        // Return cards to hand
+        targetPool.forEach((cardToReturn) => {
+          const ownerID = G.board["0"].find((c) => c.id === cardToReturn.id)
+            ? "0"
+            : "1";
+          returnCardToHand(G, cardToReturn, ownerID, effect.modifiers);
+        });
+
+        break;
+      }
+      case "bounce": {
+        // Legacy bounce effect - use returnToHand instead
+        if (target && target.type === "card") {
+          const targetCard = G.board[target.player].find(
+            (c) => c.id === target.id,
+          );
+          if (targetCard) {
+            returnCardToHand(G, targetCard, target.player, effect.modifiers);
+          }
+        }
         break;
       }
     }

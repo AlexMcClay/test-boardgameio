@@ -131,6 +131,87 @@ const armor = (
   };
 };
 
+// Add to hand utility - for generating/discovering cards
+const addToHand = (
+  cardID: string | string[],
+  count: number | DynamicValue = 1,
+  modifiers?: ApplyModifierEffect[],
+): EffectTypes => {
+  return {
+    type: "addToHand",
+    source: "global",
+    cardID: cardID,
+    value: count,
+    modifiers: modifiers,
+  };
+};
+
+// Add from deck - removes cards from deck
+const addFromDeck = (
+  conditions: import("../types").TargetCondition[],
+  count: number | DynamicValue = 1,
+  random: boolean = false,
+  fallback?: { cardID: string; value: number },
+): EffectTypes => {
+  return {
+    type: "addToHand",
+    source: "deck",
+    removeFromSource: true,
+    conditions: conditions,
+    value: count,
+    rand: random ? { n: typeof count === "number" ? count : 1 } : undefined,
+    fallback: fallback,
+  };
+};
+
+// Add copy from deck - creates copy, keeps original in deck
+const addCopyFromDeck = (
+  conditions: import("../types").TargetCondition[],
+  count: number | DynamicValue = 1,
+  random: boolean = false,
+): EffectTypes => {
+  return {
+    type: "addToHand",
+    source: "deck",
+    removeFromSource: false,
+    conditions: conditions,
+    value: count,
+    rand: random ? { n: typeof count === "number" ? count : 1 } : undefined,
+  };
+};
+
+// Add random card from global pool
+const addRandomCard = (
+  conditions: import("../types").TargetCondition[],
+  count: number | DynamicValue = 1,
+  modifiers?: ApplyModifierEffect[],
+): EffectTypes => {
+  return {
+    type: "addToHand",
+    source: "global",
+    conditions: conditions,
+    value: count,
+    rand: { n: typeof count === "number" ? count : 1 },
+    modifiers: modifiers,
+  };
+};
+
+// Return minion to hand
+const returnToHand = (
+  target: "user-select" | "friendly-board" | "enemy-board" | "board",
+  conditions?: import("../types").TargetCondition[],
+  randomCount?: number,
+  modifiers?: ApplyModifierEffect[],
+): EffectTypes => {
+  return {
+    type: "returnToHand",
+    target: target,
+    conditions: conditions,
+    rand: randomCount ? { n: randomCount } : undefined,
+    modifiers: modifiers,
+  };
+};
+
 // cardTemplates.ts
 export const cardTemplates = {
   "flame-imp": {
@@ -2378,6 +2459,34 @@ export const cardTemplates = {
     effects: [damage(3, "user-select"), summon("voidwalker", "self", 2)],
     onPlace: [],
   },
+  "sense-demons": {
+    title: "Sense Demons",
+    description: "Draw 2 Demons from your deck.",
+    baseMana: 3,
+
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Sense_Demons.jpg",
+    class: "Warlock",
+    rarity: "Common",
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "all",
+      type: ["card", "lane"],
+    },
+    effects: [
+      {
+        type: "addToHand",
+        source: "deck",
+        removeFromSource: true, // ← KEY DIFFERENCE
+        conditions: [{ type: "tags-include", value: "Demon" }],
+        value: 2,
+        rand: { n: 2 },
+        fallback: { cardID: "worthless_imp", value: 2 },
+      },
+    ],
+    onPlace: [],
+  },
   riftcleaver: {
     title: "Riftcleaver",
     description:
@@ -2530,6 +2639,28 @@ export const cardTemplates = {
     targetQuery: {
       side: "all",
       type: ["lane", "card"],
+    }, // Can target any minion or hero on the board
+    isMinion: false,
+    class: "Rogue",
+  },
+  shadowstep: {
+    title: "shadowstep",
+    description: "Return a friendly minion to your hand. It costs (2) less.",
+    baseMana: 0,
+    rarity: "Common",
+    imageUrl: "assets/cards/Shadowstep.jpg",
+    effects: [
+      {
+        type: "returnToHand",
+        target: "user-select",
+        modifiers: [applyModifier("mana", -2, "self")],
+      },
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "friendly",
+      type: ["card"],
     }, // Can target any minion or hero on the board
     isMinion: false,
     class: "Rogue",

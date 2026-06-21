@@ -1,4 +1,5 @@
-import { getCurrentHealth, getMaxHealth } from ".";
+import { createCardFromID, getCurrentHealth, getMaxHealth } from ".";
+import { cardTemplates } from "../data/cards";
 import {
   type ApplyModifierEffect,
   type BaseEffectSelection,
@@ -9,6 +10,7 @@ import {
   type GameEvent,
   type GameState,
 } from "../types";
+import { checkSingleTargetCondition } from "./effectEngine";
 // Helper function to record game events
 export function recordEvent(G: GameState, event: GameEvent) {
   // Add to current move events
@@ -240,4 +242,228 @@ export function isBaseEffectSelection(
   // @ts-ignore
 ): effect is BaseEffectSelection {
   return types.includes(effect.type);
+}
+
+// NEW HELPERS FOR ADD TO HAND / RETURN TO HAND MECHANICS
+
+/**
+ * Adds a card to a player's hand, handling hand limit (10 cards max)
+ * If hand is full, card is burned (added to burntCards array)
+ */
+export function addCardToHand(
+  G: GameState,
+  playerID: string,
+  card: Card,
+  modifiers?: import("../types").ApplyModifierEffect[],
+  source: "deck" | "global" | "graveyard" | "hand" | "board" = "global",
+) {
+  const player = G.players[playerID];
+
+  // Apply modifiers if provided
+  if (modifiers && modifiers.length > 0) {
+    modifiers.forEach((modEffect) => {
+      const value = typeof modEffect.value === "number" ? modEffect.value : 0;
+      proccessApplyModifier(G, card.id, card, playerID, modEffect, value);
+    });
+  }
+
+  // Check hand limit
+  if (player.hand.length >= 10) {
+    // Hand is full - burn the card
+    player.burntCards.push(card);
+    recordEvent(G, {
+      type: "burnCard",
+      cardId: card.id,
+      playerId: playerID,
+      timestamp: Date.now(),
+      card,
+    });
+    console.log(`Card ${card.title} was burned (hand full)`);
+  } else {
+    // Add to hand
+    player.hand.push(card);
+    recordEvent(G, {
+      type: "addToHand",
+      cardId: card.id,
+      playerId: playerID,
+      timestamp: Date.now(),
+      card,
+      source,
+    });
+  }
+}
+
+/**
+ * Returns a card from the board to its owner's hand
+ * Strips all modifiers and resets the card to base state
+ */
+export function returnCardToHand(
+  G: GameState,
+  card: Card,
+  ownerID: string,
+  modifiers?: import("../types").ApplyModifierEffect[],
+) {
+  // Remove card from board
+  const boardIndex = G.board[ownerID].findIndex((c) => c.id === card.id);
+  if (boardIndex !== -1) {
+    G.board[ownerID].splice(boardIndex, 1);
+  }
+
+  // Strip all modifiers and reset to base state
+  const resetCard = stripCardModifiers(card);
+
+  // Add to hand with new modifiers
+  addCardToHand(G, ownerID, resetCard, modifiers, "board");
+
+  recordEvent(G, {
+    type: "returnToHand",
+    cardId: resetCard.id,
+    playerId: ownerID,
+    timestamp: Date.now(),
+    card: resetCard,
+    fromBoard: true,
+  });
+}
+
+/**
+ * Resets a card to its original base state by removing all modifiers and buffs
+ * Preserves the card's unique ID for tracking
+ */
+export function stripCardModifiers(card: Card): Card {
+  // Create a fresh copy from the original template
+  const freshCard = createCardFromID(card.originalID as any);
+
+  if (!freshCard) {
+    console.warn(`Cannot find template for card ${card.originalID}`);
+    // Fallback: just clear modifiers manually
+    return {
+      ...card,
+      modifiers: [],
+      damageTaken: 0,
+      isPlaced: false,
+      summoningSickness: false,
+      attacksLeft: card.windfury ? 2 : 1,
+    };
+  }
+
+  // Preserve the unique card ID for tracking
+  freshCard.id = card.id;
+
+  return freshCard;
+}
+
+/**
+ * Finds cards from various sources (deck, global pool, graveyard, etc.)
+ * and returns an array of cards matching the given conditions
+ */
+export function findCardsInPool(
+  G: GameState,
+  playerID: string,
+  effect: import("../types").AddToHandEffect,
+  context: import("../types").EffectContext,
+): Card[] {
+  let pool: Card[] = [];
+  const player = G.players[playerID];
+  const count = typeof effect.value === "number" ? effect.value : 1;
+
+  // Handle specific cardID(s)
+  if (effect.cardID) {
+    const cardIDs = Array.isArray(effect.cardID)
+      ? effect.cardID
+      : [effect.cardID];
+    cardIDs.forEach((id) => {
+      for (let i = 0; i < count; i++) {
+        const card = createCardFromID(id as any);
+        if (card) pool.push(card);
+      }
+    });
+    return pool;
+  }
+
+  // Build pool based on source
+  switch (effect.source) {
+    case "deck":
+      pool = [...player.deck];
+      break;
+
+    case "global":
+      // Search all card templates
+      pool = Object.keys(cardTemplates)
+        .map((id) => createCardFromID(id as any))
+        .filter((card): card is Card => card !== null);
+      break;
+
+    case "graveyard":
+      pool = G.graveyard
+        .filter((g) => g.originalOwner === playerID)
+        .map((g) => {
+          const card = createCardFromID(g.card.originalID as any);
+          return card;
+        })
+        .filter((card): card is Card => card !== null);
+      break;
+
+    case "hand":
+      pool = [...player.hand];
+      break;
+
+    case "board":
+      // This will be handled by target resolution logic
+      pool = [];
+      break;
+  }
+
+  // Filter by conditions
+  if (effect.conditions && effect.conditions.length > 0) {
+    pool = pool.filter((card) =>
+      effect.conditions!.every((cond) =>
+        checkSingleTargetCondition(card, cond, context),
+      ),
+    );
+  }
+
+  // Apply randomization
+  if (effect.rand && effect.rand.n > 0) {
+    // Shuffle and take n random cards
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    pool = shuffled.slice(0, Math.min(effect.rand.n, pool.length));
+  } else if (effect.rand && effect.rand.n < 0) {
+    // Take last n cards (e.g., for "last drawn card")
+    pool = pool.slice(effect.rand.n);
+  }
+
+  // Handle removeFromSource
+  if (effect.removeFromSource && effect.source === "deck") {
+    // Remove selected cards from deck
+    pool.forEach((selectedCard) => {
+      const index = player.deck.findIndex((c) => c.id === selectedCard.id);
+      if (index !== -1) {
+        player.deck.splice(index, 1);
+      }
+    });
+  } else if (effect.removeFromSource && effect.source === "graveyard") {
+    // Remove from graveyard
+    pool.forEach((selectedCard) => {
+      const index = G.graveyard.findIndex((g) => g.card.id === selectedCard.id);
+      if (index !== -1) {
+        G.graveyard.splice(index, 1);
+      }
+    });
+  } else if (effect.removeFromSource && effect.source === "hand") {
+    // Remove from hand
+    pool.forEach((selectedCard) => {
+      const index = player.hand.findIndex((c) => c.id === selectedCard.id);
+      if (index !== -1) {
+        player.hand.splice(index, 1);
+      }
+    });
+  } else if (effect.source !== "global" && !effect.removeFromSource) {
+    // Create copies instead of using originals
+    pool = pool.map((card) => {
+      const copy = createCardFromID(card.originalID as any);
+      return copy || card;
+    });
+  }
+
+  return pool;
 }
