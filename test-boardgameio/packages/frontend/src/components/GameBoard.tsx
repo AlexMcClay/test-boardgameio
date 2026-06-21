@@ -333,7 +333,9 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   useEffect(() => {
     const handleAttackTarget = async (e: Event) => {
       const customEvent = e as CustomEvent;
-      const { attackerId, targetCardId, targetPlayerId } = customEvent.detail;
+      const { sourceCardId, attackerId, targetCardId, targetPlayerId } =
+        customEvent.detail;
+      const cardId = sourceCardId || attackerId; // Support both old and new format
 
       let target: TargetValue | undefined;
 
@@ -358,7 +360,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       if (!target) return;
 
       // Execute the move with validation and animations
-      const validation = validateMove(G, ctx, attackerId, "board", target);
+      const validation = validateMove(G, ctx, cardId, "board", target);
 
       if (!validation.valid) {
         console.warn(`Cannot perform move (UI): ${validation.error}`);
@@ -366,13 +368,48 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       }
 
       // Execute the move - animations will be detected and played by useEffect
-      moves.minionAttack(attackerId, target);
+      moves.minionAttack(cardId, target);
     };
 
     window.addEventListener("attack-target", handleAttackTarget);
 
     return () => {
       window.removeEventListener("attack-target", handleAttackTarget);
+    };
+  }, [G, ctx, moves]);
+
+  // Handle battlecry arrow target selection
+  useEffect(() => {
+    const handleBattlecryTarget = async (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { sourceCardId, targetCardId, targetPlayerId } = customEvent.detail;
+
+      let target: TargetValue | undefined;
+
+      if (targetCardId) {
+        const player0HasCard = G.board["0"].some((c) => c.id === targetCardId);
+        const targetPlayer = player0HasCard ? "0" : "1";
+        target = { type: "card", id: targetCardId, player: targetPlayer };
+      } else if (targetPlayerId) {
+        target = { type: "player", id: targetPlayerId, player: targetPlayerId };
+      }
+
+      if (!target) return;
+
+      // Validate and execute
+      const validation = validateMove(G, ctx, sourceCardId, "board", target);
+      if (!validation.valid) {
+        console.warn(`Cannot resolve battlecry (UI): ${validation.error}`);
+        return;
+      }
+
+      moves.resolveBattlecry(sourceCardId, target);
+    };
+
+    window.addEventListener("battlecry-target", handleBattlecryTarget);
+
+    return () => {
+      window.removeEventListener("battlecry-target", handleBattlecryTarget);
     };
   }, [G, ctx, moves]);
 

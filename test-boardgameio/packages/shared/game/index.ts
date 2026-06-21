@@ -6,11 +6,9 @@ import type {
   Hero,
   EffectTypes,
   EffectContext,
-  BaseEffectSelection,
 } from "./types";
 import {
   createCardFromID,
-  getAttack,
   getCurrentHealth,
   getManaCost,
   getMaxHealth,
@@ -125,30 +123,6 @@ const placeCard: Move<GameState> = (
     location === "hand"
       ? player.hand.find((c) => c.id === cardId)!
       : G.board[ctx.currentPlayer].find((c) => c.id === cardId)!;
-
-  // Check if this is a battlecry resolution
-  const isResolvingBattlecry =
-    G.activeBattlecryMinion?.cardId === cardId &&
-    location === "board" &&
-    target;
-
-  if (isResolvingBattlecry) {
-    // console.log("Resolving battlecry for card:", cardId);
-    // Execute the battlecry onPlace effects with target
-
-    executeEffects(card.onPlace, {
-      card: card,
-      G,
-      ctx,
-      location: "board",
-      playerID: ctx.currentPlayer,
-      target,
-    });
-    // Clear the battlecry state
-    G.activeBattlecryMinion = null;
-    processDeaths(G, ctx);
-    return;
-  }
 
   // Single validation call
   const validation = validateMove(G, ctx, cardId, location, target);
@@ -318,6 +292,54 @@ const minionAttack: Move<GameState> = (
 
   processDeaths(G, ctx);
   return G;
+};
+
+const resolveBattlecry: Move<GameState> = (
+  { G, ctx },
+  cardId: string,
+  target: TargetValue,
+) => {
+  const card = G.board[ctx.currentPlayer].find((c) => c.id === cardId);
+
+  if (!card || G.activeBattlecryMinion?.cardId !== cardId) {
+    console.warn("Invalid battlecry resolution");
+    return;
+  }
+
+  // Validate the move
+  const validation = validateMove(G, ctx, cardId, "board", target);
+  if (!validation.valid) {
+    console.warn(`Invalid battlecry: ${validation.error}`);
+    return;
+  }
+
+  // Clear events and track move
+  G.gameEvents = [];
+  G.lastMove = { cardId, location: "board", target, timestamp: Date.now() };
+
+  // Execute battlecry effects
+  executeEffects(card.onPlace, {
+    card,
+    G,
+    ctx,
+    location: "board",
+    playerID: ctx.currentPlayer,
+    target,
+  });
+
+  // Record event for animations
+  recordEvent(G, {
+    type: "battlecry",
+    cardId: card.id,
+    playerId: ctx.currentPlayer,
+    timestamp: Date.now(),
+    targetId: target.id,
+    targetType: target.type === "lane" ? "player" : target.type,
+  });
+
+  // Clear battlecry state
+  G.activeBattlecryMinion = null;
+  processDeaths(G, ctx);
 };
 
 function isSelectValue(e: EffectTypes): boolean {
@@ -887,7 +909,14 @@ export const HeathStoneGame: Game<GameState> = {
   phases: {
     play: {
       start: true,
-      moves: { drawCard, placeCard, cancelBattlecry, endTurn, minionAttack },
+      moves: {
+        drawCard,
+        placeCard,
+        cancelBattlecry,
+        endTurn,
+        minionAttack,
+        resolveBattlecry,
+      },
       onBegin: ({ G, ctx }) => {
         // Draw 5 cards for each player at the start
         for (let i = 0; i < 5; i++) {
