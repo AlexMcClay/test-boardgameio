@@ -1,15 +1,13 @@
 // utils/validateMove.ts
-import { getAttack, getCurrentHealth, getManaCost, getMaxHealth } from ".";
+import {  getManaCost } from ".";
 import type {
   Card,
   TargetValue,
   GameState,
-  TargetCondition,
   TargetQuery,
-  EffectContext,
   EffectContextWithOptionalCard,
 } from "../types";
-import type { Ctx, PlayerID } from "boardgame.io";
+import type { Ctx } from "boardgame.io";
 
 import { checkSingleTargetCondition } from "./effectEngine";
 

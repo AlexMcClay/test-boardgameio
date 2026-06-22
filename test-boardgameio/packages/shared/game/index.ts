@@ -362,7 +362,7 @@ function isSelectValue(e: EffectTypes): boolean {
 }
 
 const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
-  const { card, target, location, playerID, G, ctx } = context;
+  const { card, target, playerID, G, ctx } = context;
   const cardId = card.id;
   let isUserSelect = false;
 

@@ -3,6 +3,7 @@ type MessageHandler = (data: WebSocketMessage) => void;
 import type { WebSocketMessage } from "@project/shared/";
 
 const RECONNECT_DEBOUNCE_MS = 1500;
+const DEFAULT_WS_URL = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.hostname}:8000/matchmaking-ws`;
 
 class MatchmakingWebSocketService {
   private socket: WebSocket | null = null;
@@ -13,13 +14,9 @@ class MatchmakingWebSocketService {
   connect() {
     if (this.socket || !this.shouldReconnect) return;
 
-    // Determine the correct protocol (ws for http, wss for https)
-    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = import.meta.env.VITE_BACKEND_WS_URL?.trim() || DEFAULT_WS_URL;
 
-    // Connect using the current hostname while keeping the :8000 port and path
-    this.socket = new WebSocket(
-      `${wsProtocol}//${window.location.hostname}:8000/matchmaking-ws`,
-    );
+    this.socket = new WebSocket(wsUrl);
     this.socket.onopen = () => {
       console.log("Connected");
       this.send({

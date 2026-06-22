@@ -5,7 +5,6 @@ import {
   type BaseEffectSelection,
   type Card,
   type CardModifier,
-  type DynamicValue,
   type EffectTypes,
   type GameEvent,
   type GameState,
