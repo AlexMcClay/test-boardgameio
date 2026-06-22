@@ -132,7 +132,7 @@ const armor = (
 };
 
 // Add to hand utility - for generating/discovering cards
-const addToHand = (
+/* const addToHand = (
   cardID: string | string[],
   count: number | DynamicValue = 1,
   modifiers?: ApplyModifierEffect[],
@@ -144,9 +144,10 @@ const addToHand = (
     value: count,
     modifiers: modifiers,
   };
-};
+}; */
 
 // Add from deck - removes cards from deck
+/*
 const addFromDeck = (
   conditions: import("../types").TargetCondition[],
   count: number | DynamicValue = 1,
@@ -163,8 +164,9 @@ const addFromDeck = (
     fallback: fallback,
   };
 };
-
+ */
 // Add copy from deck - creates copy, keeps original in deck
+/*
 const addCopyFromDeck = (
   conditions: import("../types").TargetCondition[],
   count: number | DynamicValue = 1,
@@ -178,7 +180,7 @@ const addCopyFromDeck = (
     value: count,
     rand: random ? { n: typeof count === "number" ? count : 1 } : undefined,
   };
-};
+}; */
 
 // Add random card from global pool
 const addRandomCard = (
