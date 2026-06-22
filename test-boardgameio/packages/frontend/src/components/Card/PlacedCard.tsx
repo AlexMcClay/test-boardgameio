@@ -10,6 +10,8 @@ import { getAttack, getCurrentHealth, getMaxHealth } from "@project/shared";
 
 const attackIcon = "assets/attack.png";
 const healthIcon = "assets/health.png";
+const skullIcon = "assets/icons/skull.png";
+
 const minionFrame = "assets/minion_frame.png";
 const minionTaunt = "assets/minion_taunt.png";
 
@@ -214,6 +216,15 @@ const PlacedCard = ({
             </div>
           )}
         </>
+      )}
+      {card.deathrattle && (
+        <img
+          src={skullIcon}
+          alt="DeathRattle"
+          className=" object-contain h-[2.7vw] absolute  bottom-[-0.7vw]"
+          // no drag
+          draggable="false"
+        />
       )}
     </motion.div>
   );

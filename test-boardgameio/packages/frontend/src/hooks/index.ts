@@ -156,3 +156,5 @@ export function useArchedText(
     });
   }, [text, fontSize, canvasRef, containerRef]);
 }
+
+export * from "./gameHooks";
