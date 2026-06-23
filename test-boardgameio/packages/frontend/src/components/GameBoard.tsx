@@ -11,9 +11,7 @@ import {
 import Lane from "./Lane";
 import DropDetectCard from "./Card/DropDetectCard";
 import { useDragStore } from "@/stores/dragStore";
-import { useAnimationStore } from "@/stores/animationStore";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { detectAllAnimations } from "@/utils/detectAnimations";
 import AttackArrow from "./AttackArrow";
 import HitNumbers from "./HitNumbers";
 import { pointerWithSmallBuffer } from "@/utils/customCollisionDetection";
@@ -34,6 +32,7 @@ import {
   type TargetValue,
 } from "@project/shared";
 import SettingsButton from "./SettingsButton";
+import { useGameAnimation, useGameTargeting } from "@/hooks";
 
 interface Props extends BoardProps<GameState> {}
 
@@ -59,12 +58,19 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     setGlobalTrack(backgroundMusic);
   }, [setGlobalTrack]);
 
-  const { queueAnimationBatch, playAnimations, isAnimating } =
-    useAnimationStore();
+  // Animation hook
+  const { visualCtx, visualGameState } = useGameAnimation({
+    ctx,
+    G,
+    playerID: props.playerID,
+  });
 
-  // Visual state buffer - keeps dead cards visible during animations
-  const [visualGameState, setVisualGameState] = useState<GameState>(G);
-  const [visualCtx, setVisualCtx] = useState(ctx);
+  // Targetinmg
+  useGameTargeting({
+    G,
+    ctx,
+    moves,
+  });
 
   // Track if the dragged card was hovered
   const [wasHovered, setWasHovered] = useState(false);
@@ -80,9 +86,6 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     setGameState(G);
   }, [G, setGameState]);
 
-  // State-based animation detection with visual board management
-  const prevGameStateRef = useRef<GameState | null>(null);
-  const lastProcessedTimestamp = useRef<number>(0);
   const [yourTurn, setYourTurn] = useState(false);
   const prevMovePlayer = useRef<string | null>(null);
 
@@ -128,127 +131,8 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     };
   }, [G.gameEvents, props.playerID, G.activeBattlecryMinion]);
 
-  // ESC handler for canceling battlecry
-  useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && G.activeBattlecryMinion) {
-        console.log("Canceling battlecry with ESC");
-        moves.cancelBattlecry();
-      }
-    };
-
-    window.addEventListener("keydown", handleEscape);
-    return () => {
-      window.removeEventListener("keydown", handleEscape);
-    };
-  }, [visualGameState.activeBattlecryMinion, moves]);
-
-  useEffect(() => {
-    const handleAnimationsAndVisualBoard = async () => {
-      // Skip on initial mount
-      if (!prevGameStateRef.current) {
-        prevGameStateRef.current = structuredClone(G);
-        setVisualGameState(G);
-        setVisualCtx(ctx);
-        return;
-      }
-
-      // Only process new events (by timestamp)
-      const currentEvents = G.gameEvents || [];
-      const newEvents = currentEvents.filter(
-        (e) => e.timestamp > lastProcessedTimestamp.current,
-      );
-
-      // Skip if no new events to process
-      if (newEvents.length === 0) {
-        return;
-      }
-
-      // Detect all animations from event log
-      // filter out all cardPlayed animations that belong to the player
-      const animations = detectAllAnimations(G).filter((a) => {
-        const isMyTurn = props.playerID && ctx.currentPlayer === props.playerID;
-        // Read as: "Keep this if it's NOT (a card played by me)"
-        return !(isMyTurn && a.type === "cardPlayed");
-      });
-
-      // Update tracking timestamp
-      if (currentEvents.length > 0) {
-        lastProcessedTimestamp.current = Math.max(
-          ...currentEvents.map((e) => e.timestamp),
-        );
-      }
-
-      // Update ref immediately
-      prevGameStateRef.current = structuredClone(G);
-
-      // If animations exist, add them to queue with current game state and ctx
-      if (animations.length > 0) {
-        // --- DUPLICATE CHECK START ---
-        // Fetch the absolute newest queue array snapshot directly from the store
-        const existingQueue = useAnimationStore.getState().queue;
-        const incomingSerialized = JSON.stringify(animations);
-
-        const isAlreadyQueued = existingQueue.some(
-          (batch) => JSON.stringify(batch.animations) === incomingSerialized,
-        );
-
-        if (isAlreadyQueued) {
-          console.warn(
-            "⚠️ Multi-player race-condition caught in useEffect: This animation batch is already in the queue. Dropping duplicate.",
-          );
-          return; // Exit early so it doesn't queue or trigger an extra playAnimations loop
-        }
-        // --- DUPLICATE CHECK END ---
-
-        console.log("Queueing animation batch:", animations);
-
-        // Queue this batch of animations with the full game state and ctx
-        queueAnimationBatch(animations, G, ctx);
-
-        // If not currently animating, start playing the queue
-        if (!isAnimating) {
-          console.log("Starting animation queue");
-
-          // Callback to update visual state after each batch completes
-          const onBatchComplete = (gameState: GameState, batchCtx: any) => {
-            console.log("Batch complete, updating visual state");
-            setVisualGameState(gameState);
-            setVisualCtx(batchCtx);
-          };
-
-          await playAnimations(onBatchComplete);
-          console.log("All animations complete, syncing to current state");
-
-          // After all animations complete, sync visual state to actual current state
-          // setVisualGameState(G);
-          // setVisualCtx(ctx);
-        }
-        // If already animating, the batch is queued and will play automatically
-        // when the current batch finishes (handled by playAnimations loop)
-      } else {
-        // No animations detected
-        if (isAnimating) {
-          // Queue an empty batch so state updates after current animations finish
-          console.log("Queueing state update (no animations)");
-          queueAnimationBatch([], G, ctx);
-        } else {
-          // Not animating, update immediately
-          setVisualGameState(G);
-          setVisualCtx(ctx);
-        }
-      }
-    };
-
-    handleAnimationsAndVisualBoard();
-  }, [G, ctx, isAnimating, queueAnimationBatch, playAnimations]);
-
-  const mainPlayer = props.playerID ?? "0";
-  const enemyPlayer = props.playerID
-    ? props.playerID === "0"
-      ? "1"
-      : "0"
-    : "1";
+  const mainPlayer = props.playerID ?? ctx.currentPlayer;
+  const enemyPlayer = mainPlayer == "0" ? "1" : "0";
   const bottomPlayer = visualGameState.players[mainPlayer];
   const topPlayer = visualGameState.players[enemyPlayer];
   const bottomDeck = bottomPlayer.deck;
@@ -328,90 +212,6 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     },
     [G, ctx, moves],
   );
-
-  // Handle attack arrow target selection
-  useEffect(() => {
-    const handleAttackTarget = async (e: Event) => {
-      const customEvent = e as CustomEvent;
-      const { sourceCardId, attackerId, targetCardId, targetPlayerId } =
-        customEvent.detail;
-      const cardId = sourceCardId || attackerId; // Support both old and new format
-
-      let target: TargetValue | undefined;
-
-      if (targetCardId) {
-        // Find which player owns this card
-        const player0HasCard = G.board["0"].some((c) => c.id === targetCardId);
-        const targetPlayer = player0HasCard ? "0" : "1";
-
-        target = {
-          type: "card",
-          id: targetCardId,
-          player: targetPlayer,
-        };
-      } else if (targetPlayerId) {
-        target = {
-          type: "player",
-          id: targetPlayerId,
-          player: targetPlayerId,
-        };
-      }
-
-      if (!target) return;
-
-      // Execute the move with validation and animations
-      const validation = validateMove(G, ctx, cardId, "board", target);
-
-      if (!validation.valid) {
-        console.warn(`Cannot perform move (UI): ${validation.error}`);
-        return; // Don't execute invalid move
-      }
-
-      // Execute the move - animations will be detected and played by useEffect
-      moves.minionAttack(cardId, target);
-    };
-
-    window.addEventListener("attack-target", handleAttackTarget);
-
-    return () => {
-      window.removeEventListener("attack-target", handleAttackTarget);
-    };
-  }, [G, ctx, moves]);
-
-  // Handle battlecry arrow target selection
-  useEffect(() => {
-    const handleBattlecryTarget = async (e: Event) => {
-      const customEvent = e as CustomEvent;
-      const { sourceCardId, targetCardId, targetPlayerId } = customEvent.detail;
-
-      let target: TargetValue | undefined;
-
-      if (targetCardId) {
-        const player0HasCard = G.board["0"].some((c) => c.id === targetCardId);
-        const targetPlayer = player0HasCard ? "0" : "1";
-        target = { type: "card", id: targetCardId, player: targetPlayer };
-      } else if (targetPlayerId) {
-        target = { type: "player", id: targetPlayerId, player: targetPlayerId };
-      }
-
-      if (!target) return;
-
-      // Validate and execute
-      const validation = validateMove(G, ctx, sourceCardId, "board", target);
-      if (!validation.valid) {
-        console.warn(`Cannot resolve battlecry (UI): ${validation.error}`);
-        return;
-      }
-
-      moves.resolveBattlecry(sourceCardId, target);
-    };
-
-    window.addEventListener("battlecry-target", handleBattlecryTarget);
-
-    return () => {
-      window.removeEventListener("battlecry-target", handleBattlecryTarget);
-    };
-  }, [G, ctx, moves]);
 
   return (
     <div
