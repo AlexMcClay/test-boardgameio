@@ -3,12 +3,16 @@ import { useViewStore } from "@/stores/viewStore";
 import { useEffect, useState } from "react";
 import SettingsOverlay from "./SettingsOverlay";
 import SettingsButton from "./SettingsButton";
+import UserProfileButton from "./UserProfileButton";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
+import UserProfileOverlay from "./UserProfileOverlay";
 
 const backgroundImage = "assets/menu/main_menu.png";
 
 const MainMenu = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
 
   const playSfx = useAudioStore((state) => state.playSfx);
   const setView = useViewStore((state) => state.setView);
@@ -74,6 +78,8 @@ const MainMenu = () => {
           </button>
         </div>
       </div>
+      {/* User Profile Button */}
+      <UserProfileButton setIsProfileOpen={setIsProfileOpen} />
 
       {/* Settings Button */}
       <SettingsButton setIsSettingsOpen={setIsSettingsOpen} />
@@ -82,6 +88,13 @@ const MainMenu = () => {
       <SettingsOverlay
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+      />
+      {/* User Profile Overlay */}
+      <UserProfileOverlay
+        isOpen={isProfileOpen}
+        isEditing={isEditingProfile}
+        setIsEditing={setIsEditingProfile}
+        onClose={() => setIsProfileOpen(false)}
       />
     </div>
   );

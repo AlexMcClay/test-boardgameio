@@ -49,10 +49,12 @@ async function createAndStartMatch(
   playerA: queueItem,
   playerB: {
     playerID: string;
+    playerUsername: queueItem["playerUsername"];
     playerDeck: queueItem["playerDeck"];
     playerHero: queueItem["playerHero"];
   },
 ) {
+  console.log("Creating match between:", playerA.playerUsername, playerB.playerUsername);
   const gameName = game.HeathStoneGame.name;
   const apiBase = `http://127.0.0.1:${lobbyConfig.apiPort}`;
 
@@ -65,10 +67,12 @@ async function createAndStartMatch(
         player0: {
           deck: playerA.playerDeck,
           hero: playerA.playerHero,
+          playerUsername: playerA.playerUsername,
         },
         player1: {
           deck: playerB.playerDeck,
           hero: playerB.playerHero,
+          playerUsername: playerB.playerUsername,
         },
       },
     }),
@@ -125,25 +129,29 @@ server.run({ port: 8000, lobbyConfig , host: "0.0.0.0"} as any).then(({ appServe
   wss.on("connection", (ws: WebSocket) => {
     console.log("WebSocket client connected to matchmaking");
     let queuedMatchID: string | null = null;
-    let connectedPlayerID: string | null = null;
+    let connectedPlayerID: { playerID: string; playerUsername: string } | null = null;
 
     ws.on("message", (message: Buffer) => {
-      console.log("Received:", message.toString());
+      // console.log("Received:", message.toString());
       const request: WebSocketMessage = JSON.parse(message.toString());
       if (request.type === "connect") {
-        connectedPlayerID = request.playerID;
-        socketsByPlayerId.set(request.playerID, ws);
+        connectedPlayerID = { playerID: request.playerID, playerUsername: request.playerUsername };
+        queueManager.addSocketByPlayerId(request.playerID, ws);
+        
       }
 
-      if (request.type === "find_match") {
+      else if (request.type === "find_match") {
         if (queueManager.isPlayerInQueue(request.playerID)) {
           console.log(
-            `Player ${request.playerID} is already in the matchmaking queue.`,
+            `Player ${request.playerUsername} (ID: ${request.playerID}) is already in the matchmaking queue.`,
           );
           return;
         }
-        connectedPlayerID = request.playerID;
-        socketsByPlayerId.set(request.playerID, ws);
+        console.log(
+          `Player ${request.playerUsername} (ID: ${request.playerID}) is searching for a match with skill level: ${request.skillLevel}`,
+        );
+        connectedPlayerID = { playerID: request.playerID, playerUsername: request.playerUsername };
+        queueManager.addSocketByPlayerId(request.playerID, ws);
 
         const queuedOpponent = queueManager.findMatch(
           request.playerID,
@@ -153,6 +161,7 @@ server.run({ port: 8000, lobbyConfig , host: "0.0.0.0"} as any).then(({ appServe
         if (!queuedOpponent) {
           queuedMatchID = queueManager.addToQueue(
             request.playerID,
+            request.playerUsername,
             request.playerDeck,
             request.playerHero,
             request.skillLevel,
@@ -165,6 +174,9 @@ server.run({ port: 8000, lobbyConfig , host: "0.0.0.0"} as any).then(({ appServe
           ws.send(JSON.stringify(response));
           return;
         }
+        console.log(
+          `Match found between ${request.playerUsername} and ${queuedOpponent.playerUsername}`,
+        );
         // Create and start the remote match (BoardGameIO Engine) , then notify both players with their match details and opponent info
         Promise.resolve(createAndStartMatch(queuedOpponent, request))
           .then(({ matchID, playerASeat, playerBSeat }) => {
@@ -172,8 +184,10 @@ server.run({ port: 8000, lobbyConfig , host: "0.0.0.0"} as any).then(({ appServe
               type: "match_found",
               matchID,
               playerID: playerBSeat.playerID,
+              playerUsername: request.playerUsername,
               playerCredentials: playerBSeat.playerCredentials,
               opponent: {
+                playerUsername: queuedOpponent.playerUsername,
                 playerID: queuedOpponent.playerID,
                 OpponentHero: queuedOpponent.playerHero,
                 OpponentDeck: queuedOpponent.playerDeck,
@@ -185,8 +199,10 @@ server.run({ port: 8000, lobbyConfig , host: "0.0.0.0"} as any).then(({ appServe
               type: "match_found",
               matchID,
               playerID: playerASeat.playerID,
+              playerUsername: queuedOpponent.playerUsername,
               playerCredentials: playerASeat.playerCredentials,
               opponent: {
+                playerUsername: request.playerUsername,
                 playerID: request.playerID,
                 OpponentHero: request.playerHero,
                 OpponentDeck: request.playerDeck,
@@ -194,7 +210,7 @@ server.run({ port: 8000, lobbyConfig , host: "0.0.0.0"} as any).then(({ appServe
               },
             };
 
-            const opponentSocket = socketsByPlayerId.get(
+            const opponentSocket = queueManager.getSocketByPlayerId(
               queuedOpponent.playerID,
             );
             if (
@@ -213,7 +229,7 @@ server.run({ port: 8000, lobbyConfig , host: "0.0.0.0"} as any).then(({ appServe
           });
       }
 
-      if (request.type === "cancel_search") {
+      else if (request.type === "cancel_search") {
         if (queuedMatchID) {
           console.log(
             `Player ${request.playerID} canceled matchmaking search.`,
@@ -229,7 +245,7 @@ server.run({ port: 8000, lobbyConfig , host: "0.0.0.0"} as any).then(({ appServe
         queueManager.removeFromQueue(queuedMatchID);
       }
       if (connectedPlayerID) {
-        socketsByPlayerId.delete(connectedPlayerID);
+        queueManager.removeSocketByPlayerId(connectedPlayerID.playerID);
       }
       console.log("WebSocket client disconnected");
     });
