@@ -63,6 +63,9 @@ export interface Player {
   armor: number;
   frozen?: boolean;
   divineShield?: boolean;
+  attacksLeft: number;
+  baseAttack: number;
+  modifiers: CardModifier[];
   mana: number;
   hand: Card[];
   deck: Card[];
