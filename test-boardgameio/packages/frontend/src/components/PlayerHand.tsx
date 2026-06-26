@@ -3,6 +3,7 @@ import type { BoardProps } from "boardgame.io/dist/types/packages/react";
 import { twMerge } from "tailwind-merge";
 import HandCard from "./Card/HandCard";
 import type { GameState, Player } from "@project/shared";
+import { AnimatePresence } from "motion/react";
 
 interface Props extends BoardProps<GameState> {
   isTop?: boolean; // true for player 1, false or undefined for player 0
@@ -13,7 +14,7 @@ interface Props extends BoardProps<GameState> {
 const HOVER_EXIT_THRESHOLD_X = 0.85;
 const HOVER_EXIT_THRESHOLD_Y = 1.2;
 
-const PlayerHand = ({ isTop, ctx, player, playerID }: Props) => {
+const PlayerHand = ({ isTop, ctx, player, playerID, G }: Props) => {
   const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
   const [hoverOrigin, setHoverOrigin] = useState<{
     x: number;
@@ -116,23 +117,26 @@ const PlayerHand = ({ isTop, ctx, player, playerID }: Props) => {
         isTop && "translate-y-[-62%] translate-x-[-0%]",
       )}
     >
-      {player.hand.map((card, idx) => {
-        return (
-          <HandCard
-            key={card.id}
-            size={player.hand.length}
-            index={idx}
-            isTop={isTop}
-            card={card}
-            ctx={ctx}
-            player={player}
-            back={playerID ? playerID !== player.id : false}
-            isHovered={hoveredCardId === card.id}
-            onHoverEnter={handleCardHoverEnter}
-            onCardRef={setCardRef}
-          />
-        );
-      })}
+      <AnimatePresence>
+        {player.hand.map((card, idx) => {
+          return (
+            <HandCard
+              key={card.id}
+              size={player.hand.length}
+              index={idx}
+              isTop={isTop}
+              card={card}
+              ctx={ctx}
+              player={player}
+              back={playerID ? playerID !== player.id : false}
+              isHovered={hoveredCardId === card.id}
+              onHoverEnter={handleCardHoverEnter}
+              onCardRef={setCardRef}
+              discarded={!!G.discardedCards.find((c) => c.card.id === card.id)}
+            />
+          );
+        })}
+      </AnimatePresence>
     </div>
   );
 };

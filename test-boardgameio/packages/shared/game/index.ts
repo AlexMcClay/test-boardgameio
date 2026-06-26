@@ -24,6 +24,7 @@ import {
   addCardToHand,
   findCardsInPool,
   returnCardToHand,
+  discardCardsFromHand,
 } from "./utils";
 import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
 import { hasTargets, validateMove } from "./utils/validateMove";
@@ -117,6 +118,7 @@ const setupData = (
     eventHistory: [],
     activeBattlecryMinion: null,
     graveyard: [],
+    discardedCards: [],
   };
 
   return G;
@@ -826,6 +828,22 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
             returnCardToHand(G, targetCard, target.player, effect.modifiers);
           }
         }
+        break;
+      }
+      case "discard": {
+        const targetPlayerId =
+          effect.target === "enemy" ? (playerID === "0" ? "1" : "0") : playerID;
+
+        const count = resolveDynamicValue(effect.value, context);
+
+        discardCardsFromHand(
+          G,
+          targetPlayerId,
+          count,
+          effect.strategy,
+          ctx.turn,
+        );
+
         break;
       }
     }

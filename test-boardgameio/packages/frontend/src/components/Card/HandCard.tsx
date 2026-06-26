@@ -22,6 +22,7 @@ type Props = {
   onHoverEnter: (cardId: string, rect: DOMRect) => void;
   onCardRef: (cardId: string, ref: HTMLDivElement | null) => void;
   back?: boolean;
+  discarded: boolean;
 };
 
 const HandCard = ({
@@ -35,6 +36,7 @@ const HandCard = ({
   onHoverEnter,
   onCardRef,
   back,
+  discarded,
 }: Props) => {
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -102,6 +104,16 @@ const HandCard = ({
         card={card}
         ctx={ctx}
         animate={isHovered && !back ? "play-hover" : "normal"}
+        exit={
+          discarded
+            ? "discarded"
+            : {
+                opacity: 0,
+                transition: {
+                  duration: 0,
+                },
+              }
+        }
         onDragStart={() => {}}
         isHovered={isHovered}
         back={back}

@@ -223,7 +223,8 @@ export type EffectTypes =
   | BounceEffect
   | StoreTempVarEffect
   | AddToHandEffect
-  | ReturnToHandEffect;
+  | ReturnToHandEffect
+  | DiscardEffect;
 
 export interface StoreTempVarEffect {
   type: "storeVar";
@@ -388,6 +389,13 @@ type ManaEffect = {
   value: number | DynamicValue;
 };
 
+type DiscardEffect = {
+  type: "discard";
+  strategy: "random" | "highest-cost" | "lowest-cost" | "all";
+  value: number | DynamicValue;
+  target?: "self" | "enemy";
+};
+
 // Move metadata for animation detection
 export type MoveMetadata = {
   cardId: string;
@@ -424,7 +432,8 @@ export type GameEvent =
   | DebugEvent
   | AddToHandEvent
   | ReturnToHandEvent
-  | BurnCardEvent;
+  | BurnCardEvent
+  | DiscardEvent;
 
 type DebugEvent = {
   type: "debug";
@@ -621,6 +630,15 @@ export type BurnCardEvent = {
   card: Card;
 };
 
+export type DiscardEvent = {
+  type: "discard";
+  cardId: string;
+  playerId: PlayerID;
+  timestamp: number;
+  card: Card;
+  strategy: "random" | "highest-cost" | "lowest-cost" | "all";
+};
+
 export interface SavedDeck {
   id: string;
   name: string;
@@ -641,5 +659,13 @@ export interface GameState {
     card: Card;
     originalOwner: PlayerID;
     diedOnTurn: number;
+  }[];
+
+  // Tracking of discarded cards
+  discardedCards: {
+    card: Card;
+    originalOwner: PlayerID;
+    discardedOnTurn: number;
+    strategy: string;
   }[];
 }

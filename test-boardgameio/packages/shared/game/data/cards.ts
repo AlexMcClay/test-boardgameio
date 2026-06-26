@@ -107,6 +107,19 @@ const draw = (value: number | DynamicValue): EffectTypes => {
 //   };
 // };
 
+const discard = (
+  count: number | DynamicValue,
+  strategy: "random" | "highest-cost" | "lowest-cost" | "all" = "random",
+  target: "self" | "enemy" = "self",
+): EffectTypes => {
+  return {
+    type: "discard",
+    value: count,
+    strategy: strategy,
+    target: target,
+  };
+};
+
 const summon = (
   cardID: string,
   target: "self" | "enemy" = "self",
@@ -187,6 +200,12 @@ const addRandomCard = (
   conditions: import("../types").TargetCondition[],
   count: number | DynamicValue = 1,
   modifiers?: ApplyModifierEffect[],
+  fallback?:
+    | {
+        cardID: string;
+        value: number;
+      }
+    | undefined,
 ): EffectTypes => {
   return {
     type: "addToHand",
@@ -195,6 +214,7 @@ const addRandomCard = (
     value: count,
     rand: { n: typeof count === "number" ? count : 1 },
     modifiers: modifiers,
+    fallback: fallback,
   };
 };
 
@@ -2707,11 +2727,27 @@ export const cardTemplates = {
     rarity: "Common",
     isSpell: true,
     isMinion: false,
-    effects: [addRandomCard([{ type: "tags-include", value: "Demon" }], 1)],
+    effects: [addRandomCard([{ type: "tags-include", value: "Demon" }], 1, [])],
     onPlace: [],
     targetQuery: {
       side: "all",
       type: ["lane"], // Board-wide non-targeted spell alignment
+    },
+  },
+  soulfire: {
+    title: "Soulfire",
+    description: "Deal 4 damage. Discard a random card.",
+    baseMana: 1,
+    type: ["Fire"],
+    imageUrl: "assets/cards/Soulfire.jpg",
+    class: "Warlock",
+    isSpell: true,
+    isMinion: false,
+    effects: [damage(4, "user-select"), discard(1, "random")],
+    onPlace: [],
+    targetQuery: {
+      side: "all",
+      type: ["card", "player"], // Allows targeting any minion or hero on the board
     },
   },
 } satisfies Record<

@@ -1,4 +1,9 @@
-import { createCardFromID, getCurrentHealth, getMaxHealth } from ".";
+import {
+  createCardFromID,
+  getCurrentHealth,
+  getMaxHealth,
+  getManaCost,
+} from ".";
 import { cardTemplates } from "../data/cards";
 import {
   type ApplyModifierEffect,
@@ -465,4 +470,78 @@ export function findCardsInPool(
   }
 
   return pool;
+}
+
+/**
+ * Discard cards from a player's hand based on the specified strategy
+ * Tracks discarded cards in the discardedCards array
+ */
+export function discardCardsFromHand(
+  G: GameState,
+  playerId: string,
+  count: number,
+  strategy: "random" | "highest-cost" | "lowest-cost" | "all",
+  turn: number,
+) {
+  const player = G.players[playerId];
+  if (player.hand.length === 0) return;
+
+  let cardsToDiscard: Card[] = [];
+
+  switch (strategy) {
+    case "random":
+      // Shuffle and take first N cards
+      const shuffled = [...player.hand].sort(() => Math.random() - 0.5);
+      cardsToDiscard = shuffled.slice(0, Math.min(count, player.hand.length));
+      break;
+
+    case "highest-cost":
+      // Sort by cost descending, take top N
+      const sortedHigh = [...player.hand].sort(
+        (a, b) => getManaCost(b) - getManaCost(a),
+      );
+      cardsToDiscard = sortedHigh.slice(0, Math.min(count, player.hand.length));
+      break;
+
+    case "lowest-cost":
+      // Sort by cost ascending, take top N
+      const sortedLow = [...player.hand].sort(
+        (a, b) => getManaCost(a) - getManaCost(b),
+      );
+      cardsToDiscard = sortedLow.slice(0, Math.min(count, player.hand.length));
+      break;
+
+    case "all":
+      // Discard entire hand
+      cardsToDiscard = [...player.hand];
+      break;
+  }
+
+  // Remove cards from hand and track them
+  cardsToDiscard.forEach((card) => {
+    const index = player.hand.findIndex((c) => c.id === card.id);
+    if (index !== -1) {
+      player.hand.splice(index, 1);
+
+      // Track in discardedCards
+      G.discardedCards.push({
+        card: JSON.parse(JSON.stringify(card)),
+        originalOwner: playerId,
+        discardedOnTurn: turn,
+        strategy: strategy,
+      });
+
+      // Record event for animations
+      recordEvent(G, {
+        type: "discard",
+        cardId: card.id,
+        playerId: playerId,
+        timestamp: Date.now(),
+        card: card,
+        strategy: strategy,
+      });
+    } else {
+      console.warn("card not found", card.id, card.title);
+    }
+  });
 }

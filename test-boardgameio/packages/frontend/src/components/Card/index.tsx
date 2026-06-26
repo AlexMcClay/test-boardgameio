@@ -14,6 +14,22 @@ const cardBackground = "assets/card_parts/card.png";
 
 interface Props extends CardProps {}
 
+const keywords = [
+  "Charge",
+  "Taunt",
+  "Battlecry",
+  "Deathrattle",
+  "Divine Shield",
+  "Windfury",
+  "Lifesteal",
+  "Rush",
+  "Overkill",
+  "Freeze",
+  "Combo",
+  "Stealth",
+  "Poisonous",
+];
+
 const Card = ({
   card,
   back = false,
@@ -45,21 +61,6 @@ const Card = ({
 
   // Detect keywords in card description
   const cardKeywords = useMemo(() => {
-    const keywords = [
-      "Charge",
-      "Taunt",
-      "Battlecry",
-      "Deathrattle",
-      "Divine Shield",
-      "Windfury",
-      "Lifesteal",
-      "Rush",
-      "Overkill",
-      "Freeze",
-      "Combo",
-      "Stealth",
-      "Poisonous",
-    ];
     return keywords.filter((keyword) =>
       new RegExp(`\\b${keyword}\\b`, "i").test(card.description),
     );
@@ -149,22 +150,6 @@ const Card = ({
   }
 
   const text = useMemo(() => {
-    // parse description and wrap keywords in spans
-    const keywords = [
-      "Charge",
-      "Taunt",
-      "Battlecry",
-      "Deathrattle",
-      "Divine Shield",
-      "Windfury",
-      "Lifesteal",
-      "Rush",
-      "Overkill",
-      "Freeze",
-      "Combo",
-      "Stealth",
-      "Poisonous",
-    ];
     let parsedDescription = card.description;
     keywords.forEach((keyword) => {
       const regex = new RegExp(`\\b${keyword}\\b`, "g");
@@ -184,6 +169,13 @@ const Card = ({
     "play-hover": {
       scale: 2,
       opacity: 1,
+    },
+    discarded: {
+      y: -200,
+      opacity: 0,
+      transition: {
+        duration: 1,
+      },
     },
   };
 
