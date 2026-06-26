@@ -45,6 +45,23 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   const setActiveCard = useDragStore((state) => state.setActiveCard);
   const setCurrentPlayer = useDragStore((state) => state.setCurrentPlayer);
   const setGameState = useDragStore((state) => state.setGameState);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Animation hook
+  const { visualCtx, visualGameState } = useGameAnimation({
+    ctx,
+    G,
+    playerID: props.playerID,
+  });
+
+  const mainPlayer = props.playerID ?? ctx.currentPlayer;
+  const enemyPlayer = mainPlayer == "0" ? "1" : "0";
+  const bottomPlayer = visualGameState.players[mainPlayer];
+  const topPlayer = visualGameState.players[enemyPlayer];
+  const bottomDeck = bottomPlayer.deck;
+  const topDeck = topPlayer.deck;
+  const bottomBoard = visualGameState.board[mainPlayer];
+  const topBoard = visualGameState.board[enemyPlayer];
 
   const backgroundMusic = useMemo(() => {
     // Choose Music Randomly on Game Start
@@ -58,13 +75,6 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     setGlobalTrack(backgroundMusic);
   }, [setGlobalTrack]);
 
-  // Animation hook
-  const { visualCtx, visualGameState } = useGameAnimation({
-    ctx,
-    G,
-    playerID: props.playerID,
-  });
-
   // Targetinmg
   useGameTargeting({
     G,
@@ -74,9 +84,6 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
 
   // Track if the dragged card was hovered
   const [wasHovered, setWasHovered] = useState(false);
-
-  // Settings overlay state
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
     setCurrentPlayer(ctx.currentPlayer);
@@ -130,15 +137,6 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [G.gameEvents, props.playerID, G.activeBattlecryMinion]);
-
-  const mainPlayer = props.playerID ?? ctx.currentPlayer;
-  const enemyPlayer = mainPlayer == "0" ? "1" : "0";
-  const bottomPlayer = visualGameState.players[mainPlayer];
-  const topPlayer = visualGameState.players[enemyPlayer];
-  const bottomDeck = bottomPlayer.deck;
-  const topDeck = topPlayer.deck;
-  const bottomBoard = visualGameState.board[mainPlayer];
-  const topBoard = visualGameState.board[enemyPlayer];
 
   // console.log(ctx.phase, "Current phase");
 
@@ -382,6 +380,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
         {...props}
         ctx={visualCtx}
         G={visualGameState}
+        playerID={mainPlayer}
         moves={moves}
       />
       {/* Attack Arrow Overlay */}

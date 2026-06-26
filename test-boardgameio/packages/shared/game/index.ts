@@ -26,7 +26,7 @@ import {
   returnCardToHand,
 } from "./utils";
 import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
-import { validateMove } from "./utils/validateMove";
+import { hasTargets, validateMove } from "./utils/validateMove";
 import type { CardTemplateKey } from "./data/cards";
 import { enumerateAIMoves } from "./ai";
 import {
@@ -176,12 +176,28 @@ const placeCard: Move<GameState> = (
         const test = isSelectValue(e);
         return test;
       });
-    if (needsTargetedBattlecry) {
-      G.activeBattlecryMinion = {
-        cardId: card.id,
-        playerId: ctx.currentPlayer,
-      };
-    } else {
+
+    if (needsTargetedBattlecry && card.battlecryQuery) {
+      // check if there is a valid target for battle cry, if there is then enter battlecry otherwise just place the minion
+      const hasValidTargets = hasTargets(
+        card.battlecryQuery,
+        {
+          G,
+          ctx,
+          location,
+          playerID: ctx.currentPlayer,
+          target,
+        },
+        card.id,
+      );
+      // console.log("TARGETS", hasTargts);
+      if (hasValidTargets) {
+        G.activeBattlecryMinion = {
+          cardId: card.id,
+          playerId: ctx.currentPlayer,
+        };
+      }
+    } else if (!needsTargetedBattlecry) {
       // Execute onPlace immediately for non-targeted battlecries
       executeEffects(card.onPlace, {
         card: card,

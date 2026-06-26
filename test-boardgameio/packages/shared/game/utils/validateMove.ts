@@ -1,5 +1,5 @@
 // utils/validateMove.ts
-import {  getManaCost } from ".";
+import { getManaCost } from ".";
 import type {
   Card,
   TargetValue,
@@ -42,6 +42,112 @@ export function hasTauntMinions(board: Card[]): boolean {
  */
 export function isTauntBypassAllowed(card: Card): boolean {
   return card.isSpell === true;
+}
+
+export function hasTargets(
+  query: TargetQuery,
+  context: EffectContextWithOptionalCard,
+  sourceID: string,
+) {
+  const { G, target, playerID } = context;
+  const mainPlayer = playerID;
+  const enemyPlayer = mainPlayer == "0" ? "1" : "0";
+  // const friendlyP = G.players[mainPlayer];
+  // const enemyP = G.players[enemyPlayer];
+  // const friendlyDeck = friendlyP.deck;
+  // const enemyDeck = enemyP.deck;
+  const friendlyBoard = G.board[mainPlayer];
+  const enemyBoard = G.board[enemyPlayer];
+
+  // friendly board
+  const hasFriendlyTarget = friendlyBoard.some((c) =>
+    validateTargetQuery(
+      query,
+      {
+        ...context,
+        card: c,
+        target: {
+          id: c.id,
+          player: mainPlayer,
+          type: "card",
+        },
+      },
+      sourceID,
+    ),
+  );
+
+  // friendly hero
+  const fHero = validateTargetQuery(
+    query,
+    {
+      ...context,
+      target: {
+        id: mainPlayer,
+        player: mainPlayer,
+        type: "player",
+      },
+    },
+    sourceID,
+  );
+
+  const fLane = validateTargetQuery(
+    query,
+    {
+      ...context,
+      target: {
+        id: `lane-${mainPlayer}`,
+        player: mainPlayer,
+        type: "lane",
+      },
+    },
+    sourceID,
+  );
+
+  // enemy board
+  const hasEnemyTarget = enemyBoard.some((c) =>
+    validateTargetQuery(
+      query,
+      {
+        ...context,
+        card: c,
+        target: {
+          id: c.id,
+          player: mainPlayer,
+          type: "card",
+        },
+      },
+      sourceID,
+    ),
+  );
+  const eHero = validateTargetQuery(
+    query,
+    {
+      ...context,
+      target: {
+        id: enemyPlayer,
+        player: enemyPlayer,
+        type: "player",
+      },
+    },
+    sourceID,
+  );
+
+  const eLane = validateTargetQuery(
+    query,
+    {
+      ...context,
+      target: {
+        id: `lane-${enemyPlayer}`,
+        player: enemyPlayer,
+        type: "lane",
+      },
+    },
+    sourceID,
+  );
+
+  return (
+    hasEnemyTarget || hasFriendlyTarget || eHero || fHero || eLane || fLane
+  );
 }
 
 /**

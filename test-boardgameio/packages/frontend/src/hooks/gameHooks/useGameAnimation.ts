@@ -45,7 +45,9 @@ export const useGameAnimation = ({ ctx, G, ...props }: Props) => {
       // Detect all animations from event log
       // filter out all cardPlayed animations that belong to the player
       const animations = detectAllAnimations(G).filter((a) => {
-        const isMyTurn = props.playerID && ctx.currentPlayer === props.playerID;
+        const isMyTurn = props.playerID
+          ? ctx.currentPlayer === props.playerID
+          : true;
         // Read as: "Keep this if it's NOT (a card played by me)"
         return !(isMyTurn && a.type === "cardPlayed");
       });
