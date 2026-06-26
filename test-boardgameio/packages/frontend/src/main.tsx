@@ -9,13 +9,55 @@ import "./styles.css";
 import reportWebVitals from "./reportWebVitals.ts";
 import { randomIDGen } from "@project/shared";
 
-function ensureUserId(): string {
-  const existingUserId = localStorage.getItem("user_id");
-  if (existingUserId) return existingUserId;
 
+
+function generateUserName(userId: string): string {
+  const animals = [
+    "Lion",
+    "Tiger",
+    "Bear",
+    "Wolf",
+    "Eagle",
+    "Shark",
+    "Panther",
+    "Falcon",
+    "Dragon",
+    "Phoenix",
+    "Unicorn",
+    "Griffin",
+    "Pegasus",
+    "Cheetah",
+  ];
+  const attributes = [
+    "Brave",
+    "Cunning",
+    "Swift",
+    "Fierce",
+    "Mighty",
+    "Noble",
+    "Wise",
+    "Fearless",
+    "Valiant",
+    "Gallant",
+    "Dumb",
+    "Silly",
+    "Lazy",
+    "Clumsy",
+    "Sneaky",
+  ];
+  return `${attributes[Math.floor(Math.random() * attributes.length)]}_${animals[Math.floor(Math.random() * animals.length)]}`;
+}
+
+function ensureUser(): {id: string, name: string} | undefined {
+  const existingUserId = localStorage.getItem("user_id");
+  const existingUserName = localStorage.getItem("user_name");
+  if (existingUserId && existingUserName) return { id: existingUserId, name: existingUserName };
+  
   const newUserId = randomIDGen();
+  const newUserName = generateUserName(newUserId);
   localStorage.setItem("user_id", newUserId);
-  return newUserId;
+  localStorage.setItem("user_name", newUserName);
+  return { id: newUserId, name: newUserName };
 }
 
 // Create a new router instance
@@ -38,7 +80,7 @@ declare module "@tanstack/react-router" {
 // Render the app
 const rootElement = document.getElementById("app");
 if (rootElement && !rootElement.innerHTML) {
-  ensureUserId();
+  ensureUser();
 
   const root = ReactDOM.createRoot(rootElement);
   root.render(

@@ -18,9 +18,13 @@ class MatchmakingWebSocketService {
     this.socket = new WebSocket(wsUrl);
     this.socket.onopen = () => {
       console.log("Connected");
+      const playerID = localStorage.getItem("user_id") || "";
+      const playerUsername = localStorage.getItem("user_name") || "Guest";
+      console.log("Sending connect message with playerID:", playerID, "and playerUsername:", playerUsername);
       this.send({
         type: "connect",
-        playerID: localStorage.getItem("user_id") || "",
+        playerID,
+        playerUsername,
       });
     };
 
