@@ -47,10 +47,12 @@ const setupData = (
   { ctx }: { ctx: Ctx },
   setupData?: {
     player0: {
+      playerUsername?: string;
       deck: Card[];
       hero: Hero;
     };
     player1: {
+      playerUsername?: string;
       deck: Card[];
       hero: Hero;
     };
@@ -68,10 +70,10 @@ const setupData = (
   // Get hero data or use defaults
   const playerHero = setupData?.player0.hero;
   const opponentHero = setupData?.player1.hero;
-
+  console.log("Setup Data:", setupData);
   const p0: Player = {
     id: "0",
-    name: playerHero?.heroName || "Arthas",
+    name: setupData?.player0.playerUsername || playerHero?.heroName || "Guest",
     heroPortrait: playerHero?.portrait || "assets/heros/Arthas.jpg",
     maxHealth: 30,
     health: 30,
@@ -88,7 +90,7 @@ const setupData = (
 
   const p1: Player = {
     id: "1",
-    name: opponentHero?.heroName || "Illidan",
+    name: setupData?.player1.playerUsername || opponentHero?.heroName || "Guest",
     heroPortrait:
       opponentHero?.portrait || "assets/heros/Illidan_Stormrage.jpg",
     maxHealth: 30,
@@ -103,6 +105,9 @@ const setupData = (
     deck: opponentDeck,
     burntCards: [],
   };
+  
+  console.log("Player 0:", p0.name);
+  console.log("Player 1:", p1.name);
 
   const G: GameState = {
     players: {
