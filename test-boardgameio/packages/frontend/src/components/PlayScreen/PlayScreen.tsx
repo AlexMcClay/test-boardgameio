@@ -13,7 +13,7 @@ import SettingsButton from "../SettingsButton";
 import Deck from "../Deck";
 import GameModeModal from "./GameModeModal";
 import MatchmakingModal from "./MatchmakingModal";
-import { IoChevronBack, IoChevronForward } from "react-icons/io5";
+import { IoChevronBack, IoChevronForward, IoPerson } from "react-icons/io5";
 import { twMerge } from "tailwind-merge";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { classIcons } from "@/utils";
@@ -59,6 +59,7 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
     };
   }, []);
 
+  const [activePlayersCount, setActivePlayersCount] = useState(0);
   const [isSearchingMatch, setIsSearchingMatch] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isGameModeModalOpen, setIsGameModeModalOpen] = useState(false);
@@ -81,6 +82,13 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
   useEffect(() => {
     const unsubscribe = matchmakingWebSocketService.subscribe((msg) => {
       console.log("Received WebSocket message: ", msg);
+
+      if(msg.type === 'active_players_count')
+      {
+        // Handle active players count update
+        console.log("Active players count: ", msg.count);
+        setActivePlayersCount(msg.count);
+      }
 
       if (msg.type === "searching_for_match") {
         setIsSearchingMatch(true);
@@ -154,6 +162,7 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
       console.log("Starting matchmaking via WebSocket...");
       matchmakingWebSocketService.send({
         type: "find_match",
+        playerUsername: localStorage.getItem("user_name") || "Guest",
         playerID: localStorage.getItem("user_id") || "",
         playerDeck: generateCardsFromDeckstring(selectedDeckForPlay.deckString),
         playerHero: selectedDeckForPlay.hero,
@@ -208,6 +217,10 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
         backgroundSize: "cover",
       }}
     >
+      <div className="absolute top-[1vw] flex gap-0.5 left-[1vw] text-[1.5vw]  bg-gray-800/90 hover:bg-gray-700/90 rounded-full p-1 items-center justify-center w-[3vw] h-[2.5vw] text-white drop-shadow-[0_0.2vw_0.2vw_rgba(0,0,0,0.8)]">
+        <IoPerson className="self-center  w-[1.5vw] h-[1.5vw]" />
+        {activePlayersCount}
+      </div>
       {/* Left Panel - Deck Selection */}
       <div className="flex-1 flex flex-col h-full  absolute left-[13vw] w-[48vw]">
         {/* Header */}
