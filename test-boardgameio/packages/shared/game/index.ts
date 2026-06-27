@@ -91,7 +91,8 @@ const setupData = (
 
   const p1: Player = {
     id: "1",
-    name: setupData?.player1.playerUsername || opponentHero?.heroName || "Guest",
+    name:
+      setupData?.player1.playerUsername || opponentHero?.heroName || "Guest",
     heroPortrait:
       opponentHero?.portrait || "assets/heros/Illidan_Stormrage.jpg",
     maxHealth: 30,
@@ -106,7 +107,7 @@ const setupData = (
     deck: opponentDeck,
     burntCards: [],
   };
-  
+
   console.log("Player 0:", p0.name);
   console.log("Player 1:", p1.name);
 
@@ -842,6 +843,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         const count = resolveDynamicValue(effect.value, context);
 
         discardCardsFromHand(
+          context.card.id,
           G,
           targetPlayerId,
           count,

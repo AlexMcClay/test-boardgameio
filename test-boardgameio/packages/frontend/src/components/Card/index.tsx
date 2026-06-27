@@ -170,13 +170,6 @@ const Card = ({
       scale: 2,
       opacity: 1,
     },
-    discarded: {
-      y: -200,
-      opacity: 0,
-      transition: {
-        duration: 1,
-      },
-    },
   };
 
   return (

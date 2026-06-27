@@ -7,6 +7,7 @@ import type { GameState, Player } from "@project/shared";
 interface Props extends BoardProps<GameState> {
   isTop?: boolean; // true for player 1, false or undefined for player 0
   player: Player;
+  actualG: GameState; // actual game state that is not the visual game state
 }
 
 const mana_crystal = "assets/mana.png";
@@ -19,6 +20,7 @@ const PlayerArea = ({
   ctx,
   events,
   moves,
+  actualG,
   ...props
 }: Props) => {
   return (
@@ -45,6 +47,7 @@ const PlayerArea = ({
       </div>
 
       <PlayerHand
+        actualG={actualG}
         player={player}
         isTop={isTop}
         G={G}

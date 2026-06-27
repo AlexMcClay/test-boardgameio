@@ -259,6 +259,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
               ctx={visualCtx}
               {...props}
               isTop
+              actualG={G}
               playerID={mainPlayer}
             />
           </div>
@@ -339,6 +340,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           {/* Player 0 Hand */}
           <div className="absolute bottom-0 w-full h-1/4 flex flex-col justify-start">
             <PlayerArea
+              actualG={G}
               player={bottomPlayer}
               G={visualGameState}
               ctx={visualCtx}

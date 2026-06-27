@@ -477,6 +477,7 @@ export function findCardsInPool(
  * Tracks discarded cards in the discardedCards array
  */
 export function discardCardsFromHand(
+  currentCardId: string,
   G: GameState,
   playerId: string,
   count: number,
@@ -484,36 +485,42 @@ export function discardCardsFromHand(
   turn: number,
 ) {
   const player = G.players[playerId];
-  if (player.hand.length === 0) return;
+
+  // Filter out the current card so it cannot be discarded by its own effect
+  const eligibleHand = player.hand.filter((card) => card.id !== currentCardId);
+  if (eligibleHand.length === 0) return;
 
   let cardsToDiscard: Card[] = [];
 
   switch (strategy) {
     case "random":
-      // Shuffle and take first N cards
-      const shuffled = [...player.hand].sort(() => Math.random() - 0.5);
-      cardsToDiscard = shuffled.slice(0, Math.min(count, player.hand.length));
+      // Shuffle and take first N cards from eligible hand
+      const shuffled = [...eligibleHand].sort(() => Math.random() - 0.5);
+      cardsToDiscard = shuffled.slice(0, Math.min(count, eligibleHand.length));
       break;
 
     case "highest-cost":
-      // Sort by cost descending, take top N
-      const sortedHigh = [...player.hand].sort(
+      // Sort eligible hand by cost descending, take top N
+      const sortedHigh = [...eligibleHand].sort(
         (a, b) => getManaCost(b) - getManaCost(a),
       );
-      cardsToDiscard = sortedHigh.slice(0, Math.min(count, player.hand.length));
+      cardsToDiscard = sortedHigh.slice(
+        0,
+        Math.min(count, eligibleHand.length),
+      );
       break;
 
     case "lowest-cost":
-      // Sort by cost ascending, take top N
-      const sortedLow = [...player.hand].sort(
+      // Sort eligible hand by cost ascending, take top N
+      const sortedLow = [...eligibleHand].sort(
         (a, b) => getManaCost(a) - getManaCost(b),
       );
-      cardsToDiscard = sortedLow.slice(0, Math.min(count, player.hand.length));
+      cardsToDiscard = sortedLow.slice(0, Math.min(count, eligibleHand.length));
       break;
 
     case "all":
-      // Discard entire hand
-      cardsToDiscard = [...player.hand];
+      // Discard entire eligible hand
+      cardsToDiscard = [...eligibleHand];
       break;
   }
 

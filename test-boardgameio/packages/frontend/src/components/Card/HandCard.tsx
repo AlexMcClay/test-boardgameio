@@ -84,6 +84,7 @@ const HandCard = ({
           : "",
         isHovered && isTop && !back ? "translate-y-[120%]" : "",
         isHovered && !isTop ? "translate-y-[-100%]" : "",
+        discarded && "playGlow ",
       )}
       style={{
         marginLeft: index > 0 ? `-${(totalOverlap / 100) * 5.2}vw` : "0",
@@ -106,7 +107,22 @@ const HandCard = ({
         animate={isHovered && !back ? "play-hover" : "normal"}
         exit={
           discarded
-            ? "discarded"
+            ? {
+                y: [0, -250, -300],
+                scale: [1, 1.15, 1.25],
+                opacity: [1, 1, 0],
+                clipPath: [
+                  "inset(0% 0% 0% 0%)",
+                  "inset(0% 0% 0% 0%)",
+                  "inset(0% -100% 0% 0%)", // Wipes left-to-right
+                ],
+                transition: {
+                  duration: 1.4,
+                  ease: "easeOut",
+                  times: [0, 0.7, 1],
+                },
+                position: "absolute",
+              }
             : {
                 opacity: 0,
                 transition: {
