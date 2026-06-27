@@ -1,13 +1,6 @@
 import { AnimatePresence, motion } from "motion/react";
-import { useAudioStore } from "@/stores/audioStore";
-import { useViewStore } from "@/stores/viewStore";
 import {
   IoClose,
-  IoVolumeHigh,
-  IoVolumeMute,
-  IoMusicalNotes,
-  IoMegaphone,
-  IoLogOut,
   IoPerson,
   IoPencil,
 } from "react-icons/io5";

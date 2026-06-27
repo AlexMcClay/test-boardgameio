@@ -49,6 +49,7 @@ export function hasTargets(
   context: EffectContextWithOptionalCard,
   sourceID: string,
 ) {
+  // @ts-ignore
   const { G, target, playerID } = context;
   const mainPlayer = playerID;
   const enemyPlayer = mainPlayer == "0" ? "1" : "0";
