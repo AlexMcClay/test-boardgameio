@@ -6,10 +6,12 @@ import {
 } from ".";
 import { cardTemplates } from "../data/cards";
 import {
+  type AddToHandEffect,
   type ApplyModifierEffect,
   type BaseEffectSelection,
   type Card,
   type CardModifier,
+  type EffectContext,
   type EffectTypes,
   type GameEvent,
   type GameState,
@@ -258,7 +260,7 @@ export function addCardToHand(
   G: GameState,
   playerID: string,
   card: Card,
-  modifiers?: import("../types").ApplyModifierEffect[],
+  modifiers?: ApplyModifierEffect[],
   source: "deck" | "global" | "graveyard" | "hand" | "board" = "global",
 ) {
   const player = G.players[playerID];
@@ -363,8 +365,8 @@ export function stripCardModifiers(card: Card): Card {
 export function findCardsInPool(
   G: GameState,
   playerID: string,
-  effect: import("../types").AddToHandEffect,
-  context: import("../types").EffectContext,
+  effect: AddToHandEffect,
+  context: EffectContext,
 ): Card[] {
   let pool: Card[] = [];
   const player = G.players[playerID];

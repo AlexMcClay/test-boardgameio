@@ -270,7 +270,6 @@ export interface AddToHandEffect {
   fallback?: {
     // If no matches found (e.g., "Sense Demons")
     cardID: string;
-    value: number;
   };
 }
 

@@ -748,9 +748,24 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         // Find cards from the specified source
         const cardsToAdd = findCardsInPool(G, playerID, effect, context);
 
-        // Handle fallback if no cards found
-        if (cardsToAdd.length === 0 && effect.fallback) {
-          for (let i = 0; i < effect.fallback.value; i++) {
+        // 1. Process the main cards up to the resolved count
+        const cardsToProcess = cardsToAdd.slice(0, count);
+        cardsToProcess.forEach((cardToAdd: Card) => {
+          addCardToHand(
+            G,
+            playerID,
+            cardToAdd,
+            effect.modifiers,
+            effect.source,
+          );
+        });
+
+        // 2. Calculate how many cards are still needed to reach 'count'
+        const remainingNeeded = count - cardsToProcess.length;
+
+        // 3. If we are short and a fallback exists, fill the gap
+        if (remainingNeeded > 0 && effect.fallback) {
+          for (let i = 0; i < remainingNeeded; i++) {
             const fallbackCard = createCardFromID(
               effect.fallback.cardID as CardTemplateKey,
             );
@@ -764,18 +779,6 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
               );
             }
           }
-        } else {
-          // Add cards to hand (up to the count specified)
-          const cardsToProcess = cardsToAdd.slice(0, count);
-          cardsToProcess.forEach((cardToAdd: Card) => {
-            addCardToHand(
-              G,
-              playerID,
-              cardToAdd,
-              effect.modifiers,
-              effect.source,
-            );
-          });
         }
 
         break;
