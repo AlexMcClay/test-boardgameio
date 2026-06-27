@@ -290,7 +290,12 @@ const Card = ({
         </div>
         {/* Description */}
         {/* Highlight Keywords Charge, Taunt, Battlecry */}
-        <div className="select-none text-[0.45vw] w-full relative text-black px-[1vw] font-[600] py-[0.5vw] pt-[1vw] grow font-base  text-center ">
+        <div
+          className={twMerge(
+            "select-none text-[0.45vw] w-full relative text-black px-[1vw] font-[600] py-[0.5vw] pt-[1vw] grow font-base  text-center ",
+            card.isMinion && "pt-[0.5vw]",
+          )}
+        >
           <span
             className="font-base"
             dangerouslySetInnerHTML={{ __html: text }}

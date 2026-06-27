@@ -751,7 +751,7 @@ export const cardTemplates = {
   },
   innervate: {
     title: "Innervate",
-    description: "Gain 2 baseMana Crystal this turn only.",
+    description: "Gain 2 Mana Crystal this turn only.",
     baseMana: 0,
     type: ["Spell"],
     imageUrl: "assets/cards/Innervate.jpg",
@@ -2772,6 +2772,76 @@ export const cardTemplates = {
       side: "all",
       type: ["card", "player"], // Allows targeting any minion or hero on the board
     },
+  },
+  "sacrificial-pact": {
+    title: "Sacrificial Pact",
+    description: "Destroy a friendly Demon. Restore 5 Health to your hero.",
+    baseMana: 0,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Sacrificial_Pact.jpg",
+    class: "Warlock",
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "friendly",
+      type: ["card"],
+      conditions: [
+        {
+          type: "tags-include",
+          value: "Demon",
+        },
+      ],
+    },
+    effects: [destroy("user-select"), heal(5, "friendly-hero")],
+    onPlace: [],
+  },
+  felstalker: {
+    title: "Felstalker",
+    description: "Battlecry: Discard a random card.",
+    baseMana: 2,
+    baseAttack: 4,
+    baseHealth: 3,
+    type: ["Demon"],
+    imageUrl: "assets/cards/Felstalker.jpg",
+    class: "Warlock",
+    isMinion: true,
+    isSpell: false,
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    onPlace: [discard(1, "random")],
+  },
+  doomguard: {
+    title: "Doomguard",
+    description: "Charge. Battlecry: Discard two random cards.",
+    baseMana: 5,
+    baseAttack: 5,
+    baseHealth: 7,
+    type: ["Demon"],
+    imageUrl: "assets/cards/Doomguard.jpg",
+    class: "Warlock",
+    rarity: "Rare",
+    isMinion: true,
+    isSpell: false,
+    charge: true,
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    onPlace: [discard(2, "random")],
   },
 } satisfies Record<
   string,
