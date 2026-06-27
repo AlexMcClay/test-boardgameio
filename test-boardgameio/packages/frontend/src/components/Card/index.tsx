@@ -11,6 +11,7 @@ const mana_crystal = "assets/mana.png";
 const attackIcon = "assets/attack.png";
 const healthIcon = "assets/health.png";
 const cardBackground = "assets/card_parts/card.png";
+const cardBackgroundMinion = "assets/card_parts/minion_card.png";
 
 interface Props extends CardProps {}
 
@@ -186,7 +187,7 @@ const Card = ({
         animate={animate}
         exit={exit}
         className={twMerge(
-          ` w-[7.8vw] relative aspect-[5/7] bg-[#37373b] rounded-2xl flex-col flex gap-0 items-center shadow-xl text-white font-serif`,
+          ` w-[7.8vw] relative aspect-[5/7]  rounded-2xl flex-col flex gap-0 items-center shadow-xl text-white font-serif`,
           isDragging &&
             !card.isPlaced &&
             " ring-blue-500 ring-2 shadow-blue-400  shadow-[0px_0px_60px_rgba(0,0,0,0.5)] ",
@@ -197,31 +198,46 @@ const Card = ({
             card.isPlaced &&
             ctx?.currentPlayer === playerID &&
             "ring-green-500 ring-2 shadow-green-400  shadow-[0px_0px_20px_rgba(0,0,0,0.5)]",
-          card.taunt && "border-gray-500",
           isDragging && "cursor-grabbing dragging-card scale-110",
         )}
       >
         {/* Art */}
-        <div className="h-[42%] relative rounded-t-2xl bg-transparent  w-full">
+        <div
+          className={twMerge(
+            "h-[42%] relative rounded-t-2xl bg-transparent  w-full",
+            card.isMinion && "h-[42%] rounded-[50%/50%]",
+          )}
+        >
           <img
             src={card.imageUrl}
             // alt={title}
-            className="object-cover w-[95%] h-[100%] top-2 left-0.5 select-none absolute z-0"
+            className={twMerge(
+              "object-cover w-[95%] h-[100%] top-2 left-0.5 select-none absolute z-0",
+              card.isMinion && "top-[-0.3vw] rounded-[50%/50%] h-[145%]",
+            )}
             draggable="false"
           />
         </div>
 
         {/* Card Background */}
         <img
-          src={cardBackground}
+          src={card.isMinion ? cardBackgroundMinion : cardBackground}
           alt="Card Background"
-          className="object-cover w-full h-full absolute rounded-2xl z-0"
+          className={twMerge(
+            "object-cover w-full h-full absolute rounded-2xl z-0",
+            card.isMinion && "scale-105 scale-x-110 origin-bottom",
+          )}
           draggable="false"
         />
 
         {/* Mana Crystal */}
         {card.baseMana !== undefined && (
-          <div className=" select-none absolute text-lg top-[-0.5vw] left-[-0.3vw]  w-[1.7vw] h-[1.7vw] flex items-center justify-center font-bold   z-10 ">
+          <div
+            className={twMerge(
+              " select-none absolute text-lg top-[-0.5vw] left-[-0.3vw]  w-[2.1vw] h-[2.1vw] flex items-center justify-center font-bold   z-10 ",
+              card.isMinion && "h-[2.1vw] w-[2.1vw]",
+            )}
+          >
             <img
               src={mana_crystal}
               alt="Card Back"
@@ -297,11 +313,15 @@ const Card = ({
           </div>
         )}
 
+        {/* Rarity */}
         {card.rarity && (
           <img
             src={`/assets/icons/${card.rarity}.webp`}
             alt="Card Back"
-            className="object-cover w-[0.5vw] absolute scale-130  top-[57%] smallShadow"
+            className={twMerge(
+              "object-cover w-[0.5vw] absolute scale-130  top-[57%] smallShadow",
+              card.isMinion && "top-[55%]",
+            )}
             // no drag
             draggable="false"
           />
