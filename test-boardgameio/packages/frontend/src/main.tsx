@@ -11,7 +11,7 @@ import { randomIDGen } from "@project/shared";
 
 
 
-function generateUserName(userId: string): string {
+function generateUserName(): string {
   const animals = [
     "Lion",
     "Tiger",
@@ -54,7 +54,7 @@ function ensureUser(): {id: string, name: string} | undefined {
   if (existingUserId && existingUserName) return { id: existingUserId, name: existingUserName };
   
   const newUserId = randomIDGen();
-  const newUserName = generateUserName(newUserId);
+  const newUserName = generateUserName();
   localStorage.setItem("user_id", newUserId);
   localStorage.setItem("user_name", newUserName);
   return { id: newUserId, name: newUserName };
