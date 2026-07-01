@@ -15,6 +15,7 @@ import {
   shuffleDeck,
   applyBoolEffectToCard,
   proccessApplyModifier,
+  processApplyModifierToPlayer,
   dealDamageToCard,
   dealDamageToPlayer,
   healCard,
@@ -25,9 +26,14 @@ import {
   findCardsInPool,
   returnCardToHand,
   discardCardsFromHand,
+  isUserSelectValue,
 } from "./utils";
 import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
-import { hasTargets, validateMove } from "./utils/validateMove";
+import {
+  hasTargets,
+  validateMove,
+  validateTargetQuery,
+} from "./utils/validateMove";
 import type { CardTemplateKey } from "./data/cards";
 import { enumerateAIMoves } from "./ai";
 import {
@@ -46,7 +52,7 @@ export const isVictory = ({ G }: { G: GameState; ctx: Ctx }) => {
 
 const setupData = (
   { ctx }: { ctx: Ctx },
-  setupData?: {
+  setupData: {
     player0: {
       playerUsername?: string;
       deck: Card[];
@@ -87,6 +93,8 @@ const setupData = (
     hand: [],
     deck: playerDeck,
     burntCards: [],
+    heroPowerUsedThisTurn: false,
+    hero: playerHero,
   };
 
   const p1: Player = {
@@ -105,6 +113,8 @@ const setupData = (
     attacksLeft: 1,
     hand: [],
     deck: opponentDeck,
+    heroPowerUsedThisTurn: false,
+    hero: opponentHero,
     burntCards: [],
   };
 
@@ -116,6 +126,7 @@ const setupData = (
       "0": p0,
       "1": p1,
     },
+
     board: {
       "0": [],
       "1": [],
@@ -187,7 +198,7 @@ const placeCard: Move<GameState> = (
     const needsTargetedBattlecry =
       card.battlecryQuery &&
       card.onPlace.some((e) => {
-        const test = isSelectValue(e);
+        const test = isUserSelectValue(e);
         return test;
       });
 
@@ -377,19 +388,119 @@ const resolveBattlecry: Move<GameState> = (
   processDeaths(G, ctx);
 };
 
-function isSelectValue(e: EffectTypes): boolean {
-  if (isBaseEffectSelection(e) && e.target === "user-select") {
-    return true;
-  } else if (e.type === "conditional") {
-    return !!(
-      e.then.some((ex) => isSelectValue(ex)) ||
-      e.else?.some((ex) => isSelectValue(ex))
-    );
-  } else if (e.type === "sequence") {
-    return !!e.steps.some((ex) => isSelectValue(ex));
+const useHeroPower: Move<GameState> = ({ G, ctx }, target?: TargetValue) => {
+  const player = G.players[ctx.currentPlayer];
+  const hero = player.hero;
+
+  // Validation checks
+  if (!hero || !hero.heroPower) {
+    console.warn("No hero power available");
+    return;
   }
-  return false;
-}
+
+  if (player.heroPowerUsedThisTurn) {
+    console.warn("Hero power already used this turn");
+    return;
+  }
+
+  if (player.mana < hero.heroPower.manaCost) {
+    console.warn("Not enough mana for hero power");
+    return;
+  }
+
+  const heroPower = hero.heroPower;
+
+  // Check if hero power requires a target
+  const requiresTarget = heroPower.effects.some((effect) => {
+    if (isBaseEffectSelection(effect) && effect.target === "user-select") {
+      return true;
+    }
+    return false;
+  });
+
+  // If requires target and no target provided, invalid
+  if (requiresTarget && !target) {
+    console.warn("Hero power requires a target");
+    return;
+  }
+
+  // Validate target if provided
+  if (target && requiresTarget) {
+    // Use the validateTargetQuery to check if target is valid
+    const isValid = validateTargetQuery(
+      heroPower.targetQuery,
+      {
+        G,
+        ctx,
+        playerID: ctx.currentPlayer,
+        target,
+        location: "hand",
+      },
+      `hero-power-${ctx.currentPlayer}`,
+    );
+
+    if (!isValid) {
+      console.warn("Invalid target for hero power");
+      return;
+    }
+  }
+
+  // Clear events and track move
+  G.gameEvents = [];
+  G.lastMove = {
+    cardId: `hero-power-${ctx.currentPlayer}`,
+    location: "hand",
+    target,
+    timestamp: Date.now(),
+  };
+
+  // Deduct mana
+  player.mana -= heroPower.manaCost;
+
+  // Mark hero power as used
+  player.heroPowerUsedThisTurn = true;
+
+  // Execute hero power effects
+  executeEffects(heroPower.effects, {
+    card: {
+      id: `hero-power-${ctx.currentPlayer}`,
+      originalID: `hero-power-${ctx.currentPlayer}`,
+      title: heroPower.name,
+      description: heroPower.description,
+      effects: heroPower.effects,
+      onPlace: [],
+      targetQuery: heroPower.targetQuery,
+      isMinion: false,
+      damageTaken: 0,
+      attacksLeft: 0,
+      class: hero.class,
+    },
+    G,
+    ctx,
+    location: "hand",
+    playerID: ctx.currentPlayer,
+    target,
+  });
+
+  // Record event for animations
+  recordEvent(G, {
+    type: "heroPower",
+    playerId: ctx.currentPlayer,
+    timestamp: Date.now(),
+    targetId: target?.id,
+    targetType: target?.type === "lane" ? "player" : target?.type,
+  });
+
+  // Record mana event
+  recordEvent(G, {
+    type: "mana",
+    playerId: ctx.currentPlayer,
+    timestamp: Date.now(),
+  });
+
+  // Process any deaths that may have resulted
+  processDeaths(G, ctx);
+};
 
 const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
   const { card, target, playerID, G, ctx } = context;
@@ -397,7 +508,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
   let isUserSelect = false;
 
   for (const effect of effects) {
-    if (isSelectValue(effect)) {
+    if (isUserSelectValue(effect)) {
       isUserSelect = true;
       break;
     }
@@ -659,6 +770,17 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
           if (t.type === "player") {
             // Handle hero modifiers here if your game system supports player attack/armor dynamic buffs
             // e.g., processHeroModifier(G, cardId, t.ownerId, modEffect, value);
+            const targetPlayer = G.players[t.ownerId];
+            if (targetPlayer) {
+              processApplyModifierToPlayer(
+                G,
+                cardId,
+                targetPlayer,
+                playerID,
+                modEffect,
+                value,
+              );
+            }
           }
 
           // --- TARGET TYPE: MINION / CARD ---
@@ -1037,6 +1159,41 @@ function processModifierLifecycle(
         return false;
       });
     });
+
+    // Process player modifiers (for hero powers like Druid's Shapeshift)
+    G.players[pId].modifiers = G.players[pId].modifiers?.filter((mod) => {
+      // Permanent modifications or auras are handled elsewhere and shouldn't be processed here
+      if (mod.type !== "temporary" || !mod.lifecycle) return true;
+
+      const lifecycle = mod.lifecycle;
+
+      // 1. Check if the current game loop state matches the expiry trigger phase
+      if (lifecycle.expiryTrigger !== triggerType) return true;
+
+      // 2. Identify whose turn boundary we are currently executing
+      let isOwnerMatch = false;
+      if (lifecycle.expiryOwner === "ANY_PLAYER") isOwnerMatch = true;
+      if (
+        lifecycle.expiryOwner === "BUFF_CASTER" &&
+        lifecycle.sourcePlayerId === activePlayerId
+      )
+        isOwnerMatch = true;
+      if (lifecycle.expiryOwner === "BUFF_RECEIVER" && pId === activePlayerId)
+        isOwnerMatch = true;
+
+      // If it's not the right player's turn phase, keep the modifier active
+      if (!isOwnerMatch) return true;
+
+      // 3. Handle multi-turn countdown decrements
+      if (lifecycle.turnsRemaining !== undefined) {
+        lifecycle.turnsRemaining -= 1;
+        // If turns are still remaining, keep it alive
+        if (lifecycle.turnsRemaining > 0) return true;
+      }
+
+      // Return false to cleanly strip out the expired modifier from the array!
+      return false;
+    });
   });
 }
 
@@ -1064,6 +1221,7 @@ export const HeathStoneGame: Game<GameState> = {
         cancelBattlecry,
         endTurn,
         minionAttack,
+        useHeroPower,
         resolveBattlecry,
       },
       onBegin: ({ G, ctx }) => {
@@ -1085,6 +1243,9 @@ export const HeathStoneGame: Game<GameState> = {
           );
           G.players[ctx.currentPlayer].mana =
             G.players[ctx.currentPlayer].manaCrystals;
+
+          // Reset hero power usage
+          G.players[ctx.currentPlayer].heroPowerUsedThisTurn = false;
 
           // draw card if the player has less than 10 cards in hand
           if (ctx.turn > 2) {

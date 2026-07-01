@@ -527,6 +527,28 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
   },
+  "silver-hand-recruit": {
+    title: "Silver Hand Recruit",
+    description: "",
+    baseAttack: 1,
+    baseHealth: 1,
+    baseMana: 1,
+    imageUrl: "assets/cards/Silver_Hand_Recruit.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    class: "Paladin",
+    isUncollectible: true,
+  },
   "frostwolf-grunt": {
     title: "Frostwolf Grunt",
     description: "Taunt.",

@@ -3,12 +3,21 @@ import type { Ctx, PlayerID } from "boardgame.io";
 
 export type DeckString = Partial<Record<CardTemplateKey, number>>;
 
+export interface HeroPower {
+  name: string;
+  description: string;
+  manaCost: number;
+  effects: Array<EffectTypes>;
+  targetQuery: TargetQuery;
+}
+
 export interface Hero {
   name: string;
   portrait: string;
   ability?: string;
   class: string;
   heroName: string;
+  heroPower?: HeroPower;
 }
 
 export interface Card {
@@ -70,6 +79,8 @@ export interface Player {
   hand: Card[];
   deck: Card[];
   burntCards: Card[]; // Cards that couldn't fit in hand (hand was full)
+  heroPowerUsedThisTurn: boolean;
+  hero: Hero;
 }
 
 export interface EffectContext {
@@ -432,7 +443,8 @@ export type GameEvent =
   | AddToHandEvent
   | ReturnToHandEvent
   | BurnCardEvent
-  | DiscardEvent;
+  | DiscardEvent
+  | HeroPowerEvent;
 
 type DebugEvent = {
   type: "debug";
@@ -627,6 +639,14 @@ export type BurnCardEvent = {
   playerId: PlayerID;
   timestamp: number;
   card: Card;
+};
+
+export type HeroPowerEvent = {
+  type: "heroPower";
+  playerId: PlayerID;
+  timestamp: number;
+  targetId?: string;
+  targetType?: "card" | "player";
 };
 
 export type DiscardEvent = {

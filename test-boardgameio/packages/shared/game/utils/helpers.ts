@@ -15,6 +15,7 @@ import {
   type EffectTypes,
   type GameEvent,
   type GameState,
+  type Player,
 } from "../types";
 import { checkSingleTargetCondition } from "./effectEngine";
 // Helper function to record game events
@@ -74,6 +75,56 @@ export function proccessApplyModifier(
     timestamp: Date.now(),
     targetId: targetCard.id,
     targetType: "card",
+  });
+}
+
+export function processApplyModifierToPlayer(
+  G: GameState,
+  sourceId: string,
+  targetPlayer: Player,
+  playerId: string,
+  effect: ApplyModifierEffect,
+  value: number,
+) {
+  // Determine what lifecycle layer this modifier belongs to
+  const isTemporary = !!effect.duration;
+
+  // Build out the unified clean modifier instance object
+  const newModifier: CardModifier = {
+    id: `mod-${sourceId}-${effect.stat}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+    sourceCardId: sourceId,
+    stat: effect.stat,
+    value: value,
+    type: isTemporary ? "temporary" : "permanent",
+    override: effect.override,
+
+    // Inject runtime tracking data into the modifier lifecycle if it has a duration
+    lifecycle:
+      isTemporary && effect.duration
+        ? {
+            sourcePlayerId: playerId,
+            expiryTrigger: effect.duration.expiryTrigger,
+            expiryOwner: effect.duration.expiryOwner,
+            turnsRemaining: effect.duration.turnsRemaining ?? 1,
+          }
+        : undefined,
+  };
+
+  // Safely push it into player's modifier array
+  if (targetPlayer.modifiers === undefined) {
+    targetPlayer.modifiers = [];
+  }
+  targetPlayer.modifiers.push(newModifier);
+
+  recordEvent(G, {
+    type: "applyModifier",
+    sourceId: sourceId,
+    key: effect.stat,
+    value: value,
+    playerId: playerId,
+    timestamp: Date.now(),
+    targetId: targetPlayer.id,
+    targetType: "player",
   });
 }
 

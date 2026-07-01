@@ -23,6 +23,11 @@ const PlayerArea = ({
   actualG,
   ...props
 }: Props) => {
+  function clickHeroPower() {
+    if (!player.hero.heroPower) return;
+    moves.useHeroPower();
+  }
+
   return (
     <div
       className={` h-full w-screen flex justify-between items-${isTop ? "end" : "start"} `}
@@ -69,6 +74,23 @@ const PlayerArea = ({
           {player.name}
         </div>
       </div>
+
+      {/* Hero Power */}
+
+      {player.hero.heroPower && (
+        <div
+          className={twMerge(
+            "absolute z-10 top-[-10%] left-[55vw] flex items-center pointer-events-none ",
+            isTop && "top-[60%]",
+          )}
+        >
+          <div
+            title={player.hero.heroPower.name}
+            className="flex items-center justify-center pointer-events-auto  px-[0.5vw] py-[0.1vw] rounded-full w-[4.5vw] h-[4.5vw] text-center bg-amber-500/80 "
+            onClick={clickHeroPower}
+          ></div>
+        </div>
+      )}
 
       {/* Mana */}
       <div

@@ -1,5 +1,6 @@
-import type { Card, GameState } from "../types";
+import type { Card, EffectTypes, GameState } from "../types";
 import { cardTemplates, type CardTemplateKey } from "../data/cards";
+import { isBaseEffectSelection } from "../..";
 
 export function shuffleDeck(deck: Card[]): Card[] {
   const copy = [...deck];
@@ -128,6 +129,25 @@ export function getManaCost(card: Card): number {
   }
   const bonus = mods.reduce((sum, m) => sum + m.value, 0) ?? 0;
   return Math.max(0, (card.baseMana ?? 0) + bonus);
+}
+
+/**
+ * Determine if an effect or any of its nested effects require user selection as a target.
+ * @param e Effect
+ * @returns
+ */
+export function isUserSelectValue(e: EffectTypes): boolean {
+  if (isBaseEffectSelection(e) && e.target === "user-select") {
+    return true;
+  } else if (e.type === "conditional") {
+    return !!(
+      e.then.some((ex) => isUserSelectValue(ex)) ||
+      e.else?.some((ex) => isUserSelectValue(ex))
+    );
+  } else if (e.type === "sequence") {
+    return !!e.steps.some((ex) => isUserSelectValue(ex));
+  }
+  return false;
 }
 
 export * from "./helpers";
