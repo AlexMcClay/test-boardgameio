@@ -101,6 +101,37 @@ export const useGameTargeting = ({ G, ctx, moves }: Props) => {
     };
   }, [handleBattlecryTarget]);
 
+  // Handle hero power arrow target selection
+  const handleHeroPowerTarget = useCallback(
+    (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { targetCardId, targetPlayerId } = customEvent.detail;
+
+      let target: TargetValue | undefined;
+
+      if (targetCardId) {
+        const player0HasCard = G.board["0"].some((c) => c.id === targetCardId);
+        const targetPlayer = player0HasCard ? "0" : "1";
+        target = { type: "card", id: targetCardId, player: targetPlayer };
+      } else if (targetPlayerId) {
+        target = { type: "player", id: targetPlayerId, player: targetPlayerId };
+      }
+
+      if (!target) return;
+
+      // Execute hero power with target
+      moves.useHeroPower(target);
+    },
+    [G, moves]
+  );
+
+  useEffect(() => {
+    window.addEventListener("hero-power-target", handleHeroPowerTarget);
+    return () => {
+      window.removeEventListener("hero-power-target", handleHeroPowerTarget);
+    };
+  }, [handleHeroPowerTarget]);
+
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape" && G.activeBattlecryMinion) {
