@@ -3,25 +3,26 @@ import { create } from "zustand";
 import type { AnimationEvent, AnimationQueueItem } from "@/types/animations";
 import { BATCH_UPDATE_DELAY } from "@/utils/animationDurations";
 
-type AnimationStore = {
-  // State
-  queue: AnimationQueueItem[]; // Queue of animation batches with their game states
-  isAnimating: boolean;
-  activeAnimations: AnimationEvent[]; // Track multiple simultaneous animations
+// We extend the baseline type to handle dynamic unique run tracking internally
+type ActiveAnimationEvent = AnimationEvent & { uid?: string };
 
-  // Actions
+type AnimationStore = {
+  queue: AnimationQueueItem[];
+  isAnimating: boolean;
+  activeAnimations: ActiveAnimationEvent[]; // Supports tracking unique active instances
+
   queueAnimationBatch: (
     animations: AnimationEvent[],
     gameState: any,
     ctx: any,
-  ) => void; // Queue animations with game state and ctx
+  ) => void;
   startAnimating: () => void;
   playAnimations: (
     onBatchComplete?: (gameState: any, ctx: any) => void,
   ) => Promise<void>;
   clearQueue: () => void;
-  addActiveAnimation: (event: AnimationEvent) => void;
-  removeActiveAnimation: (event: AnimationEvent) => void;
+  addActiveAnimation: (event: ActiveAnimationEvent) => void;
+  removeActiveAnimation: (event: ActiveAnimationEvent) => void;
 };
 
 export const useAnimationStore = create<AnimationStore>((set, get) => ({
@@ -30,19 +31,13 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
   activeAnimations: [],
 
   queueAnimationBatch: (animations, gameState, ctx) => {
-    // 1. Get current queue state
     const currentQueue = get().queue;
 
-    // 2. Check if this exact batch of animations is already in the queue
     const isDuplicate = currentQueue.some((batch) => {
       if (batch.animations.length !== animations.length) return false;
-
-      // Deep compare each animation in the array
       return batch.animations.every((anim, index) => {
         const incomingAnim = animations[index];
         if (anim.type !== incomingAnim.type) return false;
-
-        // Compare by matching types and structures
         return JSON.stringify(anim) === JSON.stringify(incomingAnim);
       });
     });
@@ -52,10 +47,9 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
         "⚠️ Animation bug caught: Attempted to add duplicate animation batch to queue. Ignoring.",
         animations,
       );
-      return; // Stop execution, don't add to queue
+      return;
     }
 
-    // 3. If it's unique, add it to the queue
     set((state) => ({
       queue: [
         ...state.queue,
@@ -85,17 +79,25 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
   removeActiveAnimation: (event) => {
     set((state) => ({
       activeAnimations: state.activeAnimations.filter((anim) => {
+        // 1. If we have a unique runtime instance ID, check against that first
+        if (anim.uid && event.uid) {
+          return anim.uid !== event.uid;
+        }
+
         if (anim.type !== event.type) return true;
 
-        // Match by type-specific identifiers
+        // Fallbacks for baseline items that don't pass a unique identifier
         if (anim.type === "attack" && event.type === "attack") {
           return anim.attackerId !== event.attackerId;
         } else if (anim.type === "death" && event.type === "death") {
           return anim.cardId !== event.cardId;
         } else if (anim.type === "hitNumber" && event.type === "hitNumber") {
+          // Fallback to match exact content equality if uid is absent
           return (
             anim.targetId !== event.targetId ||
-            anim.damageType !== event.damageType
+            anim.damageType !== event.damageType ||
+            anim.value !== event.value ||
+            anim.startTime !== event.startTime
           );
         }
         return true;
@@ -104,72 +106,63 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
   },
 
   playAnimations: async (onBatchComplete) => {
-    // Process queue items sequentially
-    // Note: Always get fresh queue reference in case new items are added during processing
     while (get().queue.length > 0) {
       const currentBatch = get().queue[0];
 
       if (!currentBatch || currentBatch.animations.length === 0) {
-        // Empty batch - still need to update visual state with this snapshot
-        console.log("Processing state update batch (no animations)");
-
-        // Call the callback to update visual state
         if (onBatchComplete && currentBatch) {
           onBatchComplete(currentBatch.gameState, currentBatch.ctx);
         }
-
-        // Remove empty batch and continue
-        set((state) => ({
-          queue: state.queue.slice(1),
-        }));
+        set((state) => ({ queue: state.queue.slice(1) }));
         continue;
       }
 
-      console.log(
-        `Playing animation batch with ${currentBatch.animations.length} animations`,
-      );
-
-      // Set animating flag
       set({ isAnimating: true });
 
-      // Calculate total timeline duration for this batch
-      // const timelineEnd = Math.max(
-      //   ...currentBatch.animations.map(
-      //     (anim) => anim.startTime + anim.duration,
-      //   ),
-      // );
+      const hitCountsByTarget: Record<string, number> = {};
 
-      // Play all animations in this batch on their timeline (can overlap!)
       const animationPromises = currentBatch.animations.map((animation) => {
         return new Promise<void>((resolve) => {
-          // Wait for animation's startTime, then trigger it
-          setTimeout(() => {
-            get().addActiveAnimation(animation);
+          // Generate a cryptographically distinct ID to target this precise element instance
+          const runtimeUid = `${animation.type}-${crypto.randomUUID()}`;
+          const runtimeAnim: ActiveAnimationEvent = {
+            ...animation,
+            uid: runtimeUid,
+          };
 
-            // Remove animation after its duration
+          let adjustedStartTime = animation.startTime;
+
+          if (animation.type === "hitNumber") {
+            const targetId = animation.targetId;
+
+            // Initialize or increment the count for this specific target
+            if (hitCountsByTarget[targetId] === undefined) {
+              hitCountsByTarget[targetId] = 0;
+            } else {
+              hitCountsByTarget[targetId]++;
+            }
+
+            // Stagger delay (300ms) ONLY applies if this target has already been hit in this batch
+            adjustedStartTime += hitCountsByTarget[targetId] * 300;
+          }
+          setTimeout(() => {
+            get().addActiveAnimation(runtimeAnim);
+
             setTimeout(() => {
-              get().removeActiveAnimation(animation);
+              get().removeActiveAnimation(runtimeAnim);
               resolve();
             }, animation.duration);
-          }, animation.startTime);
+          }, adjustedStartTime);
         });
       });
 
-      // Wait for the entire batch timeline to complete
       await Promise.all(animationPromises);
 
-      console.log("Animation batch complete");
+      set((state) => ({ queue: state.queue.slice(1) }));
 
-      // Remove the completed batch from queue
-      set((state) => ({
-        queue: state.queue.slice(1),
-      }));
-
-      // Call the callback with this batch's game state and ctx so visual state can update
       if (onBatchComplete) {
         onBatchComplete(currentBatch.gameState, currentBatch.ctx);
 
-        // Add delay before processing next batch (only if there are more batches)
         if (get().queue.length > 0) {
           await new Promise((resolve) =>
             setTimeout(resolve, BATCH_UPDATE_DELAY),
@@ -178,8 +171,6 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
       }
     }
 
-    // All batches complete - reset state
     set({ isAnimating: false, activeAnimations: [] });
-    console.log("All animation batches complete");
   },
 }));

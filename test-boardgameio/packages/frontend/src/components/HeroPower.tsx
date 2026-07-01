@@ -172,7 +172,7 @@ const HeroPower = ({ player, isTop, moves }: Props) => {
   const used = player.heroPowerUsedThisTurn;
 
   const canUseHeroPower =
-    !used && player.mana >= (player.hero.heroPower?.manaCost || 0);
+    !used && player.mana >= (player.hero.heroPower?.manaCost || 0) && !isTop;
 
   return (
     <div

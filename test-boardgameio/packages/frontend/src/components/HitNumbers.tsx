@@ -5,7 +5,7 @@ import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 
 interface HitNumberPosition {
-  id: string;
+  id: string; // This needs to be completely unique per instance
   targetId: string;
   targetType: "card" | "player";
   value: number;
@@ -20,23 +20,26 @@ const HitNumbers = () => {
   const processedAnimations = useRef<Set<string>>(new Set());
 
   const hitNumberAnimations = activeAnimations.filter(
-    (anim): anim is HitNumberAnimation => anim.type === "hitNumber",
+    (anim): anim is HitNumberAnimation & { uid: string } =>
+      anim.type === "hitNumber",
   );
 
   useEffect(() => {
+    // 1. Filter out animations using the store instance key
     const newAnimations = hitNumberAnimations.filter((anim) => {
-      const animKey = `${anim.targetId}-${anim.damageType}-${anim.value}-${anim.startTime}`;
-      return !processedAnimations.current.has(animKey);
+      // Rely directly on the dynamic unique store ID instead of a concatenated string
+      return !processedAnimations.current.has(anim.uid);
     });
 
     if (newAnimations.length === 0) return;
 
+    if (newAnimations.length === 0) return;
+
     const newPositions: HitNumberPosition[] = newAnimations.map((anim) => {
-      const animKey = `${anim.targetId}-${anim.damageType}-${anim.value}-${anim.startTime}`;
-      processedAnimations.current.add(animKey);
+      processedAnimations.current.add(anim.uid);
 
       return {
-        id: animKey,
+        id: anim.uid, // Use the store's unique run tracker
         targetId: anim.targetId,
         targetType: anim.targetType,
         value: anim.value,
@@ -53,12 +56,11 @@ const HitNumbers = () => {
     }
   }, [hitNumberAnimations.length, positions.length]);
 
-  // Notice we don't need the fullscreen wrapper fixed overlay here anymore!
   return (
     <AnimatePresence>
       {positions.map((pos) => (
         <HitNumber
-          key={pos.id}
+          key={pos.id} // Guaranteed unique key now
           {...pos}
           onFinished={() =>
             setPositions((prev) => prev.filter((p) => p.id !== pos.id))
@@ -87,7 +89,6 @@ const HitNumber = ({
   const isDamage = damageType === "damage";
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
-  // Find the parent element ONLY ONCE when the component mounts
   useEffect(() => {
     const selector =
       targetType === "card"
@@ -98,31 +99,29 @@ const HitNumber = ({
     if (element) {
       setPortalTarget(element);
     } else {
-      // Fallback if target element isn't found in DOM yet
       onFinished();
     }
   }, [targetId, targetType, onFinished]);
 
+  // Adjust the lifecycle timer to account for the incoming staggered animation delay
   useEffect(() => {
-    const timer = setTimeout(onFinished, 1500);
+    const totalDuration = 1.5 * 1000;
+    const timer = setTimeout(onFinished, totalDuration);
     return () => clearTimeout(timer);
   }, [onFinished]);
 
-  // If we haven't found the DOM node to attach to, render nothing
   if (!portalTarget) return null;
 
   return createPortal(
     <motion.div
-      initial={{ opacity: 1, scale: 0.7 }}
+      initial={{ opacity: 0, scale: 0.7 }} // Changed initial opacity to 0 so staggered items don't flash early
       animate={{
-        opacity: [1, 1, 1, 1, 1, 1, 1, 1, 0],
+        opacity: [0, 1, 1, 1, 1, 1, 1, 1, 0], // Handles fading in after the delay pops
         scale: [0.8, 1.3, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2],
-        // Optional: Add a little natural floating upward effect relative to the card
         y: [0, -10, -20, -25, -30, -30, -30, -30, -35],
       }}
       exit={{ opacity: 0 }}
       transition={{ duration: 1.5, ease: "easeOut" }}
-      // Perfectly centers the damage numbers over the relative parent container
       className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-50"
     >
       <div className="relative flex items-center justify-center">
@@ -159,7 +158,7 @@ const HitNumber = ({
         </motion.div>
       </div>
     </motion.div>,
-    portalTarget, // <--- This sends it straight into your target element!
+    portalTarget,
   );
 };
 

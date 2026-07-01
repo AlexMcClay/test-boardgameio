@@ -4,7 +4,7 @@ import type { Hero, HeroPower } from "../types";
 const armorUp: HeroPower = {
   name: "Armor Up!",
   description: "Gain 2 Armor.",
-  imageUrl: "assets/hero_powers/Armor_Up.jpg",
+  imageUrl: "assets/hero_powers/Armor_Up!.jpg",
   manaCost: 2,
   effects: [
     {
