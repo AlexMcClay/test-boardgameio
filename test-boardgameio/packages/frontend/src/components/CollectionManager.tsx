@@ -24,8 +24,8 @@ import Deck from "./Deck";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { classIcons } from "@/utils";
 
-const backgroundImage = "assets/collection/collection.png";
-const sheet = "assets/collection/sheet.png";
+const backgroundImage = "assets/collection/collection.jpg";
+const sheet = "assets/collection/sheet.jpg";
 const mana_crystal = "assets/mana.png";
 
 type Mode = "viewer" | "card-select";

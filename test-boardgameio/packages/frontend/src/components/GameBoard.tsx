@@ -36,7 +36,7 @@ import { useGameAnimation, useGameTargeting } from "@/hooks";
 
 interface Props extends BoardProps<GameState> {}
 
-const backgroundImage = "assets/board.png"; // Path to your background image
+const backgroundImage = "assets/board.jpg"; // Path to your background image
 const moltenCoreMusic = "assets/audio/music/05_Molten_Core.mp3";
 const arenaMusic = "assets/audio/music/05_Arena.mp3";
 
