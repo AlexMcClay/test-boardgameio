@@ -4,6 +4,7 @@ import type { Hero, HeroPower } from "../types";
 const armorUp: HeroPower = {
   name: "Armor Up!",
   description: "Gain 2 Armor.",
+  imageUrl: "assets/hero_powers/Armor_Up.jpg",
   manaCost: 2,
   effects: [
     {
@@ -21,6 +22,7 @@ const armorUp: HeroPower = {
 const fireblast: HeroPower = {
   name: "Fireblast",
   description: "Deal 1 damage.",
+  imageUrl: "assets/hero_powers/Fireblast.jpg",
   manaCost: 2,
   effects: [
     {
@@ -38,6 +40,7 @@ const fireblast: HeroPower = {
 const lesserHeal: HeroPower = {
   name: "Lesser Heal",
   description: "Restore 2 Health.",
+  imageUrl: "assets/hero_powers/Lesser_Heal.jpg",
   manaCost: 2,
   effects: [
     {
@@ -55,6 +58,7 @@ const lesserHeal: HeroPower = {
 const lifeTap: HeroPower = {
   name: "Life Tap",
   description: "Draw a card and take 2 damage.",
+  imageUrl: "assets/hero_powers/Life_Tap.jpg",
   manaCost: 2,
   effects: [
     {
@@ -76,6 +80,7 @@ const lifeTap: HeroPower = {
 const reinforce: HeroPower = {
   name: "Reinforce",
   description: "Summon a 1/1 Silver Hand Recruit.",
+  imageUrl: "assets/hero_powers/Reinforce.jpg",
   manaCost: 2,
   effects: [
     {
@@ -94,6 +99,7 @@ const reinforce: HeroPower = {
 const shapeshift: HeroPower = {
   name: "Shapeshift",
   description: "+1 Attack this turn. +1 Armor.",
+  imageUrl: "assets/hero_powers/Shapeshift.jpg",
   manaCost: 2,
   effects: [
     {
@@ -122,6 +128,7 @@ const shapeshift: HeroPower = {
 const steadyShot: HeroPower = {
   name: "Steady Shot",
   description: "Deal 2 damage to the enemy hero.",
+  imageUrl: "assets/hero_powers/Steady_Shot.jpg",
   manaCost: 2,
   effects: [
     {
@@ -142,6 +149,7 @@ const placeholderPower: HeroPower = {
   description: "Not yet implemented.",
   manaCost: 2,
   effects: [],
+  imageUrl: "assets/hero_powers/Placeholder.jpg",
   targetQuery: {
     side: "friendly",
     type: [],

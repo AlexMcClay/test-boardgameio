@@ -9,6 +9,7 @@ export interface HeroPower {
   manaCost: number;
   effects: Array<EffectTypes>;
   targetQuery: TargetQuery;
+  imageUrl: string; // URL to the card image
 }
 
 export interface Hero {
