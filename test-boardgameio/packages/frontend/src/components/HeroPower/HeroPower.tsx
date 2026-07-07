@@ -2,8 +2,11 @@ import type { Card, GameState, Player } from "@project/shared";
 import type { BoardProps } from "boardgame.io/dist/types/packages/react";
 import { isUserSelectValue } from "@project/shared";
 import { useDragStore } from "@/stores/dragStore";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
+import HeroPowerPopover from "./HeroPowerPopover";
+import { AnimatePresence } from "motion/react";
+import HeroPowerCircle from "./HeroPowerCircle";
 
 interface Props extends BoardProps<GameState> {
   isTop?: boolean; // true for player 1, false or undefined for player 0
@@ -16,6 +19,13 @@ const hero_power_used = "assets/hero_powers/hero_power_used.png";
 
 const HeroPower = ({ player, isTop, moves }: Props) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
+  // Hover popover state
+  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [showPopover, setShowPopover] = useState(false);
+  const [popoverPosition, setPopoverPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   const startTargeting = useDragStore((s) => s.startTargeting);
   const endTargeting = useDragStore((s) => s.endTargeting);
@@ -174,55 +184,90 @@ const HeroPower = ({ player, isTop, moves }: Props) => {
   const canUseHeroPower =
     !used && player.mana >= (player.hero.heroPower?.manaCost || 0) && !isTop;
 
+  // Hover handlers for popover
+  const handleMouseEnter = () => {
+    // Clear any existing timer
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+    }
+
+    // Start 1-second timer
+    hoverTimerRef.current = setTimeout(() => {
+      const rect = wrapperRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const vw = window.innerWidth / 100;
+
+      // Calculate position for popover
+
+      const x = rect.right + 3 * vw;
+
+      const y = rect.top + -rect.height / 2;
+
+      setPopoverPosition({ x, y });
+      setShowPopover(true);
+    }, 100);
+  };
+
+  const handleMouseLeave = () => {
+    // Clear timer if mouse leaves before 1 second
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+
+    // Hide popover
+    setShowPopover(false);
+  };
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current) {
+        clearTimeout(hoverTimerRef.current);
+      }
+    };
+  }, []);
+
   return (
-    <div
-      ref={wrapperRef}
-      className={twMerge(
-        "absolute z-10 top-[-30%] left-[54.8vw] flex items-center pointer-events-none minion-card",
-        isTop && "top-[60%]",
-        canUseHeroPower && "canAttack",
-      )}
-    >
-      {used ? (
-        <div
-          title={player.hero.heroPower?.name}
-          className="flex items-center justify-center mt-[0.5vw] pointer-events-auto  px-[0.5vw] py-[0.1vw] rounded-full w-[8vw] h-[8vw] text-center smallShadow"
-          onMouseDown={handleHeroPowerMouseDown}
-          style={{
-            backgroundImage: `url(${hero_power_used})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        ></div>
-      ) : (
-        <>
+    <>
+      <div
+        ref={wrapperRef}
+        className={twMerge(
+          "absolute z-10 top-[-30%] left-[54.8vw] flex items-center pointer-events-none minion-card",
+          isTop && "top-[60%]",
+          canUseHeroPower && "canAttack",
+        )}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {used ? (
           <div
-            title={player.hero.heroPower?.name}
-            className={twMerge(
-              "flex items-center justify-center relative pointer-events-auto  px-[0.5vw] py-[0.1vw] rounded-full w-[8vw] h-[8vw] text-center smallShadow z-10",
-            )}
+            className="flex items-center justify-center mt-[0.5vw] pointer-events-auto  px-[0.5vw] py-[0.1vw] rounded-full w-[8vw] h-[8vw] text-center smallShadow"
             onMouseDown={handleHeroPowerMouseDown}
             style={{
-              backgroundImage: `url(${hero_power})`,
+              backgroundImage: `url(${hero_power_used})`,
               backgroundSize: "cover",
               backgroundPosition: "center",
             }}
-          >
-            <span className="text-[1.1vw] scale-150 text-center font-extrabold text-white font-belwe text-shadow-A absolute top-[0.35vw]">
-              {player.hero.heroPower?.manaCost}
-            </span>
+          ></div>
+        ) : (
+          <div className="relative" onMouseDown={handleHeroPowerMouseDown}>
+            <HeroPowerCircle heroPower={player.hero.heroPower!} />
           </div>
-          <img
-            src={player.hero.heroPower?.imageUrl}
-            // alt={title}
-            className={twMerge(
-              "object-cover w-[4.7vw] left-[1.8vw]  rounded-full  select-none absolute z-[-3]",
-            )}
-            draggable="false"
+        )}
+      </div>
+      {/* Render popover when hovering */}
+      <AnimatePresence>
+        {showPopover && (
+          <HeroPowerPopover
+            heroPower={player.hero.heroPower!}
+            isTop={isTop}
+            position={popoverPosition}
           />
-        </>
-      )}
-    </div>
+        )}
+      </AnimatePresence>
+    </>
   );
 };
 

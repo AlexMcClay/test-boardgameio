@@ -445,7 +445,14 @@ export type GameEvent =
   | ReturnToHandEvent
   | BurnCardEvent
   | DiscardEvent
-  | HeroPowerEvent;
+  | HeroPowerEvent
+  | GameEndEvent;
+
+type GameEndEvent = {
+  type: "gameEnd";
+  winner: PlayerID | "draw";
+  timestamp: number;
+};
 
 type DebugEvent = {
   type: "debug";
@@ -648,6 +655,7 @@ export type HeroPowerEvent = {
   timestamp: number;
   targetId?: string;
   targetType?: "card" | "player";
+  heroPower: HeroPower;
 };
 
 export type DiscardEvent = {

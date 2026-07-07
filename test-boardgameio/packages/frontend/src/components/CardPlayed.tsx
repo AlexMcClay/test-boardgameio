@@ -2,84 +2,95 @@ import CardComponent from "./Card";
 import type { BoardProps } from "boardgame.io/dist/types/packages/react";
 import { useAnimationStore } from "@/stores/animationStore";
 import { useEffect, useState, useRef } from "react";
-import type { CardPlayedAnimation } from "@/types/animations";
+import type {
+  CardPlayedAnimation,
+  HeroPowerAnimation,
+} from "@/types/animations";
 import { useAudioStore } from "@/stores/audioStore";
 import type { GameState } from "@project/shared";
+import HeroPowerExpanded from "./HeroPower/HeroPowerExpanded";
+import { twMerge } from "tailwind-merge";
 
 interface Props extends BoardProps<GameState> {}
 
+// Union type for the actions this component handles
+type ActiveActionAnimation = CardPlayedAnimation | HeroPowerAnimation;
+
 const CardPlayed = ({ ctx, playerID }: Props) => {
   const activeAnimations = useAnimationStore((s) => s.activeAnimations);
-  const [activeCard, setActiveCard] = useState<CardPlayedAnimation | null>(
-    null,
-  );
+  const [activeAction, setActiveAction] =
+    useState<ActiveActionAnimation | null>(null);
   const playSfx = useAudioStore((state) => state.playSfx);
 
   const processedAnimationTime = useRef<number>(-1);
 
-  // 1. Get ALL cardPlayed animations that belong to the ENEMY
+  // 1. Get ALL cardPlayed AND heroPower animations that belong to the ENEMY
   const enemyPlayAnimations = activeAnimations.filter(
-    (anim): anim is CardPlayedAnimation =>
-      anim.type === "cardPlayed" && anim.playerId !== playerID,
+    (anim): anim is ActiveActionAnimation =>
+      (anim.type === "cardPlayed" || anim.type === "heroPower") &&
+      anim.playerId !== playerID,
   );
 
-  // 2. Always grab the LATEST one (the end of the array) so rapid plays override old ones
+  // 2. Always grab the LATEST one (the end of the array) so rapid actions override old ones
   const latestPlayAnim = enemyPlayAnimations.length
     ? enemyPlayAnimations[enemyPlayAnimations.length - 1]
     : null;
 
-  // console.log(
-  //   "currentPlayAnim",
-  //   latestPlayAnim?.card.title,
-  //   "OTHR",
-  //   enemyPlayAnimations.map((a) => a.card.title).join(", "),
-  //   activeAnimations.length,
-  // );
-
   useEffect(() => {
-    // console.log(
-    //   "LATEST PLAY",
-    //   latestPlayAnim?.card.title,
-    //   activeAnimations.length,
-    // );
     if (!latestPlayAnim) return;
 
     // 3. Update the display instantly if a newer animation timestamp is found
     if (latestPlayAnim.startTime >= processedAnimationTime.current) {
       processedAnimationTime.current = latestPlayAnim.startTime;
-      playSfx("card-draw");
-      setActiveCard(latestPlayAnim);
-    } else {
-      // console.log(
-      //   "DIDNT UPDATE DISPLAY",
-      //   latestPlayAnim.startTime,
-      //   processedAnimationTime.current,
-      // );
-    }
-  }, [latestPlayAnim]);
 
-  // 4. Automatically clear the card after its duration completes
+      // Play a contextual sound effect depending on the type
+      if (latestPlayAnim.type === "heroPower") {
+        playSfx("hero-power-activate"); // Or whatever your sound hook string is
+      } else {
+        playSfx("card-draw");
+      }
+
+      setActiveAction(latestPlayAnim);
+    }
+  }, [latestPlayAnim, playSfx]);
+
+  // 4. Automatically clear the action after its duration completes
   useEffect(() => {
-    if (!activeCard) return;
+    if (!activeAction) return;
 
     const timer = setTimeout(() => {
-      // Only clear if another rapid card animation hasn't already taken over the ref tracker
-      if (processedAnimationTime.current === activeCard.startTime) {
-        console.log("CLEAR DURATION", activeCard.duration + 2000);
-        setActiveCard(null);
+      // Only clear if another rapid animation hasn't already taken over the ref tracker
+      if (processedAnimationTime.current === activeAction.startTime) {
+        console.log("CLEAR DURATION", activeAction.duration + 2000);
+        setActiveAction(null);
       }
-    }, activeCard.duration + 2000);
+    }, activeAction.duration + 2000);
 
     return () => clearTimeout(timer);
-  }, [activeCard]);
+  }, [activeAction]);
+
+  // Derive a stable key from either the card ID or the hero power metadata/timestamp
+  const elementKey = activeAction
+    ? activeAction.type === "cardPlayed"
+      ? activeAction.card.id
+      : `${activeAction.heroPower || "hero"}-${activeAction.startTime}`
+    : undefined;
 
   return (
-    // Keep your vital positioning container untouched
+    // Vital positioning container untouched
     <div
-      className="absolute top-[35vh] left-[21vw] scale-175 pointer-events-none z-50"
-      key={activeCard?.card.id}
+      className={twMerge(
+        "absolute top-[35vh] left-[21vw] scale-175 pointer-events-none z-50",
+        activeAction?.type === "heroPower" && "scale-120 top-[32vh]",
+      )}
+      key={elementKey}
     >
-      {activeCard && <CardComponent card={activeCard.card} ctx={ctx} />}
+      {activeAction &&
+        (activeAction.type === "cardPlayed" ? (
+          <CardComponent card={activeAction.card} ctx={ctx} />
+        ) : (
+          <HeroPowerExpanded heroPower={activeAction.heroPower} />
+        ))}
     </div>
   );
 };

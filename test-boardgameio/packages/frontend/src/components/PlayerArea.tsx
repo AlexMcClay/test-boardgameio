@@ -3,7 +3,7 @@ import HeroSection from "./HeroSection";
 import { twMerge } from "tailwind-merge";
 import PlayerHand from "./PlayerHand";
 import type { GameState, Player } from "@project/shared";
-import HeroPower from "./HeroPower";
+import HeroPower from "./HeroPower/HeroPower";
 
 interface Props extends BoardProps<GameState> {
   isTop?: boolean; // true for player 1, false or undefined for player 0

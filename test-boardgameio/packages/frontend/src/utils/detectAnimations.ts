@@ -24,6 +24,7 @@ export function detectAllAnimations(stateAfter: GameState): AnimationEvent[] {
   const deathEvents = events.filter((e) => e.type === "death");
   const minionPlacedEvents = events.filter((e) => e.type === "minionPlaced");
   const spelLEvents = events.filter((e) => e.type === "spell");
+  const heroPowerEvents = events.filter((e) => e.type === "heroPower");
 
   const hasAttacks = attackEvents.length > 0;
 
@@ -43,6 +44,16 @@ export function detectAllAnimations(stateAfter: GameState): AnimationEvent[] {
     animations.push({
       type: "cardPlayed",
       card: event.card,
+      duration: CARD_PLAYED_ANIMATION.duration,
+      playerId: event.playerId,
+      startTime: 0,
+    });
+  });
+
+  heroPowerEvents.forEach((event) => {
+    animations.push({
+      type: "heroPower",
+      heroPower: event.heroPower,
       duration: CARD_PLAYED_ANIMATION.duration,
       playerId: event.playerId,
       startTime: 0,

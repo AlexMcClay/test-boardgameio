@@ -33,10 +33,11 @@ import {
 } from "@project/shared";
 import SettingsButton from "./SettingsButton";
 import { useGameAnimation, useGameTargeting } from "@/hooks";
+import { useAnimationStore } from "@/stores/animationStore";
 
 interface Props extends BoardProps<GameState> {}
 
-const backgroundImage = "assets/board.jpg"; // Path to your background image
+const battlefield = "assets/battlefields/board.jpg"; // Path to your background image
 const moltenCoreMusic = "assets/audio/music/05_Molten_Core.mp3";
 const arenaMusic = "assets/audio/music/05_Arena.mp3";
 
@@ -46,6 +47,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   const setCurrentPlayer = useDragStore((state) => state.setCurrentPlayer);
   const setGameState = useDragStore((state) => state.setGameState);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const { isAnimating, activeAnimations } = useAnimationStore();
 
   // Animation hook
   const { visualCtx, visualGameState } = useGameAnimation({
@@ -127,8 +129,11 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
         console.log("Full Game History:", G.eventHistory);
         console.log("Active Battlecry Minion:", G.activeBattlecryMinion);
         console.log("GAME STATE", G);
+        console.log("VISUAL GAME STATE", visualGameState);
         console.log("GAME CONTEXT", ctx);
         console.log("YOUR PLAYER: ", props.playerID);
+        console.log("isAnimating: ", isAnimating);
+        console.log("activeAnimations", activeAnimations);
       }
     };
 
@@ -136,7 +141,14 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [G.gameEvents, props.playerID, G.activeBattlecryMinion]);
+  }, [
+    G.gameEvents,
+    props.playerID,
+    G.activeBattlecryMinion,
+    activeAnimations,
+    isAnimating,
+    visualGameState,
+  ]);
 
   // console.log(ctx.phase, "Current phase");
 
@@ -226,7 +238,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       <div
         className="aspect-[16/9] w-full max-h-screen  flex flex-col text-white "
         style={{
-          backgroundImage: `url(${backgroundImage})`,
+          backgroundImage: `url(${battlefield})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
           // filter: "brightness(0.2)",
@@ -370,7 +382,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           </AnimatePresence>
         </DndContext>
       </div>
-      {visualCtx?.gameover?.winner && (
+      {(visualCtx?.gameover?.winner || ctx.gameover?.winner) && (
         <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black/60 z-50">
           <div className="text-4xl text-white bg-black/90 px-6 py-4 rounded-lg shadow-lg">
             {`${visualGameState.players[visualCtx.gameover.winner].name} wins!`}

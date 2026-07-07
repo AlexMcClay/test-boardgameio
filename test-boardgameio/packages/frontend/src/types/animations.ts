@@ -1,6 +1,6 @@
 // Animation event types for the animation queue system
 import type { PlayerID } from "boardgame.io";
-import type { Card, GameState } from "@project/shared";
+import type { Card, GameState, HeroPower } from "@project/shared";
 
 export type AttackAnimation = {
   type: "attack";
@@ -40,11 +40,20 @@ export type CardPlayedAnimation = {
   playerId: PlayerID;
 };
 
+export type HeroPowerAnimation = {
+  type: "heroPower";
+  heroPower: HeroPower;
+  duration: number;
+  startTime: number;
+  playerId: PlayerID;
+};
+
 export type AnimationEvent =
   | AttackAnimation
   | DeathAnimation
   | HitNumberAnimation
-  | CardPlayedAnimation;
+  | CardPlayedAnimation
+  | HeroPowerAnimation;
 
 // Queue item that pairs animations with their game state and context
 export type AnimationQueueItem = {

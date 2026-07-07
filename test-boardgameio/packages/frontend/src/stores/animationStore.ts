@@ -2,6 +2,7 @@
 import { create } from "zustand";
 import type { AnimationEvent, AnimationQueueItem } from "@/types/animations";
 import { BATCH_UPDATE_DELAY } from "@/utils/animationDurations";
+import { randomIDGen } from "@project/shared";
 
 // We extend the baseline type to handle dynamic unique run tracking internally
 type ActiveAnimationEvent = AnimationEvent & { uid?: string };
@@ -123,8 +124,7 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
 
       const animationPromises = currentBatch.animations.map((animation) => {
         return new Promise<void>((resolve) => {
-          // Generate a cryptographically distinct ID to target this precise element instance
-          const runtimeUid = `${animation.type}-${crypto.randomUUID()}`;
+          const runtimeUid = `${animation.type}-${randomIDGen()}`;
           const runtimeAnim: ActiveAnimationEvent = {
             ...animation,
             uid: runtimeUid,

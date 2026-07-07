@@ -1740,7 +1740,7 @@ export const cardTemplates = {
   },
   "guardian-of-kings": {
     title: "Guardian of Kings",
-    description: "Battlecry: Restore 6 baseHealth to your hero.",
+    description: "Taunt. Battlecry: Restore 6 Health to your hero.",
     baseMana: 7,
     baseAttack: 5,
     baseHealth: 7,

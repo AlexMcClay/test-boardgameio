@@ -489,6 +489,7 @@ const useHeroPower: Move<GameState> = ({ G, ctx }, target?: TargetValue) => {
     timestamp: Date.now(),
     targetId: target?.id,
     targetType: target?.type === "lane" ? "player" : target?.type,
+    heroPower: heroPower,
   });
 
   // Record mana event
