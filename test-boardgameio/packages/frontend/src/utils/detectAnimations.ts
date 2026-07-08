@@ -52,7 +52,7 @@ export function detectAllAnimations(stateAfter: GameState): AnimationEvent[] {
 
   heroPowerEvents.forEach((event) => {
     animations.push({
-      type: "heroPower",
+      type: "heroPowerPlayed",
       heroPower: event.heroPower,
       duration: CARD_PLAYED_ANIMATION.duration,
       playerId: event.playerId,

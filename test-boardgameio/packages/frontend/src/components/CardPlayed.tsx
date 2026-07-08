@@ -4,7 +4,7 @@ import { useAnimationStore } from "@/stores/animationStore";
 import { useEffect, useState, useRef } from "react";
 import type {
   CardPlayedAnimation,
-  HeroPowerAnimation,
+  HeroPowerPlayedAnimation,
 } from "@/types/animations";
 import { useAudioStore } from "@/stores/audioStore";
 import type { GameState } from "@project/shared";
@@ -14,7 +14,7 @@ import { twMerge } from "tailwind-merge";
 interface Props extends BoardProps<GameState> {}
 
 // Union type for the actions this component handles
-type ActiveActionAnimation = CardPlayedAnimation | HeroPowerAnimation;
+type ActiveActionAnimation = CardPlayedAnimation | HeroPowerPlayedAnimation;
 
 const CardPlayed = ({ ctx, playerID }: Props) => {
   const activeAnimations = useAnimationStore((s) => s.activeAnimations);
@@ -27,7 +27,7 @@ const CardPlayed = ({ ctx, playerID }: Props) => {
   // 1. Get ALL cardPlayed AND heroPower animations that belong to the ENEMY
   const enemyPlayAnimations = activeAnimations.filter(
     (anim): anim is ActiveActionAnimation =>
-      (anim.type === "cardPlayed" || anim.type === "heroPower") &&
+      (anim.type === "cardPlayed" || anim.type === "heroPowerPlayed") &&
       anim.playerId !== playerID,
   );
 
@@ -44,7 +44,7 @@ const CardPlayed = ({ ctx, playerID }: Props) => {
       processedAnimationTime.current = latestPlayAnim.startTime;
 
       // Play a contextual sound effect depending on the type
-      if (latestPlayAnim.type === "heroPower") {
+      if (latestPlayAnim.type === "heroPowerPlayed") {
         playSfx("hero-power-activate"); // Or whatever your sound hook string is
       } else {
         playSfx("card-draw");
@@ -81,7 +81,7 @@ const CardPlayed = ({ ctx, playerID }: Props) => {
     <div
       className={twMerge(
         "absolute top-[35vh] left-[21vw] scale-175 pointer-events-none z-50",
-        activeAction?.type === "heroPower" && "scale-120 top-[32vh]",
+        activeAction?.type === "heroPowerPlayed" && "scale-120 top-[32vh]",
       )}
       key={elementKey}
     >

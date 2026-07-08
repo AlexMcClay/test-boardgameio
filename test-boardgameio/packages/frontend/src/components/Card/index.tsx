@@ -12,6 +12,7 @@ const attackIcon = "assets/attack.png";
 const healthIcon = "assets/health.png";
 const cardBackground = "assets/card_parts/card.png";
 const cardBackgroundMinion = "assets/card_parts/minion_card.png";
+const cardBackgroundMinionLegendary = "assets/card_parts/legendary_minion.png";
 
 interface Props extends CardProps {}
 
@@ -226,6 +227,9 @@ const Card = ({
           className={twMerge(
             "object-cover w-full h-full absolute rounded-2xl z-0",
             card.isMinion && "scale-105 scale-x-110 origin-bottom",
+            // card.isMinion &&
+            //   card.rarity === "Legendary" &&
+            //   "scale-114 scale-x-110 origin-bottom",
           )}
           draggable="false"
         />

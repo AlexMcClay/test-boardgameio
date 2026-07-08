@@ -40,8 +40,8 @@ export type CardPlayedAnimation = {
   playerId: PlayerID;
 };
 
-export type HeroPowerAnimation = {
-  type: "heroPower";
+export type HeroPowerPlayedAnimation = {
+  type: "heroPowerPlayed";
   heroPower: HeroPower;
   duration: number;
   startTime: number;
@@ -53,7 +53,7 @@ export type AnimationEvent =
   | DeathAnimation
   | HitNumberAnimation
   | CardPlayedAnimation
-  | HeroPowerAnimation;
+  | HeroPowerPlayedAnimation;
 
 // Queue item that pairs animations with their game state and context
 export type AnimationQueueItem = {

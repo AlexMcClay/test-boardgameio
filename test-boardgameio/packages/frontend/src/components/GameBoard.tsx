@@ -382,10 +382,10 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           </AnimatePresence>
         </DndContext>
       </div>
-      {(visualCtx?.gameover?.winner || ctx.gameover?.winner) && (
+      {(visualCtx?.gameover?.winner || ctx?.gameover?.winner) && (
         <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black/60 z-50">
           <div className="text-4xl text-white bg-black/90 px-6 py-4 rounded-lg shadow-lg">
-            {`${visualGameState.players[visualCtx.gameover.winner].name} wins!`}
+            {`${visualGameState.players[visualCtx?.gameover?.winner || ctx?.gameover?.winner].name} wins!`}
           </div>
         </div>
       )}
