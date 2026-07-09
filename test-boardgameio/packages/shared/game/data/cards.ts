@@ -578,7 +578,7 @@ export const cardTemplates = {
     baseHealth: 1,
     baseMana: 2,
     type: ["Murloc"],
-    imageUrl: "assets/cards/Murloc_Raider.jpg",
+    imageUrl: "assets/cards/Murloc_Tidehunter.jpg",
     effects: [
       damage({
         stat: "attack",
@@ -595,12 +595,12 @@ export const cardTemplates = {
   },
   "murloc-scout": {
     title: "Murloc Scout",
-    description: "A small murloc.",
+    description: "",
     baseAttack: 1,
     baseHealth: 1,
     baseMana: 1,
     type: ["Murloc"],
-    imageUrl: "assets/cards/Murloc_Raider.jpg",
+    imageUrl: "assets/cards/Murloc_Scout.jpg",
     effects: [
       damage({
         stat: "attack",
@@ -2711,7 +2711,7 @@ export const cardTemplates = {
     class: "Rogue",
   },
   shadowstep: {
-    title: "shadowstep",
+    title: "Shadowstep",
     description: "Return a friendly minion to your hand. It costs (2) less.",
     baseMana: 0,
     rarity: "Common",
@@ -2864,6 +2864,39 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     onPlace: [discard(2, "random")],
+  },
+  "abusive-sargent": {
+    title: "Abusive Sergeant",
+    description: "Battlecry: Give a minion +2 Attack this turn.",
+    baseMana: 1,
+    baseAttack: 1,
+    baseHealth: 1,
+    imageUrl: "assets/cards/Abusive_Sergeant.jpg",
+    class: "Neutral",
+    rarity: "Common",
+    isMinion: true,
+    isSpell: false,
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    onPlace: [
+      applyModifier("attack", 2, "user-select", false, {
+        expiryOwner: "BUFF_CASTER",
+        expiryTrigger: "END_OF_TURN",
+        turnsRemaining: 1,
+      }),
+    ],
+    battlecryQuery: {
+      side: "all",
+      type: ["card"],
+    },
   },
 } satisfies Record<
   string,

@@ -59,7 +59,13 @@ const Card = ({
   } | null>(null);
 
   // Use the arched text hook with the container ref for dynamic width measurement
-  useArchedText(card.title, fontSize, canvasRef, containerRef);
+  useArchedText(
+    card.title,
+    fontSize,
+    canvasRef,
+    containerRef,
+    card.isMinion ? "minion" : "spell",
+  );
 
   // Detect keywords in card description
   const cardKeywords = useMemo(() => {

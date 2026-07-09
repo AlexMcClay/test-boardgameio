@@ -67,6 +67,7 @@ export interface Player {
   id: PlayerID;
   name: string;
   manaCrystals: number;
+  maxManaCrystals: number;
   heroPortrait: string;
   maxHealth: number;
   health: number;

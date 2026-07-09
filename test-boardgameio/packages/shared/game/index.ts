@@ -86,6 +86,7 @@ const setupData = (
     health: 30,
     armor: 0,
     manaCrystals: 0,
+    maxManaCrystals: 10,
     mana: 1,
     baseAttack: 0,
     modifiers: [],
@@ -107,6 +108,7 @@ const setupData = (
     health: 30,
     armor: 0,
     manaCrystals: 0,
+    maxManaCrystals: 10,
     mana: 1,
     baseAttack: 0,
     modifiers: [],
@@ -1240,7 +1242,7 @@ export const HeathStoneGame: Game<GameState> = {
           const manaCrystals = G.players[ctx.currentPlayer].manaCrystals;
           G.players[ctx.currentPlayer].manaCrystals = Math.min(
             manaCrystals + 1,
-            10,
+            G.players[ctx.currentPlayer].maxManaCrystals,
           );
           G.players[ctx.currentPlayer].mana =
             G.players[ctx.currentPlayer].manaCrystals;

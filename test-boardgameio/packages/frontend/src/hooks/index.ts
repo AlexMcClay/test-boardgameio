@@ -80,6 +80,7 @@ export function useArchedText(
   fontSize: number,
   canvasRef: React.RefObject<HTMLCanvasElement | null>,
   containerRef: React.RefObject<HTMLElement | null>,
+  type: "minion" | "weapon" | "spell" = "spell",
 ) {
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
