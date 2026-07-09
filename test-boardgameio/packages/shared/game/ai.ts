@@ -346,7 +346,7 @@ function enumerateHandPlays(G: GameState, ctx: Ctx, player: Player): AIMove[] {
       const score = scoreCardPlay(G, ctx, card, undefined);
       moves.push({
         move: "placeCard",
-        args: [card.id, "hand"], // Don't pass undefined target
+        args: [card.id], // Don't pass undefined target
         score,
         description: `Play ${card.title}`,
       });
@@ -479,7 +479,7 @@ function enumerateTargets(
     const score = scoreCardPlay(G, ctx, card, target);
     moves.push({
       move: "placeCard",
-      args: [card.id, location, target],
+      args: [card.id, target],
       score,
       description: `Play ${card.title} on lane`,
     });
@@ -504,7 +504,7 @@ function enumerateTargets(
             const score = scoreCardPlay(G, ctx, card, target);
             moves.push({
               move: "placeCard",
-              args: [card.id, location, target],
+              args: [card.id, target],
               score,
               description: `Play ${card.title} on ${enemyCard.title}`,
             });
@@ -525,7 +525,7 @@ function enumerateTargets(
             const score = scoreCardPlay(G, ctx, card, target);
             moves.push({
               move: "placeCard",
-              args: [card.id, location, target],
+              args: [card.id, target],
               score,
               description: `Play ${card.title} on ${friendlyCard.title}`,
             });
@@ -554,7 +554,7 @@ function enumerateTargets(
           );
           moves.push({
             move: "placeCard",
-            args: [card.id, location, targetEnemyHeroGeneric],
+            args: [card.id, targetEnemyHeroGeneric],
             score: scoreEnemyHeroGeneric,
             description: `Cast ${card.title} on enemy hero`,
           });
@@ -578,7 +578,7 @@ function enumerateTargets(
           );
           moves.push({
             move: "placeCard",
-            args: [card.id, location, targetFriendlyHeroGeneric],
+            args: [card.id, targetFriendlyHeroGeneric],
             score: scoreFriendlyHeroGeneric,
             description: `Cast ${card.title} on friendly hero`,
           });
@@ -599,7 +599,7 @@ function enumerateTargets(
           const scoreEnemyLane = scoreCardPlay(G, ctx, card, targetEnemyLane);
           moves.push({
             move: "placeCard",
-            args: [card.id, location, targetEnemyLane],
+            args: [card.id, targetEnemyLane],
             score: scoreEnemyLane,
             description: `Cast ${card.title} on enemy board`,
           });
@@ -623,7 +623,7 @@ function enumerateTargets(
           );
           moves.push({
             move: "placeCard",
-            args: [card.id, location, targetFriendlyLane],
+            args: [card.id, targetFriendlyLane],
             score: scoreFriendlyLane,
             description: `Cast ${card.title} on friendly board`,
           });

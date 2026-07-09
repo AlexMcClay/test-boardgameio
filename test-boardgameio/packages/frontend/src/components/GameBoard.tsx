@@ -218,7 +218,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       }
 
       // Execute the move - animations will be detected and played by useEffect
-      moves.placeCard(cardId, location, target);
+      moves.placeCard(cardId, target);
     },
     [G, ctx, moves],
   );

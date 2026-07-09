@@ -146,18 +146,14 @@ const setupData = (
 const placeCard: Move<GameState> = (
   { G, ctx },
   cardId: string,
-  location: "hand" | "board" = "hand",
   target?: TargetValue,
   boardIndex?: number, // Insert position on the board
 ) => {
   const player = G.players[ctx.currentPlayer];
-  const card =
-    location === "hand"
-      ? player.hand.find((c) => c.id === cardId)!
-      : G.board[ctx.currentPlayer].find((c) => c.id === cardId)!;
+  const card = player.hand.find((c) => c.id === cardId)!;
 
   // Single validation call
-  const validation = validateMove(G, ctx, cardId, location, target);
+  const validation = validateMove(G, ctx, cardId, "hand", target);
 
   if (!validation.valid) {
     console.warn(`Invalid move: ${validation.error}`);
@@ -169,13 +165,16 @@ const placeCard: Move<GameState> = (
     return;
   }
 
+  const cardIndex = player.hand.findIndex((c) => c.id === cardId);
+  player.hand.splice(cardIndex, 1); // Remove the card from hand
+
   // Clear current move events (history is kept for debugging)
   G.gameEvents = [];
 
   // Track move metadata for animation detection
   G.lastMove = {
     cardId,
-    location,
+    location: "hand",
     target,
     timestamp: Date.now(),
   };
@@ -211,7 +210,7 @@ const placeCard: Move<GameState> = (
         {
           G,
           ctx,
-          location,
+          location: "hand",
           playerID: ctx.currentPlayer,
           target,
           type: "minion",
@@ -231,7 +230,7 @@ const placeCard: Move<GameState> = (
         card: card,
         G,
         ctx,
-        location,
+        location: "hand",
         playerID: ctx.currentPlayer,
         target,
         type: "minion",
@@ -259,7 +258,7 @@ const placeCard: Move<GameState> = (
       card: card,
       G,
       ctx,
-      location,
+      location: "hand",
       playerID: ctx.currentPlayer,
       target,
       type: "spell",
@@ -270,11 +269,6 @@ const placeCard: Move<GameState> = (
       originalOwner: ctx.currentPlayer,
       diedOnTurn: ctx.turn,
     });
-  }
-
-  if (location === "hand") {
-    const cardIndex = player.hand.findIndex((c) => c.id === cardId);
-    player.hand.splice(cardIndex, 1); // Remove the card from hand
   }
 
   processDeaths(G, ctx);
