@@ -92,7 +92,7 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
       const rect = heroPowerRef.current?.getBoundingClientRect();
       if (!rect) return;
 
-      const vw = window.innerWidth / 100;
+      // const vw = window.innerWidth / 100;
 
       // Calculate position for popover
 

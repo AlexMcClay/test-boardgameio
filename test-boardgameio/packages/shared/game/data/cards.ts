@@ -2138,12 +2138,10 @@ export const cardTemplates = {
     isSpell: true,
     targetQuery: {
       side: "all",
-      type: ["card"], // Strictly restricts targeting to minions on board, bypassing heroes
+      type: ["card"],
     },
     effects: [
-      // Step 1: Fire the baseline 2 damage at the selected target
       damage(2),
-      // Step 2: Check if that target is frozen to trigger the draw effect
       {
         type: "conditional",
         conditions: [
@@ -2154,7 +2152,6 @@ export const cardTemplates = {
           },
         ],
         then: [draw(1)],
-        // No 'else' needed here since nothing happens if it isn't frozen
       },
     ],
     rarity: "Epic",
@@ -2171,12 +2168,10 @@ export const cardTemplates = {
     isMinion: false,
     targetQuery: {
       side: "all",
-      type: ["card"], // Restricted strictly to minions on the board, bypassing heroes
+      type: ["card"],
     },
     effects: [
-      // Step 1: Baseline 1 damage to the selected minion target
       damage(1),
-      // Step 2: Use a conditional effect to see if that damage resulted in its death
       {
         type: "conditional",
         conditions: [

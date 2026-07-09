@@ -85,10 +85,13 @@ export interface Player {
   hero: Hero;
 }
 
-export interface EffectContext {
+export type EffectContext = EffectContextWithCard | EffectContextWithHeroPower;
+
+export interface EffectContextBase {
   G: GameState;
   ctx: Ctx;
-  card: Card;
+  card?: Card;
+  heroPower?: HeroPower;
   target?: TargetValue;
   playerID: string;
   location: "hand" | "board";
@@ -96,10 +99,24 @@ export interface EffectContext {
   excessDamageDealt?: number; // Stores math for cards like Piercing Shot
   lastDamageDealt?: number;
   temp?: number;
+  type: "spell" | "minion" | "heroPower" | "hero";
 }
 
-type EffectContextWithOptionalCard = Omit<EffectContext, "card"> &
-  Partial<Pick<EffectContext, "card">>;
+interface EffectContextWithCard extends EffectContextBase {
+  card: Card;
+  type: "minion" | "spell";
+}
+
+interface EffectContextWithHeroPower extends EffectContextBase {
+  heroPower: HeroPower;
+  type: "heroPower";
+}
+
+type EffectContextWithOptionalCard = Omit<
+  EffectContext,
+  "card" | "heroPower" | "type"
+> &
+  Partial<Pick<EffectContext, "card" | "heroPower" | "type">>;
 
 export interface ModifierLifecycle {
   // Who cast the buff? ("0" or "1")

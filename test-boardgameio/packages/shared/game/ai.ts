@@ -140,6 +140,7 @@ function enumerateBattlecryTargets(G: GameState, ctx: Ctx): AIMove[] {
               target: target,
               playerID: ctx.currentPlayer,
               location: "board",
+              type: "minion",
             });
             moves.push({
               move: "resolveBattlecry",
@@ -169,6 +170,7 @@ function enumerateBattlecryTargets(G: GameState, ctx: Ctx): AIMove[] {
                 target: target,
                 playerID: ctx.currentPlayer,
                 location: "board",
+                type: "minion",
               });
               moves.push({
                 move: "resolveBattlecry",
@@ -203,6 +205,7 @@ function enumerateBattlecryTargets(G: GameState, ctx: Ctx): AIMove[] {
               target: targetHero,
               playerID: ctx.currentPlayer,
               location: "board",
+              type: "minion",
             },
           );
           moves.push({
@@ -232,6 +235,7 @@ function enumerateBattlecryTargets(G: GameState, ctx: Ctx): AIMove[] {
               target: targetOwnHero,
               playerID: ctx.currentPlayer,
               location: "board",
+              type: "minion",
             },
           );
           moves.push({
@@ -681,6 +685,7 @@ function scoreCardPlay(
       location: "board",
       playerID: ctx.currentPlayer,
       target,
+      type: "spell",
     });
   });
 
@@ -694,6 +699,7 @@ function scoreCardPlay(
         location: "board",
         playerID: ctx.currentPlayer,
         target,
+        type: "minion",
       });
     });
   }
@@ -709,6 +715,7 @@ function scoreCardPlay(
         location: "board",
         playerID: ctx.currentPlayer,
         target,
+        type: "minion",
       });
       score += deathrattleValue * 0.4; // 40% of full effect value
     });

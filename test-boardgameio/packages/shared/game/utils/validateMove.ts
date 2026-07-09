@@ -186,6 +186,7 @@ export function validateTargetQuery(
                 ctx: context.ctx,
                 location: "board",
                 card: targetCard,
+                type: "minion",
               },
               sourceID,
             ),

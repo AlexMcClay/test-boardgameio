@@ -14,7 +14,6 @@ interface Props extends BoardProps<GameState> {
   actualG: GameState; // actual game state that is not the visual game state
 }
 
-const hero_power = "assets/hero_powers/hero_power.png";
 const hero_power_used = "assets/hero_powers/hero_power_used.png";
 
 const HeroPower = ({ player, isTop, moves }: Props) => {

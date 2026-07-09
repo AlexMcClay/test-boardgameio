@@ -214,6 +214,7 @@ const placeCard: Move<GameState> = (
           location,
           playerID: ctx.currentPlayer,
           target,
+          type: "minion",
         },
         card.id,
       );
@@ -233,6 +234,7 @@ const placeCard: Move<GameState> = (
         location,
         playerID: ctx.currentPlayer,
         target,
+        type: "minion",
       });
     }
 
@@ -260,6 +262,7 @@ const placeCard: Move<GameState> = (
       location,
       playerID: ctx.currentPlayer,
       target,
+      type: "spell",
     });
     // ADD THIS: Push the resolved spell into the graveyard
     G.graveyard.push({
@@ -307,6 +310,7 @@ const minionAttack: Move<GameState> = (
     location: "board",
     playerID: ctx.currentPlayer,
     target,
+    type: "minion",
   };
 
   G.gameEvents = [];
@@ -373,6 +377,7 @@ const resolveBattlecry: Move<GameState> = (
     location: "board",
     playerID: ctx.currentPlayer,
     target,
+    type: "minion",
   });
 
   // Record event for animations
@@ -428,7 +433,6 @@ const useHeroPower: Move<GameState> = ({ G, ctx }, target?: TargetValue) => {
 
   // Validate target if provided
   if (target && requiresTarget) {
-    // Use the validateTargetQuery to check if target is valid
     const isValid = validateTargetQuery(
       heroPower.targetQuery,
       {
@@ -437,6 +441,7 @@ const useHeroPower: Move<GameState> = ({ G, ctx }, target?: TargetValue) => {
         playerID: ctx.currentPlayer,
         target,
         location: "hand",
+        type: "heroPower",
       },
       `hero-power-${ctx.currentPlayer}`,
     );
@@ -464,24 +469,13 @@ const useHeroPower: Move<GameState> = ({ G, ctx }, target?: TargetValue) => {
 
   // Execute hero power effects
   executeEffects(heroPower.effects, {
-    card: {
-      id: `hero-power-${ctx.currentPlayer}`,
-      originalID: `hero-power-${ctx.currentPlayer}`,
-      title: heroPower.name,
-      description: heroPower.description,
-      effects: heroPower.effects,
-      onPlace: [],
-      targetQuery: heroPower.targetQuery,
-      isMinion: false,
-      damageTaken: 0,
-      attacksLeft: 0,
-      class: hero.class,
-    },
     G,
     ctx,
     location: "hand",
     playerID: ctx.currentPlayer,
     target,
+    type: "heroPower",
+    heroPower: heroPower,
   });
 
   // Record event for animations
@@ -507,7 +501,10 @@ const useHeroPower: Move<GameState> = ({ G, ctx }, target?: TargetValue) => {
 
 const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
   const { card, target, playerID, G, ctx } = context;
-  const cardId = card.id;
+  const cardId =
+    context.type == "minion" || context.type == "spell"
+      ? card!.id
+      : `hero-power-${playerID}`;
   let isUserSelect = false;
 
   for (const effect of effects) {
@@ -520,7 +517,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
   effects.forEach((effect) => {
     switch (effect.type) {
       case "storeVar": {
-        console.log(`RUNNING STORE VAR FOR ${card.title} : 'TARGET"`, target);
+        console.log(`RUNNING STORE VAR FOR ${card?.title} : 'TARGET"`, target);
         if (target && effect.target === "user-select") {
           const targetCard = G.board[target.player].find(
             (c) => c.id === target.id,
@@ -541,12 +538,13 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
           ? G.board[target?.player].find((c) => c.id === target?.id)
           : undefined;
         if (
+          card &&
           effect.conditions.every((condition) =>
             checkSingleTargetCondition(
               isUserSelect && targetCard ? targetCard : card,
               condition,
               context,
-              card.id,
+              card?.id,
             ),
           )
         ) {
@@ -561,7 +559,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         // --- BRANCH A: RANDOM SPLIT DAMAGE (e.g., Cinderstorm, Mad Bomber) ---
         if (effect.rand?.split) {
           console.log(
-            `${card.title}: Launching random split damage sequence for ${totalDamage} missiles.`,
+            `${card?.title}: Launching random split damage sequence for ${totalDamage} missiles.`,
           );
 
           // We execute a loop running exactly totalDamage times, firing 1-damage pings
@@ -617,7 +615,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         else {
           const targets = resolveTargets(effect, context);
           console.log(
-            `${card.title} targets: ${targets.map((t) => `${t.type} ${t.cardRef?.title ?? t.ownerId}`)}`,
+            `${card?.title} targets: ${targets.map((t) => `${t.type} ${t.cardRef?.title ?? t.ownerId}`)}`,
           );
 
           targets.forEach((t) => {
@@ -704,7 +702,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         const targets = resolveTargets(effect, context); // Handled perfectly by your unified routing
 
         console.log(
-          `${card.title} healing targets: ${targets.map((t) => `${t.type} ${t.cardRef?.title ?? t.ownerId}`)}`,
+          `${card?.title} healing targets: ${targets.map((t) => `${t.type} ${t.cardRef?.title ?? t.ownerId}`)}`,
         );
 
         // Iterate over our pre-filtered and pre-selected collection
@@ -764,7 +762,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         const targets = resolveTargets(effect, context); // Unified target array resolution
 
         console.log(
-          `${card.title} applying modifier targets: ${targets.map((t) => `${t.type} ${t.cardRef?.title ?? t.ownerId}`)}`,
+          `${card?.title} applying modifier targets: ${targets.map((t) => `${t.type} ${t.cardRef?.title ?? t.ownerId}`)}`,
         );
 
         // Iterate over our pre-filtered structural targets collection
@@ -971,7 +969,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         const count = resolveDynamicValue(effect.value, context);
 
         discardCardsFromHand(
-          context.card.id,
+          cardId,
           G,
           targetPlayerId,
           count,
@@ -1068,6 +1066,7 @@ function processDeaths(G: GameState, ctx: Ctx) {
             ctx,
             location: "board",
             playerID: playerId,
+            type: "minion",
           });
         }
 
