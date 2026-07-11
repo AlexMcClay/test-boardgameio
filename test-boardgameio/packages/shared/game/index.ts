@@ -27,10 +27,12 @@ import {
   returnCardToHand,
   discardCardsFromHand,
   isUserSelectValue,
+  getPlayerAttack,
 } from "./utils";
 import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
 import {
   hasTargets,
+  validateHeroAttack,
   validateMove,
   validateTargetQuery,
 } from "./utils/validateMove";
@@ -493,6 +495,68 @@ const useHeroPower: Move<GameState> = ({ G, ctx }, target?: TargetValue) => {
   processDeaths(G, ctx);
 };
 
+const heroAttack: Move<GameState> = ({ G, ctx }, target: TargetValue) => {
+  const attackerId = ctx.currentPlayer as PlayerID;
+  const attacker = G.players[attackerId];
+
+  const validation = validateHeroAttack(G, ctx, target);
+  if (!validation.valid) {
+    console.warn(`Invalid hero attack: ${validation.error}`);
+    return;
+  }
+
+  const attackValue = getPlayerAttack(attacker);
+  const sourceId = `hero-${attackerId}`;
+
+  G.lastMove = {
+    cardId: sourceId,
+    location: "board",
+    target,
+    timestamp: Date.now(),
+  };
+
+  G.gameEvents = [];
+
+  if (target.type === "player") {
+    dealDamageToPlayer(G, sourceId, target.player, attackValue);
+  } else {
+    const defenderCard = G.board[target.player].find((c) => c.id === target.id);
+    if (!defenderCard) return;
+
+    dealDamageToCard(G, sourceId, defenderCard, target.player, attackValue);
+
+    // Minion strikes back at the attacking hero, same as minion-vs-minion combat,
+    // as long as it survived the hit above.
+    if (getCurrentHealth(defenderCard) > 0) {
+      executeEffects(defenderCard.effects, {
+        G,
+        ctx,
+        card: defenderCard,
+        playerID: target.player,
+        location: "board",
+        target: { id: attackerId, player: attackerId, type: "player" },
+        type: "minion",
+      });
+    }
+  }
+
+  recordEvent(G, {
+    type: "attack",
+    attackerId: sourceId,
+    targetId: target.id,
+    targetType: target.type === "player" ? "player" : "card",
+    targetPlayerId: target.player,
+    attackerPlayerId: attackerId,
+    sourceId,
+    timestamp: Date.now(),
+  });
+
+  attacker.attacksLeft -= 1;
+
+  processDeaths(G, ctx);
+  return G;
+};
+
 const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
   const { card, target, playerID, G, ctx } = context;
   const cardId =
@@ -763,8 +827,6 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         targets.forEach((t) => {
           // --- TARGET TYPE: PLAYER / HERO ---
           if (t.type === "player") {
-            // Handle hero modifiers here if your game system supports player attack/armor dynamic buffs
-            // e.g., processHeroModifier(G, cardId, t.ownerId, modEffect, value);
             const targetPlayer = G.players[t.ownerId];
             if (targetPlayer) {
               processApplyModifierToPlayer(
@@ -1218,6 +1280,7 @@ export const HeathStoneGame: Game<GameState> = {
         endTurn,
         minionAttack,
         useHeroPower,
+        heroAttack,
         resolveBattlecry,
       },
       onBegin: ({ G, ctx }) => {

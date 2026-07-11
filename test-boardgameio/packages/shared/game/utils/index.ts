@@ -1,4 +1,4 @@
-import type { Card, EffectTypes, GameState } from "../types";
+import type { Card, EffectTypes, GameState, Player } from "../types";
 import { cardTemplates, type CardTemplateKey } from "../data/cards";
 import { isBaseEffectSelection } from "../..";
 
@@ -99,6 +99,17 @@ export function getAttack(card: Card): number {
   }
   const bonus = mods.reduce((sum, m) => sum + m.value, 0) ?? 0;
   return Math.max(0, (card?.baseAttack ?? 0) + bonus);
+}
+
+export function getPlayerAttack(player: Player): number {
+  const mods = player.modifiers?.filter((m) => m.stat === "attack") ?? [];
+  const sets = mods.filter((m) => m.override);
+  if (sets.length) {
+    // return newest one
+    return sets[sets.length - 1].value;
+  }
+  const bonus = mods.reduce((sum, m) => sum + m.value, 0) ?? 0;
+  return Math.max(0, (player?.baseAttack ?? 0) + bonus);
 }
 
 // Maximum health capacity is dynamically scaled by modifiers

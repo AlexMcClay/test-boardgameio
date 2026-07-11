@@ -35,20 +35,14 @@ export function proccessApplyModifier(
   effect: ApplyModifierEffect,
   value: number,
 ) {
-  // Determine what lifecycle layer this modifier belongs to
   const isTemporary = !!effect.duration;
-
-  // 3. Build out the unified clean modifier instance object
   const newModifier: CardModifier = {
-    // Generate a simple deterministic unique ID for tracking/debugging
     id: `mod-${sourceId}-${effect.stat}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
     sourceCardId: sourceId, // Tracks which card created this buff
     stat: effect.stat,
     value: value,
     type: isTemporary ? "temporary" : "permanent",
     override: effect.override,
-
-    // 4. Inject runtime tracking data into the modifier lifecycle if it has a duration
     lifecycle:
       isTemporary && effect.duration
         ? {
@@ -97,8 +91,6 @@ export function processApplyModifierToPlayer(
     value: value,
     type: isTemporary ? "temporary" : "permanent",
     override: effect.override,
-
-    // Inject runtime tracking data into the modifier lifecycle if it has a duration
     lifecycle:
       isTemporary && effect.duration
         ? {

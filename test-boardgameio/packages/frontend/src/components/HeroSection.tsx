@@ -1,6 +1,6 @@
 import { useDragStore } from "@/stores/dragStore";
 import { useDroppable } from "@dnd-kit/core";
-import type { GameState, Player } from "@project/shared";
+import { getPlayerAttack, type GameState, type Player } from "@project/shared";
 import type { BoardProps } from "boardgame.io/dist/types/packages/react";
 import { twMerge } from "tailwind-merge";
 
@@ -11,6 +11,7 @@ interface Props extends BoardProps<GameState> {
 
 const healthIcon = "assets/health.png";
 const armorIcon = "assets/icons/Armor.webp";
+const attackIcon = "assets/attack.png";
 
 const HeroSection = ({ player, ...props }: Props) => {
   const { setNodeRef, isOver } = useDroppable({
@@ -116,8 +117,23 @@ const HeroSection = ({ player, ...props }: Props) => {
             draggable="false"
           />
 
-          <span className="z-10 text-[1.5vw] absolute font-extrabold text-center leading-none font-belwe scale-140 pointer-events-none text-shadow-A">
+          <span className="z-10 text-[1.5vw] absolute font-extrabold text-center leading-none font-belwe scale-140 pointer-events-none text-shadow-A top-[20%]">
             {player.armor}
+          </span>
+        </div>
+      ) : null}
+
+      {getPlayerAttack(player) ? (
+        <div className="absolute bottom-[-10%] left-[-20%] z-20 w-[40%] aspect-square flex items-center justify-center pointer-events-none">
+          <img
+            src={attackIcon}
+            alt="Attack"
+            className="w-full h-full  scale-120 object-contain inset-0 pointer-events-none"
+            draggable="false"
+          />
+
+          <span className="z-10 text-[1.4vw] left-[1.25vw] absolute font-extrabold text-center leading-none font-belwe scale-140 pointer-events-none text-shadow-A top-[30%]">
+            {getPlayerAttack(player)}
           </span>
         </div>
       ) : null}
@@ -131,7 +147,7 @@ const HeroSection = ({ player, ...props }: Props) => {
           draggable="false"
         />
 
-        <span className="text-red-500 z-10 text-[1.5vw] absolute font-extrabold text-center leading-none font-belwe scale-140 pointer-events-none text-shadow-A">
+        <span className=" z-10 text-[1.5vw] absolute font-extrabold text-center leading-none font-belwe scale-140 pointer-events-none text-shadow-A">
           {player.health}
         </span>
       </div>
