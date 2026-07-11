@@ -86,7 +86,9 @@ export function hasToEndTurn(playedID: string, gameState: GameState): boolean {
   const canAttack = gameState.board[playedID].some(
     (card) => !card.summoningSickness && !card.attacksLeft && !card.frozen,
   );
-  return !canPlayCards && !canAttack;
+  const canHeroAttack =
+    player.attacksLeft > 0 && !player.frozen && getPlayerAttack(player) > 0;
+  return !canPlayCards && !canAttack && !canHeroAttack;
 }
 
 // Get the current attack, combining base values + permanent buffs + environmental auras

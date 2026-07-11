@@ -1,5 +1,6 @@
 import {
   validateMove,
+  validateHeroAttack,
   type GameState,
   type TargetValue,
 } from "@project/shared";
@@ -131,6 +132,42 @@ export const useGameTargeting = ({ G, ctx, moves }: Props) => {
       window.removeEventListener("hero-power-target", handleHeroPowerTarget);
     };
   }, [handleHeroPowerTarget]);
+
+  // Handle hero attack arrow target selection
+  const handleHeroAttackTarget = useCallback(
+    (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { targetCardId, targetPlayerId } = customEvent.detail;
+
+      let target: TargetValue | undefined;
+
+      if (targetCardId) {
+        const player0HasCard = G.board["0"].some((c) => c.id === targetCardId);
+        const targetPlayer = player0HasCard ? "0" : "1";
+        target = { type: "card", id: targetCardId, player: targetPlayer };
+      } else if (targetPlayerId) {
+        target = { type: "player", id: targetPlayerId, player: targetPlayerId };
+      }
+
+      if (!target) return;
+
+      const validation = validateHeroAttack(G, ctx, target);
+      if (!validation.valid) {
+        console.warn(`Cannot perform hero attack (UI): ${validation.error}`);
+        return;
+      }
+
+      moves.heroAttack(target);
+    },
+    [G, ctx, moves],
+  );
+
+  useEffect(() => {
+    window.addEventListener("hero-attack-target", handleHeroAttackTarget);
+    return () => {
+      window.removeEventListener("hero-attack-target", handleHeroAttackTarget);
+    };
+  }, [handleHeroAttackTarget]);
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {

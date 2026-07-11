@@ -1320,6 +1320,8 @@ export const HeathStoneGame: Game<GameState> = {
             card.summoningSickness = false; // Remove summoning sickness
           });
 
+          G.players[ctx.currentPlayer].attacksLeft = 1;
+
           // 2. Always refresh static auras and evaluate cascading health drop deaths[cite: 1]
           refreshAuras(G);
           processDeaths(G, ctx); //[cite: 1]
