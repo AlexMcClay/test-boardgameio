@@ -172,7 +172,8 @@ function HeroWeapon({ player, isTop }: { player: Player; isTop?: boolean }) {
       <p
         className={twMerge(
           "absolute bottom-[1.5vw] right-[1.2vw] transform -translate-x-1/2 text-white text-[1.2vw] scale-140 font-bold  text-shadow-A",
-          getCurrentDurability(player.weapon) == player.weapon.baseDurability
+          getCurrentDurability(player.weapon) == player.weapon.baseDurability &&
+            getMaxDurability(player.weapon) == player.weapon.baseDurability
             ? ""
             : getCurrentDurability(player.weapon) <
                 getMaxDurability(player.weapon)
