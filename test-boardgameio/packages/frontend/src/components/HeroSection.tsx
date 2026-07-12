@@ -354,21 +354,36 @@ const HeroSection = ({ player, ...props }: Props) => {
         </div>
       ) : null}
 
-      {getPlayerAttack(player) ? (
-        <div className="absolute bottom-[-10%] left-[-20%] z-20 w-[40%] aspect-square flex items-center justify-center pointer-events-none">
-          <img
-            src={attackIcon}
-            alt="Attack"
-            className="w-full h-full  scale-120 object-contain inset-0 pointer-events-none"
-            draggable="false"
-          />
+      <AnimatePresence>
+        {getPlayerAttack(player) ? (
+          <motion.div
+            initial={{
+              scale: 0.5,
+              opacity: 0.5,
+            }}
+            animate={{
+              scale: 1,
+              opacity: 1,
+            }}
+            exit={{
+              scale: [1.2, 0.5, 0],
+              opacity: 0.5,
+            }}
+            className="absolute bottom-[-10%] left-[-20%] z-20 w-[40%] aspect-square flex items-center justify-center pointer-events-none"
+          >
+            <img
+              src={attackIcon}
+              alt="Attack"
+              className="w-full h-full  scale-120 object-contain inset-0 pointer-events-none"
+              draggable="false"
+            />
 
-          <span className="z-10 text-[1.4vw] left-[1.25vw] absolute font-extrabold text-center leading-none font-belwe scale-140 pointer-events-none text-shadow-A top-[30%]">
-            {getPlayerAttack(player)}
-          </span>
-        </div>
-      ) : null}
-
+            <span className="z-10 text-[1.4vw] left-[1.25vw] absolute font-extrabold text-center leading-none font-belwe scale-140 pointer-events-none text-shadow-A top-[30%]">
+              {getPlayerAttack(player)}
+            </span>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
       {/* Health Icon (Pushed underneath the invisible hitbox layer using z-30) */}
       <div className="absolute bottom-[-10%] right-[-20%] z-20 w-[40%] aspect-square flex items-center justify-center pointer-events-none">
         <img

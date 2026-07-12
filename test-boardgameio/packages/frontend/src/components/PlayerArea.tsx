@@ -6,14 +6,16 @@ import {
   getAttack,
   getCurrentDurability,
   getMaxDurability,
+  type Card,
   type GameState,
   type Player,
 } from "@project/shared";
 import HeroPower from "./HeroPower/HeroPower";
 import { div } from "motion/react-m";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useRef, useState, useEffect } from "react";
 import MinionCardPopover from "./MinionCardPopover";
+import { DEATH_ANIMATION } from "@/utils/animationDurations";
 
 interface Props extends BoardProps<GameState> {
   isTop?: boolean; // true for player 1, false or undefined for player 0
@@ -96,7 +98,9 @@ const PlayerArea = ({
       )}
 
       {/* Hero Weapon */}
-      <HeroWeapon player={player} isTop={isTop} />
+      <AnimatePresence>
+        {player.weapon && <HeroWeapon weapon={player.weapon} isTop={isTop} />}
+      </AnimatePresence>
 
       {/* Mana */}
       <div
@@ -146,8 +150,16 @@ const PlayerArea = ({
   );
 };
 
-function HeroWeapon({ player, isTop }: { player: Player; isTop?: boolean }) {
+function HeroWeapon({ weapon, isTop }: { weapon: Card; isTop?: boolean }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+  }, []);
+
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [showPopover, setShowPopover] = useState(false);
   const [popoverPosition, setPopoverPosition] = useState<{
@@ -197,11 +209,52 @@ function HeroWeapon({ player, isTop }: { player: Player; isTop?: boolean }) {
     };
   }, []);
 
-  if (!player.weapon) return null;
-
   return (
     <>
-      <div
+      <motion.div
+        key={"weapon"}
+        initial={
+          isFirstRender.current
+            ? {
+                opacity: 0.9,
+                scale: 1.2, // Start slightly larger from the hand layer
+                y: -90, // Started higher up to clear the board beautifully
+                rotateX: 35, // Tilted back in hand perspective
+                rotate: -5, // Slight natural hand tilt before dropping
+              }
+            : undefined
+        }
+        animate={
+          isFirstRender.current
+            ? {
+                opacity: 1,
+                // 1. Scale snaps down on impact, pushes slightly past 1 (squish), then stabilizes
+                scale: [1.3, 0.95, 1.03, 1],
+
+                // 2. Heavy drop to 0px, then a tiny vertical rebound bounce
+                y: [-90, 0, -8, 0],
+
+                // 3. Flattens out of 3D tilt instantly on board landing
+                rotateX: [35, 0, 0, 0],
+
+                // 4. The Landing Rattle: Rotates slightly back and forth decaying to 0
+                rotate: [-5, 3, -2, 1, -0.5, 0],
+
+                // 5. The Ground Vibrations: Subtle micro-shakes left & right post-impact
+                x: [0, 6, -5, 3, -1.5, 0],
+              }
+            : { opacity: 1, scale: 1, y: 0, rotateX: 0, rotate: 0, x: 0 }
+        }
+        exit={{
+          opacity: [1, 1, 0], // Stays fully visible during the shake, then vanishes quickly
+          rotate: [0, -5, 5, -5, 5, 20], // Shakes back and forth rapidly before spinning away
+          // The Rapid Shake: Rapidly oscillates left and right
+          x: [0, -12, 12, -12, 12, -8, 8, -4, 4, 0],
+          transition: {
+            duration: DEATH_ANIMATION.duration / 1000, // Total duration of the animation
+            ease: "easeInOut",
+          },
+        }}
         ref={wrapperRef}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
@@ -217,37 +270,35 @@ function HeroWeapon({ player, isTop }: { player: Player; isTop?: boolean }) {
           draggable="false"
         />
         <img
-          src={player.weapon.imageUrl}
-          alt={player.weapon.title}
+          src={weapon.imageUrl}
+          alt={weapon.title}
           className="w-[5.5vw] h-[5.5vw] rounded-full absolute z-[-1]"
           draggable="false"
         />
         <p className="absolute bottom-[1.5vw] left-[1.5vw] transform -translate-x-1/2 text-white text-[1.2vw] scale-140 font-bold  text-shadow-A">
-          {getAttack(player.weapon)}
+          {getAttack(weapon)}
         </p>
 
         <p
           className={twMerge(
             "absolute bottom-[1.5vw] right-[1.2vw] transform -translate-x-1/2 text-white text-[1.2vw] scale-140 font-bold  text-shadow-A",
-            getCurrentDurability(player.weapon) ==
-              player.weapon.baseDurability &&
-              getMaxDurability(player.weapon) == player.weapon.baseDurability
+            getCurrentDurability(weapon) == weapon.baseDurability &&
+              getMaxDurability(weapon) == weapon.baseDurability
               ? ""
-              : getCurrentDurability(player.weapon) <
-                  getMaxDurability(player.weapon)
+              : getCurrentDurability(weapon) < getMaxDurability(weapon)
                 ? "text-red-500"
                 : "text-green-400",
           )}
         >
-          {getCurrentDurability(player.weapon)}
+          {getCurrentDurability(weapon)}
         </p>
-      </div>
+      </motion.div>
 
       <AnimatePresence>
         {showPopover && (
           <MinionCardPopover
             key={"weapon-card-overlay"}
-            card={{ ...player.weapon }}
+            card={{ ...weapon }}
             position={popoverPosition}
             type="popover"
           />
