@@ -2910,6 +2910,24 @@ export const cardTemplates = {
       type: ["lane"],
     },
   },
+  "wicked-knife": {
+    title: "Wicked Knife",
+    description: "",
+    isWeapon: true,
+    isMinion: false,
+    baseMana: 1,
+    baseAttack: 1,
+    baseDurability: 2,
+    imageUrl: "assets/cards/Wicked_Knife.jpg",
+    class: "Rogue",
+    effects: [],
+    onPlace: [],
+    isUncollectible: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+  },
 } satisfies Record<
   string,
   Omit<Card, "id" | "originalID" | "damageTaken" | "attacksLeft">

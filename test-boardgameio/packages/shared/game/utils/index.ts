@@ -127,10 +127,26 @@ export function getMaxHealth(card: Card): number {
   return Math.max(1, (card.baseHealth ?? 0) + bonus);
 }
 
+export function getMaxDurability(card: Card): number {
+  const mods = card.modifiers?.filter((m) => m.stat === "durability") ?? [];
+  const sets = mods.filter((m) => m.override);
+  if (sets.length) {
+    // return newest one
+    return sets[sets.length - 1].value;
+  }
+  const bonus = mods.reduce((sum, m) => sum + m.value, 0) ?? 0;
+  return Math.max(1, (card.baseDurability ?? 0) + bonus);
+}
+
 // Current actual health is Max Health minus recorded damage
 export function getCurrentHealth(card: Card): number {
   const maxHealth = getMaxHealth(card);
   return Math.max(0, maxHealth - (card.damageTaken ?? 0));
+}
+
+export function getCurrentDurability(card: Card): number {
+  const maxHealth = getMaxDurability(card);
+  return Math.max(0, maxHealth - (card.durabilityLost ?? 0));
 }
 
 // Dynamic mana cost parsing (e.g., Sorcerer's Apprentice effects)

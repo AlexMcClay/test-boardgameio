@@ -95,9 +95,11 @@ export function useArchedText(
     const fontSizeInPx = fontSize * 0.9; // fontSize is already in pixels
 
     // Set canvas size based on actual container dimensions
+    // Height is taken from the canvas's own parent so it tracks the
+    // viewport-scaled title area instead of a fixed pixel value.
     const dpr = 2;
     const width = containerWidth;
-    const height = 40; // Fixed height for title area
+    const height = canvas.parentElement?.offsetHeight || fontSizeInPx * 1.5;
 
     canvas.width = width * dpr;
     canvas.height = height * dpr;
@@ -130,12 +132,24 @@ export function useArchedText(
     const textWidth = ctx.measureText(text).width;
 
     // Calculate arc parameters - subtle arch
-    const arcAngle = Math.PI / (text.length > 10 ? 6 : 8); // ~20 degrees total arc (10 degrees each side)
+    const arcAngle =
+      Math.PI /
+      (type === "spell"
+        ? text.length > 10
+          ? 6
+          : 8
+        : text.length > 10
+          ? 12
+          : 16); // ~20 degrees total arc (10 degrees each side)
     const radius = textWidth / (2 * Math.sin(arcAngle / 2)); // Calculate radius based on text width
 
     // Starting position
     const centerX = width / 2;
-    const centerY = height / 2 + radius - fontSizeInPx / 3; // Adjust vertical position
+    const centerY =
+      height / 2 +
+      radius -
+      fontSizeInPx / 3 +
+      (type == "spell" || type === "minion" ? height * 0.07 : 0); // Adjust vertical position
 
     // Calculate individual character widths and positions
     const chars = text.split("");

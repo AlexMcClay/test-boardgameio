@@ -138,7 +138,14 @@ export interface CardModifier {
   label?: string;
   sourceCardId: string;
   type: "aura" | "permanent" | "temporary"; // "temporary" modifications have a lifecycle
-  stat: "attack" | "health" | "mana" | "taunt" | "divineShield" | "frozen";
+  stat:
+    | "attack"
+    | "health"
+    | "mana"
+    | "taunt"
+    | "divineShield"
+    | "frozen"
+    | "durability";
   value: number;
   lifecycle?: ModifierLifecycle; // Optional metadata for temporal mechanics
   override: boolean;

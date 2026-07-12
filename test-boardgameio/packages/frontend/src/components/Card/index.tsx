@@ -164,7 +164,7 @@ const Card = ({
       const regex = new RegExp(`\\b${keyword}\\b`, "g");
       parsedDescription = parsedDescription.replace(
         regex,
-        `<span class="font-base font-extrabold text-black">${keyword}</span>`,
+        `<span class="font-base font-extrabold ">${keyword}</span>`,
       );
     });
     return parsedDescription;
@@ -303,7 +303,7 @@ const Card = ({
             className="select-none mx-auto"
             style={{
               display: "block",
-              height: "2rem",
+              height: "100%",
             }}
           />
         </div>
@@ -313,6 +313,7 @@ const Card = ({
           className={twMerge(
             "select-none text-[0.45vw] w-full relative text-black px-[1vw] font-[600] py-[0.5vw] pt-[1vw] grow font-base  text-center ",
             card.isMinion && "pt-[0.5vw]",
+            card.isWeapon && "text-white",
           )}
         >
           <span

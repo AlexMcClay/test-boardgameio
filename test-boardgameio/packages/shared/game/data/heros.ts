@@ -143,6 +143,24 @@ const steadyShot: HeroPower = {
   },
 };
 
+const daggerMastery: HeroPower = {
+  name: "Dagger Mastery",
+  description: "Equip a 1/2 Dagger.",
+  imageUrl: "assets/hero_powers/Dagger_Mastery.jpg",
+  manaCost: 2,
+  effects: [
+    {
+      type: "equip",
+      cardID: "wicked-knife",
+      target: "self",
+    },
+  ],
+  targetQuery: {
+    side: "friendly",
+    type: [],
+  },
+};
+
 // Placeholder hero power for heroes not yet implemented
 const placeholderPower: HeroPower = {
   name: "Placeholder",
@@ -176,7 +194,7 @@ export const rogueHero: Hero = {
   name: "Rogue",
   portrait: "assets/heros/Valeera.jpg",
   class: "Rogue",
-  heroPower: placeholderPower,
+  heroPower: daggerMastery,
   heroName: "Valeera Sanguinar",
 };
 

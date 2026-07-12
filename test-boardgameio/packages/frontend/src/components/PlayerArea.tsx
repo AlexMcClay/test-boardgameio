@@ -2,8 +2,15 @@ import type { BoardProps } from "boardgame.io/dist/types/packages/react";
 import HeroSection from "./HeroSection";
 import { twMerge } from "tailwind-merge";
 import PlayerHand from "./PlayerHand";
-import type { GameState, Player } from "@project/shared";
+import {
+  getAttack,
+  getCurrentDurability,
+  getMaxDurability,
+  type GameState,
+  type Player,
+} from "@project/shared";
 import HeroPower from "./HeroPower/HeroPower";
+import { div } from "motion/react-m";
 
 interface Props extends BoardProps<GameState> {
   isTop?: boolean; // true for player 1, false or undefined for player 0
@@ -13,6 +20,7 @@ interface Props extends BoardProps<GameState> {
 
 const mana_crystal = "assets/mana.png";
 const mana_bar = "assets/mana_bar.png";
+const weapon_frame = "assets/weapon_frame.png";
 
 const PlayerArea = ({
   player,
@@ -59,7 +67,6 @@ const PlayerArea = ({
       />
 
       {/* Name */}
-
       <div
         className={twMerge(
           "absolute z-10 top-[23.5%] left-[0vw] flex items-center pointer-events-none ",
@@ -84,6 +91,9 @@ const PlayerArea = ({
           {...props}
         />
       )}
+
+      {/* Hero Weapon */}
+      <HeroWeapon player={player} isTop={isTop} />
 
       {/* Mana */}
       <div
@@ -132,5 +142,48 @@ const PlayerArea = ({
     </div>
   );
 };
+
+function HeroWeapon({ player, isTop }: { player: Player; isTop?: boolean }) {
+  if (!player.weapon) return null;
+
+  return (
+    <div
+      className={twMerge(
+        "absolute z-10 top-[-25%] left-[37vw] flex items-center pointer-events-none justify-center ",
+        isTop && "top-[60%] left-[37vw]",
+      )}
+    >
+      <img
+        src={weapon_frame}
+        alt="Weapon"
+        className="w-[8vw] h-[8vw] object-contain"
+        draggable="false"
+      />
+      <img
+        src={player.weapon.imageUrl}
+        alt={player.weapon.title}
+        className="w-[5.5vw] h-[5.5vw] rounded-full absolute z-[-1]"
+        draggable="false"
+      />
+      <p className="absolute bottom-[1.5vw] left-[1.5vw] transform -translate-x-1/2 text-white text-[1.2vw] scale-140 font-bold  text-shadow-A">
+        {getAttack(player.weapon)}
+      </p>
+
+      <p
+        className={twMerge(
+          "absolute bottom-[1.5vw] right-[1.2vw] transform -translate-x-1/2 text-white text-[1.2vw] scale-140 font-bold  text-shadow-A",
+          getCurrentDurability(player.weapon) == player.weapon.baseDurability
+            ? ""
+            : getCurrentDurability(player.weapon) <
+                getMaxDurability(player.weapon)
+              ? "text-red-500"
+              : "text-green-400",
+        )}
+      >
+        {getCurrentDurability(player.weapon)}
+      </p>
+    </div>
+  );
+}
 
 export default PlayerArea;
