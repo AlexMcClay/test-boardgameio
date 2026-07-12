@@ -101,6 +101,7 @@ const setupData = (
     burntCards: [],
     heroPowerUsedThisTurn: false,
     hero: playerHero,
+    weapon: null,
   };
 
   const p1: Player = {
@@ -123,6 +124,7 @@ const setupData = (
     heroPowerUsedThisTurn: false,
     hero: opponentHero,
     burntCards: [],
+    weapon: null,
   };
 
   console.log("Player 0:", p0.name);
@@ -247,6 +249,10 @@ const placeCard: Move<GameState> = (
     } else {
       G.board[ctx.currentPlayer].push(card);
     }
+  }
+
+  if (card.isWeapon && !card.isPlaced) {
+    equipWeapon(G, ctx, ctx.currentPlayer, card);
   }
 
   if (card.isSpell) {
@@ -529,18 +535,15 @@ const heroAttack: Move<GameState> = ({ G, ctx }, target: TargetValue) => {
     dealDamageToCard(G, sourceId, defenderCard, target.player, attackValue);
 
     // Minion strikes back at the attacking hero, same as minion-vs-minion combat,
-    // as long as it survived the hit above.
-    if (getCurrentHealth(defenderCard) > 0) {
-      executeEffects(defenderCard.effects, {
-        G,
-        ctx,
-        card: defenderCard,
-        playerID: target.player,
-        location: "board",
-        target: { id: attackerId, player: attackerId, type: "player" },
-        type: "minion",
-      });
-    }
+    executeEffects(defenderCard.effects, {
+      G,
+      ctx,
+      card: defenderCard,
+      playerID: target.player,
+      location: "board",
+      target: { id: attackerId, player: attackerId, type: "player" },
+      type: "minion",
+    });
   }
 
   recordEvent(G, {
@@ -555,6 +558,13 @@ const heroAttack: Move<GameState> = ({ G, ctx }, target: TargetValue) => {
   });
 
   attacker.attacksLeft -= 1;
+
+  if (attacker.weapon) {
+    attacker.weapon.durability = (attacker.weapon.durability ?? 1) - 1;
+    if (attacker.weapon.durability <= 0) {
+      destroyWeapon(G, ctx, attackerId, attacker.weapon);
+    }
+  }
 
   processDeaths(G, ctx);
   return G;
@@ -937,6 +947,18 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         );
 
         break;
+      case "equip": {
+        const enemyPlayerId = playerID === "0" ? "1" : "0";
+        const playerTarget =
+          effect.target === "self" ? playerID : enemyPlayerId;
+        const weaponCard = createCardFromID(effect.cardID as CardTemplateKey);
+        if (weaponCard) {
+          equipWeapon(G, ctx, playerTarget, weaponCard);
+        } else {
+          console.warn(`Card with ID ${effect.cardID} not found.`);
+        }
+        break;
+      }
       case "draw":
         for (let i = 0; i < resolveDynamicValue(effect.value, context); i++) {
           handleDrawCard(G, ctx, playerID);
@@ -1130,6 +1152,78 @@ function handleDrawCard(G: GameState, ctx: Ctx, playerID?: PlayerID) {
   } else {
     // Handle case when deck is empty, e.g., damage player or reshuffle
     console.warn("Deck is empty, cannot draw a card.");
+  }
+}
+
+function destroyWeapon(
+  G: GameState,
+  ctx: Ctx,
+  playerId: PlayerID,
+  weapon: Card,
+) {
+  if (weapon.deathrattle && weapon.deathrattle.length > 0) {
+    executeEffects(weapon.deathrattle, {
+      card: weapon,
+      G,
+      ctx,
+      location: "board",
+      playerID: playerId,
+      type: "minion",
+    });
+  }
+
+  recordEvent(G, {
+    type: "death",
+    cardId: weapon.id,
+    playerId,
+    timestamp: Date.now(),
+  });
+
+  G.graveyard.push({
+    card: JSON.parse(JSON.stringify(weapon)),
+    originalOwner: playerId,
+    diedOnTurn: ctx.turn,
+  });
+
+  const player = G.players[playerId];
+  if (player.weapon?.id === weapon.id) {
+    player.weapon = null;
+  }
+}
+
+function equipWeapon(
+  G: GameState,
+  ctx: Ctx,
+  playerId: PlayerID,
+  weaponCard: Card,
+) {
+  const player = G.players[playerId];
+  const oldWeapon = player.weapon;
+
+  // Replacing an equipped weapon destroys it, triggering its deathrattle
+  if (oldWeapon) {
+    destroyWeapon(G, ctx, playerId, oldWeapon);
+  }
+
+  player.weapon = weaponCard;
+
+  recordEvent(G, {
+    type: "equip",
+    cardId: weaponCard.id,
+    playerId,
+    timestamp: Date.now(),
+    card: weaponCard,
+  });
+
+  if (weaponCard.onPlace && weaponCard.onPlace.length > 0) {
+    executeEffects(weaponCard.onPlace, {
+      card: weaponCard,
+      G,
+      ctx,
+      location: "board",
+      playerID: playerId,
+      type: "minion",
+    });
   }
 }
 
@@ -1384,7 +1478,10 @@ export const HeathStoneGame: Game<GameState> = {
           });
 
           const endingPlayer = G.players[ctx.currentPlayer];
-          if (endingPlayer.frozen && shouldHeroUnfreezeAtTurnEnd(endingPlayer)) {
+          if (
+            endingPlayer.frozen &&
+            shouldHeroUnfreezeAtTurnEnd(endingPlayer)
+          ) {
             endingPlayer.frozen = false;
           }
 

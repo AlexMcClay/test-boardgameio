@@ -2893,6 +2893,23 @@ export const cardTemplates = {
       type: ["card"],
     },
   },
+  "fiery-war-axe": {
+    title: "Fiery War Axe",
+    description: "",
+    isWeapon: true,
+    isMinion: false,
+    baseMana: 2,
+    baseAttack: 3,
+    durability: 2,
+    imageUrl: "assets/cards/Fiery_War_Axe.jpg",
+    class: "Warrior",
+    effects: [],
+    onPlace: [],
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+  },
 } satisfies Record<
   string,
   Omit<Card, "id" | "originalID" | "damageTaken" | "attacksLeft">

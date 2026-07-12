@@ -38,6 +38,8 @@ export interface Card {
   summoningSickness?: boolean; // Optional, to track if minion was just placed (shows Zzz)
   isSpell?: boolean; // Optional, to indicate if the card is a spell
   isMinion: boolean; // Optional, to indicate if the card is a minion
+  isWeapon?: boolean; // Optional, to indicate if the card is a weapon
+  durability?: number; // Weapon-only: charges remaining before it breaks
   isUncollectible?: boolean; // Optional, to indicate if the card is uncollectible (like tokens)
   taunt?: boolean; // Optional, to indicate if the card has taunt
   frozen?: boolean;
@@ -83,6 +85,7 @@ export interface Player {
   burntCards: Card[]; // Cards that couldn't fit in hand (hand was full)
   heroPowerUsedThisTurn: boolean;
   hero: Hero;
+  weapon: Card | null; // Only one weapon can be equipped at a time
 }
 
 export type EffectContext = EffectContextWithCard | EffectContextWithHeroPower;
@@ -254,7 +257,8 @@ export type EffectTypes =
   | StoreTempVarEffect
   | AddToHandEffect
   | ReturnToHandEffect
-  | DiscardEffect;
+  | DiscardEffect
+  | EquipEffect;
 
 export interface StoreTempVarEffect {
   type: "storeVar";
@@ -413,6 +417,12 @@ type ArmorEffect = {
   value: number | DynamicValue;
 };
 
+type EquipEffect = {
+  type: "equip";
+  target: "self" | "enemy";
+  cardID: string; // ID of the weapon card to equip
+};
+
 type ManaEffect = {
   type: "mana";
   value: number | DynamicValue;
@@ -464,6 +474,7 @@ export type GameEvent =
   | BurnCardEvent
   | DiscardEvent
   | HeroPowerEvent
+  | EquipEvent
   | GameEndEvent;
 
 type GameEndEvent = {
@@ -532,6 +543,14 @@ export type SummonEvent = {
   playerId: PlayerID;
   timestamp: number;
   card: Card; // Include full card data for easier animation handling
+};
+
+export type EquipEvent = {
+  type: "equip";
+  cardId: string;
+  playerId: PlayerID;
+  timestamp: number;
+  card: Card; // Include full weapon card data for easier animation handling
 };
 
 export type ArmorEvent = {

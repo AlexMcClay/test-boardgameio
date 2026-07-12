@@ -111,7 +111,8 @@ export function getPlayerAttack(player: Player): number {
     return sets[sets.length - 1].value;
   }
   const bonus = mods.reduce((sum, m) => sum + m.value, 0) ?? 0;
-  return Math.max(0, (player?.baseAttack ?? 0) + bonus);
+  const weaponAttack = player.weapon ? getAttack(player.weapon) : 0;
+  return Math.max(0, (player?.baseAttack ?? 0) + weaponAttack + bonus);
 }
 
 // Maximum health capacity is dynamically scaled by modifiers
