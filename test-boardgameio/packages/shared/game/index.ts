@@ -188,6 +188,16 @@ const placeCard: Move<GameState> = (
 
   player.mana -= !card.isPlaced ? getManaCost(card) : 0;
 
+  // Generic event fired for every card played (minion, spell, or weapon)
+  recordEvent(G, {
+    type: "cardPlayed",
+    cardId: card.id,
+    playerId: ctx.currentPlayer,
+    timestamp: Date.now(),
+    card,
+    turn: ctx.turn,
+  });
+
   // See if the card can be placed on the board
   if (card.isMinion && !card.isPlaced) {
     card.isPlaced = true;

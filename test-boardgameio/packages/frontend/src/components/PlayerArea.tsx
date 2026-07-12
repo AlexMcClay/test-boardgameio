@@ -11,6 +11,9 @@ import {
 } from "@project/shared";
 import HeroPower from "./HeroPower/HeroPower";
 import { div } from "motion/react-m";
+import { AnimatePresence } from "motion/react";
+import { useRef, useState, useEffect } from "react";
+import MinionCardPopover from "./MinionCardPopover";
 
 interface Props extends BoardProps<GameState> {
   isTop?: boolean; // true for player 1, false or undefined for player 0
@@ -144,46 +147,113 @@ const PlayerArea = ({
 };
 
 function HeroWeapon({ player, isTop }: { player: Player; isTop?: boolean }) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [showPopover, setShowPopover] = useState(false);
+  const [popoverPosition, setPopoverPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+
+  const handleMouseEnter = () => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+    }
+
+    hoverTimerRef.current = setTimeout(() => {
+      const rect = wrapperRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const cardWidth = rect.width;
+      const cardScaled = cardWidth * 1.5; // Account for 150% scale
+      const spacing = 20; // Spacing between weapon and popover
+
+      const showOnRight = rect.right + cardScaled + spacing < window.innerWidth;
+
+      const x = showOnRight
+        ? rect.right + spacing
+        : rect.left - cardScaled - spacing;
+
+      const y = rect.top + rect.height / 2 - (rect.height * 1.5) / 2;
+
+      setPopoverPosition({ x, y });
+      setShowPopover(true);
+    }, 500);
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    setShowPopover(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current) {
+        clearTimeout(hoverTimerRef.current);
+      }
+    };
+  }, []);
+
   if (!player.weapon) return null;
 
   return (
-    <div
-      className={twMerge(
-        "absolute z-10 top-[-25%] left-[37vw] flex items-center pointer-events-none justify-center ",
-        isTop && "top-[60%] left-[37vw]",
-      )}
-    >
-      <img
-        src={weapon_frame}
-        alt="Weapon"
-        className="w-[8vw] h-[8vw] object-contain"
-        draggable="false"
-      />
-      <img
-        src={player.weapon.imageUrl}
-        alt={player.weapon.title}
-        className="w-[5.5vw] h-[5.5vw] rounded-full absolute z-[-1]"
-        draggable="false"
-      />
-      <p className="absolute bottom-[1.5vw] left-[1.5vw] transform -translate-x-1/2 text-white text-[1.2vw] scale-140 font-bold  text-shadow-A">
-        {getAttack(player.weapon)}
-      </p>
-
-      <p
+    <>
+      <div
+        ref={wrapperRef}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         className={twMerge(
-          "absolute bottom-[1.5vw] right-[1.2vw] transform -translate-x-1/2 text-white text-[1.2vw] scale-140 font-bold  text-shadow-A",
-          getCurrentDurability(player.weapon) == player.weapon.baseDurability &&
-            getMaxDurability(player.weapon) == player.weapon.baseDurability
-            ? ""
-            : getCurrentDurability(player.weapon) <
-                getMaxDurability(player.weapon)
-              ? "text-red-500"
-              : "text-green-400",
+          "absolute z-10 top-[-25%] left-[37vw] flex items-center pointer-events-auto justify-center minion-card ",
+          isTop && "top-[60%] left-[37vw]",
         )}
       >
-        {getCurrentDurability(player.weapon)}
-      </p>
-    </div>
+        <img
+          src={weapon_frame}
+          alt="Weapon"
+          className="w-[8vw] h-[8vw] object-contain"
+          draggable="false"
+        />
+        <img
+          src={player.weapon.imageUrl}
+          alt={player.weapon.title}
+          className="w-[5.5vw] h-[5.5vw] rounded-full absolute z-[-1]"
+          draggable="false"
+        />
+        <p className="absolute bottom-[1.5vw] left-[1.5vw] transform -translate-x-1/2 text-white text-[1.2vw] scale-140 font-bold  text-shadow-A">
+          {getAttack(player.weapon)}
+        </p>
+
+        <p
+          className={twMerge(
+            "absolute bottom-[1.5vw] right-[1.2vw] transform -translate-x-1/2 text-white text-[1.2vw] scale-140 font-bold  text-shadow-A",
+            getCurrentDurability(player.weapon) ==
+              player.weapon.baseDurability &&
+              getMaxDurability(player.weapon) == player.weapon.baseDurability
+              ? ""
+              : getCurrentDurability(player.weapon) <
+                  getMaxDurability(player.weapon)
+                ? "text-red-500"
+                : "text-green-400",
+          )}
+        >
+          {getCurrentDurability(player.weapon)}
+        </p>
+      </div>
+
+      <AnimatePresence>
+        {showPopover && (
+          <MinionCardPopover
+            key={"weapon-card-overlay"}
+            card={{ ...player.weapon }}
+            position={popoverPosition}
+            type="popover"
+          />
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 

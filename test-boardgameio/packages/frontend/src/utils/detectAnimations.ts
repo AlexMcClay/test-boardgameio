@@ -22,28 +22,16 @@ export function detectAllAnimations(stateAfter: GameState): AnimationEvent[] {
   const damageEvents = events.filter((e) => e.type === "damage");
   const healEvents = events.filter((e) => e.type === "heal");
   const deathEvents = events.filter((e) => e.type === "death");
-  const minionPlacedEvents = events.filter((e) => e.type === "minionPlaced");
-  const spelLEvents = events.filter((e) => e.type === "spell");
+  const cardPlayedEvents = events.filter((e) => e.type === "cardPlayed");
   const heroPowerEvents = events.filter((e) => e.type === "heroPower");
 
   const hasAttacks = attackEvents.length > 0;
 
-  // Process Card Played Animations
-  minionPlacedEvents.forEach((event) => {
-    const card = structuredClone(event.card);
-    card.isPlaced = false;
+  // Process Card Played Animations (fires for minions, spells, and weapons alike)
+  cardPlayedEvents.forEach((event) => {
     animations.push({
       type: "cardPlayed",
       card: structuredClone(event.card),
-      duration: CARD_PLAYED_ANIMATION.duration,
-      playerId: event.playerId,
-      startTime: 0,
-    });
-  });
-  spelLEvents.forEach((event) => {
-    animations.push({
-      type: "cardPlayed",
-      card: event.card,
       duration: CARD_PLAYED_ANIMATION.duration,
       playerId: event.playerId,
       startTime: 0,

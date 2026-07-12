@@ -51,7 +51,7 @@ export const useGameAnimation = ({ ctx, G, ...props }: Props) => {
         // Read as: "Keep this if it's NOT (a card played by me)"
         return !(
           (isMyTurn && a.type === "cardPlayed") ||
-          a.type === "heroPowerPlayed"
+          (isMyTurn && a.type === "heroPowerPlayed")
         );
       });
 

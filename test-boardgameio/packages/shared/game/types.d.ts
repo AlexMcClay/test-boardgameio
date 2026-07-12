@@ -459,6 +459,7 @@ export type GameEvent =
   | DamageEvent
   | HealEvent
   | DeathEvent
+  | CardPlayedEvent
   | MinionPlacedEvent
   | SummonEvent
   | EndTurnEvent
@@ -610,6 +611,15 @@ export type ChangeKeyEvent = {
   cardId: string;
   playerId: PlayerID;
   timestamp: number;
+};
+
+export type CardPlayedEvent = {
+  type: "cardPlayed";
+  cardId: string;
+  playerId: PlayerID;
+  timestamp: number;
+  card: Card; // Include full card data for easier animation handling
+  turn: number;
 };
 
 export type MinionPlacedEvent = {
