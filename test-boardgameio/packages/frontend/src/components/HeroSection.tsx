@@ -9,9 +9,11 @@ import {
 } from "@project/shared";
 import type { BoardProps } from "boardgame.io/dist/types/packages/react";
 import { twMerge } from "tailwind-merge";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef } from "react";
 import { ATTACK_ANIMATION } from "@/utils/animationDurations";
+import DivineShieldHeroOverlay from "./Card/Overlays/DivineShieldHeroOverlay";
+import FrozenHeroOverlay from "./Card/Overlays/FrozenHeroOverlay";
 
 interface Props extends BoardProps<GameState> {
   isTop?: boolean; // true for player 1, false or undefined for player 0
@@ -331,6 +333,11 @@ const HeroSection = ({ player, ...props }: Props) => {
           style={{ clipPath: archClipPath }}
         />
       </div>
+      <AnimatePresence>
+        {player.frozen && <FrozenHeroOverlay />}
+        {player.divineShield && <DivineShieldHeroOverlay />}
+      </AnimatePresence>
+
       {/* ARMOR SECTIOn */}
       {player.armor ? (
         <div className="absolute bottom-[20%] right-[-20%] z-30 w-[40%] aspect-square flex items-center justify-center pointer-events-none">

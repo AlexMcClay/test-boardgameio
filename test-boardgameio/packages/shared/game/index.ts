@@ -14,6 +14,7 @@ import {
   getMaxHealth,
   shuffleDeck,
   applyBoolEffectToCard,
+  applyBoolEffectToPlayer,
   proccessApplyModifier,
   processApplyModifierToPlayer,
   dealDamageToCard,
@@ -592,8 +593,29 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         break;
 
       case "conditional":
-        const targetCard = target
-          ? G.board[target?.player].find((c) => c.id === target?.id)
+        const targetCard: Card | undefined = target
+          ? target.type === "card"
+            ? G.board[target?.player].find((c) => c.id === target?.id)
+            : target.type === "player"
+              ? {
+                  class: G.players[target.player].hero.class,
+                  effects: [],
+                  divineShield: G.players[target.player].divineShield,
+                  frozen: G.players[target.player].frozen,
+                  title: G.players[target.player].name,
+                  id: `player-${target.player}`,
+                  originalID: `player-${target.player}`,
+                  description: "",
+                  onPlace: [],
+                  damageTaken: 0,
+                  isMinion: false,
+                  attacksLeft: G.players[target.player].attacksLeft,
+                  targetQuery: {
+                    side: "all",
+                    type: ["card"],
+                  },
+                }
+              : undefined
           : undefined;
         if (
           card &&
@@ -732,9 +754,19 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         targets.forEach((t) => {
           // --- TARGET: PLAYER / HERO ---
           if (t.type === "player") {
-            // Freezing a hero makes complete sense! Other stats like Taunt/Stealth are skipped for heroes
-            if (effect.type === "freeze") {
-              // applyBoolEffectToPlayer(G, cardId, t.ownerId, "frozen", true);
+            // Freeze and Divine Shield make sense for a hero. Other stats like
+            // Taunt/Stealth/Charge/Rush/Windfury are skipped for heroes (no weapons yet).
+            if (effect.type === "freeze" || effect.type === "divineShield") {
+              const targetPlayer = G.players[t.ownerId];
+              if (targetPlayer) {
+                applyBoolEffectToPlayer(
+                  G,
+                  cardId,
+                  targetPlayer,
+                  effect.type,
+                  cardKey,
+                );
+              }
             }
           }
 
@@ -1343,6 +1375,8 @@ export const HeathStoneGame: Game<GameState> = {
           G.board[ctx.currentPlayer].forEach((card) => {
             card.frozen = false; // unfreeze minions
           });
+
+          G.players[ctx.currentPlayer].frozen = false; // unfreeze hero
 
           // 2. Refresh auras/deaths again in case losing an attack/health buff altered the board state[cite: 1]
           refreshAuras(G);

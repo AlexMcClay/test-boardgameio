@@ -151,6 +151,28 @@ export function applyBoolEffectToCard(
   } as GameEvent);
 }
 
+export function applyBoolEffectToPlayer(
+  G: GameState,
+  sourceId: string,
+  targetPlayer: Player,
+  effectType: "freeze" | "divineShield",
+  playerKey: keyof Player,
+) {
+  if (!targetPlayer) return;
+
+  // Dynamically set the player property to true (e.g. targetPlayer.frozen = true)
+  (targetPlayer as any)[playerKey] = true;
+
+  recordEvent(G, {
+    type: effectType,
+    sourceId: sourceId,
+    targetId: targetPlayer.id,
+    targetType: "player",
+    playerId: targetPlayer.id,
+    timestamp: Date.now(),
+  } as GameEvent);
+}
+
 export function dealDamageToPlayer(
   G: GameState,
   sourceId: string,
