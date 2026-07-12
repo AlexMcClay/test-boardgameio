@@ -2900,7 +2900,7 @@ export const cardTemplates = {
     isMinion: false,
     baseMana: 2,
     baseAttack: 3,
-    durability: 2,
+    baseDurability: 2,
     imageUrl: "assets/cards/Fiery_War_Axe.jpg",
     class: "Warrior",
     effects: [],

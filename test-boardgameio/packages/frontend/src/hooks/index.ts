@@ -80,7 +80,7 @@ export function useArchedText(
   fontSize: number,
   canvasRef: React.RefObject<HTMLCanvasElement | null>,
   containerRef: React.RefObject<HTMLElement | null>,
-  _type: "minion" | "weapon" | "spell" = "spell",
+  type: "minion" | "weapon" | "spell" = "spell",
 ) {
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
@@ -111,6 +111,20 @@ export function useArchedText(
     ctx.font = `900 ${fontSizeInPx}px serif`; // 900 is extrabold
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
+
+    // Weapons render flat, centered text instead of an arch
+    if (type === "weapon") {
+      const centerX = width / 2;
+      const centerY = height / 2;
+
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 2.5;
+      ctx.strokeText(text, centerX, centerY);
+
+      ctx.fillStyle = "white";
+      ctx.fillText(text, centerX, centerY);
+      return;
+    }
 
     // Calculate total text width
     const textWidth = ctx.measureText(text).width;

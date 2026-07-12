@@ -39,7 +39,8 @@ export interface Card {
   isSpell?: boolean; // Optional, to indicate if the card is a spell
   isMinion: boolean; // Optional, to indicate if the card is a minion
   isWeapon?: boolean; // Optional, to indicate if the card is a weapon
-  durability?: number; // Weapon-only: charges remaining before it breaks
+  baseDurability?: number; // Weapon-only: charges before it breaks
+  durabilityLost?: number; // Weapon-only: parallel to damageTaken, charges used toward baseDurability
   isUncollectible?: boolean; // Optional, to indicate if the card is uncollectible (like tokens)
   taunt?: boolean; // Optional, to indicate if the card has taunt
   frozen?: boolean;

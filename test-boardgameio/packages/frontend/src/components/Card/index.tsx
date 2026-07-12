@@ -12,6 +12,7 @@ const attackIcon = "assets/attack.png";
 const healthIcon = "assets/health.png";
 const cardBackground = "assets/card_parts/card.png";
 const cardBackgroundMinion = "assets/card_parts/minion_card.png";
+const cardBackgroundWeapon = "assets/card_parts/weapon.png";
 const cardBackgroundMinionLegendary = "assets/card_parts/legendary_minion.png";
 
 interface Props extends CardProps {}
@@ -64,7 +65,7 @@ const Card = ({
     fontSize,
     canvasRef,
     containerRef,
-    card.isMinion ? "minion" : "spell",
+    card.isMinion ? "minion" : card.isWeapon ? "weapon" : "spell",
   );
 
   // Detect keywords in card description
@@ -221,6 +222,7 @@ const Card = ({
             className={twMerge(
               "object-cover w-[95%] h-[100%] top-2 left-0.5 select-none absolute z-0",
               card.isMinion && "top-[-0.3vw] rounded-[50%/50%] h-[145%]",
+              card.isWeapon && "top-0 h-[120%] left-[0.2vw]",
             )}
             draggable="false"
           />
@@ -228,11 +230,18 @@ const Card = ({
 
         {/* Card Background */}
         <img
-          src={card.isMinion ? cardBackgroundMinion : cardBackground}
+          src={
+            card.isMinion
+              ? cardBackgroundMinion
+              : card.isWeapon
+                ? cardBackgroundWeapon
+                : cardBackground
+          }
           alt="Card Background"
           className={twMerge(
             "object-cover w-full h-full absolute rounded-2xl z-0",
             card.isMinion && "scale-105 scale-x-110 origin-bottom",
+            card.isWeapon && "scale-109  origin-bottom",
             // card.isMinion &&
             //   card.rarity === "Legendary" &&
             //   "scale-114 scale-x-110 origin-bottom",
@@ -350,11 +359,20 @@ const Card = ({
                 <img
                   src={attackIcon}
                   alt="Card Back"
-                  className="object-cover w-full h-full absolute scale-130 -left-1 bottom-1"
+                  className={twMerge(
+                    "object-cover w-full h-full absolute scale-130 -left-1 bottom-1",
+                    card.isWeapon && " hidden",
+                  )}
                   // no drag
                   draggable="false"
                 />
-                <span className="absolute font-belwe  scale-130  translate-y-[-0.1vw] translate-x-[-0.05vw] text-shadow-A">
+                <span
+                  className={twMerge(
+                    "absolute font-belwe  scale-130  translate-y-[-0.1vw] translate-x-[-0.05vw] text-shadow-A",
+                    card.isWeapon &&
+                      "translate-y-[-0.3vw] translate-x-[0.15vw]",
+                  )}
+                >
                   {getAttack(card)}
                 </span>
               </div>
@@ -368,12 +386,20 @@ const Card = ({
                   // no drag
                   draggable="false"
                 />
-                <span className="absolute font-belwe  scale-140 translate-y-[-0.1vw] translate-x-[0vw] text-shadow-A">
+                <span className="absolute font-belwe  scale-140 translate-y-[-0.1vw] text-shadow-A">
                   {getCurrentHealth(card)}
                 </span>
               </div>
             )}
           </>
+        )}
+
+        {card.baseDurability !== undefined && (
+          <div className="absolute select-none right-[-0.5vw] bottom-[-0.2vw] rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center text-[1.1vw] font-bold  shadow-lg">
+            <span className="absolute font-belwe  scale-140 translate-y-[-0.3vw] translate-x-[-0.1vw] text-shadow-A">
+              {card.baseDurability}
+            </span>
+          </div>
         )}
       </motion.div>
 

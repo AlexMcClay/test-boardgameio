@@ -560,8 +560,10 @@ const heroAttack: Move<GameState> = ({ G, ctx }, target: TargetValue) => {
   attacker.attacksLeft -= 1;
 
   if (attacker.weapon) {
-    attacker.weapon.durability = (attacker.weapon.durability ?? 1) - 1;
-    if (attacker.weapon.durability <= 0) {
+    attacker.weapon.durabilityLost = (attacker.weapon.durabilityLost ?? 0) + 1;
+    const remainingDurability =
+      (attacker.weapon.baseDurability ?? 0) - attacker.weapon.durabilityLost;
+    if (remainingDurability <= 0) {
       destroyWeapon(G, ctx, attackerId, attacker.weapon);
     }
   }
