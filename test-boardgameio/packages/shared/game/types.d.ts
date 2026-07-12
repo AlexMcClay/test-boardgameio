@@ -60,10 +60,16 @@ export interface Card {
   battlecryQuery?: TargetQuery;
   class: string;
   sfx?: {
-    death?: string[];
-    play?: string[];
-    attack?: string[];
+    death?: SFXInstance[];
+    play?: SFXInstance[];
+    attack?: SFXInstance[];
   };
+}
+
+export interface SFXInstance {
+  soundId: string;
+  volume?: number;
+  delay?: number; // Optional delay in milliseconds before playing the sound
 }
 
 export interface Player {
@@ -640,6 +646,7 @@ export type AttackEvent = {
   attackerPlayerId: PlayerID;
   sourceId?: string; // Optional for extensibility
   timestamp: number;
+  card?: Card; // Attacking minion/weapon card, for sfx lookup (absent for bare hero attacks)
 };
 
 export type BattlecryEvent = {
@@ -676,6 +683,7 @@ export type DeathEvent = {
   cardId: string;
   playerId: PlayerID;
   timestamp: number;
+  card: Card; // The card that died, for sfx lookup
 };
 
 export type AddToHandEvent = {

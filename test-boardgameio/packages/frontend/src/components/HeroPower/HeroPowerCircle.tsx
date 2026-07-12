@@ -28,7 +28,7 @@ const HeroPowerCircle = ({ heroPower }: Props) => {
         src={heroPower.imageUrl}
         // alt={title}
         className={twMerge(
-          "object-cover w-[4.5vw] left-[1.9vw] top-[1.8vw]  rounded-full  select-none absolute z-[-3]",
+          "object-cover w-[4.5vw] left-[1.8vw] top-[1.83vw]  rounded-full  select-none absolute z-[-3]",
         )}
         draggable="false"
       />

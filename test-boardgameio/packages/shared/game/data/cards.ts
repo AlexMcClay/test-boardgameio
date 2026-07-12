@@ -299,6 +299,17 @@ export const cardTemplates = {
 
     isMinion: false,
     class: "Mage",
+    sfx: {
+      play: [
+        {
+          soundId: "/cards/fireball/FX_FireballEvent03_SpellCast_01.ogg",
+        },
+        {
+          soundId: "/cards/fireball/FX_FireballEvent04_SpellImpact_01.ogg",
+          delay: 200,
+        },
+      ],
+    },
   },
   "mirror-image-spell": {
     title: "Mirror Image",
@@ -1482,6 +1493,26 @@ export const cardTemplates = {
     ],
     rarity: "Legendary",
     onPlace: [],
+    sfx: {
+      attack: [
+        {
+          soundId: "/cards/Tirion/VO_EX1_383_Attack_02.ogg",
+        },
+      ],
+      death: [
+        {
+          soundId: "/cards/Tirion/VO_EX1_383_Death_03.ogg",
+        },
+      ],
+      play: [
+        {
+          soundId: "/cards/Tirion/VO_EX1_383_Play_01.ogg",
+        },
+        {
+          soundId: "/cards/Pegasus_Stinger_Alliance.ogg",
+        },
+      ],
+    },
   },
   sunwalker: {
     title: "Sunwalker",

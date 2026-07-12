@@ -3,6 +3,7 @@ import { create } from "zustand";
 import type { AnimationEvent, AnimationQueueItem } from "@/types/animations";
 import { BATCH_UPDATE_DELAY } from "@/utils/animationDurations";
 import { randomIDGen } from "@project/shared";
+import { useAudioStore } from "./audioStore";
 
 // We extend the baseline type to handle dynamic unique run tracking internally
 type ActiveAnimationEvent = AnimationEvent & { uid?: string };
@@ -146,6 +147,22 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
             adjustedStartTime += hitCountsByTarget[targetId] * 300;
           }
           setTimeout(() => {
+            if (animation.type === "death") {
+              useAudioStore.getState().playSfx("minion-death");
+            }
+
+            if ("sfx" in animation && animation.sfx) {
+              animation.sfx.forEach(({ soundId, volume, delay }) => {
+                if (delay) {
+                  setTimeout(() => {
+                    useAudioStore.getState().playSfx(soundId, volume);
+                  }, delay);
+                } else {
+                  useAudioStore.getState().playSfx(soundId, volume);
+                }
+              });
+            }
+
             get().addActiveAnimation(runtimeAnim);
 
             setTimeout(() => {

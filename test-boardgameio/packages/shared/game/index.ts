@@ -341,6 +341,7 @@ const minionAttack: Move<GameState> = (
     attackerPlayerId: ctx.currentPlayer,
     sourceId: attackerId,
     timestamp: Date.now(),
+    card: attacker,
   });
 
   attacker.attacksLeft -= 1;
@@ -565,6 +566,7 @@ const heroAttack: Move<GameState> = ({ G, ctx }, target: TargetValue) => {
     attackerPlayerId: attackerId,
     sourceId,
     timestamp: Date.now(),
+    card: attacker.weapon ?? undefined,
   });
 
   attacker.attacksLeft -= 1;
@@ -1189,6 +1191,7 @@ function destroyWeapon(
     cardId: weapon.id,
     playerId,
     timestamp: Date.now(),
+    card: weapon,
   });
 
   G.graveyard.push({
@@ -1272,6 +1275,7 @@ function processDeaths(G: GameState, ctx: Ctx) {
           cardId: deadCard.id,
           playerId: playerId,
           timestamp: Date.now(),
+          card: deadCard,
         });
 
         G.graveyard.push({

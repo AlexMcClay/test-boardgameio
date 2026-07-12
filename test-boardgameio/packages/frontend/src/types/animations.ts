@@ -1,6 +1,6 @@
 // Animation event types for the animation queue system
 import type { PlayerID } from "boardgame.io";
-import type { Card, GameState, HeroPower } from "@project/shared";
+import type { Card, GameState, HeroPower, SFXInstance } from "@project/shared";
 
 export type AttackAnimation = {
   type: "attack";
@@ -11,6 +11,7 @@ export type AttackAnimation = {
   attackerPlayerId: PlayerID;
   startTime: number; // When to start on the timeline (ms from animation sequence start)
   duration: number; // How long the animation lasts (ms)
+  sfx?: SFXInstance[];
 };
 
 export type DeathAnimation = {
@@ -19,6 +20,25 @@ export type DeathAnimation = {
   playerId: PlayerID;
   startTime: number; // When to start on the timeline (ms from animation sequence start)
   duration: number; // How long the animation lasts (ms)
+  sfx?: SFXInstance[];
+};
+
+export type MinionPlacedAnimation = {
+  type: "minionPlaced";
+  card: Card;
+  playerId: PlayerID;
+  startTime: number;
+  duration: number;
+  sfx?: SFXInstance[];
+};
+
+export type SpellCastAnimation = {
+  type: "spellCast";
+  card: Card;
+  playerId: PlayerID;
+  startTime: number;
+  duration: number;
+  sfx?: SFXInstance[];
 };
 
 export type HitNumberAnimation = {
@@ -53,7 +73,9 @@ export type AnimationEvent =
   | DeathAnimation
   | HitNumberAnimation
   | CardPlayedAnimation
-  | HeroPowerPlayedAnimation;
+  | HeroPowerPlayedAnimation
+  | MinionPlacedAnimation
+  | SpellCastAnimation;
 
 // Queue item that pairs animations with their game state and context
 export type AnimationQueueItem = {

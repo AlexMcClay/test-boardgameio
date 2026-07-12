@@ -5,6 +5,8 @@ import {
   CARD_PLAYED_ANIMATION,
   DEATH_ANIMATION,
   HIT_NUMBER_ANIMATION,
+  MINION_PLACED_ANIMATION,
+  SPELL_CAST_ANIMATION,
 } from "./animationDurations";
 import type { GameState } from "@project/shared";
 
@@ -19,6 +21,8 @@ export function detectAllAnimations(stateAfter: GameState): AnimationEvent[] {
 
   // Group events by type in a single pass (or simple filters)
   const attackEvents = events.filter((e) => e.type === "attack");
+  const minionPlacedEvents = events.filter((e) => e.type === "minionPlaced");
+  const spellCastEvents = events.filter((e) => e.type === "spell");
   const damageEvents = events.filter((e) => e.type === "damage");
   const healEvents = events.filter((e) => e.type === "heal");
   const deathEvents = events.filter((e) => e.type === "death");
@@ -59,6 +63,31 @@ export function detectAllAnimations(stateAfter: GameState): AnimationEvent[] {
       attackerPlayerId: event.attackerPlayerId,
       startTime: 0,
       duration: ATTACK_ANIMATION.duration,
+      sfx: event.card?.sfx?.attack,
+    });
+  });
+
+  // Process Minion Placed Animations (sfx-only, runs alongside cardPlayed)
+  minionPlacedEvents.forEach((event) => {
+    animations.push({
+      type: "minionPlaced",
+      card: structuredClone(event.card),
+      playerId: event.playerId,
+      startTime: 0,
+      duration: MINION_PLACED_ANIMATION.duration,
+      sfx: event.card.sfx?.play,
+    });
+  });
+
+  // Process Spell Cast Animations (sfx-only, runs alongside cardPlayed)
+  spellCastEvents.forEach((event) => {
+    animations.push({
+      type: "spellCast",
+      card: structuredClone(event.card),
+      playerId: event.playerId,
+      startTime: 0,
+      duration: SPELL_CAST_ANIMATION.duration,
+      sfx: event.card.sfx?.play,
     });
   });
 
@@ -86,6 +115,7 @@ export function detectAllAnimations(stateAfter: GameState): AnimationEvent[] {
       playerId: event.playerId,
       startTime: deathStartTime,
       duration: DEATH_ANIMATION.duration,
+      sfx: event.card.sfx?.death,
     });
   });
 
