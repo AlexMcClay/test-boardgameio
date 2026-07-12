@@ -15,6 +15,8 @@ import {
   shuffleDeck,
   applyBoolEffectToCard,
   applyBoolEffectToPlayer,
+  shouldMinionUnfreezeAtTurnEnd,
+  shouldHeroUnfreezeAtTurnEnd,
   proccessApplyModifier,
   processApplyModifierToPlayer,
   dealDamageToCard,
@@ -1373,10 +1375,18 @@ export const HeathStoneGame: Game<GameState> = {
           processModifierLifecycle(G, ctx.currentPlayer, "END_OF_TURN");
 
           G.board[ctx.currentPlayer].forEach((card) => {
-            card.frozen = false; // unfreeze minions
+            if (
+              card.frozen &&
+              shouldMinionUnfreezeAtTurnEnd(G, ctx.currentPlayer, card)
+            ) {
+              card.frozen = false;
+            }
           });
 
-          G.players[ctx.currentPlayer].frozen = false; // unfreeze hero
+          const endingPlayer = G.players[ctx.currentPlayer];
+          if (endingPlayer.frozen && shouldHeroUnfreezeAtTurnEnd(endingPlayer)) {
+            endingPlayer.frozen = false;
+          }
 
           // 2. Refresh auras/deaths again in case losing an attack/health buff altered the board state[cite: 1]
           refreshAuras(G);

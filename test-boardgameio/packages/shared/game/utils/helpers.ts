@@ -173,6 +173,35 @@ export function applyBoolEffectToPlayer(
   } as GameEvent);
 }
 
+/**
+ * A frozen character unfreezes at the end of the turn in which it was still
+ * capable of attacking (i.e. it hasn't used up its attack(s) for the turn).
+ * If it couldn't act this turn at all (summoning sickness with no Charge/Rush,
+ * or Rush with no valid enemy minion to strike) or has already used up all its
+ * attacks, it stays frozen and is re-checked at the end of its controller's
+ * next turn instead.
+ */
+export function shouldMinionUnfreezeAtTurnEnd(
+  G: GameState,
+  ownerId: string,
+  card: Card,
+): boolean {
+  if (card.summoningSickness && !card.charge && !card.rush) {
+    return false;
+  }
+
+  if (card.summoningSickness && card.rush && !card.charge) {
+    const enemyId = ownerId === "0" ? "1" : "0";
+    if (G.board[enemyId].length === 0) return false;
+  }
+
+  return card.attacksLeft > 0;
+}
+
+export function shouldHeroUnfreezeAtTurnEnd(player: Player): boolean {
+  return player.attacksLeft > 0;
+}
+
 export function dealDamageToPlayer(
   G: GameState,
   sourceId: string,
