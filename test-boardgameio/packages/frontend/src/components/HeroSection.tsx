@@ -14,6 +14,7 @@ import { useEffect, useRef } from "react";
 import { ATTACK_ANIMATION } from "@/utils/animationDurations";
 import DivineShieldHeroOverlay from "./Card/Overlays/DivineShieldHeroOverlay";
 import FrozenHeroOverlay from "./Card/Overlays/FrozenHeroOverlay";
+import { useAudioStore } from "@/stores/audioStore";
 
 interface Props extends BoardProps<GameState> {
   isTop?: boolean; // true for player 1, false or undefined for player 0
@@ -30,6 +31,7 @@ const HeroSection = ({ player, ...props }: Props) => {
   const endTargeting = useDragStore((s) => s.endTargeting);
   const targetingMode = useDragStore((s) => s.targetingMode);
   const activeAnimations = useAnimationStore((s) => s.activeAnimations);
+  const playSfx = useAudioStore((state) => state.playSfx);
 
   const { setNodeRef, isOver } = useDroppable({
     id: `player-${player.id}`,
@@ -229,6 +231,16 @@ const HeroSection = ({ player, ...props }: Props) => {
     }
     return { x: 0, y: 0 };
   };
+
+  useEffect(() => {
+    if (isAttackAnimating) {
+      setTimeout(() => {
+        playSfx("minion-attack");
+        // card.sfx?.attack &&
+        //   card.sfx.attack.forEach((sfx) => playSfx(sfx.soundId, sfx.volume));
+      }, 200);
+    }
+  }, [isAttackAnimating]);
 
   const targetPosition = getTargetPosition();
 

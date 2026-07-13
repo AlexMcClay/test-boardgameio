@@ -336,17 +336,19 @@ const EventHistoryPopover = ({
         overlay={parentOverlay?.overlay}
         overlayValue={parentOverlay?.overlayValue}
       />
-      {entries.map((entry) => (
-        <div key={entry.key} className="flex items-center">
-          <Arrow />
-          <SnapshotVisual
-            snapshot={entry.snapshot}
-            overlay={entry.overlay}
-            overlayValue={entry.overlayValue}
-            hidden={entry.hidden}
-          />
-        </div>
-      ))}
+      <div className="flex items-center flex-wrap gap-y-[1vw]">
+        {entries.map((entry) => (
+          <div key={entry.key} className="flex items-center">
+            <Arrow />
+            <SnapshotVisual
+              snapshot={entry.snapshot}
+              overlay={entry.overlay}
+              overlayValue={entry.overlayValue}
+              hidden={entry.hidden}
+            />
+          </div>
+        ))}
+      </div>
     </motion.div>,
     document.body,
   );

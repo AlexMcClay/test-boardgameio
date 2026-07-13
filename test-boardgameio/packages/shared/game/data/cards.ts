@@ -6,6 +6,7 @@ import type {
   DamageEffect,
   DynamicValue,
   EffectTypes,
+  SFXInstance,
 } from "../types";
 
 const damage = (
@@ -231,6 +232,22 @@ const returnToHand = (
     conditions: conditions,
     rand: randomCount ? { n: randomCount } : undefined,
     modifiers: modifiers,
+  };
+};
+
+const sfx = (
+  play: string[],
+  attack?: string[],
+  death?: string[],
+): {
+  death?: SFXInstance[] | undefined;
+  play?: SFXInstance[];
+  attack?: SFXInstance[];
+} => {
+  return {
+    death: death?.map((soundId) => ({ soundId: `/cards/${soundId}` })),
+    play: play?.map((soundId) => ({ soundId: `/cards/${soundId}` })),
+    attack: attack?.map((soundId) => ({ soundId: `/cards/${soundId}` })),
   };
 };
 
@@ -1140,6 +1157,23 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    sfx: {
+      attack: [
+        {
+          soundId: "/cards/VO_EX1_015_Attack_02.ogg",
+        },
+      ],
+      death: [
+        {
+          soundId: "/cards/VO_EX1_015_Death_03.ogg",
+        },
+      ],
+      play: [
+        {
+          soundId: "/cards/VO_EX1_015_Play_01.ogg",
+        },
+      ],
+    },
   },
   "stormpike-commando": {
     title: "Stormpike Commando",
@@ -1262,6 +1296,23 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    sfx: {
+      attack: [
+        {
+          soundId: "/cards/VO_CS1_042_Attack_02.ogg",
+        },
+      ],
+      death: [
+        {
+          soundId: "/cards/VO_CS1_042_Death_03.ogg",
+        },
+      ],
+      play: [
+        {
+          soundId: "/cards/VO_CS1_042_Play_01.ogg",
+        },
+      ],
+    },
   },
   "booty-bay-bodyguard": {
     title: "Booty Bay Bodyguard",
@@ -1428,6 +1479,11 @@ export const cardTemplates = {
     onPlace: [],
     rarity: "Common",
     deathrattle: [draw(1)],
+    sfx: sfx(
+      ["VO_EX1_096_Play_01.ogg"],
+      ["VO_EX1_096_Attack_02.ogg"],
+      ["VO_EX1_096_Death_03.ogg"],
+    ),
   },
   "argent-squire": {
     title: "Argent Squire",

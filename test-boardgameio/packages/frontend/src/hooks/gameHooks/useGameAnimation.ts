@@ -129,5 +129,7 @@ export const useGameAnimation = ({ ctx, G, ...props }: Props) => {
   return {
     visualCtx,
     visualGameState,
+    setVisualGameState,
+    setVisualCtx,
   };
 };

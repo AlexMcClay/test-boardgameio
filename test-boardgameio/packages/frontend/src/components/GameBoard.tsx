@@ -51,11 +51,12 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   const { isAnimating, activeAnimations } = useAnimationStore();
 
   // Animation hook
-  const { visualCtx, visualGameState } = useGameAnimation({
-    ctx,
-    G,
-    playerID: props.playerID,
-  });
+  const { visualCtx, visualGameState, setVisualGameState, setVisualCtx } =
+    useGameAnimation({
+      ctx,
+      G,
+      playerID: props.playerID,
+    });
 
   const mainPlayer = props.playerID ?? ctx.currentPlayer;
   const enemyPlayer = mainPlayer == "0" ? "1" : "0";
@@ -150,6 +151,21 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     isAnimating,
     visualGameState,
   ]);
+
+  // add useEffect event listenr for tilde to log G.eventHistory
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "l") {
+        setVisualGameState(G);
+        setVisualCtx(ctx);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [G, ctx]);
 
   // console.log(ctx.phase, "Current phase");
 
@@ -252,7 +268,11 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           moves={moves}
           {...props}
         />
-        <EventHistory ctx={visualCtx} G={visualGameState} playerID={mainPlayer} />
+        <EventHistory
+          ctx={visualCtx}
+          G={visualGameState}
+          playerID={mainPlayer}
+        />
         <DndContext
           onDragEnd={handleDragEnd}
           onDragOver={handleDragOver}
