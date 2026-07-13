@@ -6,14 +6,19 @@ import type {
   TargetValue,
   EffectTypes,
   EffectContext,
+  HeroPower,
 } from "./types";
 import {
+  createCardFromID,
   getAttack,
   getCurrentHealth,
   getManaCost,
   getMaxHealth,
+  getPlayerAttack,
+  isUserSelectValue,
 } from "./utils";
 import { resolveDynamicValue } from "./utils/effectEngine";
+import { checkTargetRestrictions } from "./utils/validateMove";
 
 // Types for AI moves
 export type AIMove = {
@@ -53,6 +58,14 @@ export function enumerateAIMoves(G: GameState, ctx: Ctx): AIMove[] {
   // Enumerate all possible attacks from board
   const attackMoves = enumerateAttacks(G, ctx);
   moves.push(...attackMoves);
+
+  // Enumerate hero power usage
+  const heroPowerMoves = enumerateHeroPower(G, ctx, player);
+  moves.push(...heroPowerMoves);
+
+  // Enumerate hero (weapon) attacks
+  const heroAttackMoves = enumerateHeroAttacks(G, ctx, player);
+  moves.push(...heroAttackMoves);
 
   // Calculate intelligent endTurn score based on game state
   const wastedMana = player.mana;
@@ -100,9 +113,10 @@ export function enumerateAIMoves(G: GameState, ctx: Ctx): AIMove[] {
     });
   }
 
-  // Return only top 10 moves to prevent infinite loops
+  // Return only top moves to prevent infinite loops (widened from 10 to make
+  // room for hero power / hero attack moves alongside card plays & attacks)
   // console.log("SCORE MOVES", scoredMoves);
-  return scoredMoves.slice(0, 10);
+  return scoredMoves.slice(0, 20);
 }
 
 /**
@@ -361,6 +375,131 @@ function enumerateHandPlays(G: GameState, ctx: Ctx, player: Player): AIMove[] {
 }
 
 /**
+ * Enumerate hero power usage moves
+ */
+function enumerateHeroPower(G: GameState, ctx: Ctx, player: Player): AIMove[] {
+  const moves: AIMove[] = [];
+  const heroPower = player.hero?.heroPower;
+
+  if (!heroPower) return moves;
+  if (player.heroPowerUsedThisTurn) return moves;
+  if (player.mana < heroPower.manaCost) return moves;
+
+  const requiresTarget = heroPower.effects.some(
+    (effect) =>
+      isUserSelectValue(effect) && (effect as any).target === "user-select",
+  );
+
+  if (!requiresTarget) {
+    moves.push({
+      move: "useHeroPower",
+      args: [],
+      score: scoreHeroPower(G, ctx, heroPower, undefined),
+      description: `Use hero power: ${heroPower.name}`,
+    });
+    return moves;
+  }
+
+  const enemyPlayerId = ctx.currentPlayer === "0" ? "1" : "0";
+
+  heroPower.targetQuery.type.forEach((targetType) => {
+    const { side } = heroPower.targetQuery;
+    if (targetType === "card") {
+      if (side === "all" || side === "enemy") {
+        G.board[enemyPlayerId].forEach((enemyCard) => {
+          const target: TargetValue = {
+            type: "card",
+            id: enemyCard.id,
+            player: enemyPlayerId,
+          };
+          moves.push({
+            move: "useHeroPower",
+            args: [target],
+            score: scoreHeroPower(G, ctx, heroPower, target),
+            description: `Hero power: ${heroPower.name} on ${enemyCard.title}`,
+          });
+        });
+      }
+      if (side === "all" || side === "friendly") {
+        G.board[ctx.currentPlayer].forEach((friendlyCard) => {
+          const target: TargetValue = {
+            type: "card",
+            id: friendlyCard.id,
+            player: ctx.currentPlayer,
+          };
+          moves.push({
+            move: "useHeroPower",
+            args: [target],
+            score: scoreHeroPower(G, ctx, heroPower, target),
+            description: `Hero power: ${heroPower.name} on ${friendlyCard.title}`,
+          });
+        });
+      }
+    } else if (targetType === "player") {
+      if (side === "all" || side === "enemy") {
+        const target: TargetValue = {
+          type: "player",
+          id: enemyPlayerId,
+          player: enemyPlayerId,
+        };
+        moves.push({
+          move: "useHeroPower",
+          args: [target],
+          score: scoreHeroPower(G, ctx, heroPower, target),
+          description: `Hero power: ${heroPower.name} on enemy hero`,
+        });
+      }
+      if (side === "all" || side === "friendly") {
+        const target: TargetValue = {
+          type: "player",
+          id: ctx.currentPlayer,
+          player: ctx.currentPlayer,
+        };
+        moves.push({
+          move: "useHeroPower",
+          args: [target],
+          score: scoreHeroPower(G, ctx, heroPower, target),
+          description: `Hero power: ${heroPower.name} on own hero`,
+        });
+      }
+    }
+  });
+
+  return moves;
+}
+
+/**
+ * Score using a hero power
+ */
+function scoreHeroPower(
+  G: GameState,
+  ctx: Ctx,
+  heroPower: HeroPower,
+  target: TargetValue | undefined,
+): number {
+  let score = 15; // Baseline value for spending mana on hero power
+  score += heroPower.manaCost * 5; // Mana efficiency, same weight as card plays
+
+  heroPower.effects.forEach((effect) => {
+    score += evaluateEffect(effect, {
+      G,
+      ctx,
+      heroPower,
+      location: "hand",
+      playerID: ctx.currentPlayer,
+      target,
+      type: "heroPower",
+      sourceEventIndex: G.eventHistory.length,
+      excessDamageDealt: 0,
+      lastDamageDealt: 0,
+      temp: 0,
+    });
+  });
+
+  return score;
+}
+
+/**
  * Enumerate all possible attacks from board
  */
 function enumerateAttacks(G: GameState, ctx: Ctx): AIMove[] {
@@ -455,6 +594,125 @@ function enumerateAttacks(G: GameState, ctx: Ctx): AIMove[] {
   });
 
   return moves;
+}
+
+/**
+ * Enumerate hero attacks (using base attack and/or an equipped weapon)
+ */
+function enumerateHeroAttacks(
+  G: GameState,
+  ctx: Ctx,
+  player: Player,
+): AIMove[] {
+  const moves: AIMove[] = [];
+
+  if (
+    player.attacksLeft <= 0 ||
+    player.frozen ||
+    getPlayerAttack(player) <= 0
+  ) {
+    return moves;
+  }
+
+  const enemyPlayerId = ctx.currentPlayer === "0" ? "1" : "0";
+  const enemyPlayer = G.players[enemyPlayerId];
+  const enemyTaunts = G.board[enemyPlayerId].filter((c) => c.taunt);
+  const candidateTargets: TargetValue[] = [];
+
+  if (enemyTaunts.length > 0) {
+    enemyTaunts.forEach((tauntCard) => {
+      candidateTargets.push({
+        type: "card",
+        id: tauntCard.id,
+        player: enemyPlayerId,
+      });
+    });
+  } else {
+    G.board[enemyPlayerId].forEach((enemyCard) => {
+      candidateTargets.push({
+        type: "card",
+        id: enemyCard.id,
+        player: enemyPlayerId,
+      });
+    });
+    candidateTargets.push({
+      type: "player",
+      id: enemyPlayerId,
+      player: enemyPlayerId,
+    });
+  }
+
+  candidateTargets.forEach((target) => {
+    const restriction = checkTargetRestrictions(G, ctx.currentPlayer, target);
+    if (!restriction.ok) return;
+
+    if (target.type === "card") {
+      const targetCard = G.board[enemyPlayerId].find((c) => c.id === target.id);
+      if (!targetCard) return;
+      const score = scoreHeroAttack(player, targetCard, "card");
+      moves.push({
+        move: "heroAttack",
+        args: [target],
+        score,
+        description: `Attack ${targetCard.title} with hero`,
+      });
+    } else {
+      const score = scoreHeroAttack(player, enemyPlayer, "player");
+      moves.push({
+        move: "heroAttack",
+        args: [target],
+        score,
+        description: `Attack face with hero`,
+      });
+    }
+  });
+
+  return moves;
+}
+
+/**
+ * Score a hero (weapon) attack. Similar to scoreAttack, but weighted more
+ * conservatively since losing the hero ends the game.
+ */
+function scoreHeroAttack(
+  attacker: Player,
+  target: Card | Player,
+  targetType: "card" | "player",
+): number {
+  let score = 0;
+  const attackValue = getPlayerAttack(attacker);
+  const attackerHealth = attacker.health + attacker.armor;
+
+  if (targetType === "card") {
+    const targetCard = target as Card;
+    const targetHealth = getCurrentHealth(targetCard) || 0;
+    const targetAttack = getAttack(targetCard) || 0;
+
+    if (targetHealth > 0 && targetHealth <= attackValue) {
+      score += 50;
+      score += targetAttack * 6;
+      score += targetHealth * 3;
+      if (targetAttack >= 6) score += 40;
+      else if (targetAttack >= 4) score += 20;
+      if (targetCard.taunt) score += 25;
+    } else {
+      score += attackValue * 3;
+    }
+
+    // Never risk the hero's life for a partial trade against a minion
+    // that survives and hits back.
+    if (targetAttack > 0 && attackerHealth <= targetAttack) {
+      score -= 200;
+    }
+  } else {
+    score += attackValue * 8;
+    const targetPlayer = target as Player;
+    if (targetPlayer.health <= attackValue) {
+      score += 1000; // LETHAL!
+    }
+  }
+
+  return score;
 }
 
 /**
@@ -676,6 +934,22 @@ function scoreCardPlay(
     score += 25; // Base spell value to balance with minion scoring
   }
 
+  // Weapon value - repeated attack power over its durability
+  if (card.isWeapon) {
+    score += 15; // Base value for gaining a weapon
+    score += (card.baseAttack ?? 0) * (card.baseDurability ?? 1) * 6;
+  }
+
+  // Base context fields so DynamicValues like excess-damage/damage-dealt/temp
+  // don't silently resolve to 0 while scoring (they're populated for real
+  // during actual effect execution, but scoring runs ahead of that).
+  const baseContextFields = {
+    sourceEventIndex: G.eventHistory.length,
+    excessDamageDealt: 0,
+    lastDamageDealt: 0,
+    temp: 0,
+  };
+
   // Spell/Effect value
   card.effects.forEach((effect) => {
     score += evaluateEffect(effect, {
@@ -686,6 +960,7 @@ function scoreCardPlay(
       playerID: ctx.currentPlayer,
       target,
       type: "spell",
+      ...baseContextFields,
     });
   });
 
@@ -700,6 +975,7 @@ function scoreCardPlay(
         playerID: ctx.currentPlayer,
         target,
         type: "minion",
+        ...baseContextFields,
       });
     });
   }
@@ -716,6 +992,7 @@ function scoreCardPlay(
         playerID: ctx.currentPlayer,
         target,
         type: "minion",
+        ...baseContextFields,
       });
       score += deathrattleValue * 0.4; // 40% of full effect value
     });
@@ -1077,7 +1354,8 @@ function evaluateEffect(effect: EffectTypes, context: EffectContext): number {
     case "taunt":
     case "charge":
     case "rush":
-    case "stealth": {
+    case "stealth":
+    case "windfury": {
       // These are buffs - only good on friendly minions
       if (effect.target === "user-select" && target?.type === "card") {
         const isFriendly = target.player === ctx.currentPlayer;
@@ -1088,10 +1366,25 @@ function evaluateEffect(effect: EffectTypes, context: EffectContext): number {
           if (effect.type === "charge") score += 12; // Immediate value
           if (effect.type === "rush") score += 10; // Can trade immediately
           if (effect.type === "stealth") score += 5; // Protected for one turn
+          if (effect.type === "windfury") {
+            const targetCard = G.board[target.player].find(
+              (c) => c.id === target.id,
+            );
+            score += (getAttack(targetCard || ({} as Card)) || 0) * 4; // Extra attack is valuable
+          }
         } else {
           // Bad - don't buff enemy minions
           score -= 100;
         }
+      } else if (
+        effect.target === "friendly-all" ||
+        effect.target === "friendly-board"
+      ) {
+        if (effect.type === "taunt") score += 15;
+        if (effect.type === "charge") score += 12;
+        if (effect.type === "rush") score += 10;
+        if (effect.type === "stealth") score += 5;
+        if (effect.type === "windfury") score += 20;
       }
       break;
     }
@@ -1139,6 +1432,96 @@ function evaluateEffect(effect: EffectTypes, context: EffectContext): number {
       // } else if (effect.key === "charge" && resolveDynamicValue(effect.value, context) === true) {
       //   score += 12; // Charge adds immediate value
       // }
+      break;
+    }
+
+    case "sequence": {
+      // Recurse into each step of the sequence
+      effect.steps.forEach((step) => {
+        score += evaluateEffect(step, context);
+      });
+      break;
+    }
+
+    case "conditional": {
+      // Best-effort: we don't fully re-check conditions during scoring, so
+      // average the "then" and "else" branches to approximate expected value
+      const thenScore = effect.then.reduce(
+        (sum, step) => sum + evaluateEffect(step, context),
+        0,
+      );
+      if (effect.else && effect.else.length > 0) {
+        const elseScore = effect.else.reduce(
+          (sum, step) => sum + evaluateEffect(step, context),
+          0,
+        );
+        score += (thenScore + elseScore) / 2;
+      } else {
+        score += thenScore;
+      }
+      break;
+    }
+
+    case "storeVar": {
+      // No direct board impact - it only sets up a later step in a sequence
+      break;
+    }
+
+    case "addToHand": {
+      // Card advantage is very valuable
+      const count = resolveDynamicValue(effect.value, context);
+      score += count * 12;
+      break;
+    }
+
+    case "returnToHand":
+    case "bounce": {
+      // Good tempo/removal-lite when bouncing enemy minions, bad on friendly ones
+      if (effect.target === "user-select" && target?.type === "card") {
+        const isFriendly = target.player === ctx.currentPlayer;
+        const targetCard = G.board[target.player].find(
+          (c) => c.id === target.id,
+        );
+        if (targetCard) {
+          if (isFriendly) {
+            score -= 30; // Losing board presence/tempo on our own minion
+          } else {
+            score += 20 + (getAttack(targetCard) || 0) * 3; // Tempo removal
+          }
+        }
+      } else if (effect.target === "enemy-board") {
+        score += G.board[enemyPlayerId].length * 15;
+      } else if (effect.target === "friendly-board") {
+        score -= G.board[ctx.currentPlayer].length * 15;
+      }
+      break;
+    }
+
+    case "discard": {
+      const discardTarget = effect.target === "enemy" ? "enemy" : "self";
+      const count = resolveDynamicValue(effect.value, context);
+      if (discardTarget === "enemy") {
+        score += count * 15; // Opponent card disadvantage
+      } else {
+        score -= count * 20; // We lose cards
+      }
+      break;
+    }
+
+    case "equip": {
+      // Value based on the referenced weapon template's stats
+      const weaponTemplate = createCardFromID(
+        effect.cardID as Parameters<typeof createCardFromID>[0],
+      );
+      if (weaponTemplate) {
+        const equipTarget = effect.target === "enemy" ? "enemy" : "self";
+        const value =
+          15 +
+          (weaponTemplate.baseAttack ?? 0) *
+            (weaponTemplate.baseDurability ?? 1) *
+            6;
+        score += equipTarget === "self" ? value : -value;
+      }
       break;
     }
   }
