@@ -274,6 +274,6 @@ export const heros: Hero[] = [
   warlockHero,
   mageHero,
   priestHero,
-  demonHunterHero,
-  deathKnightHero,
+  // demonHunterHero,
+  // deathKnightHero,
 ];

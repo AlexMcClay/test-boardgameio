@@ -785,7 +785,7 @@ const CollectionManager = () => {
             <h2 className="text-[2vw] font-bold text-amber-300 text-center mb-[2vw]">
               Select a Hero
             </h2>
-            <div className="grid grid-cols-4 gap-[1vw]">
+            <div className="grid grid-cols-3 gap-[1vw]">
               {heros.map((hero) => (
                 <button
                   key={hero.heroName}

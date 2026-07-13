@@ -736,6 +736,23 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    sfx: {
+      attack: [
+        {
+          soundId: "/cards/Shieldmasta/VO_CS2_179_Attack_02.ogg",
+        },
+      ],
+      death: [
+        {
+          soundId: "/cards/Shieldmasta/VO_CS2_179_Death_03.ogg",
+        },
+      ],
+      play: [
+        {
+          soundId: "/cards/Shieldmasta/VO_CS2_179_Play_01.ogg",
+        },
+      ],
+    },
   },
   "lord-of-the-arena": {
     title: "Lord of the Arena",

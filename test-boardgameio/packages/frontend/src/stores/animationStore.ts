@@ -123,55 +123,60 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
 
       const hitCountsByTarget: Record<string, number> = {};
 
-      const animationPromises = currentBatch.animations.map((animation) => {
-        return new Promise<void>((resolve) => {
-          const runtimeUid = `${animation.type}-${randomIDGen()}`;
-          const runtimeAnim: ActiveAnimationEvent = {
-            ...animation,
-            uid: runtimeUid,
-          };
+      const animationPromises = currentBatch.animations.map(
+        (animation, i, animations) => {
+          return new Promise<void>((resolve) => {
+            const runtimeUid = `${animation.type}-${randomIDGen()}`;
+            const runtimeAnim: ActiveAnimationEvent = {
+              ...animation,
+              uid: runtimeUid,
+            };
 
-          let adjustedStartTime = animation.startTime;
+            let adjustedStartTime = animation.startTime;
 
-          if (animation.type === "hitNumber") {
-            const targetId = animation.targetId;
+            if (animation.type === "hitNumber") {
+              const targetId = animation.targetId;
 
-            // Initialize or increment the count for this specific target
-            if (hitCountsByTarget[targetId] === undefined) {
-              hitCountsByTarget[targetId] = 0;
-            } else {
-              hitCountsByTarget[targetId]++;
+              // Initialize or increment the count for this specific target
+              if (hitCountsByTarget[targetId] === undefined) {
+                hitCountsByTarget[targetId] = 0;
+              } else {
+                hitCountsByTarget[targetId]++;
+              }
+
+              // Stagger delay (300ms) ONLY applies if this target has already been hit in this batch
+              adjustedStartTime += hitCountsByTarget[targetId] * 300;
             }
-
-            // Stagger delay (300ms) ONLY applies if this target has already been hit in this batch
-            adjustedStartTime += hitCountsByTarget[targetId] * 300;
-          }
-          setTimeout(() => {
-            if (animation.type === "death") {
-              useAudioStore.getState().playSfx("minion-death");
-            }
-
-            if ("sfx" in animation && animation.sfx) {
-              animation.sfx.forEach(({ soundId, volume, delay }) => {
-                if (delay) {
-                  setTimeout(() => {
-                    useAudioStore.getState().playSfx(soundId, volume);
-                  }, delay);
-                } else {
-                  useAudioStore.getState().playSfx(soundId, volume);
-                }
-              });
-            }
-
-            get().addActiveAnimation(runtimeAnim);
-
             setTimeout(() => {
-              get().removeActiveAnimation(runtimeAnim);
-              resolve();
-            }, animation.duration);
-          }, adjustedStartTime);
-        });
-      });
+              if (
+                animation.type === "death" &&
+                animations.findIndex((a) => a.type === "death") === i
+              ) {
+                useAudioStore.getState().playSfx("minion-death");
+              }
+
+              if ("sfx" in animation && animation.sfx) {
+                animation.sfx.forEach(({ soundId, volume, delay }) => {
+                  if (delay) {
+                    setTimeout(() => {
+                      useAudioStore.getState().playSfx(soundId, volume);
+                    }, delay);
+                  } else {
+                    useAudioStore.getState().playSfx(soundId, volume);
+                  }
+                });
+              }
+
+              get().addActiveAnimation(runtimeAnim);
+
+              setTimeout(() => {
+                get().removeActiveAnimation(runtimeAnim);
+                resolve();
+              }, animation.duration);
+            }, adjustedStartTime);
+          });
+        },
+      );
 
       await Promise.all(animationPromises);
 

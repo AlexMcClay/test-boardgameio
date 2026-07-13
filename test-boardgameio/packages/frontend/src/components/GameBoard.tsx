@@ -34,6 +34,7 @@ import {
 import SettingsButton from "./SettingsButton";
 import { useGameAnimation, useGameTargeting } from "@/hooks";
 import { useAnimationStore } from "@/stores/animationStore";
+import EventHistory from "./Board/EventHistory";
 
 interface Props extends BoardProps<GameState> {}
 
@@ -251,6 +252,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           moves={moves}
           {...props}
         />
+        <EventHistory ctx={visualCtx} G={visualGameState} />
         <DndContext
           onDragEnd={handleDragEnd}
           onDragOver={handleDragOver}

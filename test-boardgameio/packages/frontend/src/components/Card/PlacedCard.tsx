@@ -38,6 +38,8 @@ const PlacedCard = ({
     if (isAttacking) {
       setTimeout(() => {
         playSfx("minion-attack");
+        card.sfx?.attack &&
+          card.sfx.attack.forEach((sfx) => playSfx(sfx.soundId, sfx.volume));
       }, 200);
     }
   }, [isAttacking]);

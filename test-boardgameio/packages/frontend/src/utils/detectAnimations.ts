@@ -63,7 +63,7 @@ export function detectAllAnimations(stateAfter: GameState): AnimationEvent[] {
       attackerPlayerId: event.attackerPlayerId,
       startTime: 0,
       duration: ATTACK_ANIMATION.duration,
-      sfx: event.card?.sfx?.attack,
+      // sfx: event.card?.sfx?.attack,
     });
   });
 
