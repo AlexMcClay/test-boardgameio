@@ -818,11 +818,11 @@ export const cardTemplates = {
   },
   innervate: {
     title: "Innervate",
-    description: "Gain 2 Mana Crystal this turn only.",
+    description: "Gain 1 Mana Crystal this turn only.",
     baseMana: 0,
-    type: ["Spell"],
+    type: ["Nature"],
     imageUrl: "assets/cards/Innervate.jpg",
-    effects: [mana(2)],
+    effects: [mana(1)],
     onPlace: [],
     isSpell: true,
     targetQuery: {
@@ -836,7 +836,7 @@ export const cardTemplates = {
     title: "Mark of the Wild",
     description: "Give a minion +2/+3 and Taunt.",
     baseMana: 2,
-    type: ["Spell"],
+    type: ["Nature"],
     imageUrl: "assets/cards/Mark_of_the_Wild.jpg",
     effects: [applyModifier("attack", 2), applyModifier("health", 3), taunt()],
     onPlace: [],
@@ -852,7 +852,7 @@ export const cardTemplates = {
     title: "Healing Touch",
     description: "Restore 8 Health.",
     baseMana: 3,
-    type: ["Spell"],
+    type: [],
     imageUrl: "assets/cards/Healing_Touch.jpg",
     effects: [heal(8)],
     onPlace: [],
@@ -2230,8 +2230,8 @@ export const cardTemplates = {
     isMinion: false,
     isSpell: true,
     targetQuery: {
-      side: "all",
-      type: ["card"], // Strictly targets a minion on the board
+      side: "enemy",
+      type: ["card", "player"],
     },
     effects: [freeze(), summon("water-elemental", "self", 2)],
     onPlace: [],

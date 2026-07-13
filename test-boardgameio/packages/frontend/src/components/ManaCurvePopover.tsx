@@ -55,14 +55,14 @@ const ManaCurvePopover = ({ deck, position, hero }: Props) => {
               <HeroPowerCircle heroPower={hero.heroPower!} />
             </div>
             <div>
-              <div className="  z-10   font-base text-[1.4vw] text-center font-extrabold text-white font-belwe text-shadow-A ">
+              <div className="  z-10   font-base text-[1.4vw] font-extrabold text-white font-belwe text-shadow-A ">
                 {hero.heroPower?.name}
               </div>
               <div className="  z-10   font-base">
-                <p className="text-[1vw] text-center font-[800]  text-white  font-base">
+                <p className="text-[1vw] font-[800]  text-white  font-base">
                   Hero Power
                 </p>
-                <p className="text-[1vw] font-[600] text-center text-white  font-base">
+                <p className="text-[1vw] font-[600] text-white  font-base">
                   {hero.heroPower?.description}
                 </p>
               </div>

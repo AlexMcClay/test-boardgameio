@@ -611,6 +611,13 @@ const CollectionManager = () => {
             className="absolute top-[0vh] left-[72vw] z-50"
             onMouseEnter={handleDeckMouseEnter}
             onMouseLeave={handleDeckMouseLeave}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              console.log(JSON.stringify(deck, null, 2));
+              window.navigator.clipboard.writeText(
+                JSON.stringify(deck, null, 2),
+              );
+            }}
           >
             <Deck
               type="edit"
