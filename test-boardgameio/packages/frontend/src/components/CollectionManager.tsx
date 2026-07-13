@@ -21,6 +21,7 @@ import { twMerge } from "tailwind-merge";
 import SettingsOverlay from "./SettingsOverlay";
 import SettingsButton from "./SettingsButton";
 import Deck from "./Deck";
+import ManaCurvePopover from "./ManaCurvePopover";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { classIcons } from "@/utils";
 
@@ -48,6 +49,13 @@ const CollectionManager = () => {
     y: number;
   } | null>(null);
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Mana curve popover state (shown to the left of the Deck in card-select mode)
+  const [showManaCurve, setShowManaCurve] = useState(false);
+  const [manaCurvePosition, setManaCurvePosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   const playSfx = useAudioStore((state) => state.playSfx);
 
@@ -305,6 +313,23 @@ const CollectionManager = () => {
       }
     }
   }, [mode]);
+
+  // Show the mana curve popover to the LEFT of the Deck component (card-select mode)
+  function handleDeckMouseEnter(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const popoverWidth = window.innerWidth * 0.16; // matches ManaCurvePopover's w-[16vw]
+    const spacing = 16;
+
+    let x = rect.left - popoverWidth - spacing;
+    if (x < 8) x = 8;
+
+    setManaCurvePosition({ x, y: rect.top });
+    setShowManaCurve(true);
+  }
+
+  function handleDeckMouseLeave() {
+    setShowManaCurve(false);
+  }
 
   function handleClassSelect(className: string) {
     playSfx("collection-manager-page-flip");
@@ -582,7 +607,11 @@ const CollectionManager = () => {
 
       {mode === "card-select" && selectedHero && (
         <>
-          <div className="absolute top-[0vh] left-[72vw] z-50">
+          <div
+            className="absolute top-[0vh] left-[72vw] z-50"
+            onMouseEnter={handleDeckMouseEnter}
+            onMouseLeave={handleDeckMouseLeave}
+          >
             <Deck
               type="edit"
               key={editingDeck?.id}
@@ -827,6 +856,11 @@ const CollectionManager = () => {
           position={popoverPosition}
           animate={false}
         />
+      )}
+
+      {/* Mana curve popover, shown to the left of the Deck (card-select mode) */}
+      {mode === "card-select" && showManaCurve && (
+        <ManaCurvePopover deck={deck} position={manaCurvePosition} />
       )}
 
       {/* Settings Button */}
