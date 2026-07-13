@@ -252,7 +252,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           moves={moves}
           {...props}
         />
-        <EventHistory ctx={visualCtx} G={visualGameState} />
+        <EventHistory ctx={visualCtx} G={visualGameState} playerID={mainPlayer} />
         <DndContext
           onDragEnd={handleDragEnd}
           onDragOver={handleDragOver}

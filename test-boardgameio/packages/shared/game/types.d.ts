@@ -110,6 +110,9 @@ export interface EffectContextBase {
   lastDamageDealt?: number;
   temp?: number;
   type: "spell" | "minion" | "heroPower" | "hero";
+  // Index into GameState.eventHistory of the top-level (cardPlayed/heroPower/attack)
+  // event that triggered this effect chain, so child events can reference it back.
+  sourceEventIndex?: number;
 }
 
 interface EffectContextWithCard extends EffectContextBase {
@@ -558,6 +561,7 @@ export type SummonEvent = {
   playerId: PlayerID;
   timestamp: number;
   card: Card; // Include full card data for easier animation handling
+  eventRef?: number; // Index of the top-level event that caused this
 };
 
 export type EquipEvent = {
@@ -566,6 +570,8 @@ export type EquipEvent = {
   playerId: PlayerID;
   timestamp: number;
   card: Card; // Include full weapon card data for easier animation handling
+  eventRef?: number; // Index of the top-level event that caused this
+  snapshot: Card; // Deep clone of the equipped weapon at record time
 };
 
 export type ArmorEvent = {
@@ -608,6 +614,8 @@ export type DrawCardEvent = {
   playerId: PlayerID;
   timestamp: number;
   cardId: string;
+  eventRef?: number; // Index of the top-level event that caused this
+  snapshot: Card; // Deep clone of the drawn card at record time
 };
 
 export type ChangeKeyEvent = {
@@ -666,6 +674,8 @@ export type DamageEvent = {
   playerId: PlayerID;
   value: number;
   timestamp: number;
+  eventRef?: number; // Index of the top-level event that caused this
+  snapshot: Card | Player; // Deep clone of the damaged card/player at record time
 };
 
 export type HealEvent = {
@@ -676,6 +686,8 @@ export type HealEvent = {
   playerId: PlayerID;
   value: number;
   timestamp: number;
+  eventRef?: number; // Index of the top-level event that caused this
+  snapshot: Card | Player; // Deep clone of the healed card/player at record time
 };
 
 export type DeathEvent = {
@@ -684,6 +696,8 @@ export type DeathEvent = {
   playerId: PlayerID;
   timestamp: number;
   card: Card; // The card that died, for sfx lookup
+  eventRef?: number; // Index of the top-level event that caused this
+  snapshot: Card; // Deep clone of the card at the moment it died
 };
 
 export type AddToHandEvent = {
@@ -693,6 +707,8 @@ export type AddToHandEvent = {
   timestamp: number;
   card: Card;
   source: "deck" | "global" | "graveyard" | "hand" | "board";
+  eventRef?: number; // Index of the top-level event that caused this
+  snapshot: Card; // Deep clone of the card at record time
 };
 
 export type ReturnToHandEvent = {
@@ -702,6 +718,8 @@ export type ReturnToHandEvent = {
   timestamp: number;
   card: Card;
   fromBoard: boolean;
+  eventRef?: number; // Index of the top-level event that caused this
+  snapshot: Card; // Deep clone of the card at record time
 };
 
 export type BurnCardEvent = {
@@ -728,6 +746,8 @@ export type DiscardEvent = {
   timestamp: number;
   card: Card;
   strategy: "random" | "highest-cost" | "lowest-cost" | "all";
+  eventRef?: number; // Index of the top-level event that caused this
+  snapshot: Card; // Deep clone of the card at record time
 };
 
 export interface SavedDeck {
@@ -743,7 +763,11 @@ export interface GameState {
   lastMove?: MoveMetadata; // Track last move for animation detection
   gameEvents: GameEvent[]; // Current move events (cleared each move)
   eventHistory: GameEvent[]; // Full game history (debug log)
-  activeBattlecryMinion?: { cardId: string; playerId: PlayerID } | null; // Tracks minion waiting to resolve targeted battlecry
+  activeBattlecryMinion?: {
+    cardId: string;
+    playerId: PlayerID;
+    sourceEventIndex: number; // Index of the cardPlayed event this battlecry belongs to
+  } | null; // Tracks minion waiting to resolve targeted battlecry
 
   // ADD THIS: Global tracking of spent spells and dead minions
   graveyard: {

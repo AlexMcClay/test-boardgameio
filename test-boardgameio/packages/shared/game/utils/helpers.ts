@@ -207,6 +207,7 @@ export function dealDamageToPlayer(
   sourceId: string,
   targetPlayerId: string,
   damageAmount: number,
+  sourceEventIndex?: number,
 ) {
   const targetPlayer = G.players[targetPlayerId];
   if (!targetPlayer) return;
@@ -233,6 +234,8 @@ export function dealDamageToPlayer(
     playerId: targetPlayerId,
     value: hadDivineShield && damageAmount > 0 ? 0 : damageAmount,
     timestamp: Date.now(),
+    eventRef: sourceEventIndex,
+    snapshot: JSON.parse(JSON.stringify(targetPlayer)),
   });
 }
 
@@ -241,6 +244,7 @@ export function healPlayer(
   sourceId: string,
   targetPlayerId: string,
   amount: number,
+  sourceEventIndex?: number,
 ) {
   const player = G.players[targetPlayerId];
   if (!player) return;
@@ -258,6 +262,8 @@ export function healPlayer(
     playerId: targetPlayerId,
     value: actualHeal,
     timestamp: Date.now(),
+    eventRef: sourceEventIndex,
+    snapshot: JSON.parse(JSON.stringify(player)),
   });
 }
 
@@ -267,6 +273,7 @@ export function dealDamageToCard(
   targetCard: Card, // This is our target minion
   targetPlayerId: string,
   damageAmount: number,
+  sourceEventIndex?: number,
 ) {
   if (!targetCard || !targetCard.isMinion) return;
   let hadDivineShield = false;
@@ -278,6 +285,11 @@ export function dealDamageToCard(
     hadDivineShield = true;
   }
 
+  const actualDamage = hadDivineShield && damageAmount > 0 ? 0 : damageAmount;
+
+  // Instead of subtracting directly from health, increase damage taken!
+  targetCard.damageTaken += actualDamage;
+
   // 2. STANDARD DAMAGE FALLBACK (If no shield is present or damage is 0)
   recordEvent(G, {
     type: "damage",
@@ -285,13 +297,11 @@ export function dealDamageToCard(
     targetId: targetCard.id,
     targetType: "card",
     playerId: targetPlayerId,
-    value: hadDivineShield && damageAmount > 0 ? 0 : damageAmount,
+    value: actualDamage,
     timestamp: Date.now(),
+    eventRef: sourceEventIndex,
+    snapshot: JSON.parse(JSON.stringify(targetCard)),
   });
-
-  // Instead of subtracting directly from health, increase damage taken!
-  targetCard.damageTaken +=
-    hadDivineShield && damageAmount > 0 ? 0 : damageAmount;
 }
 
 export function healCard(
@@ -300,6 +310,7 @@ export function healCard(
   targetCard: Card,
   playerId: string,
   amount: number,
+  sourceEventIndex?: number,
 ) {
   if (!targetCard || !targetCard.isMinion) return;
 
@@ -319,6 +330,8 @@ export function healCard(
     playerId,
     value: actualHeal,
     timestamp: Date.now(),
+    eventRef: sourceEventIndex,
+    snapshot: JSON.parse(JSON.stringify(targetCard)),
   });
 }
 
@@ -356,6 +369,7 @@ export function addCardToHand(
   card: Card,
   modifiers?: ApplyModifierEffect[],
   source: "deck" | "global" | "graveyard" | "hand" | "board" = "global",
+  sourceEventIndex?: number,
 ) {
   const player = G.players[playerID];
 
@@ -389,6 +403,8 @@ export function addCardToHand(
       timestamp: Date.now(),
       card,
       source,
+      eventRef: sourceEventIndex,
+      snapshot: JSON.parse(JSON.stringify(card)),
     });
   }
 }
@@ -402,6 +418,7 @@ export function returnCardToHand(
   card: Card,
   ownerID: string,
   modifiers?: import("../types").ApplyModifierEffect[],
+  sourceEventIndex?: number,
 ) {
   // Remove card from board
   const boardIndex = G.board[ownerID].findIndex((c) => c.id === card.id);
@@ -413,7 +430,7 @@ export function returnCardToHand(
   const resetCard = stripCardModifiers(card);
 
   // Add to hand with new modifiers
-  addCardToHand(G, ownerID, resetCard, modifiers, "board");
+  addCardToHand(G, ownerID, resetCard, modifiers, "board", sourceEventIndex);
 
   recordEvent(G, {
     type: "returnToHand",
@@ -422,6 +439,8 @@ export function returnCardToHand(
     timestamp: Date.now(),
     card: resetCard,
     fromBoard: true,
+    eventRef: sourceEventIndex,
+    snapshot: JSON.parse(JSON.stringify(resetCard)),
   });
 }
 
@@ -579,6 +598,7 @@ export function discardCardsFromHand(
   count: number,
   strategy: "random" | "highest-cost" | "lowest-cost" | "all",
   turn: number,
+  sourceEventIndex?: number,
 ) {
   const player = G.players[playerId];
 
@@ -642,6 +662,8 @@ export function discardCardsFromHand(
         timestamp: Date.now(),
         card: card,
         strategy: strategy,
+        eventRef: sourceEventIndex,
+        snapshot: JSON.parse(JSON.stringify(card)),
       });
     } else {
       console.warn("card not found", card.id, card.title);
