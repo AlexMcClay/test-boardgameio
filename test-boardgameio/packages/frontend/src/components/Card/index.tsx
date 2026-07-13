@@ -13,7 +13,7 @@ const healthIcon = "assets/health.png";
 const cardBackground = "assets/card_parts/card.png";
 const cardBackgroundMinion = "assets/card_parts/minion_card.png";
 const cardBackgroundWeapon = "assets/card_parts/weapon.png";
-const cardBackgroundMinionLegendary = "assets/card_parts/legendary_minion.png";
+// const cardBackgroundMinionLegendary = "assets/card_parts/legendary_minion.png";
 
 interface Props extends CardProps {}
 
