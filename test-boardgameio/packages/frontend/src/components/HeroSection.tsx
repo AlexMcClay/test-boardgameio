@@ -367,7 +367,7 @@ const HeroSection = ({ player, ...props }: Props) => {
       ) : null}
 
       <AnimatePresence>
-        {getPlayerAttack(player) ? (
+        {getPlayerAttack(player) && props.ctx.currentPlayer === player.id ? (
           <motion.div
             initial={{
               scale: 0.5,

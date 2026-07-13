@@ -381,6 +381,7 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Mage",
+    sfx: sfx(["Mage_ArcaneIntellect_Cast_1.ogg"]),
   },
   "boulderfist-ogre": {
     title: "Boulderfist Ogre",
@@ -1660,6 +1661,13 @@ export const cardTemplates = {
     targetQuery: {
       side: "all",
       type: ["card"],
+      conditions: [
+        {
+          type: "boolean",
+          key: "divineShield",
+          value: false,
+        },
+      ],
     },
     isMinion: false,
     class: "Paladin",
