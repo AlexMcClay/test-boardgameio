@@ -4,132 +4,146 @@ import {
   mageHero,
   paladinHero,
   rogueHero,
+  warlockHero,
   warriorHero,
 } from "./heros";
 
 export const warriorDeckString: DeckString = {
-  // ALL 6 Available Warrior Class Cards (12 cards total)
   "inner-rage": 2,
-  charge: 2,
-  whirlwind: 2,
-  "korkron-elite": 2,
-  "warsong-outrider": 2,
-  "cruel-taskmaster": 2,
+  charge: 1,
+  "fiery-war-axe": 2,
+  bash: 2,
   "shield-block": 2,
-  bash: 1,
-
-  // Mandatory Battlecry/Deathrattle Requirements (6 cards)
-  "loot-hoarder": 2, // Deathrattle
-  "novice-engineer": 1, // Battlecry
-  "murloc-tidehunter": 1, // Battlecry
-
-  // Valid Collectible Neutrals to fill up to 30 (12 cards)
-  "bluegill-warrior": 1,
-  wolfrider: 1,
-  "goldshire-footman": 2,
-  "chillwind-yeti": 1,
+  "mortal-strike": 1,
+  "korkron-elite": 2,
+  "warsong-outrider": 1,
+  "cruel-taskmaster": 2,
+  rampage: 2,
+  whirlwind: 1,
+  execute: 2,
+  "abusive-sargent": 1,
+  "goldshire-footman": 1,
   "senjin-shieldmasta": 2,
-  "boulderfist-ogre": 2,
-  "core-hound": 2,
-}; // Total: 30 cards
+  "silver-hand-knight": 1,
+  "lord-of-the-arena": 1,
+  "core-hound": 1,
+  "loot-hoarder": 1,
+  "booty-bay-bodyguard": 1,
+  "boulderfist-ogre": 1,
+};
 
 export const druidDeckString: DeckString = {
-  // ALL 6 Available Druid Class Cards (12 cards total)
   innervate: 2,
   "mark-of-the-wild": 2,
   "healing-touch": 2,
   "force-of-nature": 2,
-  starfire: 2,
   "ironbark-protector": 2,
-
-  // Mandatory Battlecry/Deathrattle Requirements (6 cards)
-  "loot-hoarder": 2, // Deathrattle
-  "novice-engineer": 2, // Battlecry
-  "darkscale-healer": 2, // Battlecry
-
-  // Valid Collectible Neutrals to fill up to 30 (12 cards)
-  "bloodfen-raptor": 2,
-  "river-crocolisk": 2,
+  starfire: 2,
+  "goldshire-footman": 2,
+  "abusive-sargent": 2,
+  "bloodfen-raptor": 1,
+  "river-crocolisk": 1,
+  "loot-hoarder": 1,
+  "novice-engineer": 1,
   "ironfur-grizzly": 2,
-  "silverback-patriarch": 2,
-  "oasis-snapjaw": 2,
-  "boulderfist-ogre": 2,
-}; // Total: 30 cards
+  "senjin-shieldmasta": 2,
+  "gnomish-inventor": 1,
+  nightblade: 1,
+  "silver-hand-knight": 1,
+  "boulderfist-ogre": 1,
+  sunwalker: 1,
+  "core-hound": 1,
+};
 
 export const mageDeckString: DeckString = {
-  // ALL 8 Available Mage Class Cards (16 cards total)
+  "mirror-image-spell": 1,
   "ice-lance": 2,
-  "mirror-image-spell": 2,
-  frostbolt: 2,
-  "arcane-intellect": 2,
+  frostbolt: 1,
   arcane_explosion: 2,
+  "arcane-intellect": 2,
   "frost-nova": 2,
-  fireball: 2,
-  blizzard: 2,
-  flamestrike: 1,
-
-  // Mandatory Battlecry/Deathrattle Requirements (6 cards)
-  "loot-hoarder": 2, // Deathrattle
-  "elven-archer": 1, // Battlecry
-  "gnomish-inventor": 2, // Battlecry
-
-  // Valid Collectible Neutrals to fill up to 30 (8 cards)
-  "murloc-raider": 1,
-  "chillwind-yeti": 1,
-  "senjin-shieldmasta": 2,
+  "arcane-missiles": 1,
   "water-elemental": 2,
-  "boulderfist-ogre": 2,
+  "deep-freeze": 1,
+  flamestrike: 1,
+  blizzard: 2,
+  fireball: 2,
+  "goldshire-footman": 1,
+  "loot-hoarder": 2,
+  "novice-engineer": 2,
+  "senjin-shieldmasta": 2,
+  "gnomish-inventor": 1,
+  "silver-hand-knight": 1,
+  "boulderfist-ogre": 1,
+  "lord-of-the-arena": 1,
 }; // Total: 30 cards
 
 export const paladinDeckString: DeckString = {
-  // ALL 7 Available Paladin Class Cards (13 cards total)
   "hand-of-protection": 2,
   shielded_minibot: 2,
   "argent-protector": 2,
   "blessing-of-kings": 2,
   "guardian-of-kings": 2,
+  "tirion-fordring": 1,
   "lay-on-hands": 2,
-  "tirion-fordring": 1, // Legendary Limit strictly kept at 1 copy!
-
-  // Mandatory Battlecry/Deathrattle Requirements (6 cards)
-  "loot-hoarder": 2, // Deathrattle
-  "novice-engineer": 2, // Battlecry
-  "silver-hand-knight": 2, // Battlecry
-
-  // Valid Collectible Neutrals to fill up to 30 (11 cards)
+  righteousness: 1,
+  "abusive-sargent": 2,
   "argent-squire": 2,
-  "goldshire-footman": 2,
-  "river-crocolisk": 1,
+  "goldshire-footman": 1,
+  wolfrider: 2,
+  "loot-hoarder": 1,
+  "ironforge-rifleman": 2,
   "senjin-shieldmasta": 2,
-  sunwalker: 2,
-  "boulderfist-ogre": 2,
-}; // Total: 30 cards
+  "gnomish-inventor": 1,
+  "silver-hand-knight": 2,
+  sunwalker: 1,
+};
 
 export const rogueDeckString: DeckString = {
-  // ALL 1 Available Rogue Class Card (2 cards total)
-  assassinate: 2,
   backstab: 2,
-  "sinister-strike": 2,
-  eviscerate: 2,
-  "fan-of-knives": 1,
   shadowstep: 2,
-
-  // Mandatory Battlecry/Deathrattle Requirements (10 cards)
-  "loot-hoarder": 2, // Deathrattle
-  "novice-engineer": 2, // Battlecry
-  "gnomish-inventor": 1, // Battlecry
-
-  // Valid Collectible Neutrals to fill up to 30 (18 cards)
-  "bloodfen-raptor": 1,
+  "sinister-strike": 2,
+  eviscerate: 1,
+  "fan-of-knives": 1,
+  sap: 2,
+  shiv: 2,
+  assassinate: 2,
+  "goldshire-footman": 2,
+  "abusive-sargent": 1,
+  "argent-squire": 1,
   wolfrider: 2,
-  "chillwind-yeti": 1,
-  "stormwind-knight": 2,
-  "booty-bay-bodyguard": 2,
-  "reckless-rocketeer": 2,
-  "boulderfist-ogre": 2,
-  "core-hound": 2,
+  "loot-hoarder": 1,
+  "razorfen-hunter": 2,
+  "senjin-shieldmasta": 1,
+  nightblade: 1,
+  "gnomish-inventor": 1,
+  "boulderfist-ogre": 1,
+  "booty-bay-bodyguard": 1,
+  "core-hound": 1,
+  "reckless-rocketeer": 1,
 }; // Total: 30 cards
 
+export const warlockDeckString: DeckString = {
+  "flame-imp": 2,
+  voidwalker: 2,
+  felstalker: 2,
+  "vulgar-homunculus": 2,
+  "pit-lord": 2,
+  "dread-infernal": 2,
+  doomguard: 1,
+  riftcleaver: 1,
+  voidlord: 1,
+  soulfire: 2,
+  "mortal-coil": 1,
+  demonfire: 2,
+  "drain-soul": 2,
+  "shadow-bolt": 2,
+  "drain-life": 1,
+  "siphon-soul": 2,
+  hellfire: 1,
+  "sacrificial-pact": 1,
+  "ironfur-grizzly": 1,
+};
 export interface Deck {
   hero: Hero;
   name: string;
@@ -142,4 +156,5 @@ export const premadeDecks: Deck[] = [
   { name: "Mage", deckString: mageDeckString, hero: mageHero },
   { name: "Paladin", deckString: paladinDeckString, hero: paladinHero },
   { name: "Rogue", deckString: rogueDeckString, hero: rogueHero },
+  { name: "Warlock", deckString: warlockDeckString, hero: warlockHero },
 ];

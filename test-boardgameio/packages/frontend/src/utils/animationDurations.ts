@@ -10,6 +10,14 @@ export const DEATH_ANIMATION: AnimationData = {
   duration: 300,
 };
 
+export const SPELL_CAST_ANIMATION: AnimationData = {
+  duration: 200,
+};
+
+export const MINION_PLACED_ANIMATION: AnimationData = {
+  duration: 100,
+};
+
 export const HIT_NUMBER_ANIMATION: AnimationData = {
   duration: 500,
 };

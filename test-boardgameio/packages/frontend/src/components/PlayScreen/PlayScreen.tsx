@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAudioStore } from "@/stores/audioStore";
 import { useDeckStore } from "@/stores/deckStore";
 import {
@@ -17,6 +17,8 @@ import { IoChevronBack, IoChevronForward, IoPerson } from "react-icons/io5";
 import { twMerge } from "tailwind-merge";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { classIcons } from "@/utils";
+import HeroPowerCircle from "../HeroPower/HeroPowerCircle";
+import HeroPowerPopover from "../HeroPower/HeroPowerPopover";
 
 const backgroundImage = "assets/play_screen/background.png";
 const playActive = "assets/play_screen/play.png";
@@ -69,6 +71,51 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
     (state) => state.setSelectedGameMode,
   );
 
+  const heroPowerRef = useRef<HTMLDivElement>(null);
+  // Hover popover state
+  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [showPopover, setShowPopover] = useState(false);
+  const [popoverPosition, setPopoverPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+
+  // Hover handlers for popover
+  const handleHeroPowerEnter = () => {
+    // Clear any existing timer
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+    }
+
+    // Start 1-second timer
+    hoverTimerRef.current = setTimeout(() => {
+      const rect = heroPowerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      // const vw = window.innerWidth / 100;
+
+      // Calculate position for popover
+
+      const x = rect.right - rect.width * 1.25;
+
+      const y = rect.top - rect.height / 4;
+
+      setPopoverPosition({ x, y });
+      setShowPopover(true);
+    }, 100);
+  };
+
+  const handleHeroPowerLeave = () => {
+    // Clear timer if mouse leaves before 1 second
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+
+    // Hide popover
+    setShowPopover(false);
+  };
+
   useBackgroundMusic({
     autoplay: true,
   });
@@ -83,8 +130,7 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
     const unsubscribe = matchmakingWebSocketService.subscribe((msg) => {
       console.log("Received WebSocket message: ", msg);
 
-      if(msg.type === 'active_players_count')
-      {
+      if (msg.type === "active_players_count") {
         // Handle active players count update
         console.log("Active players count: ", msg.count);
         setActivePlayersCount(msg.count);
@@ -394,6 +440,23 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
                   {selectedDeckForPlay.name}
                 </p>
               </div>
+              <div
+                onMouseEnter={handleHeroPowerEnter}
+                onMouseLeave={handleHeroPowerLeave}
+                ref={heroPowerRef}
+                className="absolute top-[20.6vw] z-10 left-[15vw]"
+              >
+                <HeroPowerCircle
+                  heroPower={selectedDeckForPlay.hero.heroPower!}
+                />
+              </div>
+              {showPopover && (
+                <HeroPowerPopover
+                  heroPower={selectedDeckForPlay.hero.heroPower!}
+                  isTop={false}
+                  position={popoverPosition}
+                />
+              )}
             </>
           ) : (
             <></>

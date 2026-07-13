@@ -40,6 +40,10 @@ export const SFX_MANIFEST = {
     path: "/gameplay/FX_FreezeEvent_StateEnd.ogg",
     preload: true,
   },
+  "divine-shield": {
+    path: "/gameplay/spell_DivineShield_target_1.ogg",
+    preload: true,
+  },
 
   // Basic minion
   "minion-attack": {

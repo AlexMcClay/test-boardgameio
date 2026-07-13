@@ -42,6 +42,10 @@ export function resolveDynamicValue(
       break;
 
     case "card-stat":
+      if (!context.card) {
+        baseValue = 0;
+        break;
+      }
       if (val.stat === "attack") baseValue = getAttack(context.card);
       if (val.stat === "health") baseValue = getCurrentHealth(context.card);
       if (val.stat === "maxHealth") baseValue = getMaxHealth(context.card);
@@ -200,7 +204,7 @@ export function resolveTargets(
     case "self": {
       pool.push({
         type: "card",
-        id: context.card.id,
+        id: context.card!.id,
         ownerId: playerID,
         cardRef: context.card,
       });

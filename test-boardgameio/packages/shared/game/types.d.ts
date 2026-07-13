@@ -3,12 +3,22 @@ import type { Ctx, PlayerID } from "boardgame.io";
 
 export type DeckString = Partial<Record<CardTemplateKey, number>>;
 
+export interface HeroPower {
+  name: string;
+  description: string;
+  manaCost: number;
+  effects: Array<EffectTypes>;
+  targetQuery: TargetQuery;
+  imageUrl: string; // URL to the card image
+}
+
 export interface Hero {
   name: string;
   portrait: string;
   ability?: string;
   class: string;
   heroName: string;
+  heroPower?: HeroPower;
 }
 
 export interface Card {
@@ -28,6 +38,9 @@ export interface Card {
   summoningSickness?: boolean; // Optional, to track if minion was just placed (shows Zzz)
   isSpell?: boolean; // Optional, to indicate if the card is a spell
   isMinion: boolean; // Optional, to indicate if the card is a minion
+  isWeapon?: boolean; // Optional, to indicate if the card is a weapon
+  baseDurability?: number; // Weapon-only: charges before it breaks
+  durabilityLost?: number; // Weapon-only: parallel to damageTaken, charges used toward baseDurability
   isUncollectible?: boolean; // Optional, to indicate if the card is uncollectible (like tokens)
   taunt?: boolean; // Optional, to indicate if the card has taunt
   frozen?: boolean;
@@ -47,16 +60,23 @@ export interface Card {
   battlecryQuery?: TargetQuery;
   class: string;
   sfx?: {
-    death?: string[];
-    play?: string[];
-    attack?: string[];
+    death?: SFXInstance[];
+    play?: SFXInstance[];
+    attack?: SFXInstance[];
   };
+}
+
+export interface SFXInstance {
+  soundId: string;
+  volume?: number;
+  delay?: number; // Optional delay in milliseconds before playing the sound
 }
 
 export interface Player {
   id: PlayerID;
   name: string;
   manaCrystals: number;
+  maxManaCrystals: number;
   heroPortrait: string;
   maxHealth: number;
   health: number;
@@ -70,12 +90,18 @@ export interface Player {
   hand: Card[];
   deck: Card[];
   burntCards: Card[]; // Cards that couldn't fit in hand (hand was full)
+  heroPowerUsedThisTurn: boolean;
+  hero: Hero;
+  weapon: Card | null; // Only one weapon can be equipped at a time
 }
 
-export interface EffectContext {
+export type EffectContext = EffectContextWithCard | EffectContextWithHeroPower;
+
+export interface EffectContextBase {
   G: GameState;
   ctx: Ctx;
-  card: Card;
+  card?: Card;
+  heroPower?: HeroPower;
   target?: TargetValue;
   playerID: string;
   location: "hand" | "board";
@@ -83,10 +109,27 @@ export interface EffectContext {
   excessDamageDealt?: number; // Stores math for cards like Piercing Shot
   lastDamageDealt?: number;
   temp?: number;
+  type: "spell" | "minion" | "heroPower" | "hero";
+  // Index into GameState.eventHistory of the top-level (cardPlayed/heroPower/attack)
+  // event that triggered this effect chain, so child events can reference it back.
+  sourceEventIndex?: number;
 }
 
-type EffectContextWithOptionalCard = Omit<EffectContext, "card"> &
-  Partial<Pick<EffectContext, "card">>;
+interface EffectContextWithCard extends EffectContextBase {
+  card: Card;
+  type: "minion" | "spell";
+}
+
+interface EffectContextWithHeroPower extends EffectContextBase {
+  heroPower: HeroPower;
+  type: "heroPower";
+}
+
+type EffectContextWithOptionalCard = Omit<
+  EffectContext,
+  "card" | "heroPower" | "type"
+> &
+  Partial<Pick<EffectContext, "card" | "heroPower" | "type">>;
 
 export interface ModifierLifecycle {
   // Who cast the buff? ("0" or "1")
@@ -104,7 +147,14 @@ export interface CardModifier {
   label?: string;
   sourceCardId: string;
   type: "aura" | "permanent" | "temporary"; // "temporary" modifications have a lifecycle
-  stat: "attack" | "health" | "mana" | "taunt" | "divineShield" | "frozen";
+  stat:
+    | "attack"
+    | "health"
+    | "mana"
+    | "taunt"
+    | "divineShield"
+    | "frozen"
+    | "durability";
   value: number;
   lifecycle?: ModifierLifecycle; // Optional metadata for temporal mechanics
   override: boolean;
@@ -223,7 +273,9 @@ export type EffectTypes =
   | BounceEffect
   | StoreTempVarEffect
   | AddToHandEffect
-  | ReturnToHandEffect;
+  | ReturnToHandEffect
+  | DiscardEffect
+  | EquipEffect;
 
 export interface StoreTempVarEffect {
   type: "storeVar";
@@ -269,7 +321,6 @@ export interface AddToHandEffect {
   fallback?: {
     // If no matches found (e.g., "Sense Demons")
     cardID: string;
-    value: number;
   };
 }
 
@@ -383,9 +434,22 @@ type ArmorEffect = {
   value: number | DynamicValue;
 };
 
+type EquipEffect = {
+  type: "equip";
+  target: "self" | "enemy";
+  cardID: string; // ID of the weapon card to equip
+};
+
 type ManaEffect = {
   type: "mana";
   value: number | DynamicValue;
+};
+
+type DiscardEffect = {
+  type: "discard";
+  strategy: "random" | "highest-cost" | "lowest-cost" | "all";
+  value: number | DynamicValue;
+  target?: "self" | "enemy";
 };
 
 // Move metadata for animation detection
@@ -404,6 +468,7 @@ export type GameEvent =
   | DamageEvent
   | HealEvent
   | DeathEvent
+  | CardPlayedEvent
   | MinionPlacedEvent
   | SummonEvent
   | EndTurnEvent
@@ -424,7 +489,17 @@ export type GameEvent =
   | DebugEvent
   | AddToHandEvent
   | ReturnToHandEvent
-  | BurnCardEvent;
+  | BurnCardEvent
+  | DiscardEvent
+  | HeroPowerEvent
+  | EquipEvent
+  | GameEndEvent;
+
+type GameEndEvent = {
+  type: "gameEnd";
+  winner: PlayerID | "draw";
+  timestamp: number;
+};
 
 type DebugEvent = {
   type: "debug";
@@ -486,6 +561,17 @@ export type SummonEvent = {
   playerId: PlayerID;
   timestamp: number;
   card: Card; // Include full card data for easier animation handling
+  eventRef?: number; // Index of the top-level event that caused this
+};
+
+export type EquipEvent = {
+  type: "equip";
+  cardId: string;
+  playerId: PlayerID;
+  timestamp: number;
+  card: Card; // Include full weapon card data for easier animation handling
+  eventRef?: number; // Index of the top-level event that caused this
+  snapshot: Card; // Deep clone of the equipped weapon at record time
 };
 
 export type ArmorEvent = {
@@ -528,6 +614,8 @@ export type DrawCardEvent = {
   playerId: PlayerID;
   timestamp: number;
   cardId: string;
+  eventRef?: number; // Index of the top-level event that caused this
+  snapshot: Card; // Deep clone of the drawn card at record time
 };
 
 export type ChangeKeyEvent = {
@@ -537,6 +625,15 @@ export type ChangeKeyEvent = {
   cardId: string;
   playerId: PlayerID;
   timestamp: number;
+};
+
+export type CardPlayedEvent = {
+  type: "cardPlayed";
+  cardId: string;
+  playerId: PlayerID;
+  timestamp: number;
+  card: Card; // Include full card data for easier animation handling
+  turn: number;
 };
 
 export type MinionPlacedEvent = {
@@ -557,6 +654,7 @@ export type AttackEvent = {
   attackerPlayerId: PlayerID;
   sourceId?: string; // Optional for extensibility
   timestamp: number;
+  card?: Card; // Attacking minion/weapon card, for sfx lookup (absent for bare hero attacks)
 };
 
 export type BattlecryEvent = {
@@ -576,6 +674,8 @@ export type DamageEvent = {
   playerId: PlayerID;
   value: number;
   timestamp: number;
+  eventRef?: number; // Index of the top-level event that caused this
+  snapshot: Card | Player; // Deep clone of the damaged card/player at record time
 };
 
 export type HealEvent = {
@@ -586,6 +686,8 @@ export type HealEvent = {
   playerId: PlayerID;
   value: number;
   timestamp: number;
+  eventRef?: number; // Index of the top-level event that caused this
+  snapshot: Card | Player; // Deep clone of the healed card/player at record time
 };
 
 export type DeathEvent = {
@@ -593,6 +695,9 @@ export type DeathEvent = {
   cardId: string;
   playerId: PlayerID;
   timestamp: number;
+  card: Card; // The card that died, for sfx lookup
+  eventRef?: number; // Index of the top-level event that caused this
+  snapshot: Card; // Deep clone of the card at the moment it died
 };
 
 export type AddToHandEvent = {
@@ -602,6 +707,8 @@ export type AddToHandEvent = {
   timestamp: number;
   card: Card;
   source: "deck" | "global" | "graveyard" | "hand" | "board";
+  eventRef?: number; // Index of the top-level event that caused this
+  snapshot: Card; // Deep clone of the card at record time
 };
 
 export type ReturnToHandEvent = {
@@ -611,6 +718,8 @@ export type ReturnToHandEvent = {
   timestamp: number;
   card: Card;
   fromBoard: boolean;
+  eventRef?: number; // Index of the top-level event that caused this
+  snapshot: Card; // Deep clone of the card at record time
 };
 
 export type BurnCardEvent = {
@@ -619,6 +728,26 @@ export type BurnCardEvent = {
   playerId: PlayerID;
   timestamp: number;
   card: Card;
+};
+
+export type HeroPowerEvent = {
+  type: "heroPower";
+  playerId: PlayerID;
+  timestamp: number;
+  targetId?: string;
+  targetType?: "card" | "player";
+  heroPower: HeroPower;
+};
+
+export type DiscardEvent = {
+  type: "discard";
+  cardId: string;
+  playerId: PlayerID;
+  timestamp: number;
+  card: Card;
+  strategy: "random" | "highest-cost" | "lowest-cost" | "all";
+  eventRef?: number; // Index of the top-level event that caused this
+  snapshot: Card; // Deep clone of the card at record time
 };
 
 export interface SavedDeck {
@@ -634,12 +763,24 @@ export interface GameState {
   lastMove?: MoveMetadata; // Track last move for animation detection
   gameEvents: GameEvent[]; // Current move events (cleared each move)
   eventHistory: GameEvent[]; // Full game history (debug log)
-  activeBattlecryMinion?: { cardId: string; playerId: PlayerID } | null; // Tracks minion waiting to resolve targeted battlecry
+  activeBattlecryMinion?: {
+    cardId: string;
+    playerId: PlayerID;
+    sourceEventIndex: number; // Index of the cardPlayed event this battlecry belongs to
+  } | null; // Tracks minion waiting to resolve targeted battlecry
 
   // ADD THIS: Global tracking of spent spells and dead minions
   graveyard: {
     card: Card;
     originalOwner: PlayerID;
     diedOnTurn: number;
+  }[];
+
+  // Tracking of discarded cards
+  discardedCards: {
+    card: Card;
+    originalOwner: PlayerID;
+    discardedOnTurn: number;
+    strategy: string;
   }[];
 }

@@ -7,7 +7,7 @@ import UserProfileButton from "./UserProfileButton";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import UserProfileOverlay from "./UserProfileOverlay";
 
-const backgroundImage = "assets/menu/main_menu.png";
+const backgroundImage = "assets/menu/main_menu.jpg";
 
 const MainMenu = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);

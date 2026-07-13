@@ -6,6 +6,7 @@ import type {
   DamageEffect,
   DynamicValue,
   EffectTypes,
+  SFXInstance,
 } from "../types";
 
 const damage = (
@@ -107,6 +108,19 @@ const draw = (value: number | DynamicValue): EffectTypes => {
 //   };
 // };
 
+const discard = (
+  count: number | DynamicValue,
+  strategy: "random" | "highest-cost" | "lowest-cost" | "all" = "random",
+  target: "self" | "enemy" = "self",
+): EffectTypes => {
+  return {
+    type: "discard",
+    value: count,
+    strategy: strategy,
+    target: target,
+  };
+};
+
 const summon = (
   cardID: string,
   target: "self" | "enemy" = "self",
@@ -187,6 +201,12 @@ const addRandomCard = (
   conditions: import("../types").TargetCondition[],
   count: number | DynamicValue = 1,
   modifiers?: ApplyModifierEffect[],
+  fallback?:
+    | {
+        cardID: string;
+        value: number;
+      }
+    | undefined,
 ): EffectTypes => {
   return {
     type: "addToHand",
@@ -195,6 +215,7 @@ const addRandomCard = (
     value: count,
     rand: { n: typeof count === "number" ? count : 1 },
     modifiers: modifiers,
+    fallback: fallback,
   };
 };
 
@@ -211,6 +232,22 @@ const returnToHand = (
     conditions: conditions,
     rand: randomCount ? { n: randomCount } : undefined,
     modifiers: modifiers,
+  };
+};
+
+const sfx = (
+  play: string[],
+  attack?: string[],
+  death?: string[],
+): {
+  death?: SFXInstance[] | undefined;
+  play?: SFXInstance[];
+  attack?: SFXInstance[];
+} => {
+  return {
+    death: death?.map((soundId) => ({ soundId: `/cards/${soundId}` })),
+    play: play?.map((soundId) => ({ soundId: `/cards/${soundId}` })),
+    attack: attack?.map((soundId) => ({ soundId: `/cards/${soundId}` })),
   };
 };
 
@@ -279,6 +316,17 @@ export const cardTemplates = {
 
     isMinion: false,
     class: "Mage",
+    sfx: {
+      play: [
+        {
+          soundId: "/cards/fireball/FX_FireballEvent03_SpellCast_01.ogg",
+        },
+        {
+          soundId: "/cards/fireball/FX_FireballEvent04_SpellImpact_01.ogg",
+          delay: 200,
+        },
+      ],
+    },
   },
   "mirror-image-spell": {
     title: "Mirror Image",
@@ -333,6 +381,7 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Mage",
+    sfx: sfx(["Mage_ArcaneIntellect_Cast_1.ogg"]),
   },
   "boulderfist-ogre": {
     title: "Boulderfist Ogre",
@@ -507,6 +556,28 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
   },
+  "silver-hand-recruit": {
+    title: "Silver Hand Recruit",
+    description: "",
+    baseAttack: 1,
+    baseHealth: 1,
+    baseMana: 1,
+    imageUrl: "assets/cards/Silver_Hand_Recruit.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    class: "Paladin",
+    isUncollectible: true,
+  },
   "frostwolf-grunt": {
     title: "Frostwolf Grunt",
     description: "Taunt.",
@@ -536,7 +607,7 @@ export const cardTemplates = {
     baseHealth: 1,
     baseMana: 2,
     type: ["Murloc"],
-    imageUrl: "assets/cards/Murloc_Raider.jpg",
+    imageUrl: "assets/cards/Murloc_Tidehunter.jpg",
     effects: [
       damage({
         stat: "attack",
@@ -553,12 +624,12 @@ export const cardTemplates = {
   },
   "murloc-scout": {
     title: "Murloc Scout",
-    description: "A small murloc.",
+    description: "",
     baseAttack: 1,
     baseHealth: 1,
     baseMana: 1,
     type: ["Murloc"],
-    imageUrl: "assets/cards/Murloc_Raider.jpg",
+    imageUrl: "assets/cards/Murloc_Scout.jpg",
     effects: [
       damage({
         stat: "attack",
@@ -683,6 +754,23 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    sfx: {
+      attack: [
+        {
+          soundId: "/cards/Shieldmasta/VO_CS2_179_Attack_02.ogg",
+        },
+      ],
+      death: [
+        {
+          soundId: "/cards/Shieldmasta/VO_CS2_179_Death_03.ogg",
+        },
+      ],
+      play: [
+        {
+          soundId: "/cards/Shieldmasta/VO_CS2_179_Play_01.ogg",
+        },
+      ],
+    },
   },
   "lord-of-the-arena": {
     title: "Lord of the Arena",
@@ -731,11 +819,11 @@ export const cardTemplates = {
   },
   innervate: {
     title: "Innervate",
-    description: "Gain 2 baseMana Crystal this turn only.",
+    description: "Gain 1 Mana Crystal this turn only.",
     baseMana: 0,
-    type: ["Spell"],
+    type: ["Nature"],
     imageUrl: "assets/cards/Innervate.jpg",
-    effects: [mana(2)],
+    effects: [mana(1)],
     onPlace: [],
     isSpell: true,
     targetQuery: {
@@ -749,7 +837,7 @@ export const cardTemplates = {
     title: "Mark of the Wild",
     description: "Give a minion +2/+3 and Taunt.",
     baseMana: 2,
-    type: ["Spell"],
+    type: ["Nature"],
     imageUrl: "assets/cards/Mark_of_the_Wild.jpg",
     effects: [applyModifier("attack", 2), applyModifier("health", 3), taunt()],
     onPlace: [],
@@ -765,7 +853,7 @@ export const cardTemplates = {
     title: "Healing Touch",
     description: "Restore 8 Health.",
     baseMana: 3,
-    type: ["Spell"],
+    type: [],
     imageUrl: "assets/cards/Healing_Touch.jpg",
     effects: [heal(8)],
     onPlace: [],
@@ -1070,6 +1158,23 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    sfx: {
+      attack: [
+        {
+          soundId: "/cards/VO_EX1_015_Attack_02.ogg",
+        },
+      ],
+      death: [
+        {
+          soundId: "/cards/VO_EX1_015_Death_03.ogg",
+        },
+      ],
+      play: [
+        {
+          soundId: "/cards/VO_EX1_015_Play_01.ogg",
+        },
+      ],
+    },
   },
   "stormpike-commando": {
     title: "Stormpike Commando",
@@ -1192,6 +1297,23 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    sfx: {
+      attack: [
+        {
+          soundId: "/cards/VO_CS1_042_Attack_02.ogg",
+        },
+      ],
+      death: [
+        {
+          soundId: "/cards/VO_CS1_042_Death_03.ogg",
+        },
+      ],
+      play: [
+        {
+          soundId: "/cards/VO_CS1_042_Play_01.ogg",
+        },
+      ],
+    },
   },
   "booty-bay-bodyguard": {
     title: "Booty Bay Bodyguard",
@@ -1358,6 +1480,11 @@ export const cardTemplates = {
     onPlace: [],
     rarity: "Common",
     deathrattle: [draw(1)],
+    sfx: sfx(
+      ["VO_EX1_096_Play_01.ogg"],
+      ["VO_EX1_096_Attack_02.ogg"],
+      ["VO_EX1_096_Death_03.ogg"],
+    ),
   },
   "argent-squire": {
     title: "Argent Squire",
@@ -1431,8 +1558,35 @@ export const cardTemplates = {
         type: "card-stat",
       }),
     ],
+    deathrattle: [
+      {
+        type: "equip",
+        cardID: "ashbringer",
+        target: "self",
+      },
+    ],
     rarity: "Legendary",
     onPlace: [],
+    sfx: {
+      attack: [
+        {
+          soundId: "/cards/Tirion/VO_EX1_383_Attack_02.ogg",
+        },
+      ],
+      death: [
+        {
+          soundId: "/cards/Tirion/VO_EX1_383_Death_03.ogg",
+        },
+      ],
+      play: [
+        {
+          soundId: "/cards/Tirion/VO_EX1_383_Play_01.ogg",
+        },
+        {
+          soundId: "/cards/Pegasus_Stinger_Alliance.ogg",
+        },
+      ],
+    },
   },
   sunwalker: {
     title: "Sunwalker",
@@ -1507,6 +1661,13 @@ export const cardTemplates = {
     targetQuery: {
       side: "all",
       type: ["card"],
+      conditions: [
+        {
+          type: "boolean",
+          key: "divineShield",
+          value: false,
+        },
+      ],
     },
     isMinion: false,
     class: "Paladin",
@@ -1698,7 +1859,7 @@ export const cardTemplates = {
   },
   "guardian-of-kings": {
     title: "Guardian of Kings",
-    description: "Battlecry: Restore 6 baseHealth to your hero.",
+    description: "Taunt. Battlecry: Restore 6 Health to your hero.",
     baseMana: 7,
     baseAttack: 5,
     baseHealth: 7,
@@ -2077,8 +2238,8 @@ export const cardTemplates = {
     isMinion: false,
     isSpell: true,
     targetQuery: {
-      side: "all",
-      type: ["card"], // Strictly targets a minion on the board
+      side: "enemy",
+      type: ["card", "player"],
     },
     effects: [freeze(), summon("water-elemental", "self", 2)],
     onPlace: [],
@@ -2096,12 +2257,10 @@ export const cardTemplates = {
     isSpell: true,
     targetQuery: {
       side: "all",
-      type: ["card"], // Strictly restricts targeting to minions on board, bypassing heroes
+      type: ["card"],
     },
     effects: [
-      // Step 1: Fire the baseline 2 damage at the selected target
       damage(2),
-      // Step 2: Check if that target is frozen to trigger the draw effect
       {
         type: "conditional",
         conditions: [
@@ -2112,7 +2271,6 @@ export const cardTemplates = {
           },
         ],
         then: [draw(1)],
-        // No 'else' needed here since nothing happens if it isn't frozen
       },
     ],
     rarity: "Epic",
@@ -2129,12 +2287,10 @@ export const cardTemplates = {
     isMinion: false,
     targetQuery: {
       side: "all",
-      type: ["card"], // Restricted strictly to minions on the board, bypassing heroes
+      type: ["card"],
     },
     effects: [
-      // Step 1: Baseline 1 damage to the selected minion target
       damage(1),
-      // Step 2: Use a conditional effect to see if that damage resulted in its death
       {
         type: "conditional",
         conditions: [
@@ -2484,10 +2640,33 @@ export const cardTemplates = {
         conditions: [{ type: "tags-include", value: "Demon" }],
         value: 2,
         rand: { n: 2 },
-        fallback: { cardID: "worthless_imp", value: 2 },
+        fallback: { cardID: "worthless_imp" },
       },
     ],
     onPlace: [],
+  },
+  worthless_imp: {
+    title: "Worthless Imp",
+    description: "You are out of demons! At least there are always imps...",
+    baseMana: 1,
+    baseAttack: 1,
+    baseHealth: 1,
+    type: ["Demon"],
+    imageUrl: "assets/cards/Worthless_Imp.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    isUncollectible: true,
+    class: "Warlock",
   },
   riftcleaver: {
     title: "Riftcleaver",
@@ -2646,7 +2825,7 @@ export const cardTemplates = {
     class: "Rogue",
   },
   shadowstep: {
-    title: "shadowstep",
+    title: "Shadowstep",
     description: "Return a friendly minion to your hand. It costs (2) less.",
     baseMana: 0,
     rarity: "Common",
@@ -2707,11 +2886,183 @@ export const cardTemplates = {
     rarity: "Common",
     isSpell: true,
     isMinion: false,
-    effects: [addRandomCard([{ type: "tags-include", value: "Demon" }], 1)],
+    effects: [addRandomCard([{ type: "tags-include", value: "Demon" }], 1, [])],
     onPlace: [],
     targetQuery: {
       side: "all",
       type: ["lane"], // Board-wide non-targeted spell alignment
+    },
+  },
+  soulfire: {
+    title: "Soulfire",
+    description: "Deal 4 damage. Discard a random card.",
+    baseMana: 1,
+    type: ["Fire"],
+    imageUrl: "assets/cards/Soulfire.jpg",
+    class: "Warlock",
+    isSpell: true,
+    isMinion: false,
+    effects: [damage(4, "user-select"), discard(1, "random")],
+    onPlace: [],
+    targetQuery: {
+      side: "all",
+      type: ["card", "player"], // Allows targeting any minion or hero on the board
+    },
+  },
+  "sacrificial-pact": {
+    title: "Sacrificial Pact",
+    description: "Destroy a friendly Demon. Restore 5 Health to your hero.",
+    baseMana: 0,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Sacrificial_Pact.jpg",
+    class: "Warlock",
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "friendly",
+      type: ["card"],
+      conditions: [
+        {
+          type: "tags-include",
+          value: "Demon",
+        },
+      ],
+    },
+    effects: [destroy("user-select"), heal(5, "friendly-hero")],
+    onPlace: [],
+  },
+  felstalker: {
+    title: "Felstalker",
+    description: "Battlecry: Discard a random card.",
+    baseMana: 2,
+    baseAttack: 4,
+    baseHealth: 3,
+    type: ["Demon"],
+    imageUrl: "assets/cards/Felstalker.jpg",
+    class: "Warlock",
+    isMinion: true,
+    isSpell: false,
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    onPlace: [discard(1, "random")],
+  },
+  doomguard: {
+    title: "Doomguard",
+    description: "Charge. Battlecry: Discard two random cards.",
+    baseMana: 5,
+    baseAttack: 5,
+    baseHealth: 7,
+    type: ["Demon"],
+    imageUrl: "assets/cards/Doomguard.jpg",
+    class: "Warlock",
+    rarity: "Rare",
+    isMinion: true,
+    isSpell: false,
+    charge: true,
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    onPlace: [discard(2, "random")],
+  },
+  "abusive-sargent": {
+    title: "Abusive Sergeant",
+    description: "Battlecry: Give a minion +2 Attack this turn.",
+    baseMana: 1,
+    baseAttack: 1,
+    baseHealth: 1,
+    imageUrl: "assets/cards/Abusive_Sergeant.jpg",
+    class: "Neutral",
+    rarity: "Common",
+    isMinion: true,
+    isSpell: false,
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    onPlace: [
+      applyModifier("attack", 2, "user-select", false, {
+        expiryOwner: "BUFF_CASTER",
+        expiryTrigger: "END_OF_TURN",
+        turnsRemaining: 1,
+      }),
+    ],
+    battlecryQuery: {
+      side: "all",
+      type: ["card"],
+    },
+  },
+  "fiery-war-axe": {
+    title: "Fiery War Axe",
+    description: "",
+    isWeapon: true,
+    isMinion: false,
+    baseMana: 2,
+    baseAttack: 3,
+    baseDurability: 2,
+    imageUrl: "assets/cards/Fiery_War_Axe.jpg",
+    class: "Warrior",
+    effects: [],
+    onPlace: [],
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+  },
+  "wicked-knife": {
+    title: "Wicked Knife",
+    description: "",
+    isWeapon: true,
+    isMinion: false,
+    baseMana: 1,
+    baseAttack: 1,
+    baseDurability: 2,
+    imageUrl: "assets/cards/Wicked_Knife.jpg",
+    class: "Rogue",
+    effects: [],
+    onPlace: [],
+    isUncollectible: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+  },
+  ashbringer: {
+    title: "Ashbringer",
+    description: "",
+    isWeapon: true,
+    isMinion: false,
+    baseMana: 5,
+    baseAttack: 5,
+    baseDurability: 3,
+    imageUrl: "assets/cards/Ashbringer.jpg",
+    class: "Paladin",
+    effects: [],
+    onPlace: [],
+    isUncollectible: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
     },
   },
 } satisfies Record<

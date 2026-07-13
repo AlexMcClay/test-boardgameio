@@ -3,7 +3,20 @@ type MessageHandler = (data: WebSocketMessage) => void;
 import type { WebSocketMessage } from "@project/shared/";
 
 const RECONNECT_DEBOUNCE_MS = 1500;
-const DEFAULT_WS_URL = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//api.${window.location.hostname.replace(/^www\./, "")}/matchmaking-ws`;
+// 1. Determine the protocol (secure vs insecure)
+const isSecure = window.location.protocol === "https:";
+const protocol = isSecure ? "wss:" : "ws:";
+
+// 2. Clean up the hostname (remove 'www.')
+const cleanHostname = window.location.hostname.replace(/^www\./, "");
+
+// 3. Handle environment-specific logic (Dev vs Production)
+const isDev = import.meta.env.DEV;
+const subdomain = isDev ? "" : "api.";
+const port = isDev ? ":8000" : "";
+
+// 4. Assemble the final URL cleanly
+const DEFAULT_WS_URL = `${protocol}//${subdomain}${cleanHostname}${port}/matchmaking-ws`;
 
 class MatchmakingWebSocketService {
   private socket: WebSocket | null = null;
@@ -20,7 +33,12 @@ class MatchmakingWebSocketService {
       console.log("Connected");
       const playerID = localStorage.getItem("user_id") || "";
       const playerUsername = localStorage.getItem("user_name") || "Guest";
-      console.log("Sending connect message with playerID:", playerID, "and playerUsername:", playerUsername);
+      console.log(
+        "Sending connect message with playerID:",
+        playerID,
+        "and playerUsername:",
+        playerUsername,
+      );
       this.send({
         type: "connect",
         playerID,

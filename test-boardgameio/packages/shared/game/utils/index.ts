@@ -1,5 +1,6 @@
-import type { Card, GameState } from "../types";
+import type { Card, EffectTypes, GameState, Player } from "../types";
 import { cardTemplates, type CardTemplateKey } from "../data/cards";
+import { isBaseEffectSelection } from "../..";
 
 export function shuffleDeck(deck: Card[]): Card[] {
   const copy = [...deck];
@@ -85,7 +86,9 @@ export function hasToEndTurn(playedID: string, gameState: GameState): boolean {
   const canAttack = gameState.board[playedID].some(
     (card) => !card.summoningSickness && !card.attacksLeft && !card.frozen,
   );
-  return !canPlayCards && !canAttack;
+  const canHeroAttack =
+    player.attacksLeft > 0 && !player.frozen && getPlayerAttack(player) > 0;
+  return !canPlayCards && !canAttack && !canHeroAttack;
 }
 
 // Get the current attack, combining base values + permanent buffs + environmental auras
@@ -100,6 +103,18 @@ export function getAttack(card: Card): number {
   return Math.max(0, (card?.baseAttack ?? 0) + bonus);
 }
 
+export function getPlayerAttack(player: Player): number {
+  const mods = player.modifiers?.filter((m) => m.stat === "attack") ?? [];
+  const sets = mods.filter((m) => m.override);
+  if (sets.length) {
+    // return newest one
+    return sets[sets.length - 1].value;
+  }
+  const bonus = mods.reduce((sum, m) => sum + m.value, 0) ?? 0;
+  const weaponAttack = player.weapon ? getAttack(player.weapon) : 0;
+  return Math.max(0, (player?.baseAttack ?? 0) + weaponAttack + bonus);
+}
+
 // Maximum health capacity is dynamically scaled by modifiers
 export function getMaxHealth(card: Card): number {
   const mods = card.modifiers?.filter((m) => m.stat === "health") ?? [];
@@ -112,10 +127,26 @@ export function getMaxHealth(card: Card): number {
   return Math.max(1, (card.baseHealth ?? 0) + bonus);
 }
 
+export function getMaxDurability(card: Card): number {
+  const mods = card.modifiers?.filter((m) => m.stat === "durability") ?? [];
+  const sets = mods.filter((m) => m.override);
+  if (sets.length) {
+    // return newest one
+    return sets[sets.length - 1].value;
+  }
+  const bonus = mods.reduce((sum, m) => sum + m.value, 0) ?? 0;
+  return Math.max(1, (card.baseDurability ?? 0) + bonus);
+}
+
 // Current actual health is Max Health minus recorded damage
 export function getCurrentHealth(card: Card): number {
   const maxHealth = getMaxHealth(card);
   return Math.max(0, maxHealth - (card.damageTaken ?? 0));
+}
+
+export function getCurrentDurability(card: Card): number {
+  const maxHealth = getMaxDurability(card);
+  return Math.max(0, maxHealth - (card.durabilityLost ?? 0));
 }
 
 // Dynamic mana cost parsing (e.g., Sorcerer's Apprentice effects)
@@ -128,6 +159,25 @@ export function getManaCost(card: Card): number {
   }
   const bonus = mods.reduce((sum, m) => sum + m.value, 0) ?? 0;
   return Math.max(0, (card.baseMana ?? 0) + bonus);
+}
+
+/**
+ * Determine if an effect or any of its nested effects require user selection as a target.
+ * @param e Effect
+ * @returns
+ */
+export function isUserSelectValue(e: EffectTypes): boolean {
+  if (isBaseEffectSelection(e) && e.target === "user-select") {
+    return true;
+  } else if (e.type === "conditional") {
+    return !!(
+      e.then.some((ex) => isUserSelectValue(ex)) ||
+      e.else?.some((ex) => isUserSelectValue(ex))
+    );
+  } else if (e.type === "sequence") {
+    return !!e.steps.some((ex) => isUserSelectValue(ex));
+  }
+  return false;
 }
 
 export * from "./helpers";

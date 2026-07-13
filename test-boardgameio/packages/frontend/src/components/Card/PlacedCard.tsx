@@ -38,6 +38,8 @@ const PlacedCard = ({
     if (isAttacking) {
       setTimeout(() => {
         playSfx("minion-attack");
+        card.sfx?.attack &&
+          card.sfx.attack.forEach((sfx) => playSfx(sfx.soundId, sfx.volume));
       }, 200);
     }
   }, [isAttacking]);
@@ -204,7 +206,8 @@ const PlacedCard = ({
               <span
                 className={twMerge(
                   "absolute font-belwe  scale-140 translate-y-[-5%] translate-x-[4%] text-shadow-A",
-                  getCurrentHealth(card) == card.baseHealth
+                  getCurrentHealth(card) == card.baseHealth &&
+                    getMaxHealth(card) == card.baseHealth
                     ? ""
                     : getCurrentHealth(card) < getMaxHealth(card)
                       ? "text-red-500"

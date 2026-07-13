@@ -49,7 +49,10 @@ export const useGameAnimation = ({ ctx, G, ...props }: Props) => {
           ? ctx.currentPlayer === props.playerID
           : true;
         // Read as: "Keep this if it's NOT (a card played by me)"
-        return !(isMyTurn && a.type === "cardPlayed");
+        return !(
+          (isMyTurn && a.type === "cardPlayed") ||
+          (isMyTurn && a.type === "heroPowerPlayed")
+        );
       });
 
       // Update tracking timestamp
@@ -126,5 +129,7 @@ export const useGameAnimation = ({ ctx, G, ...props }: Props) => {
   return {
     visualCtx,
     visualGameState,
+    setVisualGameState,
+    setVisualCtx,
   };
 };

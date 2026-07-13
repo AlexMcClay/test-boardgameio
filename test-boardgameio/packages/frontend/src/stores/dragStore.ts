@@ -9,7 +9,7 @@ import {
   type EffectContextWithOptionalCard,
 } from "@project/shared";
 
-type TargetingMode = "attack" | "battlecry" | "hero-power" | null;
+type TargetingMode = "attack" | "battlecry" | "hero-power" | "hero-attack" | null;
 
 type DragStore = {
   activeCard: Card | null;

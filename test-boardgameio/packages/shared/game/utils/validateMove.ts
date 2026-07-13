@@ -1,5 +1,5 @@
 // utils/validateMove.ts
-import { getManaCost } from ".";
+import { getManaCost, getPlayerAttack } from ".";
 import type {
   Card,
   TargetValue,
@@ -7,7 +7,7 @@ import type {
   TargetQuery,
   EffectContextWithOptionalCard,
 } from "../types";
-import type { Ctx } from "boardgame.io";
+import type { Ctx, PlayerID } from "boardgame.io";
 
 import { checkSingleTargetCondition } from "./effectEngine";
 
@@ -186,6 +186,7 @@ export function validateTargetQuery(
                 ctx: context.ctx,
                 location: "board",
                 card: targetCard,
+                type: "minion",
               },
               sourceID,
             ),
@@ -207,6 +208,12 @@ export function validateTargetQuery(
     }
   });
 }
+
+const MOVE_TARGET_ERRORS = {
+  "target-not-found": "invalid-target",
+  stealthed: "stealthed",
+  taunt: "must-attack-taunt",
+} as const;
 
 /**
  * Full move validation for game logic
@@ -315,14 +322,6 @@ export function validateMove(
       card.id,
     );
 
-    // check if target is minion and if minion is stealthed
-    if (target.type === "card" && target.id) {
-      const targetCard = G.board[target.player].find((c) => c.id == target.id);
-      if (targetCard && targetCard.stealth) {
-        return { valid: false, error: "stealthed" };
-      }
-    }
-
     if (!validTarget) {
       return { valid: false, error: "invalid-target" };
     }
@@ -336,23 +335,12 @@ export function validateMove(
     }
 
     // TAUNT MECHANIC: Check if trying to bypass taunt
-    const isTargetingEnemy = target.player !== ctx.currentPlayer;
-    if (isTargetingEnemy && !isTauntBypassAllowed(card)) {
-      const enemyBoard = G.board[target.player];
-      const enemyHasTaunt = hasTauntMinions(enemyBoard);
-
-      if (enemyHasTaunt) {
-        if (target.type === "player") {
-          return { valid: false, error: "must-attack-taunt" };
-        }
-
-        if (target.type === "card") {
-          const targetCard = enemyBoard.find((c) => c.id === target.id);
-          if (!targetCard || !targetCard.taunt) {
-            return { valid: false, error: "must-attack-taunt" };
-          }
-        }
-      }
+    // Shared stealth + taunt rules
+    const restriction = checkTargetRestrictions(G, ctx.currentPlayer, target, {
+      bypassTaunt: isTauntBypassAllowed(card),
+    });
+    if (!restriction.ok) {
+      return { valid: false, error: MOVE_TARGET_ERRORS[restriction.reason] };
     }
   }
 
@@ -372,6 +360,95 @@ export function validateMove(
   }
 
   return { valid: true };
+}
+
+export function validateHeroAttack(
+  G: GameState,
+  ctx: Ctx,
+  target: TargetValue,
+): { valid: boolean; error?: string } {
+  const attackerId = ctx.currentPlayer as PlayerID;
+  const attacker = G.players[attackerId];
+  const defenderId = target.player;
+
+  if (attackerId === defenderId) {
+    return { valid: false, error: "Cannot attack your own side." };
+  }
+  if (attacker.frozen) {
+    return { valid: false, error: "Hero is frozen." };
+  }
+  if (attacker.attacksLeft <= 0) {
+    return { valid: false, error: "Hero has already attacked this turn." };
+  }
+  if (getPlayerAttack(attacker) <= 0) {
+    return {
+      valid: false,
+      error: "Hero has no attack (equip a weapon first).",
+    };
+  }
+  if (target.type !== "card" && target.type !== "player") {
+    return { valid: false, error: "Invalid target type for hero attack." };
+  }
+
+  const restriction = checkTargetRestrictions(G, attackerId, target);
+  if (!restriction.ok) {
+    return { valid: false, error: restriction.reason };
+  }
+
+  return { valid: true };
+}
+
+export type TargetRestrictionReason =
+  | "target-not-found"
+  | "stealthed"
+  | "taunt";
+
+export type TargetRestrictionResult =
+  | { ok: true }
+  | { ok: false; reason: TargetRestrictionReason };
+
+/**
+ * Shared stealth + taunt targeting rules used by both card/spell targeting
+ * (validateMove) and hero attacks (validateHeroAttack).
+ *
+ *  - A stealthed minion can never be targeted directly.
+ *  - If the defending player controls any *non-stealthed* Taunt minion, the
+ *    target must be one of those Taunt minions — unless taunt is bypassed.
+ *
+ * Returns a neutral result; each caller maps `reason` to its own error text.
+ */
+export function checkTargetRestrictions(
+  G: GameState,
+  attackerPlayer: PlayerID,
+  target: TargetValue,
+  opts: { bypassTaunt?: boolean } = {},
+): TargetRestrictionResult {
+  const defenderBoard = G.board[target.player];
+
+  const targetCard =
+    target.type === "card"
+      ? defenderBoard.find((c) => c.id === target.id)
+      : undefined;
+
+  // --- STEALTH ---
+  if (target.type === "card") {
+    if (!targetCard) return { ok: false, reason: "target-not-found" };
+    if (targetCard.stealth) return { ok: false, reason: "stealthed" };
+  }
+
+  // --- TAUNT --- (only enemy taunts count; a stealthed Taunt does not enforce)
+  const isTargetingEnemy = target.player !== attackerPlayer;
+  if (isTargetingEnemy && !opts.bypassTaunt) {
+    const enemyHasTaunt = defenderBoard.some((c) => c.taunt && !c.stealth);
+    if (enemyHasTaunt) {
+      if (target.type === "player") return { ok: false, reason: "taunt" };
+      if (target.type === "card" && !targetCard!.taunt) {
+        return { ok: false, reason: "taunt" };
+      }
+    }
+  }
+
+  return { ok: true };
 }
 
 /**

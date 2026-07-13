@@ -14,7 +14,11 @@ import {
   getMaxHealth,
   shuffleDeck,
   applyBoolEffectToCard,
+  applyBoolEffectToPlayer,
+  shouldMinionUnfreezeAtTurnEnd,
+  shouldHeroUnfreezeAtTurnEnd,
   proccessApplyModifier,
+  processApplyModifierToPlayer,
   dealDamageToCard,
   dealDamageToPlayer,
   healCard,
@@ -24,9 +28,17 @@ import {
   addCardToHand,
   findCardsInPool,
   returnCardToHand,
+  discardCardsFromHand,
+  isUserSelectValue,
+  getPlayerAttack,
 } from "./utils";
 import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
-import { hasTargets, validateMove } from "./utils/validateMove";
+import {
+  hasTargets,
+  validateHeroAttack,
+  validateMove,
+  validateTargetQuery,
+} from "./utils/validateMove";
 import type { CardTemplateKey } from "./data/cards";
 import { enumerateAIMoves } from "./ai";
 import {
@@ -45,7 +57,7 @@ export const isVictory = ({ G }: { G: GameState; ctx: Ctx }) => {
 
 const setupData = (
   { ctx }: { ctx: Ctx },
-  setupData?: {
+  setupData: {
     player0: {
       playerUsername?: string;
       deck: Card[];
@@ -79,6 +91,7 @@ const setupData = (
     health: 30,
     armor: 0,
     manaCrystals: 0,
+    maxManaCrystals: 10,
     mana: 1,
     baseAttack: 0,
     modifiers: [],
@@ -86,26 +99,34 @@ const setupData = (
     hand: [],
     deck: playerDeck,
     burntCards: [],
+    heroPowerUsedThisTurn: false,
+    hero: playerHero,
+    weapon: null,
   };
 
   const p1: Player = {
     id: "1",
-    name: setupData?.player1.playerUsername || opponentHero?.heroName || "Guest",
+    name:
+      setupData?.player1.playerUsername || opponentHero?.heroName || "Guest",
     heroPortrait:
       opponentHero?.portrait || "assets/heros/Illidan_Stormrage.jpg",
     maxHealth: 30,
     health: 30,
     armor: 0,
     manaCrystals: 0,
+    maxManaCrystals: 10,
     mana: 1,
     baseAttack: 0,
     modifiers: [],
     attacksLeft: 1,
     hand: [],
     deck: opponentDeck,
+    heroPowerUsedThisTurn: false,
+    hero: opponentHero,
     burntCards: [],
+    weapon: null,
   };
-  
+
   console.log("Player 0:", p0.name);
   console.log("Player 1:", p1.name);
 
@@ -114,6 +135,7 @@ const setupData = (
       "0": p0,
       "1": p1,
     },
+
     board: {
       "0": [],
       "1": [],
@@ -122,6 +144,7 @@ const setupData = (
     eventHistory: [],
     activeBattlecryMinion: null,
     graveyard: [],
+    discardedCards: [],
   };
 
   return G;
@@ -130,18 +153,14 @@ const setupData = (
 const placeCard: Move<GameState> = (
   { G, ctx },
   cardId: string,
-  location: "hand" | "board" = "hand",
   target?: TargetValue,
   boardIndex?: number, // Insert position on the board
 ) => {
   const player = G.players[ctx.currentPlayer];
-  const card =
-    location === "hand"
-      ? player.hand.find((c) => c.id === cardId)!
-      : G.board[ctx.currentPlayer].find((c) => c.id === cardId)!;
+  const card = player.hand.find((c) => c.id === cardId)!;
 
   // Single validation call
-  const validation = validateMove(G, ctx, cardId, location, target);
+  const validation = validateMove(G, ctx, cardId, "hand", target);
 
   if (!validation.valid) {
     console.warn(`Invalid move: ${validation.error}`);
@@ -153,18 +172,32 @@ const placeCard: Move<GameState> = (
     return;
   }
 
+  const cardIndex = player.hand.findIndex((c) => c.id === cardId);
+  player.hand.splice(cardIndex, 1); // Remove the card from hand
+
   // Clear current move events (history is kept for debugging)
   G.gameEvents = [];
 
   // Track move metadata for animation detection
   G.lastMove = {
     cardId,
-    location,
+    location: "hand",
     target,
     timestamp: Date.now(),
   };
 
   player.mana -= !card.isPlaced ? getManaCost(card) : 0;
+
+  // Generic event fired for every card played (minion, spell, or weapon)
+  const sourceEventIndex = G.eventHistory.length;
+  recordEvent(G, {
+    type: "cardPlayed",
+    cardId: card.id,
+    playerId: ctx.currentPlayer,
+    timestamp: Date.now(),
+    card,
+    turn: ctx.turn,
+  });
 
   // See if the card can be placed on the board
   if (card.isMinion && !card.isPlaced) {
@@ -184,7 +217,7 @@ const placeCard: Move<GameState> = (
     const needsTargetedBattlecry =
       card.battlecryQuery &&
       card.onPlace.some((e) => {
-        const test = isSelectValue(e);
+        const test = isUserSelectValue(e);
         return test;
       });
 
@@ -195,9 +228,10 @@ const placeCard: Move<GameState> = (
         {
           G,
           ctx,
-          location,
+          location: "hand",
           playerID: ctx.currentPlayer,
           target,
+          type: "minion",
         },
         card.id,
       );
@@ -206,6 +240,7 @@ const placeCard: Move<GameState> = (
         G.activeBattlecryMinion = {
           cardId: card.id,
           playerId: ctx.currentPlayer,
+          sourceEventIndex,
         };
       }
     } else if (!needsTargetedBattlecry) {
@@ -214,9 +249,11 @@ const placeCard: Move<GameState> = (
         card: card,
         G,
         ctx,
-        location,
+        location: "hand",
         playerID: ctx.currentPlayer,
         target,
+        type: "minion",
+        sourceEventIndex,
       });
     }
 
@@ -225,6 +262,10 @@ const placeCard: Move<GameState> = (
     } else {
       G.board[ctx.currentPlayer].push(card);
     }
+  }
+
+  if (card.isWeapon && !card.isPlaced) {
+    equipWeapon(G, ctx, ctx.currentPlayer, card, sourceEventIndex);
   }
 
   if (card.isSpell) {
@@ -241,9 +282,11 @@ const placeCard: Move<GameState> = (
       card: card,
       G,
       ctx,
-      location,
+      location: "hand",
       playerID: ctx.currentPlayer,
       target,
+      type: "spell",
+      sourceEventIndex,
     });
     // ADD THIS: Push the resolved spell into the graveyard
     G.graveyard.push({
@@ -253,12 +296,7 @@ const placeCard: Move<GameState> = (
     });
   }
 
-  if (location === "hand") {
-    const cardIndex = player.hand.findIndex((c) => c.id === cardId);
-    player.hand.splice(cardIndex, 1); // Remove the card from hand
-  }
-
-  processDeaths(G, ctx);
+  processDeaths(G, ctx, sourceEventIndex);
 };
 
 const minionAttack: Move<GameState> = (
@@ -284,19 +322,9 @@ const minionAttack: Move<GameState> = (
     timestamp: Date.now(),
   };
 
-  const context: EffectContext = {
-    card: attacker,
-    G,
-    ctx,
-    location: "board",
-    playerID: ctx.currentPlayer,
-    target,
-  };
-
   G.gameEvents = [];
 
-  executeEffects(attacker.effects, context);
-
+  const sourceEventIndex = G.eventHistory.length;
   recordEvent(G, {
     type: "attack",
     attackerId: attacker.id,
@@ -306,7 +334,21 @@ const minionAttack: Move<GameState> = (
     attackerPlayerId: ctx.currentPlayer,
     sourceId: attackerId,
     timestamp: Date.now(),
+    card: attacker,
   });
+
+  const context: EffectContext = {
+    card: attacker,
+    G,
+    ctx,
+    location: "board",
+    playerID: ctx.currentPlayer,
+    target,
+    type: "minion",
+    sourceEventIndex,
+  };
+
+  executeEffects(attacker.effects, context);
 
   attacker.attacksLeft -= 1;
 
@@ -322,7 +364,7 @@ const minionAttack: Move<GameState> = (
     });
   }
 
-  processDeaths(G, ctx);
+  processDeaths(G, ctx, sourceEventIndex);
   return G;
 };
 
@@ -349,6 +391,8 @@ const resolveBattlecry: Move<GameState> = (
   G.gameEvents = [];
   G.lastMove = { cardId, location: "board", target, timestamp: Date.now() };
 
+  const sourceEventIndex = G.activeBattlecryMinion.sourceEventIndex;
+
   // Execute battlecry effects
   executeEffects(card.onPlace, {
     card,
@@ -357,6 +401,8 @@ const resolveBattlecry: Move<GameState> = (
     location: "board",
     playerID: ctx.currentPlayer,
     target,
+    type: "minion",
+    sourceEventIndex,
   });
 
   // Record event for animations
@@ -371,30 +417,212 @@ const resolveBattlecry: Move<GameState> = (
 
   // Clear battlecry state
   G.activeBattlecryMinion = null;
-  processDeaths(G, ctx);
+  processDeaths(G, ctx, sourceEventIndex);
 };
 
-function isSelectValue(e: EffectTypes): boolean {
-  if (isBaseEffectSelection(e) && e.target === "user-select") {
-    return true;
-  } else if (e.type === "conditional") {
-    return !!(
-      e.then.some((ex) => isSelectValue(ex)) ||
-      e.else?.some((ex) => isSelectValue(ex))
-    );
-  } else if (e.type === "sequence") {
-    return !!e.steps.some((ex) => isSelectValue(ex));
+const useHeroPower: Move<GameState> = ({ G, ctx }, target?: TargetValue) => {
+  const player = G.players[ctx.currentPlayer];
+  const hero = player.hero;
+
+  // Validation checks
+  if (!hero || !hero.heroPower) {
+    console.warn("No hero power available");
+    return;
   }
-  return false;
-}
+
+  if (player.heroPowerUsedThisTurn) {
+    console.warn("Hero power already used this turn");
+    return;
+  }
+
+  if (player.mana < hero.heroPower.manaCost) {
+    console.warn("Not enough mana for hero power");
+    return;
+  }
+
+  const heroPower = hero.heroPower;
+
+  // Check if hero power requires a target
+  const requiresTarget = heroPower.effects.some((effect) => {
+    if (isBaseEffectSelection(effect) && effect.target === "user-select") {
+      return true;
+    }
+    return false;
+  });
+
+  // If requires target and no target provided, invalid
+  if (requiresTarget && !target) {
+    console.warn("Hero power requires a target");
+    return;
+  }
+
+  // Validate target if provided
+  if (target && requiresTarget) {
+    const isValid = validateTargetQuery(
+      heroPower.targetQuery,
+      {
+        G,
+        ctx,
+        playerID: ctx.currentPlayer,
+        target,
+        location: "hand",
+        type: "heroPower",
+      },
+      `hero-power-${ctx.currentPlayer}`,
+    );
+
+    if (!isValid) {
+      console.warn("Invalid target for hero power");
+      return;
+    }
+  }
+
+  // Clear events and track move
+  G.gameEvents = [];
+  G.lastMove = {
+    cardId: `hero-power-${ctx.currentPlayer}`,
+    location: "hand",
+    target,
+    timestamp: Date.now(),
+  };
+
+  // Deduct mana
+  player.mana -= heroPower.manaCost;
+
+  // Mark hero power as used
+  player.heroPowerUsedThisTurn = true;
+
+  // Record event for animations (recorded before effects run so any
+  // resulting damage/draw/etc. events can reference this as their parent)
+  const sourceEventIndex = G.eventHistory.length;
+  recordEvent(G, {
+    type: "heroPower",
+    playerId: ctx.currentPlayer,
+    timestamp: Date.now(),
+    targetId: target?.id,
+    targetType: target?.type === "lane" ? "player" : target?.type,
+    heroPower: heroPower,
+  });
+
+  // Execute hero power effects
+  executeEffects(heroPower.effects, {
+    G,
+    ctx,
+    location: "hand",
+    playerID: ctx.currentPlayer,
+    target,
+    type: "heroPower",
+    heroPower: heroPower,
+    sourceEventIndex,
+  });
+
+  // Record mana event
+  recordEvent(G, {
+    type: "mana",
+    playerId: ctx.currentPlayer,
+    timestamp: Date.now(),
+  });
+
+  // Process any deaths that may have resulted
+  processDeaths(G, ctx, sourceEventIndex);
+};
+
+const heroAttack: Move<GameState> = ({ G, ctx }, target: TargetValue) => {
+  const attackerId = ctx.currentPlayer as PlayerID;
+  const attacker = G.players[attackerId];
+
+  const validation = validateHeroAttack(G, ctx, target);
+  if (!validation.valid) {
+    console.warn(`Invalid hero attack: ${validation.error}`);
+    return;
+  }
+
+  const attackValue = getPlayerAttack(attacker);
+  const sourceId = `hero-${attackerId}`;
+
+  G.lastMove = {
+    cardId: sourceId,
+    location: "board",
+    target,
+    timestamp: Date.now(),
+  };
+
+  G.gameEvents = [];
+
+  // Recorded before damage resolves so any resulting damage/death/equip-break
+  // events can reference this as their parent.
+  const sourceEventIndex = G.eventHistory.length;
+  recordEvent(G, {
+    type: "attack",
+    attackerId: sourceId,
+    targetId: target.id,
+    targetType: target.type === "player" ? "player" : "card",
+    targetPlayerId: target.player,
+    attackerPlayerId: attackerId,
+    sourceId,
+    timestamp: Date.now(),
+    card: attacker.weapon ?? undefined,
+  });
+
+  if (target.type === "player") {
+    dealDamageToPlayer(
+      G,
+      sourceId,
+      target.player,
+      attackValue,
+      sourceEventIndex,
+    );
+  } else {
+    const defenderCard = G.board[target.player].find((c) => c.id === target.id);
+    if (!defenderCard) return;
+
+    dealDamageToCard(
+      G,
+      sourceId,
+      defenderCard,
+      target.player,
+      attackValue,
+      sourceEventIndex,
+    );
+
+    // Minion strikes back at the attacking hero, same as minion-vs-minion combat,
+    executeEffects(defenderCard.effects, {
+      G,
+      ctx,
+      card: defenderCard,
+      playerID: target.player,
+      location: "board",
+      target: { id: attackerId, player: attackerId, type: "player" },
+      type: "minion",
+      sourceEventIndex,
+    });
+  }
+
+  attacker.attacksLeft -= 1;
+
+  if (attacker.weapon) {
+    attacker.weapon.durabilityLost = (attacker.weapon.durabilityLost ?? 0) + 1;
+    const remainingDurability =
+      (attacker.weapon.baseDurability ?? 0) - attacker.weapon.durabilityLost;
+    if (remainingDurability <= 0) {
+      destroyWeapon(G, ctx, attackerId, attacker.weapon, sourceEventIndex);
+    }
+  }
+
+  processDeaths(G, ctx, sourceEventIndex);
+  return G;
+};
 
 const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
-  const { card, target, playerID, G, ctx } = context;
-  const cardId = card.id;
+  const { card, target, playerID, G, ctx, sourceEventIndex } = context;
+  const cardId =
+    context.type == "minion" || context.type == "spell"
+      ? card!.id
+      : `hero-power-${playerID}`;
   let isUserSelect = false;
 
   for (const effect of effects) {
-    if (isSelectValue(effect)) {
+    if (isUserSelectValue(effect)) {
       isUserSelect = true;
       break;
     }
@@ -403,7 +631,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
   effects.forEach((effect) => {
     switch (effect.type) {
       case "storeVar": {
-        console.log(`RUNNING STORE VAR FOR ${card.title} : 'TARGET"`, target);
+        console.log(`RUNNING STORE VAR FOR ${card?.title} : 'TARGET"`, target);
         if (target && effect.target === "user-select") {
           const targetCard = G.board[target.player].find(
             (c) => c.id === target.id,
@@ -420,16 +648,38 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         break;
 
       case "conditional":
-        const targetCard = target
-          ? G.board[target?.player].find((c) => c.id === target?.id)
+        const targetCard: Card | undefined = target
+          ? target.type === "card"
+            ? G.board[target?.player].find((c) => c.id === target?.id)
+            : target.type === "player"
+              ? {
+                  class: G.players[target.player].hero.class,
+                  effects: [],
+                  divineShield: G.players[target.player].divineShield,
+                  frozen: G.players[target.player].frozen,
+                  title: G.players[target.player].name,
+                  id: `player-${target.player}`,
+                  originalID: `player-${target.player}`,
+                  description: "",
+                  onPlace: [],
+                  damageTaken: 0,
+                  isMinion: false,
+                  attacksLeft: G.players[target.player].attacksLeft,
+                  targetQuery: {
+                    side: "all",
+                    type: ["card"],
+                  },
+                }
+              : undefined
           : undefined;
         if (
+          card &&
           effect.conditions.every((condition) =>
             checkSingleTargetCondition(
               isUserSelect && targetCard ? targetCard : card,
               condition,
               context,
-              card.id,
+              card?.id,
             ),
           )
         ) {
@@ -444,7 +694,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         // --- BRANCH A: RANDOM SPLIT DAMAGE (e.g., Cinderstorm, Mad Bomber) ---
         if (effect.rand?.split) {
           console.log(
-            `${card.title}: Launching random split damage sequence for ${totalDamage} missiles.`,
+            `${card?.title}: Launching random split damage sequence for ${totalDamage} missiles.`,
           );
 
           // We execute a loop running exactly totalDamage times, firing 1-damage pings
@@ -476,7 +726,13 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
               liveTargets[Math.floor(Math.random() * liveTargets.length)];
 
             if (randomTarget.type === "player") {
-              dealDamageToPlayer(G, cardId, randomTarget.ownerId, 1);
+              dealDamageToPlayer(
+                G,
+                cardId,
+                randomTarget.ownerId,
+                1,
+                sourceEventIndex,
+              );
             }
 
             if (randomTarget.type === "card") {
@@ -490,6 +746,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
                   targetCard,
                   randomTarget.ownerId,
                   1,
+                  sourceEventIndex,
                 );
               }
             }
@@ -500,13 +757,19 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         else {
           const targets = resolveTargets(effect, context);
           console.log(
-            `${card.title} targets: ${targets.map((t) => `${t.type} ${t.cardRef?.title ?? t.ownerId}`)}`,
+            `${card?.title} targets: ${targets.map((t) => `${t.type} ${t.cardRef?.title ?? t.ownerId}`)}`,
           );
 
           targets.forEach((t) => {
             // --- TARGET TYPE: PLAYER / HERO ---
             if (t.type === "player") {
-              dealDamageToPlayer(G, cardId, t.ownerId, totalDamage);
+              dealDamageToPlayer(
+                G,
+                cardId,
+                t.ownerId,
+                totalDamage,
+                sourceEventIndex,
+              );
             }
 
             // --- TARGET TYPE: MINION / CARD ---
@@ -528,7 +791,14 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
                   }
                 }
 
-                dealDamageToCard(G, cardId, targetCard, t.ownerId, totalDamage);
+                dealDamageToCard(
+                  G,
+                  cardId,
+                  targetCard,
+                  t.ownerId,
+                  totalDamage,
+                  sourceEventIndex,
+                );
               }
             }
           });
@@ -559,9 +829,19 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         targets.forEach((t) => {
           // --- TARGET: PLAYER / HERO ---
           if (t.type === "player") {
-            // Freezing a hero makes complete sense! Other stats like Taunt/Stealth are skipped for heroes
-            if (effect.type === "freeze") {
-              // applyBoolEffectToPlayer(G, cardId, t.ownerId, "frozen", true);
+            // Freeze and Divine Shield make sense for a hero. Other stats like
+            // Taunt/Stealth/Charge/Rush/Windfury are skipped for heroes (no weapons yet).
+            if (effect.type === "freeze" || effect.type === "divineShield") {
+              const targetPlayer = G.players[t.ownerId];
+              if (targetPlayer) {
+                applyBoolEffectToPlayer(
+                  G,
+                  cardId,
+                  targetPlayer,
+                  effect.type,
+                  cardKey,
+                );
+              }
             }
           }
 
@@ -587,14 +867,14 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         const targets = resolveTargets(effect, context); // Handled perfectly by your unified routing
 
         console.log(
-          `${card.title} healing targets: ${targets.map((t) => `${t.type} ${t.cardRef?.title ?? t.ownerId}`)}`,
+          `${card?.title} healing targets: ${targets.map((t) => `${t.type} ${t.cardRef?.title ?? t.ownerId}`)}`,
         );
 
         // Iterate over our pre-filtered and pre-selected collection
         targets.forEach((t) => {
           // --- TARGET TYPE: PLAYER / HERO ---
           if (t.type === "player") {
-            healPlayer(G, cardId, t.ownerId, healValue);
+            healPlayer(G, cardId, t.ownerId, healValue, sourceEventIndex);
           }
 
           // --- TARGET TYPE: MINION / CARD ---
@@ -602,7 +882,14 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
             const targetCard = G.board[t.ownerId].find((c) => c.id === t.id);
 
             if (targetCard) {
-              healCard(G, cardId, targetCard, t.ownerId, healValue);
+              healCard(
+                G,
+                cardId,
+                targetCard,
+                t.ownerId,
+                healValue,
+                sourceEventIndex,
+              );
             }
           }
         });
@@ -647,15 +934,24 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         const targets = resolveTargets(effect, context); // Unified target array resolution
 
         console.log(
-          `${card.title} applying modifier targets: ${targets.map((t) => `${t.type} ${t.cardRef?.title ?? t.ownerId}`)}`,
+          `${card?.title} applying modifier targets: ${targets.map((t) => `${t.type} ${t.cardRef?.title ?? t.ownerId}`)}`,
         );
 
         // Iterate over our pre-filtered structural targets collection
         targets.forEach((t) => {
           // --- TARGET TYPE: PLAYER / HERO ---
           if (t.type === "player") {
-            // Handle hero modifiers here if your game system supports player attack/armor dynamic buffs
-            // e.g., processHeroModifier(G, cardId, t.ownerId, modEffect, value);
+            const targetPlayer = G.players[t.ownerId];
+            if (targetPlayer) {
+              processApplyModifierToPlayer(
+                G,
+                cardId,
+                targetPlayer,
+                playerID,
+                modEffect,
+                value,
+              );
+            }
           }
 
           // --- TARGET TYPE: MINION / CARD ---
@@ -701,6 +997,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
               playerId: playerTarget,
               timestamp: Date.now(),
               card: summonedCard,
+              eventRef: sourceEventIndex,
             });
             G.board[playerTarget].push(summonedCard);
           } else {
@@ -721,9 +1018,21 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         );
 
         break;
+      case "equip": {
+        const enemyPlayerId = playerID === "0" ? "1" : "0";
+        const playerTarget =
+          effect.target === "self" ? playerID : enemyPlayerId;
+        const weaponCard = createCardFromID(effect.cardID as CardTemplateKey);
+        if (weaponCard) {
+          equipWeapon(G, ctx, playerTarget, weaponCard, sourceEventIndex);
+        } else {
+          console.warn(`Card with ID ${effect.cardID} not found.`);
+        }
+        break;
+      }
       case "draw":
         for (let i = 0; i < resolveDynamicValue(effect.value, context); i++) {
-          handleDrawCard(G, ctx, playerID);
+          handleDrawCard(G, ctx, playerID, sourceEventIndex);
         }
         break;
       case "destroy": {
@@ -745,9 +1054,25 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         // Find cards from the specified source
         const cardsToAdd = findCardsInPool(G, playerID, effect, context);
 
-        // Handle fallback if no cards found
-        if (cardsToAdd.length === 0 && effect.fallback) {
-          for (let i = 0; i < effect.fallback.value; i++) {
+        // 1. Process the main cards up to the resolved count
+        const cardsToProcess = cardsToAdd.slice(0, count);
+        cardsToProcess.forEach((cardToAdd: Card) => {
+          addCardToHand(
+            G,
+            playerID,
+            cardToAdd,
+            effect.modifiers,
+            effect.source,
+            sourceEventIndex,
+          );
+        });
+
+        // 2. Calculate how many cards are still needed to reach 'count'
+        const remainingNeeded = count - cardsToProcess.length;
+
+        // 3. If we are short and a fallback exists, fill the gap
+        if (remainingNeeded > 0 && effect.fallback) {
+          for (let i = 0; i < remainingNeeded; i++) {
             const fallbackCard = createCardFromID(
               effect.fallback.cardID as CardTemplateKey,
             );
@@ -758,21 +1083,10 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
                 fallbackCard,
                 effect.modifiers,
                 "global",
+                sourceEventIndex,
               );
             }
           }
-        } else {
-          // Add cards to hand (up to the count specified)
-          const cardsToProcess = cardsToAdd.slice(0, count);
-          cardsToProcess.forEach((cardToAdd: Card) => {
-            addCardToHand(
-              G,
-              playerID,
-              cardToAdd,
-              effect.modifiers,
-              effect.source,
-            );
-          });
         }
 
         break;
@@ -816,7 +1130,13 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
           const ownerID = G.board["0"].find((c) => c.id === cardToReturn.id)
             ? "0"
             : "1";
-          returnCardToHand(G, cardToReturn, ownerID, effect.modifiers);
+          returnCardToHand(
+            G,
+            cardToReturn,
+            ownerID,
+            effect.modifiers,
+            sourceEventIndex,
+          );
         });
 
         break;
@@ -828,9 +1148,33 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
             (c) => c.id === target.id,
           );
           if (targetCard) {
-            returnCardToHand(G, targetCard, target.player, effect.modifiers);
+            returnCardToHand(
+              G,
+              targetCard,
+              target.player,
+              effect.modifiers,
+              sourceEventIndex,
+            );
           }
         }
+        break;
+      }
+      case "discard": {
+        const targetPlayerId =
+          effect.target === "enemy" ? (playerID === "0" ? "1" : "0") : playerID;
+
+        const count = resolveDynamicValue(effect.value, context);
+
+        discardCardsFromHand(
+          cardId,
+          G,
+          targetPlayerId,
+          count,
+          effect.strategy,
+          ctx.turn,
+          sourceEventIndex,
+        );
+
         break;
       }
     }
@@ -878,7 +1222,12 @@ const endTurn: Move<GameState> = ({ G, events }) => {
   events.endTurn();
 };
 
-function handleDrawCard(G: GameState, ctx: Ctx, playerID?: PlayerID) {
+function handleDrawCard(
+  G: GameState,
+  ctx: Ctx,
+  playerID?: PlayerID,
+  sourceEventIndex?: number,
+) {
   const player = G.players[playerID || ctx.currentPlayer];
   if (player.deck.length > 0) {
     const drawnCard = player.deck.pop();
@@ -889,6 +1238,8 @@ function handleDrawCard(G: GameState, ctx: Ctx, playerID?: PlayerID) {
         cardId: drawnCard.id,
         playerId: playerID || ctx.currentPlayer,
         timestamp: Date.now(),
+        eventRef: sourceEventIndex,
+        snapshot: JSON.parse(JSON.stringify(drawnCard)),
       });
     }
   } else {
@@ -897,7 +1248,88 @@ function handleDrawCard(G: GameState, ctx: Ctx, playerID?: PlayerID) {
   }
 }
 
-function processDeaths(G: GameState, ctx: Ctx) {
+function destroyWeapon(
+  G: GameState,
+  ctx: Ctx,
+  playerId: PlayerID,
+  weapon: Card,
+  sourceEventIndex?: number,
+) {
+  if (weapon.deathrattle && weapon.deathrattle.length > 0) {
+    executeEffects(weapon.deathrattle, {
+      card: weapon,
+      G,
+      ctx,
+      location: "board",
+      playerID: playerId,
+      type: "minion",
+      sourceEventIndex,
+    });
+  }
+
+  recordEvent(G, {
+    type: "death",
+    cardId: weapon.id,
+    playerId,
+    timestamp: Date.now(),
+    card: weapon,
+    eventRef: sourceEventIndex,
+    snapshot: JSON.parse(JSON.stringify(weapon)),
+  });
+
+  G.graveyard.push({
+    card: JSON.parse(JSON.stringify(weapon)),
+    originalOwner: playerId,
+    diedOnTurn: ctx.turn,
+  });
+
+  const player = G.players[playerId];
+  if (player.weapon?.id === weapon.id) {
+    player.weapon = null;
+  }
+}
+
+function equipWeapon(
+  G: GameState,
+  ctx: Ctx,
+  playerId: PlayerID,
+  weaponCard: Card,
+  sourceEventIndex?: number,
+) {
+  const player = G.players[playerId];
+  const oldWeapon = player.weapon;
+
+  // Replacing an equipped weapon destroys it, triggering its deathrattle
+  if (oldWeapon) {
+    destroyWeapon(G, ctx, playerId, oldWeapon, sourceEventIndex);
+  }
+
+  player.weapon = weaponCard;
+
+  recordEvent(G, {
+    type: "equip",
+    cardId: weaponCard.id,
+    playerId,
+    timestamp: Date.now(),
+    card: weaponCard,
+    eventRef: sourceEventIndex,
+    snapshot: JSON.parse(JSON.stringify(weaponCard)),
+  });
+
+  if (weaponCard.onPlace && weaponCard.onPlace.length > 0) {
+    executeEffects(weaponCard.onPlace, {
+      card: weaponCard,
+      G,
+      ctx,
+      location: "board",
+      playerID: playerId,
+      type: "minion",
+      sourceEventIndex,
+    });
+  }
+}
+
+function processDeaths(G: GameState, ctx: Ctx, sourceEventIndex?: number) {
   // Pass 'ctx' here so doEffects can access it
   const playerIds: ("0" | "1")[] = ["0", "1"];
   let deathsOccurred = false;
@@ -920,6 +1352,8 @@ function processDeaths(G: GameState, ctx: Ctx) {
             ctx,
             location: "board",
             playerID: playerId,
+            type: "minion",
+            sourceEventIndex,
           });
         }
 
@@ -929,6 +1363,9 @@ function processDeaths(G: GameState, ctx: Ctx) {
           cardId: deadCard.id,
           playerId: playerId,
           timestamp: Date.now(),
+          card: deadCard,
+          eventRef: sourceEventIndex,
+          snapshot: JSON.parse(JSON.stringify(deadCard)),
         });
 
         G.graveyard.push({
@@ -948,7 +1385,7 @@ function processDeaths(G: GameState, ctx: Ctx) {
   // 5. Recursion for chain reactions!
   // If a deathrattle dealt damage that killed ANOTHER minion, this runs again.
   if (deathsOccurred) {
-    processDeaths(G, ctx);
+    processDeaths(G, ctx, sourceEventIndex);
   }
 }
 
@@ -1014,6 +1451,41 @@ function processModifierLifecycle(
         return false;
       });
     });
+
+    // Process player modifiers (for hero powers like Druid's Shapeshift)
+    G.players[pId].modifiers = G.players[pId].modifiers?.filter((mod) => {
+      // Permanent modifications or auras are handled elsewhere and shouldn't be processed here
+      if (mod.type !== "temporary" || !mod.lifecycle) return true;
+
+      const lifecycle = mod.lifecycle;
+
+      // 1. Check if the current game loop state matches the expiry trigger phase
+      if (lifecycle.expiryTrigger !== triggerType) return true;
+
+      // 2. Identify whose turn boundary we are currently executing
+      let isOwnerMatch = false;
+      if (lifecycle.expiryOwner === "ANY_PLAYER") isOwnerMatch = true;
+      if (
+        lifecycle.expiryOwner === "BUFF_CASTER" &&
+        lifecycle.sourcePlayerId === activePlayerId
+      )
+        isOwnerMatch = true;
+      if (lifecycle.expiryOwner === "BUFF_RECEIVER" && pId === activePlayerId)
+        isOwnerMatch = true;
+
+      // If it's not the right player's turn phase, keep the modifier active
+      if (!isOwnerMatch) return true;
+
+      // 3. Handle multi-turn countdown decrements
+      if (lifecycle.turnsRemaining !== undefined) {
+        lifecycle.turnsRemaining -= 1;
+        // If turns are still remaining, keep it alive
+        if (lifecycle.turnsRemaining > 0) return true;
+      }
+
+      // Return false to cleanly strip out the expired modifier from the array!
+      return false;
+    });
   });
 }
 
@@ -1041,6 +1513,8 @@ export const HeathStoneGame: Game<GameState> = {
         cancelBattlecry,
         endTurn,
         minionAttack,
+        useHeroPower,
+        heroAttack,
         resolveBattlecry,
       },
       onBegin: ({ G, ctx }) => {
@@ -1058,10 +1532,13 @@ export const HeathStoneGame: Game<GameState> = {
           const manaCrystals = G.players[ctx.currentPlayer].manaCrystals;
           G.players[ctx.currentPlayer].manaCrystals = Math.min(
             manaCrystals + 1,
-            10,
+            G.players[ctx.currentPlayer].maxManaCrystals,
           );
           G.players[ctx.currentPlayer].mana =
             G.players[ctx.currentPlayer].manaCrystals;
+
+          // Reset hero power usage
+          G.players[ctx.currentPlayer].heroPowerUsedThisTurn = false;
 
           // draw card if the player has less than 10 cards in hand
           if (ctx.turn > 2) {
@@ -1076,6 +1553,8 @@ export const HeathStoneGame: Game<GameState> = {
             card.attacksLeft = card.windfury ? 2 : 1;
             card.summoningSickness = false; // Remove summoning sickness
           });
+
+          G.players[ctx.currentPlayer].attacksLeft = 1;
 
           // 2. Always refresh static auras and evaluate cascading health drop deaths[cite: 1]
           refreshAuras(G);
@@ -1096,8 +1575,21 @@ export const HeathStoneGame: Game<GameState> = {
           processModifierLifecycle(G, ctx.currentPlayer, "END_OF_TURN");
 
           G.board[ctx.currentPlayer].forEach((card) => {
-            card.frozen = false; // unfreeze minions
+            if (
+              card.frozen &&
+              shouldMinionUnfreezeAtTurnEnd(G, ctx.currentPlayer, card)
+            ) {
+              card.frozen = false;
+            }
           });
+
+          const endingPlayer = G.players[ctx.currentPlayer];
+          if (
+            endingPlayer.frozen &&
+            shouldHeroUnfreezeAtTurnEnd(endingPlayer)
+          ) {
+            endingPlayer.frozen = false;
+          }
 
           // 2. Refresh auras/deaths again in case losing an attack/health buff altered the board state[cite: 1]
           refreshAuras(G);

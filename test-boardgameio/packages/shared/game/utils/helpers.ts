@@ -1,13 +1,21 @@
-import { createCardFromID, getCurrentHealth, getMaxHealth } from ".";
+import {
+  createCardFromID,
+  getCurrentHealth,
+  getMaxHealth,
+  getManaCost,
+} from ".";
 import { cardTemplates } from "../data/cards";
 import {
+  type AddToHandEffect,
   type ApplyModifierEffect,
   type BaseEffectSelection,
   type Card,
   type CardModifier,
+  type EffectContext,
   type EffectTypes,
   type GameEvent,
   type GameState,
+  type Player,
 } from "../types";
 import { checkSingleTargetCondition } from "./effectEngine";
 // Helper function to record game events
@@ -27,20 +35,14 @@ export function proccessApplyModifier(
   effect: ApplyModifierEffect,
   value: number,
 ) {
-  // Determine what lifecycle layer this modifier belongs to
   const isTemporary = !!effect.duration;
-
-  // 3. Build out the unified clean modifier instance object
   const newModifier: CardModifier = {
-    // Generate a simple deterministic unique ID for tracking/debugging
     id: `mod-${sourceId}-${effect.stat}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
     sourceCardId: sourceId, // Tracks which card created this buff
     stat: effect.stat,
     value: value,
     type: isTemporary ? "temporary" : "permanent",
     override: effect.override,
-
-    // 4. Inject runtime tracking data into the modifier lifecycle if it has a duration
     lifecycle:
       isTemporary && effect.duration
         ? {
@@ -67,6 +69,54 @@ export function proccessApplyModifier(
     timestamp: Date.now(),
     targetId: targetCard.id,
     targetType: "card",
+  });
+}
+
+export function processApplyModifierToPlayer(
+  G: GameState,
+  sourceId: string,
+  targetPlayer: Player,
+  playerId: string,
+  effect: ApplyModifierEffect,
+  value: number,
+) {
+  // Determine what lifecycle layer this modifier belongs to
+  const isTemporary = !!effect.duration;
+
+  // Build out the unified clean modifier instance object
+  const newModifier: CardModifier = {
+    id: `mod-${sourceId}-${effect.stat}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+    sourceCardId: sourceId,
+    stat: effect.stat,
+    value: value,
+    type: isTemporary ? "temporary" : "permanent",
+    override: effect.override,
+    lifecycle:
+      isTemporary && effect.duration
+        ? {
+            sourcePlayerId: playerId,
+            expiryTrigger: effect.duration.expiryTrigger,
+            expiryOwner: effect.duration.expiryOwner,
+            turnsRemaining: effect.duration.turnsRemaining ?? 1,
+          }
+        : undefined,
+  };
+
+  // Safely push it into player's modifier array
+  if (targetPlayer.modifiers === undefined) {
+    targetPlayer.modifiers = [];
+  }
+  targetPlayer.modifiers.push(newModifier);
+
+  recordEvent(G, {
+    type: "applyModifier",
+    sourceId: sourceId,
+    key: effect.stat,
+    value: value,
+    playerId: playerId,
+    timestamp: Date.now(),
+    targetId: targetPlayer.id,
+    targetType: "player",
   });
 }
 
@@ -101,11 +151,63 @@ export function applyBoolEffectToCard(
   } as GameEvent);
 }
 
+export function applyBoolEffectToPlayer(
+  G: GameState,
+  sourceId: string,
+  targetPlayer: Player,
+  effectType: "freeze" | "divineShield",
+  playerKey: keyof Player,
+) {
+  if (!targetPlayer) return;
+
+  // Dynamically set the player property to true (e.g. targetPlayer.frozen = true)
+  (targetPlayer as any)[playerKey] = true;
+
+  recordEvent(G, {
+    type: effectType,
+    sourceId: sourceId,
+    targetId: targetPlayer.id,
+    targetType: "player",
+    playerId: targetPlayer.id,
+    timestamp: Date.now(),
+  } as GameEvent);
+}
+
+/**
+ * A frozen character unfreezes at the end of the turn in which it was still
+ * capable of attacking (i.e. it hasn't used up its attack(s) for the turn).
+ * If it couldn't act this turn at all (summoning sickness with no Charge/Rush,
+ * or Rush with no valid enemy minion to strike) or has already used up all its
+ * attacks, it stays frozen and is re-checked at the end of its controller's
+ * next turn instead.
+ */
+export function shouldMinionUnfreezeAtTurnEnd(
+  G: GameState,
+  ownerId: string,
+  card: Card,
+): boolean {
+  if (card.summoningSickness && !card.charge && !card.rush) {
+    return false;
+  }
+
+  if (card.summoningSickness && card.rush && !card.charge) {
+    const enemyId = ownerId === "0" ? "1" : "0";
+    if (G.board[enemyId].length === 0) return false;
+  }
+
+  return card.attacksLeft > 0;
+}
+
+export function shouldHeroUnfreezeAtTurnEnd(player: Player): boolean {
+  return player.attacksLeft > 0;
+}
+
 export function dealDamageToPlayer(
   G: GameState,
   sourceId: string,
   targetPlayerId: string,
   damageAmount: number,
+  sourceEventIndex?: number,
 ) {
   const targetPlayer = G.players[targetPlayerId];
   if (!targetPlayer) return;
@@ -132,6 +234,8 @@ export function dealDamageToPlayer(
     playerId: targetPlayerId,
     value: hadDivineShield && damageAmount > 0 ? 0 : damageAmount,
     timestamp: Date.now(),
+    eventRef: sourceEventIndex,
+    snapshot: JSON.parse(JSON.stringify(targetPlayer)),
   });
 }
 
@@ -140,6 +244,7 @@ export function healPlayer(
   sourceId: string,
   targetPlayerId: string,
   amount: number,
+  sourceEventIndex?: number,
 ) {
   const player = G.players[targetPlayerId];
   if (!player) return;
@@ -157,6 +262,8 @@ export function healPlayer(
     playerId: targetPlayerId,
     value: actualHeal,
     timestamp: Date.now(),
+    eventRef: sourceEventIndex,
+    snapshot: JSON.parse(JSON.stringify(player)),
   });
 }
 
@@ -166,6 +273,7 @@ export function dealDamageToCard(
   targetCard: Card, // This is our target minion
   targetPlayerId: string,
   damageAmount: number,
+  sourceEventIndex?: number,
 ) {
   if (!targetCard || !targetCard.isMinion) return;
   let hadDivineShield = false;
@@ -177,6 +285,11 @@ export function dealDamageToCard(
     hadDivineShield = true;
   }
 
+  const actualDamage = hadDivineShield && damageAmount > 0 ? 0 : damageAmount;
+
+  // Instead of subtracting directly from health, increase damage taken!
+  targetCard.damageTaken += actualDamage;
+
   // 2. STANDARD DAMAGE FALLBACK (If no shield is present or damage is 0)
   recordEvent(G, {
     type: "damage",
@@ -184,13 +297,11 @@ export function dealDamageToCard(
     targetId: targetCard.id,
     targetType: "card",
     playerId: targetPlayerId,
-    value: hadDivineShield && damageAmount > 0 ? 0 : damageAmount,
+    value: actualDamage,
     timestamp: Date.now(),
+    eventRef: sourceEventIndex,
+    snapshot: JSON.parse(JSON.stringify(targetCard)),
   });
-
-  // Instead of subtracting directly from health, increase damage taken!
-  targetCard.damageTaken +=
-    hadDivineShield && damageAmount > 0 ? 0 : damageAmount;
 }
 
 export function healCard(
@@ -199,6 +310,7 @@ export function healCard(
   targetCard: Card,
   playerId: string,
   amount: number,
+  sourceEventIndex?: number,
 ) {
   if (!targetCard || !targetCard.isMinion) return;
 
@@ -218,6 +330,8 @@ export function healCard(
     playerId,
     value: actualHeal,
     timestamp: Date.now(),
+    eventRef: sourceEventIndex,
+    snapshot: JSON.parse(JSON.stringify(targetCard)),
   });
 }
 
@@ -253,8 +367,9 @@ export function addCardToHand(
   G: GameState,
   playerID: string,
   card: Card,
-  modifiers?: import("../types").ApplyModifierEffect[],
+  modifiers?: ApplyModifierEffect[],
   source: "deck" | "global" | "graveyard" | "hand" | "board" = "global",
+  sourceEventIndex?: number,
 ) {
   const player = G.players[playerID];
 
@@ -288,6 +403,8 @@ export function addCardToHand(
       timestamp: Date.now(),
       card,
       source,
+      eventRef: sourceEventIndex,
+      snapshot: JSON.parse(JSON.stringify(card)),
     });
   }
 }
@@ -301,6 +418,7 @@ export function returnCardToHand(
   card: Card,
   ownerID: string,
   modifiers?: import("../types").ApplyModifierEffect[],
+  sourceEventIndex?: number,
 ) {
   // Remove card from board
   const boardIndex = G.board[ownerID].findIndex((c) => c.id === card.id);
@@ -312,7 +430,7 @@ export function returnCardToHand(
   const resetCard = stripCardModifiers(card);
 
   // Add to hand with new modifiers
-  addCardToHand(G, ownerID, resetCard, modifiers, "board");
+  addCardToHand(G, ownerID, resetCard, modifiers, "board", sourceEventIndex);
 
   recordEvent(G, {
     type: "returnToHand",
@@ -321,6 +439,8 @@ export function returnCardToHand(
     timestamp: Date.now(),
     card: resetCard,
     fromBoard: true,
+    eventRef: sourceEventIndex,
+    snapshot: JSON.parse(JSON.stringify(resetCard)),
   });
 }
 
@@ -358,8 +478,8 @@ export function stripCardModifiers(card: Card): Card {
 export function findCardsInPool(
   G: GameState,
   playerID: string,
-  effect: import("../types").AddToHandEffect,
-  context: import("../types").EffectContext,
+  effect: AddToHandEffect,
+  context: EffectContext,
 ): Card[] {
   let pool: Card[] = [];
   const player = G.players[playerID];
@@ -465,4 +585,88 @@ export function findCardsInPool(
   }
 
   return pool;
+}
+
+/**
+ * Discard cards from a player's hand based on the specified strategy
+ * Tracks discarded cards in the discardedCards array
+ */
+export function discardCardsFromHand(
+  currentCardId: string,
+  G: GameState,
+  playerId: string,
+  count: number,
+  strategy: "random" | "highest-cost" | "lowest-cost" | "all",
+  turn: number,
+  sourceEventIndex?: number,
+) {
+  const player = G.players[playerId];
+
+  // Filter out the current card so it cannot be discarded by its own effect
+  const eligibleHand = player.hand.filter((card) => card.id !== currentCardId);
+  if (eligibleHand.length === 0) return;
+
+  let cardsToDiscard: Card[] = [];
+
+  switch (strategy) {
+    case "random":
+      // Shuffle and take first N cards from eligible hand
+      const shuffled = [...eligibleHand].sort(() => Math.random() - 0.5);
+      cardsToDiscard = shuffled.slice(0, Math.min(count, eligibleHand.length));
+      break;
+
+    case "highest-cost":
+      // Sort eligible hand by cost descending, take top N
+      const sortedHigh = [...eligibleHand].sort(
+        (a, b) => getManaCost(b) - getManaCost(a),
+      );
+      cardsToDiscard = sortedHigh.slice(
+        0,
+        Math.min(count, eligibleHand.length),
+      );
+      break;
+
+    case "lowest-cost":
+      // Sort eligible hand by cost ascending, take top N
+      const sortedLow = [...eligibleHand].sort(
+        (a, b) => getManaCost(a) - getManaCost(b),
+      );
+      cardsToDiscard = sortedLow.slice(0, Math.min(count, eligibleHand.length));
+      break;
+
+    case "all":
+      // Discard entire eligible hand
+      cardsToDiscard = [...eligibleHand];
+      break;
+  }
+
+  // Remove cards from hand and track them
+  cardsToDiscard.forEach((card) => {
+    const index = player.hand.findIndex((c) => c.id === card.id);
+    if (index !== -1) {
+      player.hand.splice(index, 1);
+
+      // Track in discardedCards
+      G.discardedCards.push({
+        card: JSON.parse(JSON.stringify(card)),
+        originalOwner: playerId,
+        discardedOnTurn: turn,
+        strategy: strategy,
+      });
+
+      // Record event for animations
+      recordEvent(G, {
+        type: "discard",
+        cardId: card.id,
+        playerId: playerId,
+        timestamp: Date.now(),
+        card: card,
+        strategy: strategy,
+        eventRef: sourceEventIndex,
+        snapshot: JSON.parse(JSON.stringify(card)),
+      });
+    } else {
+      console.warn("card not found", card.id, card.title);
+    }
+  });
 }

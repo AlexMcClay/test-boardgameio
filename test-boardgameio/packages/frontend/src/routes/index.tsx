@@ -164,9 +164,22 @@ function App() {
     }
 
     if (gameMode === "pvp" && multiplayerSession) {
-      const defaultServerUrl = `${window.location.protocol}//api.${window.location.hostname.replace(/^www\./, "")}`;
-      const serverUrl =
-        import.meta.env.VITE_BACKEND_HTTP_URL?.trim() || defaultServerUrl;
+      // 1. Clean up the hostname (remove 'www.')
+      const cleanHostname = window.location.hostname.replace(/^www\./, "");
+
+      // 3. Handle environment-specific logic (Dev vs Production)
+      const isDev = import.meta.env.DEV;
+      const subdomain = isDev ? "" : "api.";
+      const port = isDev ? ":8000" : "";
+
+      // 2. Build the fallback/default server URL cleanly
+      const defaultServerUrl = `${window.location.protocol}//${subdomain}${cleanHostname}${port}`;
+
+      // 3. Get the env variable (trimmed) if it exists
+      const envBackendUrl = import.meta.env.VITE_BACKEND_HTTP_URL?.trim();
+
+      // 4. Final assignment using the env variable or the default fallback
+      const serverUrl = envBackendUrl || defaultServerUrl;
       const HearthstoneOnlinePvP = Client({
         board: Gameboard,
         game: HeathStoneGame,
