@@ -317,7 +317,7 @@ const CollectionManager = () => {
   // Show the mana curve popover to the LEFT of the Deck component (card-select mode)
   function handleDeckMouseEnter(e: React.MouseEvent<HTMLDivElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
-    const popoverWidth = window.innerWidth * 0.16; // matches ManaCurvePopover's w-[16vw]
+    const popoverWidth = window.innerWidth * 0.24; // matches ManaCurvePopover's w-[16vw]
     const spacing = 16;
 
     let x = rect.left - popoverWidth - spacing;
@@ -859,8 +859,12 @@ const CollectionManager = () => {
       )}
 
       {/* Mana curve popover, shown to the left of the Deck (card-select mode) */}
-      {mode === "card-select" && showManaCurve && (
-        <ManaCurvePopover deck={deck} position={manaCurvePosition} />
+      {mode === "card-select" && showManaCurve && selectedHero && (
+        <ManaCurvePopover
+          deck={deck}
+          position={manaCurvePosition}
+          hero={selectedHero}
+        />
       )}
 
       {/* Settings Button */}
