@@ -26,10 +26,7 @@ import BoardCardDeckBottom from "./Board/BoardCardDeckBottom";
 import DragCard from "./Board/DragCard";
 import YourTurn from "./Board/YourTurn";
 import SettingsOverlay from "./SettingsOverlay";
-import {
-  validateMove,
-  type TargetValue,
-} from "@project/shared";
+import { validateMove, type TargetValue } from "@project/shared";
 import SettingsButton from "./SettingsButton";
 import { useGameAnimation, useGameTargeting } from "@/hooks";
 import { useAnimationStore } from "@/stores/animationStore";
@@ -404,8 +401,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
         </DndContext>
       </div>
       {(() => {
-        const winner =
-          visualCtx?.gameover?.winner ?? ctx?.gameover?.winner;
+        const winner = visualCtx?.gameover?.winner;
         if (!winner || winner === "draw") return null;
         return (
           <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black/60 z-50">

@@ -12,6 +12,7 @@ import { useEffect, useRef } from "react";
 import type { Actor } from "xstate";
 import {
   gameMachine,
+  hasPendingDeaths,
   moveCommandToEvent,
   type PlayerID,
 } from "@project/shared";
@@ -47,6 +48,17 @@ export function useAIOpponent(
       const { G, ctx } = snapshot.context;
       if (ctx.gameover || ctx.currentPlayer !== botSeat) return;
 
+      // Only search from settled, actionable states. While the machine is
+      // resolving (battlecries, death waves) the board is mid-transition and
+      // no move would be accepted anyway; the subscription fires again when
+      // the machine lands back in an actionable state.
+      const actionable =
+        snapshot.matches({ playing: "idle" }) ||
+        snapshot.matches({ playing: "awaitingBattlecryTarget" });
+      if (!actionable || hasPendingDeaths(G)) {
+        return;
+      }
+
       if (ctx.turn !== trackedTurn) {
         trackedTurn = ctx.turn;
         movesThisTurn = 0;
@@ -74,6 +86,12 @@ export function useAIOpponent(
       const snapshot = actor.getSnapshot();
       const { ctx } = snapshot.context;
       if (ctx.gameover || ctx.currentPlayer !== botSeat) return;
+      // Board is mid-resolution: the machine wouldn't accept this move.
+      // Drop it — the subscription re-requests once resolution settles.
+      const actionable =
+        snapshot.matches({ playing: "idle" }) ||
+        snapshot.matches({ playing: "awaitingBattlecryTarget" });
+      if (!actionable) return;
 
       if (!chosen) {
         actor.send({ type: "END_TURN", playerID: botSeat });

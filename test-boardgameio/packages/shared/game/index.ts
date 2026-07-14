@@ -245,18 +245,17 @@ export const placeCard = (
           sourceEventIndex,
         };
       }
-    } else if (!needsTargetedBattlecry) {
-      // Execute onPlace immediately for non-targeted battlecries
-      executeEffects(card.onPlace, {
-        card: card,
-        G,
-        ctx,
-        location: "hand",
-        playerID: ctx.currentPlayer,
+    } else if (!needsTargetedBattlecry && card.onPlace.length > 0) {
+      // Automatic (non-targeted) battlecry: not executed inline — the host
+      // resolves it as its own step (machine: resolvingBattlecry state;
+      // engine.applyMove: settle path), AFTER the minion is on the board,
+      // matching the targeted resolveBattlecry path.
+      G.pendingAutoBattlecry = {
+        cardId: card.id,
+        playerId: ctx.currentPlayer,
         target,
-        type: "minion",
         sourceEventIndex,
-      });
+      };
     }
 
     if (boardIndex !== undefined) {
@@ -298,7 +297,11 @@ export const placeCard = (
     });
   }
 
-  processDeaths(G, ctx, sourceEventIndex);
+  // Deaths are no longer resolved inside the move: the host resolves them
+  // (engine.applyMove drains waves synchronously; the gameMachine steps
+  // through resolvingDeaths wave-by-wave). Stash the top-level event index
+  // so death events recorded later still reference this move.
+  G.pendingSourceEventIndex = sourceEventIndex;
 };
 
 export const minionAttack = (
@@ -367,7 +370,11 @@ export const minionAttack = (
     });
   }
 
-  processDeaths(G, ctx, sourceEventIndex);
+  // Deaths are no longer resolved inside the move: the host resolves them
+  // (engine.applyMove drains waves synchronously; the gameMachine steps
+  // through resolvingDeaths wave-by-wave). Stash the top-level event index
+  // so death events recorded later still reference this move.
+  G.pendingSourceEventIndex = sourceEventIndex;
   return G;
 };
 
@@ -421,7 +428,11 @@ export const resolveBattlecry = (
 
   // Clear battlecry state
   G.activeBattlecryMinion = null;
-  processDeaths(G, ctx, sourceEventIndex);
+  // Deaths are no longer resolved inside the move: the host resolves them
+  // (engine.applyMove drains waves synchronously; the gameMachine steps
+  // through resolvingDeaths wave-by-wave). Stash the top-level event index
+  // so death events recorded later still reference this move.
+  G.pendingSourceEventIndex = sourceEventIndex;
 };
 
 export const useHeroPower = (
@@ -532,7 +543,11 @@ export const useHeroPower = (
   });
 
   // Process any deaths that may have resulted
-  processDeaths(G, ctx, sourceEventIndex);
+  // Deaths are no longer resolved inside the move: the host resolves them
+  // (engine.applyMove drains waves synchronously; the gameMachine steps
+  // through resolvingDeaths wave-by-wave). Stash the top-level event index
+  // so death events recorded later still reference this move.
+  G.pendingSourceEventIndex = sourceEventIndex;
 };
 
 export const heroAttack = (
@@ -621,7 +636,11 @@ export const heroAttack = (
     }
   }
 
-  processDeaths(G, ctx, sourceEventIndex);
+  // Deaths are no longer resolved inside the move: the host resolves them
+  // (engine.applyMove drains waves synchronously; the gameMachine steps
+  // through resolvingDeaths wave-by-wave). Stash the top-level event index
+  // so death events recorded later still reference this move.
+  G.pendingSourceEventIndex = sourceEventIndex;
   return G;
 };
 
@@ -1346,10 +1365,58 @@ function equipWeapon(
   }
 }
 
-function processDeaths(G: GameState, ctx: Ctx, sourceEventIndex?: number) {
-  // Pass 'ctx' here so doEffects can access it
+/** True while a placed minion's automatic battlecry hasn't resolved yet. */
+export function hasPendingAutoBattlecry(G: GameState): boolean {
+  return !!G.pendingAutoBattlecry;
+}
+
+/**
+ * Resolves the pending automatic (non-targeted) battlecry set by placeCard.
+ * Runs with the minion already ON the board — same as the targeted
+ * resolveBattlecry path. Fizzles silently if the minion is gone. Appends to
+ * G.gameEvents — never clears it.
+ */
+export function resolvePendingAutoBattlecry(G: GameState, ctx: Ctx) {
+  const pending = G.pendingAutoBattlecry;
+  G.pendingAutoBattlecry = null;
+  if (!pending) return;
+
+  const card = G.board[pending.playerId]?.find((c) => c.id === pending.cardId);
+  if (!card) return; // minion vanished before its battlecry could resolve
+
+  executeEffects(card.onPlace, {
+    card,
+    G,
+    ctx,
+    location: "hand",
+    playerID: pending.playerId,
+    target: pending.target,
+    type: "minion",
+    sourceEventIndex: pending.sourceEventIndex,
+  });
+}
+
+/** True while any board minion is marked for death (health <= 0). */
+export function hasPendingDeaths(G: GameState): boolean {
+  return (["0", "1"] as const).some((playerId) =>
+    G.board[playerId].some((card) => getCurrentHealth(card) <= 0),
+  );
+}
+
+/**
+ * Resolves ONE death wave: triggers deathrattles, records death events and
+ * sweeps corpses — but does NOT recurse. If a deathrattle kills another
+ * minion, that death stays pending for the next wave, so hosts can surface
+ * each wave of a chain reaction as its own state update (the gameMachine's
+ * `resolvingDeaths` state re-checks hasPendingDeaths between waves).
+ *
+ * The eventRef of recorded deaths comes from G.pendingSourceEventIndex, which
+ * the triggering move sets; it's cleared once the board is clean.
+ * Appends to G.gameEvents — never clears it.
+ */
+export function resolveDeathWave(G: GameState, ctx: Ctx) {
   const playerIds: ("0" | "1")[] = ["0", "1"];
-  let deathsOccurred = false;
+  const sourceEventIndex = G.pendingSourceEventIndex;
 
   playerIds.forEach((playerId) => {
     // 1. Find all minions on this board marked for death
@@ -1358,8 +1425,6 @@ function processDeaths(G: GameState, ctx: Ctx, sourceEventIndex?: number) {
     );
 
     if (deadMinions.length > 0) {
-      deathsOccurred = true;
-
       deadMinions.forEach((deadCard) => {
         // 2. TRIGGER DEATHRATTLES:
         if (deadCard.deathrattle && deadCard.deathrattle.length > 0) {
@@ -1392,17 +1457,32 @@ function processDeaths(G: GameState, ctx: Ctx, sourceEventIndex?: number) {
         });
       });
 
-      // 4. Clean sweep: Remove dead minions from the board simultaneously
+      // 4. Clean sweep: remove exactly THIS wave's dead minions. Minions
+      // killed by the deathrattles above (e.g. a rattle that AoEs its own
+      // fresh summons) stay on board for the NEXT wave so their own death
+      // events, graveyard entries and deathrattles trigger properly.
+      // (The old health>0 filter silently deleted them — pre-existing bug.)
+      const sweptIds = new Set(deadMinions.map((card) => card.id));
       G.board[playerId] = G.board[playerId].filter(
-        (card) => getCurrentHealth(card) > 0,
+        (card) => !sweptIds.has(card.id),
       );
     }
   });
 
-  // 5. Recursion for chain reactions!
-  // If a deathrattle dealt damage that killed ANOTHER minion, this runs again.
-  if (deathsOccurred) {
-    processDeaths(G, ctx, sourceEventIndex);
+  // Chain fully resolved → the triggering move's event index is spent
+  if (!hasPendingDeaths(G)) {
+    G.pendingSourceEventIndex = undefined;
+  }
+}
+
+/**
+ * Drains ALL pending death waves synchronously. Used by the engine's
+ * applyMove default path (MCTS simulations, tests, headless hosts); the
+ * gameMachine instead steps wave-by-wave via resolveDeathWave.
+ */
+export function processDeaths(G: GameState, ctx: Ctx) {
+  while (hasPendingDeaths(G)) {
+    resolveDeathWave(G, ctx);
   }
 }
 
@@ -1552,7 +1632,8 @@ export function beginTurn(G: GameState, ctx: GameCtx) {
 
   // 2. Always refresh static auras and evaluate cascading health drop deaths[cite: 1]
   refreshAuras(G);
-  processDeaths(G, ctx); //[cite: 1]
+  // Deaths caused by expiring buffs stay pending; the host resolves them
+  // (machine waves / engine drain) right after the turn transition.
 
   recordEvent(G, {
     type: "beginTurn",
@@ -1589,7 +1670,8 @@ export function endTurnCleanup(G: GameState, ctx: GameCtx) {
 
   // 2. Refresh auras/deaths again in case losing an attack/health buff altered the board state[cite: 1]
   refreshAuras(G);
-  processDeaths(G, ctx); //[cite: 1]
+  // Deaths caused by expiring buffs stay pending; the host resolves them
+  // (machine waves / engine drain) right after the turn transition.
 
   recordEvent(G, {
     type: "endTurn",

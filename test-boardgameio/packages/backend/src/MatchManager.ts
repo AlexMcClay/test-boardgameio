@@ -29,6 +29,8 @@ interface Match {
   seats: Record<SeatID, Seat>;
   /** Set when both sockets are gone; used by the sweeper. */
   emptySince: number | null;
+  /** stateVersion of the last broadcast, so the subscription can dedupe. */
+  lastBroadcastVersion: number;
 }
 
 /** Matches with no connected sockets for this long get discarded. */
@@ -60,8 +62,20 @@ export class MatchManager {
         "1": { credentials: randomIDGen(), socket: null },
       },
       emptySince: Date.now(),
+      lastBroadcastVersion: -1,
     };
     this.matches.set(matchID, match);
+
+    // Broadcast every state change, including the machine's own delayed
+    // death-wave transitions (which happen AFTER the triggering game_move
+    // returns) — each wave reaches both clients as its own game_sync.
+    actor.subscribe((snapshot) => {
+      const version = snapshot.context.G.eventHistory.length;
+      if (version !== match.lastBroadcastVersion) {
+        match.lastBroadcastVersion = version;
+        this.broadcast(match);
+      }
+    });
 
     return {
       matchID,
@@ -112,10 +126,22 @@ export class MatchManager {
     const event = moveCommandToEvent(move, args ?? [], playerID);
     if (!event) return `unknown-move:${String(move)}`;
 
-    // The machine + engine enforce turn ownership and move legality; illegal
-    // moves are no-ops and the broadcast below simply re-syncs both clients.
+    // The machine + engine enforce turn ownership and move legality. The
+    // actor subscription (see createMatch) broadcasts each resulting
+    // snapshot — including any resolution steps (battlecry, death waves)
+    // that run asynchronously after this call returns.
+    const versionBefore =
+      match.actor.getSnapshot().context.G.eventHistory.length;
     match.actor.send(event);
-    this.broadcast(match);
+    const versionAfter =
+      match.actor.getSnapshot().context.G.eventHistory.length;
+
+    // Rejected/no-op moves (invalid target, wrong machine state, ...) change
+    // nothing and broadcast nothing — tell the mover so clients aren't left
+    // waiting on a sync that will never come.
+    if (versionAfter === versionBefore) {
+      return "move-not-applied";
+    }
     return null;
   }
 

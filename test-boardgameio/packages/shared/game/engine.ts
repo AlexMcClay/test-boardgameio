@@ -20,6 +20,9 @@ import {
   initialDraw,
   setupGame,
   checkVictory,
+  processDeaths,
+  hasPendingAutoBattlecry,
+  resolvePendingAutoBattlecry,
   type GameSetupData,
 } from "./index.js";
 import { recordEvent } from "./utils/index.js";
@@ -43,6 +46,36 @@ export interface EngineState {
 export type ApplyMoveResult =
   | { ok: true }
   | { ok: false; error: string };
+
+export interface ApplyMoveOptions {
+  /**
+   * When true (default), the board is fully settled synchronously after the
+   * move — pending automatic battlecry, then all death waves — the atomic
+   * behavior MCTS simulations and headless hosts need. The gameMachine
+   * passes false and instead steps through its `resolvingBattlecry` and
+   * `resolvingDeaths` states one macrostep at a time, so each resolution
+   * step becomes its own snapshot.
+   */
+  settle?: boolean;
+}
+
+/**
+ * Runs victory detection once: sets ctx.gameover and records the gameEnd
+ * event. Called after moves (applyMove) and after each machine death wave —
+ * a deathrattle can kill a hero mid-chain.
+ */
+export function finalizeVictory(state: EngineState) {
+  const { G, ctx } = state;
+  const result = checkVictory(G);
+  if (result && !ctx.gameover) {
+    ctx.gameover = result;
+    recordEvent(G, {
+      type: "gameEnd",
+      winner: result.winner,
+      timestamp: Date.now(),
+    });
+  }
+}
 
 /** Creates a fresh game: setup, opening hands, and player 0's first turn. */
 export function createInitialState(setupData: GameSetupData): EngineState {
@@ -75,7 +108,9 @@ export function applyMove(
   move: MoveName,
   args: unknown[] = [],
   playerID?: PlayerID,
+  options: ApplyMoveOptions = {},
 ): ApplyMoveResult {
+  const { settle = true } = options;
   const { G, ctx } = state;
 
   if (ctx.gameover) {
@@ -121,15 +156,15 @@ export function applyMove(
       return { ok: false, error: `unknown-move:${String(move)}` };
   }
 
-  const result = checkVictory(G);
-  if (result && !ctx.gameover) {
-    ctx.gameover = result;
-    recordEvent(G, {
-      type: "gameEnd",
-      winner: result.winner,
-      timestamp: Date.now(),
-    });
+  if (settle) {
+    // Same order the machine steps through: battlecry → death waves
+    if (hasPendingAutoBattlecry(G)) {
+      resolvePendingAutoBattlecry(G, ctx);
+    }
+    processDeaths(G, ctx);
   }
+
+  finalizeVictory(state);
 
   return { ok: true };
 }

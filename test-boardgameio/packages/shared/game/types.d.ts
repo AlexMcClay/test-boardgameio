@@ -791,6 +791,22 @@ export interface GameState {
     sourceEventIndex: number; // Index of the cardPlayed event this battlecry belongs to
   } | null; // Tracks minion waiting to resolve targeted battlecry
 
+  // Index of the top-level event (cardPlayed/attack/heroPower) whose effects
+  // left minions at <= 0 HP. Set by moves, consumed by resolveDeathWave for
+  // eventRef chaining, cleared once the board is clean.
+  pendingSourceEventIndex?: number;
+
+  // Automatic (non-targeted) battlecry waiting to resolve. Set by placeCard,
+  // consumed by resolvePendingAutoBattlecry via the machine's
+  // resolvingBattlecry state (or drained synchronously by engine.applyMove's
+  // settle path).
+  pendingAutoBattlecry?: {
+    cardId: string;
+    playerId: PlayerID;
+    target?: TargetValue;
+    sourceEventIndex?: number;
+  } | null;
+
   // ADD THIS: Global tracking of spent spells and dead minions
   graveyard: {
     card: Card;

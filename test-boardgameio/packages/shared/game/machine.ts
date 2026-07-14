@@ -11,8 +11,19 @@
 // steppable so the MCTS bot can simulate with it (via engine.applyMove).
 
 import { assign, setup } from "xstate";
-import { applyMove, createInitialState, type MoveName } from "./engine.js";
-import type { GameSetupData } from "./index.js";
+import {
+  applyMove,
+  createInitialState,
+  finalizeVictory,
+  type MoveName,
+} from "./engine.js";
+import {
+  hasPendingDeaths,
+  resolveDeathWave,
+  hasPendingAutoBattlecry,
+  resolvePendingAutoBattlecry,
+  type GameSetupData,
+} from "./index.js";
 import type { GameCtx, GameState, PlayerID, TargetValue } from "./types";
 
 export interface GameMachineInput {
@@ -96,17 +107,56 @@ export const gameMachine = setup({
         ctx: { ...context.ctx },
       };
       const { move, args } = moveEventToCommand(event);
-      const result = applyMove(next, move, args, event.playerID);
+      // settle: false — moves leave pending battlecries/corpses in place;
+      // the resolvingBattlecry / resolvingDeaths states below step through
+      // them so each resolution step is its own snapshot.
+      const result = applyMove(next, move, args, event.playerID, {
+        settle: false,
+      });
       if (!result.ok) {
         console.warn(`Move rejected: ${event.type} — ${result.error}`);
         return {};
       }
       return next;
     }),
+    // ONE death wave: deathrattles fire, corpses sweep, chain deaths stay
+    // pending for the next wave. A wave can kill a hero → finalizeVictory.
+    resolveDeathWaveAction: assign(({ context }) => {
+      const next = {
+        G: structuredClone(context.G),
+        ctx: { ...context.ctx },
+      };
+      resolveDeathWave(next.G, next.ctx);
+      finalizeVictory(next);
+      return next;
+    }),
+    // The placed minion's automatic (non-targeted) battlecry, resolved with
+    // the minion on board. Can kill a hero (Flame Imp) → finalizeVictory.
+    resolveAutoBattlecryAction: assign(({ context }) => {
+      const next = {
+        G: structuredClone(context.G),
+        ctx: { ...context.ctx },
+      };
+      resolvePendingAutoBattlecry(next.G, next.ctx);
+      finalizeVictory(next);
+      return next;
+    }),
   },
   guards: {
     hasPendingBattlecry: ({ context }) => !!context.G.activeBattlecryMinion,
     noPendingBattlecry: ({ context }) => !context.G.activeBattlecryMinion,
+    hasPendingDeaths: ({ context }) => hasPendingDeaths(context.G),
+    noPendingDeaths: ({ context }) => !hasPendingDeaths(context.G),
+    deathsClearNoBattlecry: ({ context }) =>
+      !hasPendingDeaths(context.G) && !context.G.activeBattlecryMinion,
+    deathsClearBattlecryPending: ({ context }) =>
+      !hasPendingDeaths(context.G) && !!context.G.activeBattlecryMinion,
+    hasPendingAutoBattlecry: ({ context }) =>
+      hasPendingAutoBattlecry(context.G),
+    autoBattlecryDoneDeathsPending: ({ context }) =>
+      !hasPendingAutoBattlecry(context.G) && hasPendingDeaths(context.G),
+    autoBattlecryDoneClear: ({ context }) =>
+      !hasPendingAutoBattlecry(context.G) && !hasPendingDeaths(context.G),
     isGameOver: ({ context }) => !!context.ctx.gameover,
   },
 }).createMachine({
@@ -119,10 +169,18 @@ export const gameMachine = setup({
       initial: "idle",
       states: {
         idle: {
-          always: {
-            target: "awaitingBattlecryTarget",
-            guard: "hasPendingBattlecry",
-          },
+          always: [
+            // A just-placed minion's automatic battlecry resolves first
+            // (correct play order: battlecry, then any death sweeps).
+            { target: "resolvingBattlecry", guard: "hasPendingAutoBattlecry" },
+            // Deaths outrank battlecry targeting: a move (or turn switch)
+            // that left corpses must resolve them before anything else.
+            { target: "resolvingDeaths", guard: "hasPendingDeaths" },
+            {
+              target: "awaitingBattlecryTarget",
+              guard: "hasPendingBattlecry",
+            },
+          ],
           on: {
             PLACE_CARD: { actions: "applyMoveEvent" },
             MINION_ATTACK: { actions: "applyMoveEvent" },
@@ -133,13 +191,65 @@ export const gameMachine = setup({
           },
         },
         awaitingBattlecryTarget: {
-          always: { target: "idle", guard: "noPendingBattlecry" },
+          always: [
+            { target: "resolvingBattlecry", guard: "hasPendingAutoBattlecry" },
+            // Battlecry effects (RESOLVE_BATTLECRY) can kill minions too
+            { target: "resolvingDeaths", guard: "hasPendingDeaths" },
+            { target: "idle", guard: "noPendingBattlecry" },
+          ],
           on: {
             RESOLVE_BATTLECRY: { actions: "applyMoveEvent" },
             CANCEL_BATTLECRY: { actions: "applyMoveEvent" },
             // Ending the turn with an unresolved battlecry was allowed under
             // boardgame.io (endTurn clears activeBattlecryMinion); keep parity.
             END_TURN: { actions: "applyMoveEvent" },
+          },
+        },
+        // Resolves a just-placed minion's automatic (non-targeted) battlecry
+        // as its own macrostep: snapshot 1 shows the minion placed with the
+        // battlecry still pending; the 0ms delayed transition then executes
+        // the effects as snapshot 2. No move events handled while resolving.
+        resolvingBattlecry: {
+          always: [
+            {
+              target: "resolvingDeaths",
+              guard: "autoBattlecryDoneDeathsPending",
+            },
+            { target: "idle", guard: "autoBattlecryDoneClear" },
+          ],
+          after: {
+            0: {
+              guard: "hasPendingAutoBattlecry",
+              actions: "resolveAutoBattlecryAction",
+              // reenter re-arms the timer; the always-routes above exit in
+              // the same macrostep once the battlecry has resolved.
+              target: "resolvingBattlecry",
+              reenter: true,
+            },
+          },
+        },
+        // Steps a deathrattle chain one wave at a time. No move events are
+        // handled here — the machine itself enforces "no acting while the
+        // board resolves". Each wave fires via a 0ms delayed transition, so
+        // it's a separate MACROSTEP → its own snapshot / game_sync (always-
+        // transitions alone would collapse the whole chain into one update).
+        resolvingDeaths: {
+          always: [
+            {
+              target: "awaitingBattlecryTarget",
+              guard: "deathsClearBattlecryPending",
+            },
+            { target: "idle", guard: "deathsClearNoBattlecry" },
+          ],
+          after: {
+            0: {
+              guard: "hasPendingDeaths",
+              actions: "resolveDeathWaveAction",
+              // reenter re-arms the delay timer → the next wave (if the
+              // rattles killed more minions) runs as the next macrostep.
+              target: "resolvingDeaths",
+              reenter: true,
+            },
           },
         },
       },
