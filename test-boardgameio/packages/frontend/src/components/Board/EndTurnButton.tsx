@@ -1,10 +1,10 @@
 import { useAudioStore } from "@/stores/audioStore";
-import { hasToEndTurn, type GameState } from "@project/shared";
-import type { BoardProps } from "boardgame.io/dist/types/packages/react";
+import { hasToEndTurn } from "@project/shared";
+import type { GameBoardProps } from "@/types/gameProps";
 import { useMemo } from "react";
 import { twMerge } from "tailwind-merge";
 
-interface Props extends BoardProps<GameState> {}
+interface Props extends GameBoardProps {}
 const exit_button = "assets/exit_button.png"; // Path to your exit button image
 
 const EndTurnButton = (props: Props) => {

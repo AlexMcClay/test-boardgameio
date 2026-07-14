@@ -1,6 +1,6 @@
 import type { Card } from "@project/shared";
 import CardComponent from "../Card";
-import type { Ctx } from "boardgame.io";
+import type { Ctx } from "@project/shared";
 
 type Props = {
   deck: Card[];

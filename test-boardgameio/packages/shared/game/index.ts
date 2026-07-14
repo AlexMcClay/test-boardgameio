@@ -6,6 +6,8 @@ import type {
   Hero,
   EffectTypes,
   EffectContext,
+  GameCtx,
+  PlayerID,
 } from "./types";
 import {
   createCardFromID,
@@ -32,7 +34,7 @@ import {
   isUserSelectValue,
   getPlayerAttack,
 } from "./utils";
-import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
+type Ctx = GameCtx;
 import {
   hasTargets,
   validateHeroAttack,
@@ -40,38 +42,37 @@ import {
   validateTargetQuery,
 } from "./utils/validateMove";
 import type { CardTemplateKey } from "./data/cards";
-import { enumerateAIMoves } from "./ai";
 import {
   checkSingleTargetCondition,
   resolveDynamicValue,
   resolveTargets,
 } from "./utils/effectEngine.js";
 
-export const isVictory = ({ G }: { G: GameState; ctx: Ctx }) => {
+export function checkVictory(
+  G: GameState,
+): { winner: PlayerID } | undefined {
   if (G.players[0].health <= 0) {
     return { winner: "1" };
   } else if (G.players[1].health <= 0) {
     return { winner: "0" };
   }
-};
+}
 
-const setupData = (
-  { ctx }: { ctx: Ctx },
-  setupData: {
-    player0: {
-      playerUsername?: string;
-      deck: Card[];
-      hero: Hero;
-    };
-    player1: {
-      playerUsername?: string;
-      deck: Card[];
-      hero: Hero;
-    };
-  },
-): GameState => {
+export interface GameSetupData {
+  player0: {
+    playerUsername?: string;
+    deck: Card[];
+    hero: Hero;
+  };
+  player1: {
+    playerUsername?: string;
+    deck: Card[];
+    hero: Hero;
+  };
+}
+
+export const setupGame = (setupData: GameSetupData): GameState => {
   // Initialize player decks from setupData or use empty arrays
-  console.debug(ctx);
   const playerDeck = setupData?.player0.deck
     ? shuffleDeck([...setupData.player0.deck])
     : [];
@@ -150,8 +151,9 @@ const setupData = (
   return G;
 };
 
-const placeCard: Move<GameState> = (
-  { G, ctx },
+export const placeCard = (
+  G: GameState,
+  ctx: GameCtx,
   cardId: string,
   target?: TargetValue,
   boardIndex?: number, // Insert position on the board
@@ -299,8 +301,9 @@ const placeCard: Move<GameState> = (
   processDeaths(G, ctx, sourceEventIndex);
 };
 
-const minionAttack: Move<GameState> = (
-  { G, ctx },
+export const minionAttack = (
+  G: GameState,
+  ctx: GameCtx,
   attackerId: string,
   target: TargetValue,
 ) => {
@@ -368,8 +371,9 @@ const minionAttack: Move<GameState> = (
   return G;
 };
 
-const resolveBattlecry: Move<GameState> = (
-  { G, ctx },
+export const resolveBattlecry = (
+  G: GameState,
+  ctx: GameCtx,
   cardId: string,
   target: TargetValue,
 ) => {
@@ -420,7 +424,11 @@ const resolveBattlecry: Move<GameState> = (
   processDeaths(G, ctx, sourceEventIndex);
 };
 
-const useHeroPower: Move<GameState> = ({ G, ctx }, target?: TargetValue) => {
+export const useHeroPower = (
+  G: GameState,
+  ctx: GameCtx,
+  target?: TargetValue,
+) => {
   const player = G.players[ctx.currentPlayer];
   const hero = player.hero;
 
@@ -527,7 +535,11 @@ const useHeroPower: Move<GameState> = ({ G, ctx }, target?: TargetValue) => {
   processDeaths(G, ctx, sourceEventIndex);
 };
 
-const heroAttack: Move<GameState> = ({ G, ctx }, target: TargetValue) => {
+export const heroAttack = (
+  G: GameState,
+  ctx: GameCtx,
+  target: TargetValue,
+) => {
   const attackerId = ctx.currentPlayer as PlayerID;
   const attacker = G.players[attackerId];
 
@@ -561,7 +573,7 @@ const heroAttack: Move<GameState> = ({ G, ctx }, target: TargetValue) => {
     attackerPlayerId: attackerId,
     sourceId,
     timestamp: Date.now(),
-    card: attacker.weapon ?? undefined,
+    card: undefined,
   });
 
   if (target.type === "player") {
@@ -1183,7 +1195,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
   context.temp = undefined;
 };
 
-const cancelBattlecry: Move<GameState> = ({ G, ctx }) => {
+export const cancelBattlecry = (G: GameState, ctx: GameCtx) => {
   // place minion back on hand and give mana back
   if (G.activeBattlecryMinion) {
     const player = G.players[G.activeBattlecryMinion.playerId];
@@ -1211,15 +1223,20 @@ const cancelBattlecry: Move<GameState> = ({ G, ctx }) => {
   return G;
 };
 
-const drawCard: Move<GameState> = ({ G, ctx }) => {
+export const drawCard = (G: GameState, ctx: GameCtx) => {
   handleDrawCard(G, ctx);
 };
 
-const endTurn: Move<GameState> = ({ G, events }) => {
+/**
+ * Clears per-move state when a player ends their turn. Turn advancement itself
+ * (onEnd effects → switch player → onBegin effects) is orchestrated by the
+ * host: advanceTurn() in engine.ts, or boardgame.io's events.endTurn() in the
+ * legacy wrapper below.
+ */
+export const endTurn = (G: GameState, _ctx: GameCtx) => {
   // Clear last move metadata at the end of the turn
   G.gameEvents = [];
   G.activeBattlecryMinion = null;
-  events.endTurn();
 };
 
 function handleDrawCard(
@@ -1489,124 +1506,98 @@ function processModifierLifecycle(
   });
 }
 
-export const HeathStoneGame: Game<GameState> = {
-  name: "hearthstone",
-  setup: setupData,
-  minPlayers: 2,
-  maxPlayers: 2,
-  ai: {
-    enumerate: (G, ctx) => {
-      const moves = enumerateAIMoves(G, ctx);
-      // Convert AIMove format to boardgame.io format and return all moves
-      return moves.map((aiMove) => ({
-        move: aiMove.move,
-        args: aiMove.args,
-      }));
-    },
-  },
-  phases: {
-    play: {
-      start: true,
-      moves: {
-        drawCard,
-        placeCard,
-        cancelBattlecry,
-        endTurn,
-        minionAttack,
-        useHeroPower,
-        heroAttack,
-        resolveBattlecry,
-      },
-      onBegin: ({ G, ctx }) => {
-        // Draw 5 cards for each player at the start
-        for (let i = 0; i < 5; i++) {
-          handleDrawCard(G, ctx, "0");
-          handleDrawCard(G, ctx, "1");
-        }
-      },
-      turn: {
-        onBegin: ({ G, ctx }) => {
-          // 1. Process anything that expires at the START of a turn
-          processModifierLifecycle(G, ctx.currentPlayer, "START_OF_TURN");
+/** Runs once at game start after setup: both players draw their opening hand. */
+export function initialDraw(G: GameState, ctx: GameCtx) {
+  // Draw 5 cards for each player at the start
+  for (let i = 0; i < 5; i++) {
+    handleDrawCard(G, ctx, "0");
+    handleDrawCard(G, ctx, "1");
+  }
+}
 
-          const manaCrystals = G.players[ctx.currentPlayer].manaCrystals;
-          G.players[ctx.currentPlayer].manaCrystals = Math.min(
-            manaCrystals + 1,
-            G.players[ctx.currentPlayer].maxManaCrystals,
-          );
-          G.players[ctx.currentPlayer].mana =
-            G.players[ctx.currentPlayer].manaCrystals;
+/**
+ * Start-of-turn effects for ctx.currentPlayer: expiring buffs, mana crystal
+ * gain, card draw, attack/summoning-sickness resets, auras and cascade deaths.
+ */
+export function beginTurn(G: GameState, ctx: GameCtx) {
+  // 1. Process anything that expires at the START of a turn
+  processModifierLifecycle(G, ctx.currentPlayer, "START_OF_TURN");
 
-          // Reset hero power usage
-          G.players[ctx.currentPlayer].heroPowerUsedThisTurn = false;
+  const manaCrystals = G.players[ctx.currentPlayer].manaCrystals;
+  G.players[ctx.currentPlayer].manaCrystals = Math.min(
+    manaCrystals + 1,
+    G.players[ctx.currentPlayer].maxManaCrystals,
+  );
+  G.players[ctx.currentPlayer].mana =
+    G.players[ctx.currentPlayer].manaCrystals;
 
-          // draw card if the player has less than 10 cards in hand
-          if (ctx.turn > 2) {
-            const player = G.players[ctx.currentPlayer];
-            if (player.hand.length < 10) {
-              handleDrawCard(G, ctx);
-            }
-          }
+  // Reset hero power usage
+  G.players[ctx.currentPlayer].heroPowerUsedThisTurn = false;
 
-          // reset
-          G.board[ctx.currentPlayer].forEach((card) => {
-            card.attacksLeft = card.windfury ? 2 : 1;
-            card.summoningSickness = false; // Remove summoning sickness
-          });
+  // draw card if the player has less than 10 cards in hand
+  if (ctx.turn > 2) {
+    const player = G.players[ctx.currentPlayer];
+    if (player.hand.length < 10) {
+      handleDrawCard(G, ctx);
+    }
+  }
 
-          G.players[ctx.currentPlayer].attacksLeft = 1;
+  // reset
+  G.board[ctx.currentPlayer].forEach((card) => {
+    card.attacksLeft = card.windfury ? 2 : 1;
+    card.summoningSickness = false; // Remove summoning sickness
+  });
 
-          // 2. Always refresh static auras and evaluate cascading health drop deaths[cite: 1]
-          refreshAuras(G);
-          processDeaths(G, ctx); //[cite: 1]
+  G.players[ctx.currentPlayer].attacksLeft = 1;
 
-          recordEvent(G, {
-            type: "beginTurn",
-            playerId: ctx.currentPlayer,
-            timestamp: Date.now(),
-          });
-        },
-        onEnd: ({ G, ctx }) => {
-          // Clear last move metadata at the end of the turn
-          G.gameEvents = [];
-          G.activeBattlecryMinion = null;
+  // 2. Always refresh static auras and evaluate cascading health drop deaths[cite: 1]
+  refreshAuras(G);
+  processDeaths(G, ctx); //[cite: 1]
 
-          // 1. Process anything that expires at the END of a turn (like Abusive Sergeant)
-          processModifierLifecycle(G, ctx.currentPlayer, "END_OF_TURN");
+  recordEvent(G, {
+    type: "beginTurn",
+    playerId: ctx.currentPlayer,
+    timestamp: Date.now(),
+  });
+}
 
-          G.board[ctx.currentPlayer].forEach((card) => {
-            if (
-              card.frozen &&
-              shouldMinionUnfreezeAtTurnEnd(G, ctx.currentPlayer, card)
-            ) {
-              card.frozen = false;
-            }
-          });
+/**
+ * End-of-turn effects for ctx.currentPlayer: expiring buffs, unfreezing,
+ * auras and cascade deaths.
+ */
+export function endTurnCleanup(G: GameState, ctx: GameCtx) {
+  // Clear last move metadata at the end of the turn
+  G.gameEvents = [];
+  G.activeBattlecryMinion = null;
 
-          const endingPlayer = G.players[ctx.currentPlayer];
-          if (
-            endingPlayer.frozen &&
-            shouldHeroUnfreezeAtTurnEnd(endingPlayer)
-          ) {
-            endingPlayer.frozen = false;
-          }
+  // 1. Process anything that expires at the END of a turn (like Abusive Sergeant)
+  processModifierLifecycle(G, ctx.currentPlayer, "END_OF_TURN");
 
-          // 2. Refresh auras/deaths again in case losing an attack/health buff altered the board state[cite: 1]
-          refreshAuras(G);
-          processDeaths(G, ctx); //[cite: 1]
+  G.board[ctx.currentPlayer].forEach((card) => {
+    if (
+      card.frozen &&
+      shouldMinionUnfreezeAtTurnEnd(G, ctx.currentPlayer, card)
+    ) {
+      card.frozen = false;
+    }
+  });
 
-          recordEvent(G, {
-            type: "endTurn",
-            playerId: ctx.currentPlayer,
-            timestamp: Date.now(),
-          });
-        },
-      },
-    },
-  },
-  turn: {},
-  endIf: isVictory,
-};
+  const endingPlayer = G.players[ctx.currentPlayer];
+  if (endingPlayer.frozen && shouldHeroUnfreezeAtTurnEnd(endingPlayer)) {
+    endingPlayer.frozen = false;
+  }
+
+  // 2. Refresh auras/deaths again in case losing an attack/health buff altered the board state[cite: 1]
+  refreshAuras(G);
+  processDeaths(G, ctx); //[cite: 1]
+
+  recordEvent(G, {
+    type: "endTurn",
+    playerId: ctx.currentPlayer,
+    timestamp: Date.now(),
+  });
+}
+
 
 // Export everything from data
 export * from "./data/cards.js";

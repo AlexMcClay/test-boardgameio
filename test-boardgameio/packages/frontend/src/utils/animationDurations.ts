@@ -25,5 +25,3 @@ export const HIT_NUMBER_ANIMATION: AnimationData = {
 export const CARD_PLAYED_ANIMATION: AnimationData = {
   duration: 1500,
 };
-
-export const BATCH_UPDATE_DELAY = 500; // ms delay between animation batches

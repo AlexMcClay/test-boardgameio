@@ -20,6 +20,10 @@ import {
 import { checkSingleTargetCondition } from "./effectEngine";
 // Helper function to record game events
 export function recordEvent(G: GameState, event: GameEvent) {
+  // Monotonic sequence number = index in the full history. Clients filter by
+  // this instead of timestamps (which collide within the same millisecond).
+  event.seq = G.eventHistory.length;
+
   // Add to current move events
   G.gameEvents.push(event);
 

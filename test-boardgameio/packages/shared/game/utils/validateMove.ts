@@ -6,8 +6,9 @@ import type {
   GameState,
   TargetQuery,
   EffectContextWithOptionalCard,
+  Ctx,
+  PlayerID,
 } from "../types";
-import type { Ctx, PlayerID } from "boardgame.io";
 
 import { checkSingleTargetCondition } from "./effectEngine";
 

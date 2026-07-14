@@ -1,5 +1,5 @@
 import CardComponent from "./Card";
-import type { BoardProps } from "boardgame.io/dist/types/packages/react";
+import type { GameBoardProps } from "@/types/gameProps";
 import { useAnimationStore } from "@/stores/animationStore";
 import { useEffect, useState, useRef } from "react";
 import type {
@@ -7,11 +7,10 @@ import type {
   HeroPowerPlayedAnimation,
 } from "@/types/animations";
 import { useAudioStore } from "@/stores/audioStore";
-import type { GameState } from "@project/shared";
 import HeroPowerExpanded from "./HeroPower/HeroPowerExpanded";
 import { twMerge } from "tailwind-merge";
 
-interface Props extends BoardProps<GameState> {}
+interface Props extends GameBoardProps {}
 
 // Union type for the actions this component handles
 type ActiveActionAnimation = CardPlayedAnimation | HeroPowerPlayedAnimation;

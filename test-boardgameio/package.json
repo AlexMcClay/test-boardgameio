@@ -12,5 +12,8 @@
     "build:backend": "npm run build -w packages/backend",
     "build:all": "npm run build --workspaces",
     "start:frontend": "npm run serve -w packages/frontend"
+  },
+  "dependencies": {
+    "xstate": "^5.32.4"
   }
 }

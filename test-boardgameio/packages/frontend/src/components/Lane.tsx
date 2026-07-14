@@ -1,6 +1,6 @@
 import { useDragStore } from "@/stores/dragStore";
 import { useDroppable } from "@dnd-kit/core";
-import type { Ctx, PlayerID } from "boardgame.io";
+import type { Ctx, PlayerID } from "@project/shared";
 import React from "react";
 import { twMerge } from "tailwind-merge";
 import { AnimatePresence } from "motion/react";

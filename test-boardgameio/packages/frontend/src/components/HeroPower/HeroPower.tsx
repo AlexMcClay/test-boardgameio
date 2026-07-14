@@ -1,5 +1,5 @@
 import type { Card, GameState, Player } from "@project/shared";
-import type { BoardProps } from "boardgame.io/dist/types/packages/react";
+import type { GameBoardProps } from "@/types/gameProps";
 import { isUserSelectValue } from "@project/shared";
 import { useDragStore } from "@/stores/dragStore";
 import { useEffect, useRef, useState } from "react";
@@ -8,7 +8,7 @@ import HeroPowerPopover from "./HeroPowerPopover";
 import { AnimatePresence } from "motion/react";
 import HeroPowerCircle from "./HeroPowerCircle";
 
-interface Props extends BoardProps<GameState> {
+interface Props extends GameBoardProps {
   isTop?: boolean; // true for player 1, false or undefined for player 0
   player: Player;
   actualG: GameState; // actual game state that is not the visual game state

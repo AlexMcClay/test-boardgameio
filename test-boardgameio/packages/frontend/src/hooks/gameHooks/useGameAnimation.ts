@@ -1,7 +1,21 @@
+// Staggered replay of the authoritative event log.
+//
+// The engine resolves every move atomically and stamps each recorded event
+// with a monotonic `seq`. This hook:
+//   1. picks up the events it hasn't processed yet (by seq — timestamps can
+//      collide within a millisecond),
+//   2. splits them into resolution steps (action → death wave → deathrattle
+//      chain → ...),
+//   3. derives an intermediate visual state per step with the event reducer,
+//   4. queues one animation batch per step; as each batch finishes the visual
+//      state advances to that step's board.
+// The final step always uses the authoritative post-move state, so the visual
+// buffer converges every move regardless of reducer coverage.
 import { useAnimationStore } from "@/stores/animationStore";
 import { detectAllAnimations } from "@/utils/detectAnimations";
-import type { GameState } from "@project/shared";
-import type { Ctx, PlayerID } from "boardgame.io";
+import { splitEventsIntoSteps } from "@/utils/eventSteps";
+import { applyEventsToVisualState } from "@/utils/visualEventReducer";
+import type { GameState, Ctx, PlayerID } from "@project/shared";
 import { useEffect, useRef, useState } from "react";
 
 interface Props {
@@ -15,112 +29,93 @@ export const useGameAnimation = ({ ctx, G, ...props }: Props) => {
   const [visualGameState, setVisualGameState] = useState<GameState>(G);
   const [visualCtx, setVisualCtx] = useState(ctx);
 
-  const prevGameStateRef = useRef<GameState | null>(null);
-  const lastProcessedTimestamp = useRef<number>(0);
+  const lastProcessedSeq = useRef<number>(-1);
+  // The state the NEXT queued step should build on (tail of the queue).
+  const lastQueuedStateRef = useRef<GameState | null>(null);
+  const mountedRef = useRef(false);
 
   const { queueAnimationBatch, playAnimations, isAnimating } =
     useAnimationStore();
 
   useEffect(() => {
     const handleAnimationsAndVisualBoard = async () => {
-      // Skip on initial mount
-      if (!prevGameStateRef.current) {
-        prevGameStateRef.current = structuredClone(G);
+      const currentEvents = G.gameEvents || [];
+
+      // On mount (or joining a match mid-game) show the current state as-is
+      // and skip animating whatever already happened.
+      if (!mountedRef.current) {
+        mountedRef.current = true;
+        lastProcessedSeq.current = Math.max(
+          -1,
+          ...currentEvents.map((e) => e.seq ?? -1),
+        );
+        lastQueuedStateRef.current = G;
         setVisualGameState(G);
         setVisualCtx(ctx);
         return;
       }
 
-      // Only process new events (by timestamp)
-      const currentEvents = G.gameEvents || [];
+      // Only process events we haven't seen (strictly increasing seq)
       const newEvents = currentEvents.filter(
-        (e) => e.timestamp > lastProcessedTimestamp.current,
+        (e) => (e.seq ?? -1) > lastProcessedSeq.current,
       );
 
-      // Skip if no new events to process
       if (newEvents.length === 0) {
+        // Nothing new to animate; if the queue is idle just mirror the state
+        // (covers e.g. cancelBattlecry which clears events)
+        if (!isAnimating && useAnimationStore.getState().queue.length === 0) {
+          setVisualGameState(G);
+          setVisualCtx(ctx);
+          lastQueuedStateRef.current = G;
+        }
         return;
       }
 
-      // Detect all animations from event log
-      // filter out all cardPlayed animations that belong to the player
-      const animations = detectAllAnimations(G).filter((a) => {
-        const isMyTurn = props.playerID
-          ? ctx.currentPlayer === props.playerID
-          : true;
-        // Read as: "Keep this if it's NOT (a card played by me)"
-        return !(
-          (isMyTurn && a.type === "cardPlayed") ||
-          (isMyTurn && a.type === "heroPowerPlayed")
+      lastProcessedSeq.current = Math.max(
+        ...newEvents.map((e) => e.seq ?? -1),
+      );
+
+      const isMyTurn = props.playerID
+        ? ctx.currentPlayer === props.playerID
+        : true;
+
+      // Split this move's events into staggered resolution steps
+      const steps = splitEventsIntoSteps(newEvents);
+      let base = lastQueuedStateRef.current ?? visualGameState;
+
+      steps.forEach((stepEvents, index) => {
+        const isLastStep = index === steps.length - 1;
+        // Intermediate boards come from the reducer; the last step snaps to
+        // the authoritative state so the buffer always converges.
+        const stepState = isLastStep
+          ? G
+          : applyEventsToVisualState(base, stepEvents);
+        base = stepState;
+
+        // Don't replay my own card/hero-power presentations back at me
+        const animations = detectAllAnimations(stepEvents).filter(
+          (a) =>
+            !(
+              (isMyTurn && a.type === "cardPlayed") ||
+              (isMyTurn && a.type === "heroPowerPlayed")
+            ),
         );
+
+        queueAnimationBatch(animations, stepState, ctx);
       });
 
-      // Update tracking timestamp
-      if (currentEvents.length > 0) {
-        lastProcessedTimestamp.current = Math.max(
-          ...currentEvents.map((e) => e.timestamp),
-        );
+      lastQueuedStateRef.current = G;
+
+      // If not currently animating, start draining the queue
+      if (!isAnimating) {
+        const onBatchComplete = (gameState: GameState, batchCtx: Ctx) => {
+          setVisualGameState(gameState);
+          setVisualCtx(batchCtx);
+        };
+        await playAnimations(onBatchComplete);
       }
-
-      // Update ref immediately
-      prevGameStateRef.current = structuredClone(G);
-
-      // If animations exist, add them to queue with current game state and ctx
-      if (animations.length > 0) {
-        // --- DUPLICATE CHECK START ---
-        // Fetch the absolute newest queue array snapshot directly from the store
-        const existingQueue = useAnimationStore.getState().queue;
-        const incomingSerialized = JSON.stringify(animations);
-
-        const isAlreadyQueued = existingQueue.some(
-          (batch) => JSON.stringify(batch.animations) === incomingSerialized,
-        );
-
-        if (isAlreadyQueued) {
-          console.warn(
-            "⚠️ Multi-player race-condition caught in useEffect: This animation batch is already in the queue. Dropping duplicate.",
-          );
-          return; // Exit early so it doesn't queue or trigger an extra playAnimations loop
-        }
-        // --- DUPLICATE CHECK END ---
-
-        console.log("Queueing animation batch:", animations);
-
-        // Queue this batch of animations with the full game state and ctx
-        queueAnimationBatch(animations, G, ctx);
-
-        // If not currently animating, start playing the queue
-        if (!isAnimating) {
-          console.log("Starting animation queue");
-
-          // Callback to update visual state after each batch completes
-          const onBatchComplete = (gameState: GameState, batchCtx: any) => {
-            console.log("Batch complete, updating visual state");
-            setVisualGameState(gameState);
-            setVisualCtx(batchCtx);
-          };
-
-          await playAnimations(onBatchComplete);
-          console.log("All animations complete, syncing to current state");
-
-          // After all animations complete, sync visual state to actual current state
-          // setVisualGameState(G);
-          // setVisualCtx(ctx);
-        }
-        // If already animating, the batch is queued and will play automatically
-        // when the current batch finishes (handled by playAnimations loop)
-      } else {
-        // No animations detected
-        if (isAnimating) {
-          // Queue an empty batch so state updates after current animations finish
-          console.log("Queueing state update (no animations)");
-          queueAnimationBatch([], G, ctx);
-        } else {
-          // Not animating, update immediately
-          setVisualGameState(G);
-          setVisualCtx(ctx);
-        }
-      }
+      // If already animating, the batches were appended and the running
+      // playAnimations loop will play them in order.
     };
 
     handleAnimationsAndVisualBoard();

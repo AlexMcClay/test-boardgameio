@@ -9,8 +9,8 @@
   "dependencies": {
     "@fastify/websocket": "^11.0.0",
     "@project/shared": "*",
-    "boardgame.io": "^0.50.2",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "xstate": "^5.32.4"
   },
   "devDependencies": {
     "@types/ws": "^8.5.13",

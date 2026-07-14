@@ -4,7 +4,7 @@ import {
   type GameState,
   type TargetValue,
 } from "@project/shared";
-import type { Ctx } from "boardgame.io";
+import type { Ctx } from "@project/shared";
 import { useCallback, useEffect } from "react";
 
 interface Props {

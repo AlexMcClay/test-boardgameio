@@ -1,5 +1,23 @@
 import type { CardTemplateKey } from "./data/cards";
-import type { Ctx, PlayerID } from "boardgame.io";
+
+/**
+ * Framework-independent player identifier ("0" | "1" at runtime; typed as
+ * string to stay drop-in compatible with existing indexing code).
+ */
+export type PlayerID = string;
+
+/**
+ * Framework-independent game context (replaces boardgame.io's Ctx).
+ * turn increments per player-turn (turn 1 = P0's first turn, turn 2 = P1's, ...).
+ */
+export interface GameCtx {
+  currentPlayer: PlayerID;
+  turn: number;
+  gameover?: { winner: PlayerID | "draw" };
+}
+
+/** Back-compat alias so existing `Ctx` imports keep working during migration. */
+export type Ctx = GameCtx;
 
 export type DeckString = Partial<Record<CardTemplateKey, number>>;
 
@@ -461,8 +479,12 @@ export type MoveMetadata = {
 };
 
 // Game event types for comprehensive event tracking
-// Game event types for comprehensive event tracking
-export type GameEvent =
+// Every recorded event carries a monotonic `seq` (its index in
+// GameState.eventHistory), assigned by recordEvent. Clients use it to filter
+// already-processed events (timestamps can collide within the same ms).
+export type GameEvent = GameEventBody & { seq?: number };
+
+type GameEventBody =
   | AttackEvent
   | BattlecryEvent
   | DamageEvent

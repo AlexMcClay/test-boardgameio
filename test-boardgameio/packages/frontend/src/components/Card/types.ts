@@ -1,5 +1,5 @@
-import type { Card } from "@project/shared";
-import type { Ctx, PlayerID } from "boardgame.io";
+import type { Card, GameCtx } from "@project/shared";
+import type { PlayerID } from "@project/shared";
 import type {
   LegacyAnimationControls,
   TargetAndTransition,
@@ -11,7 +11,7 @@ export interface CardProps {
   back?: boolean;
   isDragging?: boolean;
   playerID?: PlayerID;
-  ctx?: Ctx;
+  ctx?: GameCtx;
   type?: "game" | "preview" | "popover";
   animate?:
     | boolean

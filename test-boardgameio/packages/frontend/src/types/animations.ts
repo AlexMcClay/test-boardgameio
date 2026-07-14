@@ -1,5 +1,5 @@
 // Animation event types for the animation queue system
-import type { PlayerID } from "boardgame.io";
+import type { PlayerID } from "@project/shared";
 import type { Card, GameState, HeroPower, SFXInstance } from "@project/shared";
 
 export type AttackAnimation = {

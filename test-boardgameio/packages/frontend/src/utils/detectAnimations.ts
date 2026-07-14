@@ -8,16 +8,15 @@ import {
   MINION_PLACED_ANIMATION,
   SPELL_CAST_ANIMATION,
 } from "./animationDurations";
-import type { GameState } from "@project/shared";
+import type { GameEvent } from "@project/shared";
 
 /**
- * Detects all animations by reading from game event log
- * @param stateAfter - Game state after the move (contains gameEvents)
+ * Detects all animations for a slice of the game event log (one replay step).
+ * @param events - seq-ordered events belonging to this step
  * @returns Array of all animation events with timeline positions
  */
-export function detectAllAnimations(stateAfter: GameState): AnimationEvent[] {
+export function detectAllAnimations(events: GameEvent[]): AnimationEvent[] {
   const animations: AnimationEvent[] = [];
-  const events = stateAfter.gameEvents || [];
 
   // Group events by type in a single pass (or simple filters)
   const attackEvents = events.filter((e) => e.type === "attack");

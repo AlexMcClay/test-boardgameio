@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 
 import { motion } from "motion/react";
 import CardComponent from "../Card";
-import type { Ctx } from "boardgame.io";
+import type { Ctx } from "@project/shared";
 import type { Card } from "@project/shared";
 import { useAudioStore } from "@/stores/audioStore";
 

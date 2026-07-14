@@ -1,5 +1,5 @@
 import { useDragStore } from "@/stores/dragStore";
-import type { Ctx } from "boardgame.io";
+import type { Ctx } from "@project/shared";
 
 interface Props {
   playerID: string | null;

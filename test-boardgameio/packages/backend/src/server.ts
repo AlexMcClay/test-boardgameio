@@ -1,51 +1,19 @@
-import * as game from "@project/shared";
-import { createRequire } from "node:module";
-import type { Context } from "koa";
-import type Router from "@koa/router";
+import { createServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import { QueueManager } from "./QueueManger";
 import type { queueItem } from "./QueueManger";
+import { MatchManager } from "./MatchManager";
 import type { WebSocketMessage } from "@project/shared";
 
-const require = createRequire(import.meta.url);
-const { Server, Origins } = require("boardgame.io/server") as {
-  Server: (opts: any) => {
-    app: any;
-    db: any;
-    auth: any;
-    router: Router;
-    transport: any;
-    run: (port: number) => Promise<any>;
-    kill: (servers: any) => void;
-  };
-  Origins: {
-    LOCALHOST: RegExp;
-  };
-};
+const PORT = Number(process.env.PORT || 8000);
 
 const queueManager = new QueueManager();
-const socketsByPlayerId = new Map<string, WebSocket>();
+const matchManager = new MatchManager();
 
-const configuredOrigins = (process.env.FRONTEND_ORIGINS || "")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean)
-  .map((origin) => new RegExp(`^${origin.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}$`));
-
-// Defaut Server configuration
-const server = Server({
-  games: [game.HeathStoneGame],
-  origins: [Origins.LOCALHOST, ...configuredOrigins],
-});
-
-// Default Lobby API configuration - can be customized as needed (Kept for example and if we want to use it )
-const lobbyConfig = {
-  apiPort: 8080,
-  apiCallback: () => console.log("Running Lobby API on port 8080..."),
-};
-
-// Helper function to create and start a match between two players using the Boardgame.io REST API
-async function createAndStartMatch(
+// Helper function to create and start a match between two players on the
+// XState match host. Seat "0" = the queued player, seat "1" = the requester
+// (same order the old boardgame.io lobby joined them in).
+function createAndStartMatch(
   playerA: queueItem,
   playerB: {
     playerID: string;
@@ -54,204 +22,220 @@ async function createAndStartMatch(
     playerHero: queueItem["playerHero"];
   },
 ) {
-  console.log("Creating match between:", playerA.playerUsername, playerB.playerUsername);
-  const gameName = game.HeathStoneGame.name;
-  const apiBase = `http://127.0.0.1:${lobbyConfig.apiPort}`;
+  console.log(
+    "Creating match between:",
+    playerA.playerUsername,
+    playerB.playerUsername,
+  );
 
-  const createResponse = await fetch(`${apiBase}/games/${gameName}/create`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      numPlayers: 2,
-      setupData: {
-        player0: {
-          deck: playerA.playerDeck,
-          hero: playerA.playerHero,
-          playerUsername: playerA.playerUsername,
-        },
-        player1: {
-          deck: playerB.playerDeck,
-          hero: playerB.playerHero,
-          playerUsername: playerB.playerUsername,
-        },
-      },
-    }),
+  const { matchID, seats } = matchManager.createMatch({
+    player0: {
+      deck: playerA.playerDeck,
+      hero: playerA.playerHero,
+      playerUsername: playerA.playerUsername,
+    },
+    player1: {
+      deck: playerB.playerDeck,
+      hero: playerB.playerHero,
+      playerUsername: playerB.playerUsername,
+    },
   });
-
-  if (!createResponse.ok) {
-    throw new Error(`Failed to create match: ${await createResponse.text()}`);
-  }
-
-  const { matchID } = (await createResponse.json()) as { matchID: string };
-
-  const joinPlayer = async (playerID: "0" | "1", playerName: string) => {
-    const joinResponse = await fetch(
-      `${apiBase}/games/${gameName}/${matchID}/join`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          playerID,
-          playerName,
-        }),
-      },
-    );
-
-    if (!joinResponse.ok) {
-      throw new Error(
-        `Failed to join player ${playerID}: ${await joinResponse.text()}`,
-      );
-    }
-
-    return (await joinResponse.json()) as {
-      playerID: string;
-      playerCredentials: string;
-    };
-  };
-
-  const playerASeat = await joinPlayer("0", playerA.playerID);
-  const playerBSeat = await joinPlayer("1", playerB.playerID);
 
   return {
     matchID,
-    playerASeat,
-    playerBSeat,
+    playerASeat: seats["0"],
+    playerBSeat: seats["1"],
   };
 }
-// Start the boardgameIO server + Lobby api's and set up WebSocket handling for matchmaking
-server.run({ port: 8000, lobbyConfig , host: "0.0.0.0"} as any).then(({ appServer }) => {
-  // Set up WebSocket server for matchmaking
-  const wss = new WebSocketServer({
-    server: appServer,
-    path: "/matchmaking-ws",
-  });
 
-  wss.on("connection", (ws: WebSocket) => {
-    console.log("WebSocket client connected to matchmaking");
-    let queuedMatchID: string | null = null;
-    let connectedPlayerID: { playerID: string; playerUsername: string } | null = null;
+// Plain HTTP server (health check only — all game traffic runs over the WS).
+const httpServer = createServer((req, res) => {
+  if (req.url === "/health" || req.url === "/") {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+  res.writeHead(404);
+  res.end();
+});
 
-    ws.on("message", (message: Buffer) => {
-      // console.log("Received:", message.toString());
-      const request: WebSocketMessage = JSON.parse(message.toString());
-      if (request.type === "connect") {
-        connectedPlayerID = { playerID: request.playerID, playerUsername: request.playerUsername };
-        queueManager.addSocketByPlayerId(request.playerID, ws);
-        
-      }
+// Single WebSocket endpoint for matchmaking AND game traffic. Clients keep the
+// same socket after match_found and speak the game_join/game_move protocol.
+const wss = new WebSocketServer({
+  server: httpServer,
+  path: "/matchmaking-ws",
+});
 
-      else if (request.type === "find_match") {
-        if (queueManager.isPlayerInQueue(request.playerID)) {
-          console.log(
-            `Player ${request.playerUsername} (ID: ${request.playerID}) is already in the matchmaking queue.`,
-          );
-          return;
-        }
+wss.on("connection", (ws: WebSocket) => {
+  console.log("WebSocket client connected");
+  let queuedMatchID: string | null = null;
+  let connectedPlayerID: { playerID: string; playerUsername: string } | null =
+    null;
+
+  const sendError = (matchID: string, error: string) => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "game_error", matchID, error }));
+    }
+  };
+
+  ws.on("message", (message: Buffer) => {
+    let request: WebSocketMessage;
+    try {
+      request = JSON.parse(message.toString());
+    } catch {
+      console.warn("Ignoring malformed WS message");
+      return;
+    }
+
+    if (request.type === "connect") {
+      connectedPlayerID = {
+        playerID: request.playerID,
+        playerUsername: request.playerUsername,
+      };
+      queueManager.addSocketByPlayerId(request.playerID, ws);
+    }
+
+    // -------------------- game protocol --------------------
+    else if (request.type === "game_join") {
+      const error = matchManager.joinSocket(
+        request.matchID,
+        request.playerID,
+        request.credentials,
+        ws,
+      );
+      if (error) sendError(request.matchID, error);
+    }
+
+    else if (request.type === "game_move") {
+      const error = matchManager.handleMove(
+        request.matchID,
+        request.playerID,
+        request.credentials,
+        request.move,
+        request.args,
+      );
+      if (error) sendError(request.matchID, error);
+    }
+
+    // -------------------- matchmaking --------------------
+    else if (request.type === "find_match") {
+      if (queueManager.isPlayerInQueue(request.playerID)) {
         console.log(
-          `Player ${request.playerUsername} (ID: ${request.playerID}) is searching for a match with skill level: ${request.skillLevel}`,
+          `Player ${request.playerUsername} (ID: ${request.playerID}) is already in the matchmaking queue.`,
         );
-        connectedPlayerID = { playerID: request.playerID, playerUsername: request.playerUsername };
-        queueManager.addSocketByPlayerId(request.playerID, ws);
+        return;
+      }
+      console.log(
+        `Player ${request.playerUsername} (ID: ${request.playerID}) is searching for a match with skill level: ${request.skillLevel}`,
+      );
+      connectedPlayerID = {
+        playerID: request.playerID,
+        playerUsername: request.playerUsername,
+      };
+      queueManager.addSocketByPlayerId(request.playerID, ws);
 
-        const queuedOpponent = queueManager.findMatch(
+      const queuedOpponent = queueManager.findMatch(
+        request.playerID,
+        request.skillLevel,
+      );
+
+      if (!queuedOpponent) {
+        queuedMatchID = queueManager.addToQueue(
           request.playerID,
+          request.playerUsername,
+          request.playerDeck,
+          request.playerHero,
           request.skillLevel,
         );
 
-        if (!queuedOpponent) {
-          queuedMatchID = queueManager.addToQueue(
-            request.playerID,
-            request.playerUsername,
-            request.playerDeck,
-            request.playerHero,
-            request.skillLevel,
-          );
+        const response: WebSocketMessage = {
+          type: "searching_for_match",
+          matchID: queuedMatchID,
+        };
+        ws.send(JSON.stringify(response));
+        return;
+      }
+      console.log(
+        `Match found between ${request.playerUsername} and ${queuedOpponent.playerUsername}`,
+      );
 
-          const response: WebSocketMessage = {
-            type: "searching_for_match",
-            matchID: queuedMatchID,
-          };
-          ws.send(JSON.stringify(response));
-          return;
-        }
-        console.log(
-          `Match found between ${request.playerUsername} and ${queuedOpponent.playerUsername}`,
+      // Create the match on the XState host, then notify both players with
+      // their seat + opponent info.
+      try {
+        const { matchID, playerASeat, playerBSeat } = createAndStartMatch(
+          queuedOpponent,
+          request,
         );
-        // Create and start the remote match (BoardGameIO Engine) , then notify both players with their match details and opponent info
-        Promise.resolve(createAndStartMatch(queuedOpponent, request))
-          .then(({ matchID, playerASeat, playerBSeat }) => {
-            const currentPlayerResponse: WebSocketMessage = {
-              type: "match_found",
-              matchID,
-              playerID: playerBSeat.playerID,
-              playerUsername: request.playerUsername,
-              playerCredentials: playerBSeat.playerCredentials,
-              opponent: {
-                playerUsername: queuedOpponent.playerUsername,
-                playerID: queuedOpponent.playerID,
-                OpponentHero: queuedOpponent.playerHero,
-                OpponentDeck: queuedOpponent.playerDeck,
-                skillLevel: queuedOpponent.skillLevel,
-              },
-            };
 
-            const queuedOpponentResponse: WebSocketMessage = {
-              type: "match_found",
-              matchID,
-              playerID: playerASeat.playerID,
-              playerUsername: queuedOpponent.playerUsername,
-              playerCredentials: playerASeat.playerCredentials,
-              opponent: {
-                playerUsername: request.playerUsername,
-                playerID: request.playerID,
-                OpponentHero: request.playerHero,
-                OpponentDeck: request.playerDeck,
-                skillLevel: request.skillLevel,
-              },
-            };
+        const currentPlayerResponse: WebSocketMessage = {
+          type: "match_found",
+          matchID,
+          playerID: playerBSeat.playerID,
+          playerUsername: request.playerUsername,
+          playerCredentials: playerBSeat.playerCredentials,
+          opponent: {
+            playerUsername: queuedOpponent.playerUsername,
+            playerID: queuedOpponent.playerID,
+            OpponentHero: queuedOpponent.playerHero,
+            OpponentDeck: queuedOpponent.playerDeck,
+            skillLevel: queuedOpponent.skillLevel,
+          },
+        };
 
-            const opponentSocket = queueManager.getSocketByPlayerId(
-              queuedOpponent.playerID,
-            );
-            if (
-              opponentSocket &&
-              opponentSocket.readyState === WebSocket.OPEN
-            ) {
-              opponentSocket.send(JSON.stringify(queuedOpponentResponse));
-            }
+        const queuedOpponentResponse: WebSocketMessage = {
+          type: "match_found",
+          matchID,
+          playerID: playerASeat.playerID,
+          playerUsername: queuedOpponent.playerUsername,
+          playerCredentials: playerASeat.playerCredentials,
+          opponent: {
+            playerUsername: request.playerUsername,
+            playerID: request.playerID,
+            OpponentHero: request.playerHero,
+            OpponentDeck: request.playerDeck,
+            skillLevel: request.skillLevel,
+          },
+        };
 
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify(currentPlayerResponse));
-            }
-          })
-          .catch((error) => {
-            console.error("Failed to create/start match", error);
-          });
-      }
-
-      else if (request.type === "cancel_search") {
-        if (queuedMatchID) {
-          console.log(
-            `Player ${request.playerID} canceled matchmaking search.`,
-          );
-          queueManager.removeFromQueue(queuedMatchID);
-          queuedMatchID = null;
+        const opponentSocket = queueManager.getSocketByPlayerId(
+          queuedOpponent.playerID,
+        );
+        if (opponentSocket && opponentSocket.readyState === WebSocket.OPEN) {
+          opponentSocket.send(JSON.stringify(queuedOpponentResponse));
         }
-      }
-    });
 
-    ws.on("close", () => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify(currentPlayerResponse));
+        }
+      } catch (error) {
+        console.error("Failed to create/start match", error);
+      }
+    }
+
+    else if (request.type === "cancel_search") {
       if (queuedMatchID) {
+        console.log(`Player ${request.playerID} canceled matchmaking search.`);
         queueManager.removeFromQueue(queuedMatchID);
+        queuedMatchID = null;
       }
-      if (connectedPlayerID) {
-        queueManager.removeSocketByPlayerId(connectedPlayerID.playerID);
-      }
-      console.log("WebSocket client disconnected");
-    });
+    }
   });
 
+  ws.on("close", () => {
+    if (queuedMatchID) {
+      queueManager.removeFromQueue(queuedMatchID);
+    }
+    if (connectedPlayerID) {
+      queueManager.removeSocketByPlayerId(connectedPlayerID.playerID);
+    }
+    matchManager.detachSocket(ws);
+    console.log("WebSocket client disconnected");
+  });
+});
+
+httpServer.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Game server listening on http://0.0.0.0:${PORT}`);
   console.log(
-    "🚀 WebSocket matchmaking available at ws://localhost:8000/matchmaking-ws",
+    `🚀 WebSocket matchmaking + game protocol at ws://localhost:${PORT}/matchmaking-ws`,
   );
 });

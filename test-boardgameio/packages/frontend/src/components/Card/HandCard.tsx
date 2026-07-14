@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import {
   getManaCost,
   type Card as CardType,
+  type GameCtx,
   type Player,
 } from "@project/shared";
-import type { Ctx } from "boardgame.io";
 import { twMerge } from "tailwind-merge";
 import { useDraggable } from "@dnd-kit/core";
 import type { CardProps } from "./types";
@@ -16,7 +16,7 @@ type Props = {
   index: number; // Index of the card in the hand
   isTop?: boolean; // Whether the player is on top (for styling)
   card: CardType;
-  ctx: Ctx;
+  ctx: GameCtx;
   player: Player;
   isHovered: boolean; // Controlled by parent
   onHoverEnter: (cardId: string, rect: DOMRect) => void;

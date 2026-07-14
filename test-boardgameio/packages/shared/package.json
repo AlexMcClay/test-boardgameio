@@ -13,6 +13,7 @@
     }
   },
   "dependencies": {
-    "boardgame.io": "^0.50.2"
+    "boardgame.io": "^0.50.2",
+    "xstate": "^5.32.4"
   }
 }

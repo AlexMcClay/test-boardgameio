@@ -1,6 +1,6 @@
 import type { CardProps } from "./types";
 import { useDroppable } from "@dnd-kit/core";
-import type { Ctx, PlayerID } from "boardgame.io";
+import type { Ctx, PlayerID } from "@project/shared";
 import { useDragStore } from "@/stores/dragStore";
 import { useAnimationStore } from "@/stores/animationStore";
 import { twMerge } from "tailwind-merge";
