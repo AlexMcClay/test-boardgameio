@@ -3065,6 +3065,22 @@ export const cardTemplates = {
       type: ["lane"],
     },
   },
+  "the-coin": {
+    title: "The Coin",
+    description: "Gain 1 Mana Crystal this turn only.",
+    baseMana: 1,
+    imageUrl: "assets/cards/The_Coin.jpg",
+    class: "Neutral",
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    effects: [mana(1)],
+    onPlace: [],
+    isUncollectible: true,
+  },
 } satisfies Record<
   string,
   Omit<Card, "id" | "originalID" | "damageTaken" | "attacksLeft">

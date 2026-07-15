@@ -6,6 +6,7 @@ import {
   DEATH_ANIMATION,
   HIT_NUMBER_ANIMATION,
   MINION_PLACED_ANIMATION,
+  MINION_SUMMONED_ANIMATION,
   SPELL_CAST_ANIMATION,
 } from "./animationDurations";
 import type { GameEvent } from "@project/shared";
@@ -27,6 +28,7 @@ export function detectAllAnimations(events: GameEvent[]): AnimationEvent[] {
   const deathEvents = events.filter((e) => e.type === "death");
   const cardPlayedEvents = events.filter((e) => e.type === "cardPlayed");
   const heroPowerEvents = events.filter((e) => e.type === "heroPower");
+  const summonEvents = events.filter((e) => e.type === "summon");
 
   const hasAttacks = attackEvents.length > 0;
 
@@ -87,6 +89,16 @@ export function detectAllAnimations(events: GameEvent[]): AnimationEvent[] {
       startTime: 0,
       duration: SPELL_CAST_ANIMATION.duration,
       sfx: event.card.sfx?.play,
+    });
+  });
+
+  summonEvents.forEach((event) => {
+    animations.push({
+      type: "summon",
+      card: structuredClone(event.card),
+      playerId: event.playerId,
+      startTime: 0,
+      duration: MINION_SUMMONED_ANIMATION.duration,
     });
   });
 

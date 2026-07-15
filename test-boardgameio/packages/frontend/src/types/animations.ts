@@ -68,6 +68,14 @@ export type HeroPowerPlayedAnimation = {
   playerId: PlayerID;
 };
 
+export type SummonAnimation = {
+  type: "summon";
+  card: Card;
+  duration: number;
+  startTime: number;
+  playerId: PlayerID;
+};
+
 export type AnimationEvent =
   | AttackAnimation
   | DeathAnimation
@@ -75,7 +83,8 @@ export type AnimationEvent =
   | CardPlayedAnimation
   | HeroPowerPlayedAnimation
   | MinionPlacedAnimation
-  | SpellCastAnimation;
+  | SpellCastAnimation
+  | SummonAnimation;
 
 // Queue item that pairs animations with their game state and context
 export type AnimationQueueItem = {

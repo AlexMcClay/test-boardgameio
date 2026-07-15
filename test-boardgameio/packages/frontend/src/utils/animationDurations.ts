@@ -14,6 +14,10 @@ export const SPELL_CAST_ANIMATION: AnimationData = {
   duration: 200,
 };
 
+export const MINION_SUMMONED_ANIMATION: AnimationData = {
+  duration: 400,
+};
+
 export const MINION_PLACED_ANIMATION: AnimationData = {
   duration: 100,
 };
