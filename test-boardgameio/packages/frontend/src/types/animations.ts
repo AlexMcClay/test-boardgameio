@@ -76,6 +76,18 @@ export type SummonAnimation = {
   playerId: PlayerID;
 };
 
+/**
+ * Mulligan completion hold: keeps the animation queue busy while the overlay
+ * reveals the replaced cards (first batch) and while the drawn hands settle
+ * onto the board (second batch). Purely a pacing animation — no visual of
+ * its own.
+ */
+export type MulliganEndAnimation = {
+  type: "mulliganEnd";
+  duration: number;
+  startTime: number;
+};
+
 export type AnimationEvent =
   | AttackAnimation
   | DeathAnimation
@@ -84,7 +96,8 @@ export type AnimationEvent =
   | HeroPowerPlayedAnimation
   | MinionPlacedAnimation
   | SpellCastAnimation
-  | SummonAnimation;
+  | SummonAnimation
+  | MulliganEndAnimation;
 
 // Queue item that pairs animations with their game state and context
 export type AnimationQueueItem = {

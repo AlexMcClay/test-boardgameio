@@ -57,15 +57,17 @@ const PlayerArea = ({
         />
       </div>
 
-      <PlayerHand
-        actualG={actualG}
-        player={player}
-        isTop={isTop}
-        G={G}
-        ctx={ctx}
-        moves={moves}
-        {...props}
-      />
+      {!(G.mulligan?.active && !isTop) && (
+        <PlayerHand
+          actualG={actualG}
+          player={player}
+          isTop={isTop}
+          G={G}
+          ctx={ctx}
+          moves={moves}
+          {...props}
+        />
+      )}
 
       {/* Name */}
       <div

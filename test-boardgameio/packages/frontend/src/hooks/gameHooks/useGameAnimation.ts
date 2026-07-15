@@ -12,6 +12,12 @@
 // The final step always uses the authoritative post-move state, so the visual
 // buffer converges every move regardless of reducer coverage.
 import { useAnimationStore } from "@/stores/animationStore";
+import {
+  MULLIGAN_END_ANIMATION,
+  MULLIGAN_REVEAL_ANIMATION,
+  MULLIGAN_TURN_DRAW_DELAY,
+} from "@/utils/animationDurations";
+import { getMulliganTurnDrawCardId } from "@/utils/mulliganEvents";
 import { detectAllAnimations } from "@/utils/detectAnimations";
 import { splitEventsIntoSteps } from "@/utils/eventSteps";
 import { applyEventsToVisualState } from "@/utils/visualEventReducer";
@@ -74,6 +80,83 @@ export const useGameAnimation = ({ ctx, G, ...props }: Props) => {
       lastProcessedSeq.current = Math.max(
         ...newEvents.map((e) => e.seq ?? -1),
       );
+
+      // Mulligan completion (the confirm that also started the first turn):
+      // hold the pre-game visual while the overlay reveals the replaced cards
+      // (batch 1, 2s — the post-mulligan state applies as the overlay fades),
+      // then keep the queue busy while the hands settle in (batch 2, 3s) so
+      // e.g. the bot's opening move animates AFTER the settle, not during it.
+      const isMulliganCompletion =
+        newEvents.some((e) => e.type === "mulligan") &&
+        newEvents.some((e) => e.type === "beginTurn");
+      if (isMulliganCompletion) {
+        // The completion sync already includes the first turn's draw. Hold
+        // it back visually: build a state where that card is still on the
+        // deck, so the mulligan hand gets its own moment before the draw.
+        const turnDrawCardId = getMulliganTurnDrawCardId(newEvents);
+        let preDrawState = G;
+        if (turnDrawCardId) {
+          preDrawState = structuredClone(G);
+          const drawingPlayer = preDrawState.players[ctx.currentPlayer];
+          const index = drawingPlayer.hand.findIndex(
+            (c) => c.id === turnDrawCardId,
+          );
+          if (index !== -1) {
+            const [card] = drawingPlayer.hand.splice(index, 1);
+            // handleDrawCard pops from the end of the deck — put it back
+            drawingPlayer.deck.push(card);
+          }
+        }
+
+        // ① overlay reveal window: board keeps the pre-game visual, then the
+        //    mulligan hands (WITHOUT the turn draw) apply as the overlay fades
+        queueAnimationBatch(
+          [
+            {
+              type: "mulliganEnd",
+              startTime: 0,
+              duration: MULLIGAN_REVEAL_ANIMATION.duration,
+            },
+          ],
+          preDrawState,
+          ctx,
+        );
+        // ② let the mulligan cards sit alone, then the turn draw lands
+        queueAnimationBatch(
+          [
+            {
+              type: "mulliganEnd",
+              startTime: 0,
+              duration: MULLIGAN_TURN_DRAW_DELAY,
+            },
+          ],
+          G,
+          ctx,
+        );
+        // ③ hold the queue for the rest of the settle window
+        queueAnimationBatch(
+          [
+            {
+              type: "mulliganEnd",
+              startTime: 0,
+              duration: Math.max(
+                0,
+                MULLIGAN_END_ANIMATION.duration - MULLIGAN_TURN_DRAW_DELAY,
+              ),
+            },
+          ],
+          G,
+          ctx,
+        );
+        lastQueuedStateRef.current = G;
+        if (!isAnimating) {
+          await playAnimations((gameState: GameState, batchCtx: Ctx) => {
+            setVisualGameState(gameState);
+            setVisualCtx(batchCtx);
+          });
+        }
+        return;
+      }
 
       const isMyTurn = props.playerID
         ? ctx.currentPlayer === props.playerID

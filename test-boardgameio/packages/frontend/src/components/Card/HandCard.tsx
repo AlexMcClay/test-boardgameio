@@ -23,6 +23,7 @@ type Props = {
   onCardRef: (cardId: string, ref: HTMLDivElement | null) => void;
   back?: boolean;
   discarded: boolean;
+  isHandFirstRender: boolean;
 };
 
 const HandCard = ({
@@ -37,6 +38,7 @@ const HandCard = ({
   onCardRef,
   back,
   discarded,
+  isHandFirstRender,
 }: Props) => {
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -133,6 +135,7 @@ const HandCard = ({
         onDragStart={() => {}}
         isHovered={isHovered}
         back={back}
+        isHandFirstRender={isHandFirstRender}
       />
     </div>
   );
@@ -141,6 +144,7 @@ const HandCard = ({
 interface DargCardProps extends CardProps {
   onDragStart?: () => void;
   isHovered?: boolean;
+  isHandFirstRender: boolean;
 }
 
 const DragCard = (props: DargCardProps) => {
@@ -162,7 +166,7 @@ const DragCard = (props: DargCardProps) => {
   const playSfx = useAudioStore((state) => state.playSfx);
 
   useEffect(() => {
-    if (isFirstRender.current) {
+    if (isFirstRender.current && !props.isHandFirstRender) {
       isFirstRender.current = false;
       playSfx("card-draw");
       return;

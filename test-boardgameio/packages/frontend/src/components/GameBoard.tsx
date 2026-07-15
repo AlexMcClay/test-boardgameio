@@ -425,9 +425,11 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       {/* Hit Numbers Overlay */}
       <HitNumbers />
       {/* Mulligan Overlay — reads ACTUAL state; the game hasn't started yet */}
-      {G.mulligan?.active && (
-        <MulliganOverlay G={G} moves={moves} playerID={props.playerID} />
-      )}
+      <AnimatePresence>
+        {visualGameState.mulligan?.active && (
+          <MulliganOverlay G={G} moves={moves} playerID={props.playerID} />
+        )}
+      </AnimatePresence>
       {/* Settings Overlay */}
       <SettingsButton setIsSettingsOpen={setIsSettingsOpen} />
       <SettingsOverlay
