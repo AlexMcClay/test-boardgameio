@@ -31,6 +31,7 @@ import SettingsButton from "./SettingsButton";
 import { useGameAnimation, useGameTargeting } from "@/hooks";
 import { useAnimationStore } from "@/stores/animationStore";
 import EventHistory from "./Board/EventHistory";
+import MulliganOverlay from "./Mulligan/MulliganOverlay";
 
 interface Props extends GameBoardProps {}
 
@@ -423,6 +424,10 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       <AttackArrow ctx={ctx} playerID={props.playerID} />
       {/* Hit Numbers Overlay */}
       <HitNumbers />
+      {/* Mulligan Overlay — reads ACTUAL state; the game hasn't started yet */}
+      {G.mulligan?.active && (
+        <MulliganOverlay G={G} moves={moves} playerID={props.playerID} />
+      )}
       {/* Settings Overlay */}
       <SettingsButton setIsSettingsOpen={setIsSettingsOpen} />
       <SettingsOverlay

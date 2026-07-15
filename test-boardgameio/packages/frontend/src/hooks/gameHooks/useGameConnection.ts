@@ -54,6 +54,7 @@ const MOVE_NAMES: MoveName[] = [
   "cancelBattlecry",
   "drawCard",
   "endTurn",
+  "mulliganConfirm",
 ];
 
 export function useGameConnection(params: GameConnectionParams): GameConnection {
@@ -147,10 +148,19 @@ export function useGameConnection(params: GameConnectionParams): GameConnection 
   // ----- unified moves object -----
   const moves = useMemo<GameMoves>(() => {
     const dispatch = (move: MoveName, args: unknown[]) => {
+      // mulliganConfirm carries an optional acting seat as its 2nd argument
+      // (hotseat only) — it's routing metadata, not an engine argument.
+      let seatOverride: string | undefined;
+      if (move === "mulliganConfirm") {
+        seatOverride = args[1] as string | undefined;
+        args = [(args[0] as string[]) ?? []];
+      }
+
       if (isLocal && actor) {
         // Hotseat/AI-host: the human always acts as the current player; the
         // machine validates legality either way.
         const seat =
+          seatOverride ??
           (params as LocalParams).playerID ??
           actor.getSnapshot().context.ctx.currentPlayer;
         const event = moveCommandToEvent(move, args, seat);

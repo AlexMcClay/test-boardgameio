@@ -17,7 +17,8 @@ import {
   endTurn,
   beginTurn,
   endTurnCleanup,
-  initialDraw,
+  mulliganDraw,
+  confirmMulligan,
   setupGame,
   checkVictory,
   processDeaths,
@@ -36,7 +37,8 @@ export type MoveName =
   | "resolveBattlecry"
   | "cancelBattlecry"
   | "drawCard"
-  | "endTurn";
+  | "endTurn"
+  | "mulliganConfirm";
 
 export interface EngineState {
   G: GameState;
@@ -77,12 +79,30 @@ export function finalizeVictory(state: EngineState) {
   }
 }
 
-/** Creates a fresh game: setup, opening hands, and player 0's first turn. */
+/**
+ * Creates a fresh game in the mulligan phase: coin toss decides who goes
+ * first, then mulligan hands are dealt (3 for the first player, 4 + The Coin
+ * for the second). The first turn does NOT begin here — it starts when both
+ * seats confirm their mulligan (confirmMulligan).
+ */
 export function createInitialState(setupData: GameSetupData): EngineState {
   const G = setupGame(setupData);
-  const ctx: GameCtx = { currentPlayer: "0", turn: 1 };
-  initialDraw(G, ctx);
-  beginTurn(G, ctx);
+
+  const firstPlayer: PlayerID = Math.random() < 0.5 ? "0" : "1";
+  const ctx: GameCtx = { currentPlayer: firstPlayer, turn: 1 };
+
+  G.mulligan = {
+    active: true,
+    firstPlayer,
+    confirmed: { "0": false, "1": false },
+  };
+  recordEvent(G, {
+    type: "coinToss",
+    firstPlayer,
+    timestamp: Date.now(),
+  });
+
+  mulliganDraw(G, ctx);
   return { G, ctx };
 }
 
@@ -116,6 +136,34 @@ export function applyMove(
   if (ctx.gameover) {
     return { ok: false, error: "game-over" };
   }
+
+  // The mulligan is a simultaneous phase: either seat may confirm regardless
+  // of ctx.currentPlayer, and nothing else is legal until it's over.
+  if (move === "mulliganConfirm") {
+    if (playerID === undefined) {
+      return { ok: false, error: "mulligan-needs-player" };
+    }
+    const confirmed = confirmMulligan(
+      G,
+      ctx,
+      playerID,
+      (args[0] as string[]) ?? [],
+    );
+    if (!confirmed) {
+      return { ok: false, error: "invalid-mulligan" };
+    }
+    // A completed mulligan runs beginTurn, which can leave pending deaths
+    // (e.g. expiring modifiers) — fall through to the settle path below.
+    if (settle) {
+      processDeaths(G, ctx);
+    }
+    finalizeVictory(state);
+    return { ok: true };
+  }
+  if (G.mulligan?.active) {
+    return { ok: false, error: "mulligan-active" };
+  }
+
   if (playerID !== undefined && playerID !== ctx.currentPlayer) {
     return { ok: false, error: "not-your-turn" };
   }

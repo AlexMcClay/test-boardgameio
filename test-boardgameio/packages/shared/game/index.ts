@@ -1586,13 +1586,90 @@ function processModifierLifecycle(
   });
 }
 
-/** Runs once at game start after setup: both players draw their opening hand. */
-export function initialDraw(G: GameState, ctx: GameCtx) {
-  // Draw 5 cards for each player at the start
-  for (let i = 0; i < 5; i++) {
-    handleDrawCard(G, ctx, "0");
-    handleDrawCard(G, ctx, "1");
+/**
+ * Deals the mulligan hands after the coin toss: the first player draws 3,
+ * the second draws 4 and receives The Coin (not replaceable).
+ */
+export function mulliganDraw(G: GameState, ctx: GameCtx) {
+  const firstPlayer = G.mulligan?.firstPlayer ?? ctx.currentPlayer;
+  const secondPlayer = firstPlayer === "0" ? "1" : "0";
+
+  for (let i = 0; i < 3; i++) {
+    handleDrawCard(G, ctx, firstPlayer);
+    handleDrawCard(G, ctx, secondPlayer);
   }
+  handleDrawCard(G, ctx, secondPlayer);
+
+  const coin = createCardFromID("the-coin");
+  if (coin) {
+    G.players[secondPlayer].hand.push(coin);
+  }
+}
+
+/**
+ * Locks in a player's starting hand. Chosen cards are set aside, replacements
+ * are drawn FIRST (you can't redraw what you threw back), then the set-aside
+ * cards are shuffled into the deck. When both seats have confirmed, the
+ * mulligan ends and the first player's turn begins (any resulting deaths stay
+ * pending for the host to resolve).
+ *
+ * Returns false (no-op) for invalid confirmations: mulligan over, seat already
+ * confirmed, unknown card ids, or trying to replace The Coin.
+ */
+export function confirmMulligan(
+  G: GameState,
+  ctx: GameCtx,
+  playerID: PlayerID,
+  replaceCardIds: string[],
+): boolean {
+  const mulligan = G.mulligan;
+  if (!mulligan?.active || mulligan.confirmed[playerID]) return false;
+
+  const player = G.players[playerID];
+  if (!player) return false;
+
+  const toReplace: Card[] = [];
+  for (const cardId of replaceCardIds) {
+    const card = player.hand.find((c) => c.id === cardId);
+    if (!card || card.originalID === "the-coin") {
+      console.warn(`Invalid mulligan replacement: ${cardId}`);
+      return false;
+    }
+    toReplace.push(card);
+  }
+
+  // This is a top-level player action — same event convention as moves.
+  G.gameEvents = [];
+
+  // 1. Set the chosen cards aside
+  player.hand = player.hand.filter((c) => !replaceCardIds.includes(c.id));
+
+  // 2. Draw replacements before the set-aside cards return to the deck
+  for (let i = 0; i < toReplace.length; i++) {
+    handleDrawCard(G, ctx, playerID);
+  }
+
+  // 3. Shuffle the set-aside cards back in
+  if (toReplace.length > 0) {
+    player.deck.push(...toReplace);
+    player.deck = shuffleDeck(player.deck);
+  }
+
+  mulligan.confirmed[playerID] = true;
+  recordEvent(G, {
+    type: "mulligan",
+    playerId: playerID,
+    replacedCount: toReplace.length,
+    timestamp: Date.now(),
+  });
+
+  // Both seats locked in → the game proper starts
+  if (mulligan.confirmed["0"] && mulligan.confirmed["1"]) {
+    mulligan.active = false;
+    beginTurn(G, ctx);
+  }
+
+  return true;
 }
 
 /**
@@ -1614,8 +1691,9 @@ export function beginTurn(G: GameState, ctx: GameCtx) {
   // Reset hero power usage
   G.players[ctx.currentPlayer].heroPowerUsedThisTurn = false;
 
-  // draw card if the player has less than 10 cards in hand
-  if (ctx.turn > 2) {
+  // Draw at the start of every turn — including each player's first
+  // (Hearthstone standard; mulligan hands are 3/4+Coin) — unless full.
+  {
     const player = G.players[ctx.currentPlayer];
     if (player.hand.length < 10) {
       handleDrawCard(G, ctx);

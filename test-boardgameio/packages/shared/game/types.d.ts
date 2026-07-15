@@ -515,7 +515,24 @@ type GameEventBody =
   | DiscardEvent
   | HeroPowerEvent
   | EquipEvent
-  | GameEndEvent;
+  | GameEndEvent
+  | CoinTossEvent
+  | MulliganEvent;
+
+/** Recorded once at game creation: who won the coin toss and goes first. */
+export type CoinTossEvent = {
+  type: "coinToss";
+  firstPlayer: PlayerID;
+  timestamp: number;
+};
+
+/** A player locked in their starting hand (replacedCount cards redrawn). */
+export type MulliganEvent = {
+  type: "mulligan";
+  playerId: PlayerID;
+  replacedCount: number;
+  timestamp: number;
+};
 
 type GameEndEvent = {
   type: "gameEnd";
@@ -806,6 +823,15 @@ export interface GameState {
     target?: TargetValue;
     sourceEventIndex?: number;
   } | null;
+
+  // Pre-game mulligan phase. Set at game creation (coin toss decides
+  // firstPlayer = ctx.currentPlayer); active until both seats confirm their
+  // starting hands, at which point the first turn begins.
+  mulligan?: {
+    active: boolean;
+    firstPlayer: PlayerID;
+    confirmed: Record<PlayerID, boolean>;
+  };
 
   // ADD THIS: Global tracking of spent spells and dead minions
   graveyard: {

@@ -16,6 +16,15 @@ export interface GameMoves {
   cancelBattlecry: () => void;
   drawCard: () => void;
   endTurn: () => void;
+  /**
+   * Locks in the starting hand, replacing the given cards. actingPlayerID is
+   * only used in local hotseat games (online play uses the authenticated
+   * seat; single-player defaults to the connection's seat).
+   */
+  mulliganConfirm: (
+    replaceCardIds: string[],
+    actingPlayerID?: string,
+  ) => void;
 }
 
 export interface GameBoardProps {

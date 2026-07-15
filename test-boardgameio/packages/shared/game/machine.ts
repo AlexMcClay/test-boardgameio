@@ -59,7 +59,12 @@ export type GameMachineEvent =
     }
   | { type: "CANCEL_BATTLECRY"; playerID: PlayerID }
   | { type: "DRAW_CARD"; playerID: PlayerID }
-  | { type: "END_TURN"; playerID: PlayerID };
+  | { type: "END_TURN"; playerID: PlayerID }
+  | {
+      type: "MULLIGAN_CONFIRM";
+      playerID: PlayerID;
+      replaceCardIds: string[];
+    };
 
 /** Maps a machine event to the engine's move dispatch format. */
 export function moveEventToCommand(event: GameMachineEvent): {
@@ -89,6 +94,8 @@ export function moveEventToCommand(event: GameMachineEvent): {
       return { move: "drawCard", args: [] };
     case "END_TURN":
       return { move: "endTurn", args: [] };
+    case "MULLIGAN_CONFIRM":
+      return { move: "mulliganConfirm", args: [event.replaceCardIds] };
   }
 }
 
@@ -158,12 +165,25 @@ export const gameMachine = setup({
     autoBattlecryDoneClear: ({ context }) =>
       !hasPendingAutoBattlecry(context.G) && !hasPendingDeaths(context.G),
     isGameOver: ({ context }) => !!context.ctx.gameover,
+    mulliganComplete: ({ context }) => !context.G.mulligan?.active,
   },
 }).createMachine({
   id: "hearthstone",
   context: ({ input }) => createInitialState(input.setupData),
-  initial: "playing",
+  initial: "mulligan",
   states: {
+    // Pre-game phase: coin toss already happened at setup; both seats pick
+    // their starting hands simultaneously. No game moves are handled until
+    // both confirm — the phase gate is structural, not validated per-move.
+    mulligan: {
+      on: {
+        MULLIGAN_CONFIRM: { actions: "applyMoveEvent" },
+      },
+      // confirmMulligan flips mulligan.active off after the second confirm
+      // (and runs beginTurn); playing.idle's always-routes then handle any
+      // pending deaths from turn start.
+      always: { target: "playing", guard: "mulliganComplete" },
+    },
     playing: {
       always: { target: "finished", guard: "isGameOver" },
       initial: "idle",
@@ -309,6 +329,12 @@ export function moveCommandToEvent(
       return { type: "DRAW_CARD", playerID };
     case "endTurn":
       return { type: "END_TURN", playerID };
+    case "mulliganConfirm":
+      return {
+        type: "MULLIGAN_CONFIRM",
+        playerID,
+        replaceCardIds: (args[0] as string[]) ?? [],
+      };
     default:
       return null;
   }

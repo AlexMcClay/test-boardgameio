@@ -12,6 +12,7 @@ import { useEffect, useRef } from "react";
 import type { Actor } from "xstate";
 import {
   gameMachine,
+  getManaCost,
   hasPendingDeaths,
   moveCommandToEvent,
   type PlayerID,
@@ -46,7 +47,24 @@ export function useAIOpponent(
     const requestMoveIfBotTurn = () => {
       const snapshot = actor.getSnapshot();
       const { G, ctx } = snapshot.context;
-      if (ctx.gameover || ctx.currentPlayer !== botSeat) return;
+      if (ctx.gameover) return;
+
+      // Mulligan is simultaneous — handle it before any turn checks. Simple
+      // heuristic: throw back expensive cards (cost > 4) for a curve start.
+      if (snapshot.matches("mulligan")) {
+        if (G.mulligan?.active && !G.mulligan.confirmed[botSeat]) {
+          const replaceCardIds = G.players[botSeat].hand
+            .filter(
+              (card) =>
+                card.originalID !== "the-coin" && getManaCost(card) > 4,
+            )
+            .map((card) => card.id);
+          actor.send({ type: "MULLIGAN_CONFIRM", playerID: botSeat, replaceCardIds });
+        }
+        return;
+      }
+
+      if (ctx.currentPlayer !== botSeat) return;
 
       // Only search from settled, actionable states. While the machine is
       // resolving (battlecries, death waves) the board is mid-transition and

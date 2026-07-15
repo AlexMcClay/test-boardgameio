@@ -3068,7 +3068,7 @@ export const cardTemplates = {
   "the-coin": {
     title: "The Coin",
     description: "Gain 1 Mana Crystal this turn only.",
-    baseMana: 1,
+    baseMana: 0,
     imageUrl: "assets/cards/The_Coin.jpg",
     class: "Neutral",
     isSpell: true,
