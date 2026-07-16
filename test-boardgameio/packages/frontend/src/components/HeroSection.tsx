@@ -1,11 +1,7 @@
 import { useDragStore } from "@/stores/dragStore";
 import { useAnimationStore } from "@/stores/animationStore";
 import { useDroppable } from "@dnd-kit/core";
-import {
-  getPlayerAttack,
-  type Card,
-  type Player,
-} from "@project/shared";
+import { getPlayerAttack, type Card, type Player } from "@project/shared";
 import type { GameBoardProps } from "@/types/gameProps";
 import { twMerge } from "tailwind-merge";
 import { AnimatePresence, motion } from "motion/react";
@@ -108,6 +104,7 @@ const HeroSection = ({ player, ...props }: Props) => {
       damageTaken: 0,
       attacksLeft: player.attacksLeft,
       class: player.hero.class,
+      set: [],
     };
 
     startTargeting("hero-attack", `hero-${player.id}`, origin, heroAttackCard);

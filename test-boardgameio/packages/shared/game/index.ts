@@ -683,6 +683,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
             : target.type === "player"
               ? {
                   class: G.players[target.player].hero.class,
+                  set: [],
                   effects: [],
                   divineShield: G.players[target.player].divineShield,
                   frozen: G.players[target.player].frozen,

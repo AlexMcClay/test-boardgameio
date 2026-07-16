@@ -89,6 +89,7 @@ export interface Card {
     play?: SFXInstance[];
     attack?: SFXInstance[];
   };
+  set: string[];
 }
 
 export interface SFXInstance {

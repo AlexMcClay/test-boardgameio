@@ -76,6 +76,7 @@ const HeroPower = ({ player, isTop, moves }: Props) => {
         damageTaken: 0,
         attacksLeft: 0,
         class: player.hero.class,
+        set: [],
       };
 
       startTargeting(
