@@ -1,5 +1,6 @@
 import type {
   Card,
+  CardModifier,
   GameState,
   Player,
   TargetValue,
@@ -11,6 +12,7 @@ import type {
 } from "./types";
 import {
   createCardFromID,
+  getAttack,
   getCurrentHealth,
   getManaCost,
   getMaxHealth,
@@ -33,6 +35,8 @@ import {
   discardCardsFromHand,
   isUserSelectValue,
   getPlayerAttack,
+  syncManagedModifiers,
+  type ManagedModifierSpec,
 } from "./utils";
 type Ctx = GameCtx;
 import {
@@ -1390,6 +1394,10 @@ export function resolvePendingAutoBattlecry(G: GameState, ctx: Ctx) {
     type: "minion",
     sourceEventIndex: pending.sourceEventIndex,
   });
+
+  // Battlecries can summon/buff/damage — keep ongoing effects in sync on the
+  // machine path (the engine settle path refreshes in applyMove).
+  refreshOngoing(G, ctx);
 }
 
 /** True while any board minion is marked for death (health <= 0). */
@@ -1465,6 +1473,11 @@ export function resolveDeathWave(G: GameState, ctx: Ctx) {
     }
   });
 
+  // A swept minion may have been an aura provider (or a damaged enrage
+  // minion) — refresh before re-checking: minions that die from losing a
+  // +health aura become the NEXT wave.
+  refreshOngoing(G, ctx);
+
   // Chain fully resolved → the triggering move's event index is spent
   if (!hasPendingDeaths(G)) {
     G.pendingSourceEventIndex = undefined;
@@ -1482,22 +1495,268 @@ export function processDeaths(G: GameState, ctx: Ctx) {
   }
 }
 
-export function refreshAuras(G: GameState) {
-  const playerIds: ("0" | "1")[] = ["0", "1"];
+// ---------------------------------------------------------------------------
+// ONGOING MECHANICS (auras / in-hand effects / enrage)
+//
+// Three separate mechanics, each with its own Card template field and its own
+// managed CardModifier.type. Every pass is DIFF-BASED: it computes the desired
+// modifier set and syncs it via syncManagedModifiers, which records an
+// applyModifier event only when something actually changed (value 0 on loss).
+// refreshOngoing runs after every state change (applyMove, death waves, auto
+// battlecries, turn boundaries), so the passes must be idempotent and silent
+// when nothing moved.
+// ---------------------------------------------------------------------------
 
-  playerIds.forEach((pId) => {
-    G.board[pId].forEach((card) => {
-      // 1. Clear out historical temporary aura instances, retaining permanent buffs
-      card.modifiers = card.modifiers?.filter((m) => m.type !== "aura");
+/**
+ * True when a board minion is currently radiating an ongoing effect — used by
+ * the UI for the "pool of light" indicator. Aura providers glow whenever
+ * placed;. `hideAuraGlow` opts a card out
+ * (Old Murk-Eye / Prophet Velen style exceptions).
+ */
+export function providesActiveAura(card: Card): boolean {
+  if (card.hideAuraGlow || !card.isPlaced) return false;
+  if (card.aura?.length) return true;
+  return false;
+}
+
+interface ManagedOwnerRef {
+  owner: Card | Player;
+  ownerType: "card" | "player";
+  ownerPlayerId: PlayerID;
+}
+
+/** Every object that can carry managed modifiers: board, hands, heroes. */
+function listManagedOwners(G: GameState): ManagedOwnerRef[] {
+  const owners: ManagedOwnerRef[] = [];
+  (["0", "1"] as const).forEach((pId) => {
+    G.board[pId].forEach((card) =>
+      owners.push({ owner: card, ownerType: "card", ownerPlayerId: pId }),
+    );
+    G.players[pId].hand.forEach((card) =>
+      owners.push({ owner: card, ownerType: "card", ownerPlayerId: pId }),
+    );
+    owners.push({
+      owner: G.players[pId],
+      ownerType: "player",
+      ownerPlayerId: pId,
     });
   });
+  return owners;
+}
 
-  // 2. Scan the entire board and look for active aura providers
-  // playerIds.forEach((pId) => {
-  //   G.board[pId].forEach((providerCard) => {
-  //     // Add more dynamic data-driven aura checks here...
-  //   });
-  // });
+/**
+ * The owner's stat with all managed modifiers of `managedType` for that stat
+ * removed — the clamp baseline for min/max ("but not less than 1"), so the
+ * previous refresh's own entries don't skew this refresh's math.
+ */
+function getStatExcludingManaged(
+  owner: Card | Player,
+  ownerType: "card" | "player",
+  stat: CardModifier["stat"],
+  managedType: CardModifier["type"],
+): number {
+  const saved = owner.modifiers;
+  owner.modifiers = saved?.filter(
+    (m) => !(m.type === managedType && m.stat === stat),
+  );
+  let value = 0;
+  if (ownerType === "player") {
+    if (stat === "attack") value = getPlayerAttack(owner as Player);
+  } else {
+    const card = owner as Card;
+    if (stat === "attack") value = getAttack(card);
+    else if (stat === "health") value = getMaxHealth(card);
+    else if (stat === "mana") value = getManaCost(card);
+  }
+  owner.modifiers = saved;
+  return value;
+}
+
+/**
+ * Clamps an additive delta so `base + delta` respects min/max — without ever
+ * moving a stat that's already past the bound (a 0-cost card under a
+ * "spells cost 1 less, but not less than 1" aura stays at 0).
+ */
+function clampDelta(
+  base: number,
+  delta: number,
+  min?: number,
+  max?: number,
+): number {
+  let result = base + delta;
+  if (min !== undefined && result < min) result = Math.min(base, min);
+  if (max !== undefined && result > max) result = Math.max(base, max);
+  return result - base;
+}
+
+/**
+ * Resolves one provider's ongoing defs into desired managed-modifier specs,
+ * accumulating them per target owner. Targets come from the standard
+ * resolveTargets (so `adjacent`, `friendly-hand`, conditions etc. all work);
+ * values resolve with the provider as context.card.
+ */
+function collectDesiredModifiers(
+  G: GameState,
+  ctx: Ctx,
+  provider: Card,
+  providerOwner: PlayerID,
+  location: "board" | "hand",
+  defs: EffectTypes[],
+  managedType: "aura" | "inHand" | "enrage",
+  desired: Map<Card | Player, ManagedModifierSpec[]>,
+) {
+  const context: EffectContext = {
+    G,
+    ctx,
+    card: provider,
+    playerID: providerOwner,
+    location,
+    type: "minion",
+  };
+
+  defs.forEach((effect) => {
+    if (effect.type !== "applyModifier") return;
+    const rawValue =
+      resolveDynamicValue(effect.value, context) *
+      resolveDynamicValue(effect.mult ?? 1, context);
+
+    resolveTargets(effect, context).forEach((t) => {
+      const owner = t.type === "player" ? G.players[t.ownerId] : t.cardRef;
+      if (!owner) return;
+
+      let specs = desired.get(owner);
+      if (!specs) {
+        specs = [];
+        desired.set(owner, specs);
+      }
+
+      let value = rawValue;
+      if (effect.override) {
+        if (effect.min !== undefined) value = Math.max(effect.min, value);
+        if (effect.max !== undefined) value = Math.min(effect.max, value);
+      } else {
+        // Clamp against the stat as it stands WITHOUT this pass's previous
+        // entries, plus what this pass has already granted the owner — so
+        // stacked providers (two Sorcerer's Apprentices) respect the floor.
+        const base =
+          getStatExcludingManaged(owner, t.type, effect.stat, managedType) +
+          specs
+            .filter((s) => s.stat === effect.stat && !s.override)
+            .reduce((sum, s) => sum + s.value, 0);
+        value = clampDelta(base, value, effect.min, effect.max);
+        if (value === 0) return; // fully clamped or no-op — no modifier
+      }
+
+      specs.push({
+        sourceCardId: provider.id,
+        stat: effect.stat,
+        value,
+        override: effect.override,
+      });
+    });
+  });
+}
+
+/**
+ * AURAS: continuous effects granted only while the provider minion is on the
+ * board (Stormwind Champion, Dire Wolf Alpha, Sorcerer's Apprentice, ...).
+ * IN-HAND: effects active while the card itself sits in a hand (dynamic
+ * costs, hand adjacency). ENRAGE: self buffs active only while the minion is
+ * damaged — healing to full removes them automatically on the next refresh.
+ */
+export function refreshOngoing(G: GameState, ctx: Ctx) {
+  const owners = listManagedOwners(G);
+  const playerIds: ("0" | "1")[] = ["0", "1"];
+
+  // --- AURAS (providers: board minions with `aura` defs) ---
+  const auraDesired = new Map<Card | Player, ManagedModifierSpec[]>();
+  playerIds.forEach((pId) => {
+    G.board[pId].forEach((provider) => {
+      if (provider.aura?.length) {
+        collectDesiredModifiers(
+          G,
+          ctx,
+          provider,
+          pId,
+          "board",
+          provider.aura,
+          "aura",
+          auraDesired,
+        );
+      }
+    });
+  });
+  owners.forEach(({ owner, ownerType, ownerPlayerId }) =>
+    syncManagedModifiers(
+      G,
+      owner,
+      ownerType,
+      ownerPlayerId,
+      "aura",
+      auraDesired.get(owner) ?? [],
+    ),
+  );
+
+  // --- IN-HAND EFFECTS (providers: hand cards with `inHand` defs) ---
+  const inHandDesired = new Map<Card | Player, ManagedModifierSpec[]>();
+  playerIds.forEach((pId) => {
+    G.players[pId].hand.forEach((provider) => {
+      if (provider.inHand?.length) {
+        collectDesiredModifiers(
+          G,
+          ctx,
+          provider,
+          pId,
+          "hand",
+          provider.inHand,
+          "inHand",
+          inHandDesired,
+        );
+      }
+    });
+  });
+  owners.forEach(({ owner, ownerType, ownerPlayerId }) =>
+    syncManagedModifiers(
+      G,
+      owner,
+      ownerType,
+      ownerPlayerId,
+      "inHand",
+      inHandDesired.get(owner) ?? [],
+    ),
+  );
+
+  // --- ENRAGE (providers: DAMAGED board minions with `enrage` defs) ---
+  const enrageDesired = new Map<Card | Player, ManagedModifierSpec[]>();
+  playerIds.forEach((pId) => {
+    G.board[pId].forEach((provider) => {
+      if (
+        provider.enrage?.length &&
+        getCurrentHealth(provider) < getMaxHealth(provider)
+      ) {
+        collectDesiredModifiers(
+          G,
+          ctx,
+          provider,
+          pId,
+          "board",
+          provider.enrage,
+          "enrage",
+          enrageDesired,
+        );
+      }
+    });
+  });
+  owners.forEach(({ owner, ownerType, ownerPlayerId }) =>
+    syncManagedModifiers(
+      G,
+      owner,
+      ownerType,
+      ownerPlayerId,
+      "enrage",
+      enrageDesired.get(owner) ?? [],
+    ),
+  );
 }
 
 function processModifierLifecycle(
@@ -1703,8 +1962,9 @@ export function beginTurn(G: GameState, ctx: GameCtx) {
 
   G.players[ctx.currentPlayer].attacksLeft = 1;
 
-  // 2. Always refresh static auras and evaluate cascading health drop deaths[cite: 1]
-  refreshAuras(G);
+  // 2. Always refresh ongoing effects (auras/in-hand/enrage) and evaluate
+  // cascading health drop deaths[cite: 1]
+  refreshOngoing(G, ctx);
   // Deaths caused by expiring buffs stay pending; the host resolves them
   // (machine waves / engine drain) right after the turn transition.
 
@@ -1741,8 +2001,9 @@ export function endTurnCleanup(G: GameState, ctx: GameCtx) {
     endingPlayer.frozen = false;
   }
 
-  // 2. Refresh auras/deaths again in case losing an attack/health buff altered the board state[cite: 1]
-  refreshAuras(G);
+  // 2. Refresh ongoing effects/deaths again in case losing an attack/health
+  // buff altered the board state[cite: 1]
+  refreshOngoing(G, ctx);
   // Deaths caused by expiring buffs stay pending; the host resolves them
   // (machine waves / engine drain) right after the turn transition.
 

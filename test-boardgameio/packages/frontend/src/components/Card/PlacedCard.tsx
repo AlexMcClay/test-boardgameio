@@ -6,7 +6,12 @@ import { useAudioStore } from "@/stores/audioStore";
 import { useEffect } from "react";
 import FrozenOverlay from "./Overlays/FrozenOverlay";
 import DivineShieldOverlay from "./Overlays/DivineShieldOverlay";
-import { getAttack, getCurrentHealth, getMaxHealth } from "@project/shared";
+import {
+  getAttack,
+  getCurrentHealth,
+  getMaxHealth,
+  providesActiveAura,
+} from "@project/shared";
 
 const attackIcon = "assets/attack.png";
 const healthIcon = "assets/health.png";
@@ -93,6 +98,37 @@ const PlacedCard = ({
       )}
     >
       <AnimatePresence>
+        {/* Ongoing-effect indicator: a pool of light welling from beneath */}
+        {providesActiveAura(card) && (
+          <motion.div
+            key="auraGlow"
+            className="absolute   w-[125%] h-[110%] rounded-[50%] pointer-events-none"
+            style={{
+              background:
+                "radial-gradient(ellipse at center, rgba(255,225,120,0.85) 0%, rgba(255,200,60,0.35) 45%, rgba(255,200,60,1) 150%)",
+              filter: "blur(2px)",
+            }}
+            initial={{ opacity: 0 }}
+            animate={{
+              opacity: [0.45, 0.95, 0.45],
+              scaleX: [0.9, 1.1, 0.9],
+            }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+          />
+        )}
+        {!!card.enrage?.length &&
+          getCurrentHealth(card) < getMaxHealth(card) && (
+            <motion.div
+              key="enrage"
+              className="absolute   rounded-[50%/50%] inset-0 pointer-events-none mix-blend-multiply opacity-100  z-[10]
+              h-[87%] w-[82%] left-[10%] top-[2%]
+              "
+              style={{
+                boxShadow: "inset 0px 0px 1vw 0.5vw rgba(255, 0, 0, 1)",
+              }}
+            />
+          )}
         {card.divineShield && <DivineShieldOverlay key={"divineShield"} />}
         {card.frozen && <FrozenOverlay key={"frozen"} />}
       </AnimatePresence>

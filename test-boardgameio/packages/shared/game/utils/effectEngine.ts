@@ -41,6 +41,19 @@ export function resolveDynamicValue(
       else baseValue = G.players["0"].health + G.players["1"].health;
       break;
 
+    case "player-missing-health": {
+      const p =
+        val.player === "friendly" ? G.players[playerID] : G.players[enemyId];
+      baseValue = Math.max(0, p.maxHealth - p.health);
+      break;
+    }
+
+    case "cards-played-turn":
+      baseValue = G.eventHistory.filter(
+        (e) => e.type === "cardPlayed" && e.turn === context.ctx.turn,
+      ).length;
+      break;
+
     case "card-stat":
       if (!context.card) {
         baseValue = 0;
@@ -260,6 +273,38 @@ export function resolveTargets(
         });
       });
       break;
+
+    case "adjacent": {
+      // Neighbors of context.card in its own zone: the board when the card is
+      // placed there, else the hand ("Cards adjacent to this in hand ...").
+      if (!context.card) break;
+      const sourceId = context.card.id;
+      let zone = G.board[playerID];
+      let index = zone.findIndex((c) => c.id === sourceId);
+      if (index === -1) {
+        zone = G.players[playerID].hand;
+        index = zone.findIndex((c) => c.id === sourceId);
+      }
+      if (index === -1) break;
+      [zone[index - 1], zone[index + 1]].forEach((c) => {
+        if (c) {
+          pool.push({ type: "card", id: c.id, ownerId: playerID, cardRef: c });
+        }
+      });
+      break;
+    }
+
+    case "friendly-hand":
+      G.players[playerID].hand.forEach((c) => {
+        pool.push({ type: "card", id: c.id, ownerId: playerID, cardRef: c });
+      });
+      break;
+
+    case "enemy-hand":
+      G.players[enemyId].hand.forEach((c) => {
+        pool.push({ type: "card", id: c.id, ownerId: enemyId, cardRef: c });
+      });
+      break;
   }
 
   // 2. Filter Targets based on specific card conditions (e.g., "to all TAUNT minions")
@@ -268,7 +313,8 @@ export function resolveTargets(
       if (t.type === "player") return false; // Conditions typically inspect cards
       if (!t.cardRef) return false;
       return effect.conditions!.every((cond) =>
-        checkSingleTargetCondition(t.cardRef!, cond, context),
+        // Pass the acting card's id so "exclude-self" can actually match
+        checkSingleTargetCondition(t.cardRef!, cond, context, context.card?.id),
       );
     });
   }

@@ -26,7 +26,7 @@ export const warriorDeckString: DeckString = {
   "senjin-shieldmasta": 2,
   "silver-hand-knight": 1,
   "lord-of-the-arena": 1,
-  "core-hound": 1,
+  "grommash-hellscream": 1,
   "loot-hoarder": 1,
   "booty-bay-bodyguard": 1,
   "boulderfist-ogre": 1,
@@ -76,7 +76,7 @@ export const mageDeckString: DeckString = {
   "silver-hand-knight": 1,
   "boulderfist-ogre": 1,
   "lord-of-the-arena": 1,
-}; // Total: 30 cards
+};
 
 export const paladinDeckString: DeckString = {
   "hand-of-protection": 2,
@@ -110,9 +110,8 @@ export const rogueDeckString: DeckString = {
   assassinate: 2,
   "goldshire-footman": 2,
   "abusive-sargent": 1,
-  "argent-squire": 1,
   wolfrider: 1,
-  " edwin-vancleef": 1,
+  "edwin-vancleef": 1,
   "loot-hoarder": 1,
   "razorfen-hunter": 2,
   "senjin-shieldmasta": 1,

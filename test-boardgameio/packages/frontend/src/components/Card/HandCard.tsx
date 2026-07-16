@@ -170,6 +170,8 @@ const DragCard = (props: DargCardProps) => {
       isFirstRender.current = false;
       playSfx("card-draw");
       return;
+    } else {
+      isFirstRender.current = false;
     }
 
     // FIX 2: Set the state to exactly match isDragging after the delay

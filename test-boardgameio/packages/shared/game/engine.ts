@@ -24,6 +24,7 @@ import {
   processDeaths,
   hasPendingAutoBattlecry,
   resolvePendingAutoBattlecry,
+  refreshOngoing,
   type GameSetupData,
 } from "./index.js";
 import { recordEvent } from "./utils/index.js";
@@ -154,6 +155,7 @@ export function applyMove(
     }
     // A completed mulligan runs beginTurn, which can leave pending deaths
     // (e.g. expiring modifiers) — fall through to the settle path below.
+    refreshOngoing(G, ctx);
     if (settle) {
       processDeaths(G, ctx);
     }
@@ -203,6 +205,11 @@ export function applyMove(
     default:
       return { ok: false, error: `unknown-move:${String(move)}` };
   }
+
+  // Sync ongoing effects (auras / in-hand / enrage) with whatever the move
+  // changed — diff-based, so it's silent when nothing relevant moved. Deaths
+  // this causes (e.g. a killed aura provider) stay pending for the host.
+  refreshOngoing(G, ctx);
 
   if (settle) {
     // Same order the machine steps through: battlecry → death waves

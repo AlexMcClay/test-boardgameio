@@ -100,6 +100,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   // yourTurn Handler
   useEffect(() => {
     if (
+      visualGameState.mulligan?.active ||
       visualCtx.currentPlayer === prevMovePlayer.current ||
       visualCtx.currentPlayer === undefined ||
       prevMovePlayer.current === undefined
@@ -107,18 +108,14 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       return;
     } else {
       prevMovePlayer.current = visualCtx.currentPlayer;
-      if (
-        props.playerID &&
-        visualCtx.currentPlayer === props.playerID &&
-        visualCtx.turn > 1
-      ) {
+      if (props.playerID && visualCtx.currentPlayer === props.playerID) {
         setYourTurn(true);
         setTimeout(() => {
           setYourTurn(false);
         }, 2000);
       }
     }
-  }, [visualCtx]);
+  }, [visualCtx, visualGameState]);
 
   // add useEffect event listenr for tilde to log G.eventHistory
   useEffect(() => {

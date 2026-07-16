@@ -28,6 +28,10 @@ const applyModifier = (
   target: ApplyModifierEffect["target"] = "user-select",
   override: boolean = false,
   duration?: ApplyModifierEffect["duration"],
+  opts?: Pick<
+    ApplyModifierEffect,
+    "conditions" | "min" | "max" | "mult" | "stackable"
+  >,
 ): ApplyModifierEffect => {
   return {
     type: "applyModifier",
@@ -36,6 +40,7 @@ const applyModifier = (
     target: target,
     duration: duration,
     override: override,
+    ...opts,
   };
 };
 
@@ -196,7 +201,7 @@ const addCopyFromDeck = (
   };
 }; */
 
-const combo = (combo: EffectTypes[]): EffectTypes => {
+export const combo = (combo: EffectTypes[]): EffectTypes => {
   return {
     type: "conditional",
     conditions: [
@@ -3148,6 +3153,264 @@ export const cardTemplates = {
         stat: "health",
       },
     ],
+    sfx: sfx(
+      ["Pegasus_Stinger_Lesser_Villain.ogg", "VO_EX1_613_Play_01.ogg"],
+      ["VO_EX1_613_Attack_02.ogg"],
+      ["VO_EX1_613_Death_03.ogg"],
+    ),
+  },
+  "stormwind-champion": {
+    title: "Stormwind Champion",
+    description: "Your other minions have +1/+1.",
+    baseMana: 7,
+    baseAttack: 7,
+    baseHealth: 7,
+    imageUrl: "assets/cards/Stormwind_Champion.jpg",
+    class: "Neutral",
+    isMinion: true,
+    tags: ["Aura"],
+    rarity: "Common",
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    onPlace: [],
+    aura: [
+      applyModifier("attack", 1, "friendly-board", false, undefined, {
+        conditions: [{ type: "exclude-self" }],
+      }),
+      applyModifier("health", 1, "friendly-board", false, undefined, {
+        conditions: [{ type: "exclude-self" }],
+      }),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    sfx: sfx(
+      ["VO_CS2_222_Play_01.ogg"],
+      ["VO_CS2_222_Attack_02.ogg"],
+      ["VO_CS2_222_Death_03.ogg"],
+    ),
+  },
+  "murloc-warleader": {
+    title: "Murloc Warleader",
+    description: "Your other Murlocs have +2/+1.",
+    baseMana: 3,
+    baseAttack: 3,
+    baseHealth: 3,
+    type: ["Murloc"],
+    imageUrl: "assets/cards/Murloc_Warleader.jpg",
+    class: "Neutral",
+    rarity: "Epic",
+    isMinion: true,
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    onPlace: [],
+    aura: [
+      applyModifier("attack", 2, "friendly-board", false, undefined, {
+        conditions: [
+          { type: "tags-include", value: "Murloc" },
+          { type: "exclude-self" },
+        ],
+      }),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    sfx: sfx(
+      ["EX1_507_Murloc_Warleader_EnterPlay1.ogg"],
+      ["EX1_507_Murloc_Warleader_Attack1.ogg"],
+      ["EX1_507_Murloc_Warleader_Death1.ogg"],
+    ),
+  },
+  "dire-wolf-alpha": {
+    title: "Dire Wolf Alpha",
+    description: "Adjacent minions have +1 Attack.",
+    baseMana: 2,
+    baseAttack: 2,
+    baseHealth: 2,
+    type: ["Beast"],
+    imageUrl: "assets/cards/Dire_Wolf_Alpha.jpg",
+    class: "Neutral",
+    isMinion: true,
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    onPlace: [],
+    aura: [applyModifier("attack", 1, "adjacent")],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    sfx: sfx(
+      ["SFX_EX1_162_EnterPlay.ogg"],
+      ["SFX_EX1_162_Attack.ogg"],
+      ["SFX_EX1_162_Death.ogg"],
+    ),
+  },
+  "sorcerers-apprentice": {
+    title: "Sorcerer's Apprentice",
+    description: "Your spells cost (1) less (but not less than 1).",
+    baseMana: 2,
+    baseAttack: 3,
+    baseHealth: 2,
+    imageUrl: "assets/cards/Sorcerers_Apprentice.jpg",
+    class: "Mage",
+    isMinion: true,
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    onPlace: [],
+    aura: [
+      applyModifier("mana", -1, "friendly-hand", false, undefined, {
+        conditions: [{ type: "boolean", key: "isSpell", value: true }],
+        min: 1,
+      }),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    sfx: sfx(
+      ["VO_EX1_608_Play_01.ogg"],
+      ["VO_EX1_608_Attack_02.ogg"],
+      ["VO_EX1_608_Death_03.ogg"],
+    ),
+  },
+  "amani-berserker": {
+    title: "Amani Berserker",
+    description: "Has +3 Attack while damaged.",
+    baseMana: 2,
+    baseAttack: 2,
+    baseHealth: 3,
+    imageUrl: "assets/cards/Amani_Berserker.jpg",
+    class: "Neutral",
+    isMinion: true,
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    onPlace: [],
+    enrage: [applyModifier("attack", 3, "self")],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    sfx: sfx(
+      ["VO_EX1_393_Play_01.ogg"],
+      ["VO_EX1_393_Attack_02.ogg"],
+      ["VO_EX1_393_Death_03.ogg"],
+    ),
+  },
+  "molten-giant": {
+    title: "Molten Giant",
+    description: "Costs (1) less for each Health your hero is missing.",
+    baseMana: 20,
+    baseAttack: 8,
+    baseHealth: 8,
+    imageUrl: "assets/cards/Molten_Giant.jpg",
+    class: "Neutral",
+    rarity: "Epic",
+    isMinion: true,
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    onPlace: [],
+    inHand: [
+      applyModifier("mana", -1, "self", false, undefined, {
+        mult: { type: "player-missing-health", player: "friendly" },
+      }),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    sfx: sfx(
+      ["EX1_620_Molten_Giant_EnterPlay2.ogg"],
+      ["EX1_620_Molten_Giant_Attack1.ogg"],
+      ["EX1_620_Molten_Giant_Death1.ogg"],
+    ),
+  },
+  "grommash-hellscream": {
+    title: "Grommash Hellscream",
+    description: "Charge. Has +6 Attack while damaged.",
+    baseMana: 8,
+    baseAttack: 4,
+    baseHealth: 9,
+    imageUrl: "assets/cards/Grommash_Hellscream.jpg",
+    class: "Warrior",
+    charge: true,
+    rarity: "Legendary",
+    isMinion: true,
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    onPlace: [],
+    enrage: [applyModifier("attack", 6, "self")],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    sfx: sfx(
+      ["Pegasus_Stinger_Horde1.ogg", "VO_EX1_414_Play_01.ogg"],
+      ["VO_EX1_414_Attack_02.ogg"],
+      ["VO_EX1_414_Death_03.ogg"],
+    ),
+  },
+  "raid-leader": {
+    title: "Raid Leader",
+    description: "Your other minions have +1 attack.",
+    baseMana: 3,
+    baseAttack: 2,
+    baseHealth: 3,
+    imageUrl: "assets/cards/Raid_Leader.jpg",
+    class: "Neutral",
+    isMinion: true,
+    tags: ["Aura"],
+    rarity: "Common",
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    onPlace: [],
+    aura: [
+      applyModifier("attack", 1, "friendly-board", false, undefined, {
+        conditions: [{ type: "exclude-self" }],
+      }),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    sfx: sfx(
+      ["VO_CS2_122_Play_01.ogg"],
+      ["VO_CS2_122_Attack_02.ogg"],
+      ["VO_CS2_122_Death_03.ogg"],
+    ),
   },
 } satisfies Record<
   string,

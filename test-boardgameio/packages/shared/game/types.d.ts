@@ -72,6 +72,13 @@ export interface Card {
   attacksLeft: number;
   // 3. Volatile attachment array
   modifiers?: CardModifier[];
+  // Ongoing mechanics — each is refreshed continuously by its own pass in
+  // refreshOngoing (game/index.ts) and materialized as managed CardModifiers.
+  // `duration` on these defs is ignored: presence is the lifecycle.
+  aura?: ApplyModifierEffect[]; // Active while THIS minion is on board; targets via effect.target (friendly-board / adjacent / friendly-hand / ...)
+  inHand?: ApplyModifierEffect[]; // Active while THIS card is in a hand; targets "self" or "adjacent" (hand neighbors)
+  enrage?: ApplyModifierEffect[]; // Active while THIS minion is damaged on board; targets "self"
+  hideAuraGlow?: boolean; // Suppress the aura "pool of light" (Old Murk-Eye / Prophet Velen style exceptions)
   rarity?: "Common" | "Rare" | "Epic" | "Legendary";
   tags?: string[];
   targetQuery: TargetQuery;
@@ -166,7 +173,10 @@ export interface CardModifier {
   id: string;
   label?: string;
   sourceCardId: string;
-  type: "aura" | "permanent" | "temporary"; // "temporary" modifications have a lifecycle
+  // "temporary" modifications have a lifecycle; "aura" / "inHand" / "enrage"
+  // are managed entries owned by their refresh pass (refreshOngoing) and are
+  // added/removed automatically as their source condition changes.
+  type: "aura" | "permanent" | "temporary" | "inHand" | "enrage";
   stat:
     | "attack"
     | "health"
@@ -230,6 +240,17 @@ export type DynamicValue =
   | { type: "damage-dealt"; mult?: number }
   | {
       type: "combo-count";
+      mult?: number;
+    }
+  | {
+      // How much health the hero is missing (maxHealth - health)
+      type: "player-missing-health";
+      player: "friendly" | "enemy";
+      mult?: number;
+    }
+  | {
+      // Cards played by the current player this turn (combo-count without the -1)
+      type: "cards-played-turn";
       mult?: number;
     };
 // most recent damage delt
@@ -352,17 +373,22 @@ export interface ReturnToHandEffect {
   modifiers?: ApplyModifierEffect[]; // Applied AFTER stripping all buffs
 }
 
+export type EffectTarget =
+  | "user-select"
+  | "friendly-hero"
+  | "friendly-all"
+  | "friendly-board"
+  | "enemy-hero"
+  | "enemy-board"
+  | "enemy-all"
+  | "board"
+  | "self"
+  | "adjacent" // neighbors of context.card — board index ±1 when on board, hand index ±1 when in hand
+  | "friendly-hand" // cards in the acting player's hand (e.g. Sorcerer's Apprentice)
+  | "enemy-hand";
+
 export type BaseEffectSelection = {
-  target:
-    | "user-select"
-    | "friendly-hero"
-    | "friendly-all"
-    | "friendly-board"
-    | "enemy-hero"
-    | "enemy-board"
-    | "enemy-all"
-    | "board"
-    | "self";
+  target: EffectTarget;
   conditions?: TargetCondition[]; // filter conditions, so like "2 damage to all taunt minions"
   rand?: {
     split: boolean; // random split, just for damage for now, maybe for healing later
@@ -423,6 +449,10 @@ export type ApplyModifierEffect = {
   mult?: number | DynamicValue;
   min?: number;
   max?: number;
+  // When false (default), re-applying a modifier with the same sourceCardId +
+  // stat REPLACES the existing one (and a value of 0 removes it). When true,
+  // every application stacks as its own modifier.
+  stackable?: boolean;
   duration?: {
     expiryTrigger: "END_OF_TURN" | "START_OF_TURN";
     expiryOwner: "BUFF_CASTER" | "BUFF_RECEIVER" | "ANY_PLAYER";
