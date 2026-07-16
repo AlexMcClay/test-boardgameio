@@ -196,6 +196,44 @@ const addCopyFromDeck = (
   };
 }; */
 
+const combo = (combo: EffectTypes[]): EffectTypes => {
+  return {
+    type: "conditional",
+    conditions: [
+      {
+        type: "numeric",
+        key: {
+          type: "combo-count",
+        },
+        operator: ">",
+        value: 0,
+      },
+    ],
+    then: combo,
+  };
+};
+
+const comboOr = (
+  combo: EffectTypes[],
+  notCombo: EffectTypes[],
+): EffectTypes => {
+  return {
+    type: "conditional",
+    conditions: [
+      {
+        type: "numeric",
+        key: {
+          type: "combo-count",
+        },
+        operator: ">",
+        value: 0,
+      },
+    ],
+    then: combo,
+    else: notCombo,
+  };
+};
+
 // Add random card from global pool
 const addRandomCard = (
   conditions: import("../types").TargetCondition[],
@@ -2775,23 +2813,7 @@ export const cardTemplates = {
       side: "all",
       type: ["card", "player"],
     },
-    effects: [
-      {
-        type: "conditional",
-        conditions: [
-          {
-            type: "numeric",
-            key: {
-              type: "combo-count",
-            },
-            operator: ">",
-            value: 1,
-          },
-        ],
-        else: [damage(2, "user-select")],
-        then: [damage(4, "user-select")],
-      },
-    ],
+    effects: [comboOr([damage(4, "user-select")], [damage(2, "user-select")])],
     onPlace: [],
   },
   "sinister-strike": {
@@ -3080,6 +3102,52 @@ export const cardTemplates = {
     effects: [mana(1)],
     onPlace: [],
     isUncollectible: true,
+  },
+  "edwin-vancleef": {
+    title: "Edwin VanCleef",
+    description:
+      "Combo: Gain +2/+2 for each other card you've played this turn.",
+    baseMana: 3,
+    baseAttack: 2,
+    baseHealth: 2,
+    imageUrl: "assets/cards/Edwin_VanCleef.jpg",
+    class: "Rogue",
+    rarity: "Legendary",
+    isMinion: true,
+    isSpell: false,
+    charge: false,
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    onPlace: [
+      {
+        type: "applyModifier",
+        target: "self",
+        value: 2,
+        mult: {
+          type: "combo-count",
+        },
+        override: false,
+        stat: "attack",
+      },
+      {
+        type: "applyModifier",
+        target: "self",
+        value: 2,
+        mult: {
+          type: "combo-count",
+        },
+        override: false,
+        stat: "health",
+      },
+    ],
   },
 } satisfies Record<
   string,

@@ -88,11 +88,18 @@ export function resolveDynamicValue(
       break;
 
     case "combo-count": {
-      baseValue = G.eventHistory.filter(
-        (e) =>
-          (e.type === "minionPlaced" || e.type === "spell") &&
-          e.turn === context.ctx.turn,
-      ).length;
+      baseValue =
+        G.eventHistory.filter(
+          (e) => e.type === "cardPlayed" && e.turn === context.ctx.turn,
+        ).length - 1; // subtracting this card played
+      console.log(
+        G.eventHistory.filter(
+          (e) => e.type === "cardPlayed" && e.turn === context.ctx.turn,
+        ),
+        G.eventHistory.filter(
+          (e) => e.type === "cardPlayed" && e.turn === context.ctx.turn,
+        ).length,
+      );
       break;
     }
 

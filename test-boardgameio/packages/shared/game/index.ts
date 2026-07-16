@@ -48,9 +48,7 @@ import {
   resolveTargets,
 } from "./utils/effectEngine.js";
 
-export function checkVictory(
-  G: GameState,
-): { winner: PlayerID } | undefined {
+export function checkVictory(G: GameState): { winner: PlayerID } | undefined {
   if (G.players[0].health <= 0) {
     return { winner: "1" };
   } else if (G.players[1].health <= 0) {
@@ -550,11 +548,7 @@ export const useHeroPower = (
   G.pendingSourceEventIndex = sourceEventIndex;
 };
 
-export const heroAttack = (
-  G: GameState,
-  ctx: GameCtx,
-  target: TargetValue,
-) => {
+export const heroAttack = (G: GameState, ctx: GameCtx, target: TargetValue) => {
   const attackerId = ctx.currentPlayer as PlayerID;
   const attacker = G.players[attackerId];
 
@@ -961,7 +955,9 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         break;
       case "applyModifier": {
         const modEffect = effect;
-        const value = resolveDynamicValue(effect.value, context);
+        const value =
+          resolveDynamicValue(effect.value, context) *
+          resolveDynamicValue(effect.mult ?? 1, context);
         const targets = resolveTargets(effect, context); // Unified target array resolution
 
         console.log(
@@ -1685,8 +1681,7 @@ export function beginTurn(G: GameState, ctx: GameCtx) {
     manaCrystals + 1,
     G.players[ctx.currentPlayer].maxManaCrystals,
   );
-  G.players[ctx.currentPlayer].mana =
-    G.players[ctx.currentPlayer].manaCrystals;
+  G.players[ctx.currentPlayer].mana = G.players[ctx.currentPlayer].manaCrystals;
 
   // Reset hero power usage
   G.players[ctx.currentPlayer].heroPowerUsedThisTurn = false;
@@ -1757,7 +1752,6 @@ export function endTurnCleanup(G: GameState, ctx: GameCtx) {
     timestamp: Date.now(),
   });
 }
-
 
 // Export everything from data
 export * from "./data/cards.js";

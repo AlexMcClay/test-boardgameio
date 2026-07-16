@@ -153,11 +153,13 @@ export interface ModifierLifecycle {
   // Who cast the buff? ("0" or "1")
   sourcePlayerId: string;
   // At what point in the game loop should this expire?
-  expiryTrigger: "END_OF_TURN" | "START_OF_TURN" | "PERMANENT";
+  expiryTrigger: "END_OF_TURN" | "START_OF_TURN" | "PERMANENT" | "MINION_DEATH";
   // Whose turn timeline triggers the expiry?
   expiryOwner: "BUFF_CASTER" | "BUFF_RECEIVER" | "ANY_PLAYER";
   // Optional counter for multi-turn effects (e.g., lasts 2 turns)
   turnsRemaining?: number;
+  // Minion ID
+  minionId?: string;
 }
 
 export interface CardModifier {
@@ -418,6 +420,7 @@ export type ApplyModifierEffect = {
   stat: "attack" | "health" | "mana" | "taunt" | "divineShield" | "frozen";
   override: boolean;
   value: number | DynamicValue;
+  mult?: number | DynamicValue;
   min?: number;
   max?: number;
   duration?: {
