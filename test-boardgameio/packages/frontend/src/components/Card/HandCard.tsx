@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import {
   getManaCost,
   type Card as CardType,
+  type GameCtx,
   type Player,
 } from "@project/shared";
-import type { Ctx } from "boardgame.io";
 import { twMerge } from "tailwind-merge";
 import { useDraggable } from "@dnd-kit/core";
 import type { CardProps } from "./types";
@@ -16,13 +16,14 @@ type Props = {
   index: number; // Index of the card in the hand
   isTop?: boolean; // Whether the player is on top (for styling)
   card: CardType;
-  ctx: Ctx;
+  ctx: GameCtx;
   player: Player;
   isHovered: boolean; // Controlled by parent
   onHoverEnter: (cardId: string, rect: DOMRect) => void;
   onCardRef: (cardId: string, ref: HTMLDivElement | null) => void;
   back?: boolean;
   discarded: boolean;
+  isHandFirstRender: boolean;
 };
 
 const HandCard = ({
@@ -37,6 +38,7 @@ const HandCard = ({
   onCardRef,
   back,
   discarded,
+  isHandFirstRender,
 }: Props) => {
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -133,6 +135,7 @@ const HandCard = ({
         onDragStart={() => {}}
         isHovered={isHovered}
         back={back}
+        isHandFirstRender={isHandFirstRender}
       />
     </div>
   );
@@ -141,6 +144,7 @@ const HandCard = ({
 interface DargCardProps extends CardProps {
   onDragStart?: () => void;
   isHovered?: boolean;
+  isHandFirstRender: boolean;
 }
 
 const DragCard = (props: DargCardProps) => {
@@ -162,10 +166,12 @@ const DragCard = (props: DargCardProps) => {
   const playSfx = useAudioStore((state) => state.playSfx);
 
   useEffect(() => {
-    if (isFirstRender.current) {
+    if (isFirstRender.current && !props.isHandFirstRender) {
       isFirstRender.current = false;
       playSfx("card-draw");
       return;
+    } else {
+      isFirstRender.current = false;
     }
 
     // FIX 2: Set the state to exactly match isDragging after the delay

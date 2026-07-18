@@ -1,6 +1,6 @@
 // stores/dragStore.ts
 import { create } from "zustand";
-import type { PlayerID } from "boardgame.io";
+import type { PlayerID } from "@project/shared";
 import {
   canTargetHighlight,
   type Card,

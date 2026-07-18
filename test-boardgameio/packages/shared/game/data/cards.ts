@@ -28,6 +28,10 @@ const applyModifier = (
   target: ApplyModifierEffect["target"] = "user-select",
   override: boolean = false,
   duration?: ApplyModifierEffect["duration"],
+  opts?: Pick<
+    ApplyModifierEffect,
+    "conditions" | "min" | "max" | "mult" | "stackable"
+  >,
 ): ApplyModifierEffect => {
   return {
     type: "applyModifier",
@@ -36,6 +40,7 @@ const applyModifier = (
     target: target,
     duration: duration,
     override: override,
+    ...opts,
   };
 };
 
@@ -196,6 +201,44 @@ const addCopyFromDeck = (
   };
 }; */
 
+export const combo = (combo: EffectTypes[]): EffectTypes => {
+  return {
+    type: "conditional",
+    conditions: [
+      {
+        type: "numeric",
+        key: {
+          type: "combo-count",
+        },
+        operator: ">",
+        value: 0,
+      },
+    ],
+    then: combo,
+  };
+};
+
+const comboOr = (
+  combo: EffectTypes[],
+  notCombo: EffectTypes[],
+): EffectTypes => {
+  return {
+    type: "conditional",
+    conditions: [
+      {
+        type: "numeric",
+        key: {
+          type: "combo-count",
+        },
+        operator: ">",
+        value: 0,
+      },
+    ],
+    then: combo,
+    else: notCombo,
+  };
+};
+
 // Add random card from global pool
 const addRandomCard = (
   conditions: import("../types").TargetCondition[],
@@ -275,6 +318,7 @@ export const cardTemplates = {
     isMinion: true,
     rarity: "Common",
     class: "Warlock",
+    set: ["Legacy"],
   },
   "chillwind-yeti": {
     title: "Chillwind Yeti",
@@ -297,6 +341,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   fireball: {
     title: "Fireball",
@@ -313,7 +358,6 @@ export const cardTemplates = {
       side: "all",
       type: ["card", "player"],
     },
-
     isMinion: false,
     class: "Mage",
     sfx: {
@@ -327,6 +371,7 @@ export const cardTemplates = {
         },
       ],
     },
+    set: ["Legacy"],
   },
   "mirror-image-spell": {
     title: "Mirror Image",
@@ -345,6 +390,7 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Mage",
+    set: ["Legacy"],
   },
 
   "mirror-image-token": {
@@ -365,6 +411,7 @@ export const cardTemplates = {
     isMinion: true,
     isUncollectible: true, // Hidden from deckbuilders like Murloc Scout
     class: "Mage",
+    set: ["Legacy"],
   },
   "arcane-intellect": {
     title: "Arcane Intellect",
@@ -381,6 +428,8 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Mage",
+    set: ["Legacy"],
+
     sfx: sfx(["Mage_ArcaneIntellect_Cast_1.ogg"]),
   },
   "boulderfist-ogre": {
@@ -404,6 +453,7 @@ export const cardTemplates = {
     isMinion: true,
     rarity: "Common",
     class: "Neutral",
+    set: ["Legacy"],
   },
   wolfrider: {
     title: "Wolfrider",
@@ -427,6 +477,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   frostbolt: {
     title: "Frostbolt",
@@ -444,6 +495,7 @@ export const cardTemplates = {
     isMinion: false,
     rarity: "Common",
     class: "Mage",
+    set: ["Legacy"],
   },
   "bloodfen-raptor": {
     title: "Bloodfen Raptor",
@@ -466,6 +518,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "river-crocolisk": {
     title: "River Crocolisk",
@@ -488,6 +541,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "ironfur-grizzly": {
     title: "Ironfur Grizzly",
@@ -511,6 +565,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   charge: {
     title: "Charge",
@@ -533,6 +588,7 @@ export const cardTemplates = {
       ],
     },
     class: "Warrior",
+    set: ["Legacy"],
   },
   "murloc-raider": {
     title: "Murloc Raider",
@@ -555,6 +611,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "silver-hand-recruit": {
     title: "Silver Hand Recruit",
@@ -577,6 +634,7 @@ export const cardTemplates = {
     isMinion: true,
     class: "Paladin",
     isUncollectible: true,
+    set: [],
   },
   "frostwolf-grunt": {
     title: "Frostwolf Grunt",
@@ -599,6 +657,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "murloc-tidehunter": {
     title: "Murloc Tidehunter",
@@ -621,6 +680,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "murloc-scout": {
     title: "Murloc Scout",
@@ -644,6 +704,7 @@ export const cardTemplates = {
     isMinion: true,
     isUncollectible: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "razorfen-hunter": {
     title: "Razorfen Hunter",
@@ -665,6 +726,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   boar: {
     title: "Boar",
@@ -688,6 +750,7 @@ export const cardTemplates = {
     isMinion: true,
     isUncollectible: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "dragonling-mechanic": {
     title: "Dragonling Mechanic",
@@ -709,6 +772,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "mechanical-dragonling": {
     title: "Mechanical Dragonling",
@@ -732,6 +796,7 @@ export const cardTemplates = {
     isMinion: true,
     isUncollectible: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "senjin-shieldmasta": {
     title: "Sen'jin Shieldmasta",
@@ -771,6 +836,7 @@ export const cardTemplates = {
         },
       ],
     },
+    set: ["Legacy"],
   },
   "lord-of-the-arena": {
     title: "Lord of the Arena",
@@ -793,6 +859,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "stormwind-knight": {
     title: "Stormwind Knight",
@@ -816,6 +883,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   innervate: {
     title: "Innervate",
@@ -832,6 +900,7 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Druid",
+    set: ["Legacy"],
   },
   "mark-of-the-wild": {
     title: "Mark of the Wild",
@@ -848,6 +917,7 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Druid",
+    set: ["Legacy"],
   },
   "healing-touch": {
     title: "Healing Touch",
@@ -864,6 +934,7 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Druid",
+    set: ["Legacy"],
   },
   "darkscale-healer": {
     title: "Darkscale Healer",
@@ -886,6 +957,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   nightblade: {
     title: "Nightblade",
@@ -908,6 +980,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "elven-archer": {
     title: "Elven Archer",
@@ -939,6 +1012,7 @@ export const cardTemplates = {
     tags: ["Battlecry"],
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "ironforge-rifleman": {
     title: "Ironforge Rifleman",
@@ -970,6 +1044,7 @@ export const cardTemplates = {
     isMinion: true,
     tags: ["Battlecry"],
     class: "Neutral",
+    set: ["Legacy"],
   },
   "core-hound": {
     title: "Core Hound",
@@ -992,6 +1067,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "silverback-patriarch": {
     title: "Silverback Patriarch",
@@ -1016,6 +1092,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "magma-rager": {
     title: "Magma Rager",
@@ -1038,6 +1115,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "oasis-snapjaw": {
     title: "Oasis Snapjaw",
@@ -1060,6 +1138,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "silver-hand-knight": {
     title: "Silver Hand Knight",
@@ -1083,6 +1162,7 @@ export const cardTemplates = {
     isMinion: true,
     rarity: "Common",
     class: "Neutral",
+    set: ["Legacy"],
   },
   squire: {
     title: "Squire",
@@ -1106,6 +1186,7 @@ export const cardTemplates = {
     isMinion: true,
     isUncollectible: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "voodoo-doctor": {
     title: "Voodoo Doctor",
@@ -1137,6 +1218,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "novice-engineer": {
     title: "Novice Engineer",
@@ -1175,6 +1257,7 @@ export const cardTemplates = {
         },
       ],
     },
+    set: ["Legacy"],
   },
   "stormpike-commando": {
     title: "Stormpike Commando",
@@ -1206,6 +1289,7 @@ export const cardTemplates = {
     }, // Can target any character for battlecry damage
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "gnomish-inventor": {
     title: "Gnomish Inventor",
@@ -1228,6 +1312,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "arcane-shot": {
     title: "Arcane Shot",
@@ -1243,6 +1328,7 @@ export const cardTemplates = {
     isMinion: false,
     imageUrl: "assets/cards/Arcane_Shot.jpg",
     class: "Hunter",
+    set: ["Legacy"],
   },
   assassinate: {
     title: "Assassinate",
@@ -1258,6 +1344,7 @@ export const cardTemplates = {
     isMinion: false,
     imageUrl: "assets/cards/Assassinate.jpg",
     class: "Rogue",
+    set: ["Legacy"],
   },
   "blessing-of-kings": {
     title: "Blessing of Kings",
@@ -1274,6 +1361,7 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Paladin",
+    set: ["Legacy"],
   },
   "goldshire-footman": {
     title: "Goldshire Footman",
@@ -1314,6 +1402,7 @@ export const cardTemplates = {
         },
       ],
     },
+    set: ["Legacy"],
   },
   "booty-bay-bodyguard": {
     title: "Booty Bay Bodyguard",
@@ -1337,6 +1426,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "reckless-rocketeer": {
     title: "Reckless Rocketeer",
@@ -1360,6 +1450,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   "inner-rage": {
     title: "Inner Rage",
@@ -1376,6 +1467,7 @@ export const cardTemplates = {
     isMinion: false,
     rarity: "Common",
     class: "Warrior",
+    set: ["Legacy"],
   },
   "bluegill-warrior": {
     title: "Bluegill Warrior",
@@ -1400,6 +1492,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
+    set: ["Legacy"],
   },
   flamestrike: {
     title: "Flamestrike",
@@ -1416,6 +1509,7 @@ export const cardTemplates = {
     isMinion: false,
     class: "Mage",
     type: ["Fire"],
+    set: ["Legacy"],
   },
   arcane_explosion: {
     title: "Arcane Explosion",
@@ -1432,6 +1526,7 @@ export const cardTemplates = {
     isMinion: false,
     class: "Mage",
     type: ["Arcane"],
+    set: ["Legacy"],
   },
   "leper-gnome": {
     title: "Leper Gnome",
@@ -1456,6 +1551,7 @@ export const cardTemplates = {
     onPlace: [],
     rarity: "Common",
     deathrattle: [damage(2, "enemy-hero")],
+    set: ["Legacy"],
   },
   "loot-hoarder": {
     title: "Loot Hoarder",
@@ -1485,6 +1581,7 @@ export const cardTemplates = {
       ["VO_EX1_096_Attack_02.ogg"],
       ["VO_EX1_096_Death_03.ogg"],
     ),
+    set: ["Legacy"],
   },
   "argent-squire": {
     title: "Argent Squire",
@@ -1510,6 +1607,7 @@ export const cardTemplates = {
       side: "enemy",
       type: ["card", "player"],
     },
+    set: ["Legacy"],
   },
   shielded_minibot: {
     title: "Shielded Minibot",
@@ -1535,6 +1633,7 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     rarity: "Common",
+    set: ["Goblins vs Gnomes"],
   },
   "tirion-fordring": {
     title: "Tirion Fordring",
@@ -1587,6 +1686,7 @@ export const cardTemplates = {
         },
       ],
     },
+    set: ["Legacy"],
   },
   sunwalker: {
     title: "Sunwalker",
@@ -1612,6 +1712,7 @@ export const cardTemplates = {
     ],
     rarity: "Rare",
     onPlace: [],
+    set: ["Legacy"],
   },
   "argent-protector": {
     title: "Argent Protector",
@@ -1646,6 +1747,7 @@ export const cardTemplates = {
         },
       ],
     },
+    set: ["Legacy"],
   },
   "hand-of-protection": {
     title: "Hand of Protection",
@@ -1671,17 +1773,14 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Paladin",
+    set: ["Legacy"],
   },
-  // Add these to your cardTemplates object in cards.ts
-
   "force-of-nature": {
     title: "Force of Nature",
     description: "Summon three 2/2 Treants with Charge.",
     baseMana: 5,
-
     type: ["Nature"],
     imageUrl: "assets/cards/Force_of_Nature.jpg",
-    // Spawns three distinct Treant instances onto the board side
     effects: [
       summon("treant-token"),
       summon("treant-token"),
@@ -1696,6 +1795,7 @@ export const cardTemplates = {
     isMinion: false,
     class: "Druid",
     rarity: "Epic",
+    set: ["Legacy"],
   },
   "treant-token": {
     title: "Treant",
@@ -1720,6 +1820,7 @@ export const cardTemplates = {
     isMinion: true,
     isUncollectible: true, // Hidden from deckbuilders, matching your rule constraints
     class: "Druid",
+    set: ["Legacy"],
   },
   "ironbark-protector": {
     title: "Ironbark Protector",
@@ -1743,6 +1844,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Druid",
+    set: ["Legacy"],
   },
   starfire: {
     title: "Starfire",
@@ -1759,6 +1861,7 @@ export const cardTemplates = {
     }, // Can target any minion or hero on the board
     isMinion: false,
     class: "Druid",
+    set: ["Legacy"],
   },
   "frost-nova": {
     title: "Frost Nova",
@@ -1775,6 +1878,7 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Mage",
+    set: ["Legacy"],
   },
   blizzard: {
     title: "Blizzard",
@@ -1793,6 +1897,7 @@ export const cardTemplates = {
     isMinion: false,
     class: "Mage",
     rarity: "Rare",
+    set: ["Legacy"],
   },
   whirlwind: {
     title: "Whirlwind",
@@ -1801,7 +1906,6 @@ export const cardTemplates = {
     baseAttack: undefined,
     baseHealth: undefined,
     imageUrl: "assets/cards/Whirlwind.jpg",
-    // Applies 1 damage to every minion on the entire board (friendly and enemy)
     effects: [damage(1, "board")],
     onPlace: [],
     isSpell: true,
@@ -1811,9 +1915,8 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Warrior",
+    set: ["Legacy"],
   },
-  // Add this to your cardTemplates object in cards.ts
-
   "korkron-elite": {
     title: "Kor'kron Elite",
     description: "Charge.",
@@ -1836,9 +1939,8 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Warrior",
+    set: ["Legacy"],
   },
-  // Add this to your cardTemplates object in cards.ts
-
   "lay-on-hands": {
     title: "Lay on Hands",
     description: "Restore 8 Health. Draw 3 cards.",
@@ -1856,6 +1958,7 @@ export const cardTemplates = {
     isMinion: false,
     class: "Paladin",
     rarity: "Epic",
+    set: ["Legacy"],
   },
   "guardian-of-kings": {
     title: "Guardian of Kings",
@@ -1879,6 +1982,7 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Paladin",
+    set: ["Legacy"],
   },
   "warsong-outrider": {
     title: "Warsong Outrider",
@@ -1903,6 +2007,7 @@ export const cardTemplates = {
     isMinion: true,
     class: "Warrior",
     rarity: "Common",
+    set: ["Legacy"],
   },
   "cruel-taskmaster": {
     title: "Cruel Taskmaster",
@@ -1935,6 +2040,7 @@ export const cardTemplates = {
     isMinion: true,
     class: "Warrior",
     rarity: "Common",
+    set: ["Legacy"],
   },
   "shield-block": {
     title: "Shield Block",
@@ -1950,6 +2056,7 @@ export const cardTemplates = {
       type: ["lane", "card"],
     },
     class: "Warrior",
+    set: ["Legacy"],
   },
   bash: {
     title: "Bash",
@@ -1966,6 +2073,7 @@ export const cardTemplates = {
     },
     class: "Warrior",
     rarity: "Common",
+    set: ["The Grand Tournament"],
   },
   "unleash-the-crocolisks": {
     title: "Unleash the Crocolisks",
@@ -1986,8 +2094,8 @@ export const cardTemplates = {
     isMinion: false,
     class: "Warrior",
     rarity: "Common",
+    set: ["Across the Timeways"],
   },
-
   "coliseum-crocolisk": {
     title: "Coliseum Crocolisk",
     description: "",
@@ -2010,6 +2118,7 @@ export const cardTemplates = {
     isMinion: true,
     isUncollectible: true, // Generated by the parent spell
     class: "Warrior",
+    set: ["Across the Timeways"],
   },
   execute: {
     title: "Execute",
@@ -2031,6 +2140,7 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Warrior",
+    set: ["Legacy"],
   },
   "mortal-strike": {
     title: "Mortal Strike",
@@ -2062,6 +2172,7 @@ export const cardTemplates = {
     isMinion: false,
     class: "Warrior",
     rarity: "Rare",
+    set: ["Legacy"],
   },
   shadowflame: {
     title: "Shadowflame",
@@ -2097,6 +2208,7 @@ export const cardTemplates = {
     isMinion: false,
     class: "Warlock",
     rarity: "Rare",
+    set: ["Legacy"],
   },
   rampage: {
     title: "Rampage",
@@ -2122,6 +2234,7 @@ export const cardTemplates = {
     isMinion: false,
     class: "Warrior",
     rarity: "Common",
+    set: ["Legacy"],
   },
   righteousness: {
     title: "Righteousness",
@@ -2140,6 +2253,7 @@ export const cardTemplates = {
     isMinion: false,
     rarity: "Rare",
     class: "Paladin",
+    set: ["Legacy"],
   },
   "arcane-missiles": {
     title: "Arcane Missiles",
@@ -2166,6 +2280,7 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Mage",
+    set: ["Legacy"],
   },
   "ice-lance": {
     title: "Ice Lance",
@@ -2202,6 +2317,7 @@ export const cardTemplates = {
       },
     ],
     onPlace: [],
+    set: ["Legacy"],
   },
   "water-elemental": {
     title: "Water Elemental",
@@ -2226,6 +2342,7 @@ export const cardTemplates = {
       freeze(),
     ],
     onPlace: [],
+    set: ["Legacy"],
   },
   "deep-freeze": {
     title: "Deep Freeze",
@@ -2244,6 +2361,7 @@ export const cardTemplates = {
     effects: [freeze(), summon("water-elemental", "self", 2)],
     onPlace: [],
     rarity: "Rare",
+    set: ["Ashes of Outland"],
   },
   icicle: {
     title: "Icicle",
@@ -2275,6 +2393,7 @@ export const cardTemplates = {
     ],
     rarity: "Epic",
     onPlace: [],
+    set: ["Legacy"],
   },
   "mortal-coil": {
     title: "Mortal Coil",
@@ -2308,6 +2427,7 @@ export const cardTemplates = {
       },
     ],
     onPlace: [],
+    set: ["Legacy"],
   },
   voidwalker: {
     title: "Voidwalker",
@@ -2332,6 +2452,7 @@ export const cardTemplates = {
       side: "enemy",
       type: ["card", "player"],
     },
+    set: ["Legacy"],
   },
   demonfire: {
     title: "Demonfire",
@@ -2377,6 +2498,7 @@ export const cardTemplates = {
       },
     ],
     onPlace: [],
+    set: ["Legacy"],
   },
   "drain-life": {
     title: "Drain Life",
@@ -2400,6 +2522,7 @@ export const cardTemplates = {
       heal(2, "friendly-hero"),
     ],
     onPlace: [],
+    set: ["Legacy"],
   },
   hellfire: {
     title: "Hellfire",
@@ -2425,6 +2548,7 @@ export const cardTemplates = {
       damage(3, "enemy-hero"),
     ],
     onPlace: [],
+    set: ["Legacy"],
   },
   "siphon-soul": {
     title: "Siphon Soul",
@@ -2447,6 +2571,7 @@ export const cardTemplates = {
       heal(3, "friendly-hero"),
     ],
     onPlace: [],
+    set: ["Legacy"],
   },
   "shadow-bolt": {
     title: "Shadow Bolt",
@@ -2466,6 +2591,7 @@ export const cardTemplates = {
       damage(4, "user-select"),
     ],
     onPlace: [],
+    set: ["Legacy"],
   },
   "pit-lord": {
     title: "Pit Lord",
@@ -2491,6 +2617,7 @@ export const cardTemplates = {
       side: "enemy",
       type: ["card", "player"],
     },
+    set: ["Legacy"],
   },
   "dread-infernal": {
     title: "Dread Infernal",
@@ -2529,6 +2656,7 @@ export const cardTemplates = {
       side: "enemy",
       type: ["card", "player"],
     },
+    set: ["Legacy"],
   },
   "twisting-nether": {
     title: "Twisting Nether",
@@ -2550,6 +2678,7 @@ export const cardTemplates = {
       destroy("board"),
     ],
     onPlace: [],
+    set: ["Legacy"],
   },
   "drain-soul": {
     title: "Drain Soul",
@@ -2573,6 +2702,7 @@ export const cardTemplates = {
       heal(3, "friendly-hero"),
     ],
     onPlace: [],
+    set: ["Knights of the Frozen Throne"],
   },
   "vulgar-homunculus": {
     title: "Vulgar Homunculus",
@@ -2598,6 +2728,7 @@ export const cardTemplates = {
       side: "enemy",
       type: ["card", "player"],
     },
+    set: ["Kobolds & Catacombs"],
   },
   "demonic-assault": {
     title: "Demonic Assault",
@@ -2616,6 +2747,7 @@ export const cardTemplates = {
     },
     effects: [damage(3, "user-select"), summon("voidwalker", "self", 2)],
     onPlace: [],
+    set: ["United in Stormwind"],
   },
   "sense-demons": {
     title: "Sense Demons",
@@ -2644,6 +2776,7 @@ export const cardTemplates = {
       },
     ],
     onPlace: [],
+    set: ["Legacy"],
   },
   worthless_imp: {
     title: "Worthless Imp",
@@ -2667,6 +2800,7 @@ export const cardTemplates = {
     isMinion: true,
     isUncollectible: true,
     class: "Warlock",
+    set: ["Legacy"],
   },
   riftcleaver: {
     title: "Riftcleaver",
@@ -2715,6 +2849,7 @@ export const cardTemplates = {
       side: "enemy",
       type: ["card", "player"],
     },
+    set: ["Saviors of Uldum"],
   },
   voidlord: {
     title: "Voidlord",
@@ -2741,6 +2876,7 @@ export const cardTemplates = {
       side: "enemy",
       type: ["card", "player"],
     },
+    set: ["Kobolds & Catacombs"],
   },
   backstab: {
     title: "Backstab",
@@ -2762,6 +2898,7 @@ export const cardTemplates = {
     },
     effects: [damage(2, "user-select")],
     onPlace: [],
+    set: ["Legacy"],
   },
   eviscerate: {
     title: "Eviscerate",
@@ -2775,24 +2912,9 @@ export const cardTemplates = {
       side: "all",
       type: ["card", "player"],
     },
-    effects: [
-      {
-        type: "conditional",
-        conditions: [
-          {
-            type: "numeric",
-            key: {
-              type: "combo-count",
-            },
-            operator: ">",
-            value: 1,
-          },
-        ],
-        else: [damage(2, "user-select")],
-        then: [damage(4, "user-select")],
-      },
-    ],
+    effects: [comboOr([damage(4, "user-select")], [damage(2, "user-select")])],
     onPlace: [],
+    set: ["Legacy"],
   },
   "sinister-strike": {
     title: "Sinister Strike",
@@ -2808,6 +2930,7 @@ export const cardTemplates = {
     },
     effects: [damage(3, "enemy-hero")],
     onPlace: [],
+    set: ["Legacy"],
   },
   "fan-of-knives": {
     title: "Fan of Knives",
@@ -2823,6 +2946,7 @@ export const cardTemplates = {
     }, // Can target any minion or hero on the board
     isMinion: false,
     class: "Rogue",
+    set: ["Legacy"],
   },
   shadowstep: {
     title: "Shadowstep",
@@ -2845,6 +2969,7 @@ export const cardTemplates = {
     }, // Can target any minion or hero on the board
     isMinion: false,
     class: "Rogue",
+    set: ["Legacy"],
   },
   sap: {
     title: "Sap",
@@ -2860,6 +2985,7 @@ export const cardTemplates = {
       side: "enemy",
       type: ["card"], // Strictly restricts targeting to enemy minions on the board
     },
+    set: ["Legacy"],
   },
   shiv: {
     title: "Shiv",
@@ -2875,6 +3001,7 @@ export const cardTemplates = {
       side: "all",
       type: ["card", "player"], // Allows targeting any minion or hero on the board
     },
+    set: ["Legacy"],
   },
   "call-of-the-void": {
     title: "Call of the Void",
@@ -2892,6 +3019,7 @@ export const cardTemplates = {
       side: "all",
       type: ["lane"], // Board-wide non-targeted spell alignment
     },
+    set: ["Legacy"],
   },
   soulfire: {
     title: "Soulfire",
@@ -2908,6 +3036,7 @@ export const cardTemplates = {
       side: "all",
       type: ["card", "player"], // Allows targeting any minion or hero on the board
     },
+    set: ["Legacy"],
   },
   "sacrificial-pact": {
     title: "Sacrificial Pact",
@@ -2930,6 +3059,7 @@ export const cardTemplates = {
     },
     effects: [destroy("user-select"), heal(5, "friendly-hero")],
     onPlace: [],
+    set: ["Legacy"],
   },
   felstalker: {
     title: "Felstalker",
@@ -2953,6 +3083,7 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     onPlace: [discard(1, "random")],
+    set: ["Legacy"],
   },
   doomguard: {
     title: "Doomguard",
@@ -2978,6 +3109,7 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     onPlace: [discard(2, "random")],
+    set: ["Legacy"],
   },
   "abusive-sargent": {
     title: "Abusive Sergeant",
@@ -3011,6 +3143,7 @@ export const cardTemplates = {
       side: "all",
       type: ["card"],
     },
+    set: ["Legacy"],
   },
   "fiery-war-axe": {
     title: "Fiery War Axe",
@@ -3028,6 +3161,7 @@ export const cardTemplates = {
       side: "all",
       type: ["lane"],
     },
+    set: ["Legacy"],
   },
   "wicked-knife": {
     title: "Wicked Knife",
@@ -3046,6 +3180,7 @@ export const cardTemplates = {
       side: "all",
       type: ["lane"],
     },
+    set: ["Legacy"],
   },
   ashbringer: {
     title: "Ashbringer",
@@ -3064,6 +3199,344 @@ export const cardTemplates = {
       side: "all",
       type: ["lane"],
     },
+    set: ["Legacy"],
+  },
+  "the-coin": {
+    title: "The Coin",
+    description: "Gain 1 Mana Crystal this turn only.",
+    baseMana: 0,
+    imageUrl: "assets/cards/The_Coin.jpg",
+    class: "Neutral",
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    effects: [mana(1)],
+    onPlace: [],
+    isUncollectible: true,
+    set: ["Legacy"],
+  },
+  "edwin-vancleef": {
+    title: "Edwin VanCleef",
+    description:
+      "Combo: Gain +2/+2 for each other card you've played this turn.",
+    baseMana: 3,
+    baseAttack: 2,
+    baseHealth: 2,
+    imageUrl: "assets/cards/Edwin_VanCleef.jpg",
+    class: "Rogue",
+    rarity: "Legendary",
+    isMinion: true,
+    isSpell: false,
+    charge: false,
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    onPlace: [
+      {
+        type: "applyModifier",
+        target: "self",
+        value: 2,
+        mult: {
+          type: "combo-count",
+        },
+        override: false,
+        stat: "attack",
+      },
+      {
+        type: "applyModifier",
+        target: "self",
+        value: 2,
+        mult: {
+          type: "combo-count",
+        },
+        override: false,
+        stat: "health",
+      },
+    ],
+    set: ["Legacy"],
+
+    sfx: sfx(
+      ["Pegasus_Stinger_Lesser_Villain.ogg", "VO_EX1_613_Play_01.ogg"],
+      ["VO_EX1_613_Attack_02.ogg"],
+      ["VO_EX1_613_Death_03.ogg"],
+    ),
+  },
+  "stormwind-champion": {
+    title: "Stormwind Champion",
+    description: "Your other minions have +1/+1.",
+    baseMana: 7,
+    baseAttack: 7,
+    baseHealth: 7,
+    imageUrl: "assets/cards/Stormwind_Champion.jpg",
+    class: "Neutral",
+    isMinion: true,
+    tags: ["Aura"],
+    rarity: "Common",
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    onPlace: [],
+    aura: [
+      applyModifier("attack", 1, "friendly-board", false, undefined, {
+        conditions: [{ type: "exclude-self" }],
+      }),
+      applyModifier("health", 1, "friendly-board", false, undefined, {
+        conditions: [{ type: "exclude-self" }],
+      }),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    set: ["Legacy"],
+
+    sfx: sfx(
+      ["VO_CS2_222_Play_01.ogg"],
+      ["VO_CS2_222_Attack_02.ogg"],
+      ["VO_CS2_222_Death_03.ogg"],
+    ),
+  },
+  "murloc-warleader": {
+    title: "Murloc Warleader",
+    description: "Your other Murlocs have +2/+1.",
+    baseMana: 3,
+    baseAttack: 3,
+    baseHealth: 3,
+    type: ["Murloc"],
+    imageUrl: "assets/cards/Murloc_Warleader.jpg",
+    class: "Neutral",
+    rarity: "Epic",
+    isMinion: true,
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    onPlace: [],
+    aura: [
+      applyModifier("attack", 2, "friendly-board", false, undefined, {
+        conditions: [
+          { type: "tags-include", value: "Murloc" },
+          { type: "exclude-self" },
+        ],
+      }),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    set: ["Legacy"],
+
+    sfx: sfx(
+      ["EX1_507_Murloc_Warleader_EnterPlay1.ogg"],
+      ["EX1_507_Murloc_Warleader_Attack1.ogg"],
+      ["EX1_507_Murloc_Warleader_Death1.ogg"],
+    ),
+  },
+  "dire-wolf-alpha": {
+    title: "Dire Wolf Alpha",
+    description: "Adjacent minions have +1 Attack.",
+    baseMana: 2,
+    baseAttack: 2,
+    baseHealth: 2,
+    type: ["Beast"],
+    imageUrl: "assets/cards/Dire_Wolf_Alpha.jpg",
+    class: "Neutral",
+    isMinion: true,
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    onPlace: [],
+    aura: [applyModifier("attack", 1, "adjacent")],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    sfx: sfx(
+      ["SFX_EX1_162_EnterPlay.ogg"],
+      ["SFX_EX1_162_Attack.ogg"],
+      ["SFX_EX1_162_Death.ogg"],
+    ),
+    set: ["Legacy"],
+  },
+  "sorcerers-apprentice": {
+    title: "Sorcerer's Apprentice",
+    description: "Your spells cost (1) less (but not less than 1).",
+    baseMana: 2,
+    baseAttack: 3,
+    baseHealth: 2,
+    imageUrl: "assets/cards/Sorcerers_Apprentice.jpg",
+    class: "Mage",
+    isMinion: true,
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    onPlace: [],
+    aura: [
+      applyModifier("mana", -1, "friendly-hand", false, undefined, {
+        conditions: [{ type: "boolean", key: "isSpell", value: true }],
+        min: 1,
+      }),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    set: ["Legacy"],
+
+    sfx: sfx(
+      ["VO_EX1_608_Play_01.ogg"],
+      ["VO_EX1_608_Attack_02.ogg"],
+      ["VO_EX1_608_Death_03.ogg"],
+    ),
+  },
+  "amani-berserker": {
+    title: "Amani Berserker",
+    description: "Has +3 Attack while damaged.",
+    baseMana: 2,
+    baseAttack: 2,
+    baseHealth: 3,
+    imageUrl: "assets/cards/Amani_Berserker.jpg",
+    class: "Neutral",
+    isMinion: true,
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    onPlace: [],
+    enrage: [applyModifier("attack", 3, "self")],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    set: ["Legacy"],
+
+    sfx: sfx(
+      ["VO_EX1_393_Play_01.ogg"],
+      ["VO_EX1_393_Attack_02.ogg"],
+      ["VO_EX1_393_Death_03.ogg"],
+    ),
+  },
+  "molten-giant": {
+    title: "Molten Giant",
+    description: "Costs (1) less for each Health your hero is missing.",
+    baseMana: 20,
+    baseAttack: 8,
+    baseHealth: 8,
+    imageUrl: "assets/cards/Molten_Giant.jpg",
+    class: "Neutral",
+    rarity: "Epic",
+    isMinion: true,
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    onPlace: [],
+    inHand: [
+      applyModifier("mana", -1, "self", false, undefined, {
+        mult: { type: "player-missing-health", player: "friendly" },
+      }),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    set: ["Legacy"],
+
+    sfx: sfx(
+      ["EX1_620_Molten_Giant_EnterPlay2.ogg"],
+      ["EX1_620_Molten_Giant_Attack1.ogg"],
+      ["EX1_620_Molten_Giant_Death1.ogg"],
+    ),
+  },
+  "grommash-hellscream": {
+    title: "Grommash Hellscream",
+    description: "Charge. Has +6 Attack while damaged.",
+    baseMana: 8,
+    baseAttack: 4,
+    baseHealth: 9,
+    imageUrl: "assets/cards/Grommash_Hellscream.jpg",
+    class: "Warrior",
+    charge: true,
+    rarity: "Legendary",
+    isMinion: true,
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    onPlace: [],
+    enrage: [applyModifier("attack", 6, "self")],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    set: ["Legacy"],
+
+    sfx: sfx(
+      ["Pegasus_Stinger_Horde1.ogg", "VO_EX1_414_Play_01.ogg"],
+      ["VO_EX1_414_Attack_02.ogg"],
+      ["VO_EX1_414_Death_03.ogg"],
+    ),
+  },
+  "raid-leader": {
+    title: "Raid Leader",
+    description: "Your other minions have +1 attack.",
+    baseMana: 3,
+    baseAttack: 2,
+    baseHealth: 3,
+    imageUrl: "assets/cards/Raid_Leader.jpg",
+    class: "Neutral",
+    isMinion: true,
+    tags: ["Aura"],
+    rarity: "Common",
+    effects: [
+      damage({
+        type: "card-stat",
+        stat: "attack",
+      }),
+    ],
+    onPlace: [],
+    aura: [
+      applyModifier("attack", 1, "friendly-board", false, undefined, {
+        conditions: [{ type: "exclude-self" }],
+      }),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_122_Play_01.ogg"],
+      ["VO_CS2_122_Attack_02.ogg"],
+      ["VO_CS2_122_Death_03.ogg"],
+    ),
   },
 } satisfies Record<
   string,

@@ -2,7 +2,7 @@ import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import CardComponent from "./Card";
 import type { Card } from "@project/shared";
-import type { Ctx } from "boardgame.io";
+import type { Ctx } from "@project/shared";
 
 interface Props {
   card: Card | null;

@@ -1,4 +1,4 @@
-import type { BoardProps } from "boardgame.io/dist/types/packages/react";
+import type { GameBoardProps } from "@/types/gameProps";
 import HeroSection from "./HeroSection";
 import { twMerge } from "tailwind-merge";
 import PlayerHand from "./PlayerHand";
@@ -16,7 +16,7 @@ import { useRef, useState, useEffect } from "react";
 import MinionCardPopover from "./MinionCardPopover";
 import { DEATH_ANIMATION } from "@/utils/animationDurations";
 
-interface Props extends BoardProps<GameState> {
+interface Props extends GameBoardProps {
   isTop?: boolean; // true for player 1, false or undefined for player 0
   player: Player;
   actualG: GameState; // actual game state that is not the visual game state
@@ -31,7 +31,6 @@ const PlayerArea = ({
   isTop,
   G,
   ctx,
-  events,
   moves,
   actualG,
   ...props
@@ -53,22 +52,22 @@ const PlayerArea = ({
           isTop={isTop}
           G={G}
           ctx={ctx}
-          events={events}
           moves={moves}
           {...props}
         />
       </div>
 
-      <PlayerHand
-        actualG={actualG}
-        player={player}
-        isTop={isTop}
-        G={G}
-        ctx={ctx}
-        events={events}
-        moves={moves}
-        {...props}
-      />
+      {!(G.mulligan?.active && !isTop) && (
+        <PlayerHand
+          actualG={actualG}
+          player={player}
+          isTop={isTop}
+          G={G}
+          ctx={ctx}
+          moves={moves}
+          {...props}
+        />
+      )}
 
       {/* Name */}
       <div
@@ -89,7 +88,6 @@ const PlayerArea = ({
           player={player}
           G={G}
           ctx={ctx}
-          events={events}
           moves={moves}
           actualG={actualG}
           {...props}

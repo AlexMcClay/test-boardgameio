@@ -1,5 +1,5 @@
 // Animation event types for the animation queue system
-import type { PlayerID } from "boardgame.io";
+import type { PlayerID } from "@project/shared";
 import type { Card, GameState, HeroPower, SFXInstance } from "@project/shared";
 
 export type AttackAnimation = {
@@ -68,6 +68,26 @@ export type HeroPowerPlayedAnimation = {
   playerId: PlayerID;
 };
 
+export type SummonAnimation = {
+  type: "summon";
+  card: Card;
+  duration: number;
+  startTime: number;
+  playerId: PlayerID;
+};
+
+/**
+ * Mulligan completion hold: keeps the animation queue busy while the overlay
+ * reveals the replaced cards (first batch) and while the drawn hands settle
+ * onto the board (second batch). Purely a pacing animation — no visual of
+ * its own.
+ */
+export type MulliganEndAnimation = {
+  type: "mulliganEnd";
+  duration: number;
+  startTime: number;
+};
+
 export type AnimationEvent =
   | AttackAnimation
   | DeathAnimation
@@ -75,7 +95,9 @@ export type AnimationEvent =
   | CardPlayedAnimation
   | HeroPowerPlayedAnimation
   | MinionPlacedAnimation
-  | SpellCastAnimation;
+  | SpellCastAnimation
+  | SummonAnimation
+  | MulliganEndAnimation;
 
 // Queue item that pairs animations with their game state and context
 export type AnimationQueueItem = {

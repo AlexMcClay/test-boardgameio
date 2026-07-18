@@ -27,6 +27,14 @@ export const SFX_MANIFEST = {
   // === Gameplay Sounds (Preloaded) ===
   "card-play": { path: "/gameplay/card-play.ogg", preload: true },
   "card-draw": { path: "/gameplay/draw_card_1.ogg", preload: true },
+  "mulligan-shuffle": {
+    path: "/gameplay/FX_MulliganCoin09_DeckShuffle.ogg",
+    preload: true,
+  },
+  "mulligan-coin-flip": {
+    path: "/gameplay/FX_MulliganCoin03_CoinFlip.ogg",
+    preload: true,
+  },
   "your-turn": { path: "/gameplay/your_turn.ogg", preload: true },
   "card-magic-loop": {
     path: "/gameplay/card_motion_loop_magical.ogg",

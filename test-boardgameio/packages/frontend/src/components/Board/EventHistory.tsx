@@ -1,5 +1,5 @@
 import type { Card, GameEvent, GameState, Player } from "@project/shared";
-import type { Ctx, PlayerID } from "boardgame.io";
+import type { Ctx, PlayerID } from "@project/shared";
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";

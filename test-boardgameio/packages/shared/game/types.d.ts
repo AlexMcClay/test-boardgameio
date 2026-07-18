@@ -1,5 +1,23 @@
 import type { CardTemplateKey } from "./data/cards";
-import type { Ctx, PlayerID } from "boardgame.io";
+
+/**
+ * Framework-independent player identifier ("0" | "1" at runtime; typed as
+ * string to stay drop-in compatible with existing indexing code).
+ */
+export type PlayerID = string;
+
+/**
+ * Framework-independent game context (replaces boardgame.io's Ctx).
+ * turn increments per player-turn (turn 1 = P0's first turn, turn 2 = P1's, ...).
+ */
+export interface GameCtx {
+  currentPlayer: PlayerID;
+  turn: number;
+  gameover?: { winner: PlayerID | "draw" };
+}
+
+/** Back-compat alias so existing `Ctx` imports keep working during migration. */
+export type Ctx = GameCtx;
 
 export type DeckString = Partial<Record<CardTemplateKey, number>>;
 
@@ -54,6 +72,13 @@ export interface Card {
   attacksLeft: number;
   // 3. Volatile attachment array
   modifiers?: CardModifier[];
+  // Ongoing mechanics — each is refreshed continuously by its own pass in
+  // refreshOngoing (game/index.ts) and materialized as managed CardModifiers.
+  // `duration` on these defs is ignored: presence is the lifecycle.
+  aura?: ApplyModifierEffect[]; // Active while THIS minion is on board; targets via effect.target (friendly-board / adjacent / friendly-hand / ...)
+  inHand?: ApplyModifierEffect[]; // Active while THIS card is in a hand; targets "self" or "adjacent" (hand neighbors)
+  enrage?: ApplyModifierEffect[]; // Active while THIS minion is damaged on board; targets "self"
+  hideAuraGlow?: boolean; // Suppress the aura "pool of light" (Old Murk-Eye / Prophet Velen style exceptions)
   rarity?: "Common" | "Rare" | "Epic" | "Legendary";
   tags?: string[];
   targetQuery: TargetQuery;
@@ -64,6 +89,7 @@ export interface Card {
     play?: SFXInstance[];
     attack?: SFXInstance[];
   };
+  set: string[];
 }
 
 export interface SFXInstance {
@@ -135,18 +161,23 @@ export interface ModifierLifecycle {
   // Who cast the buff? ("0" or "1")
   sourcePlayerId: string;
   // At what point in the game loop should this expire?
-  expiryTrigger: "END_OF_TURN" | "START_OF_TURN" | "PERMANENT";
+  expiryTrigger: "END_OF_TURN" | "START_OF_TURN" | "PERMANENT" | "MINION_DEATH";
   // Whose turn timeline triggers the expiry?
   expiryOwner: "BUFF_CASTER" | "BUFF_RECEIVER" | "ANY_PLAYER";
   // Optional counter for multi-turn effects (e.g., lasts 2 turns)
   turnsRemaining?: number;
+  // Minion ID
+  minionId?: string;
 }
 
 export interface CardModifier {
   id: string;
   label?: string;
   sourceCardId: string;
-  type: "aura" | "permanent" | "temporary"; // "temporary" modifications have a lifecycle
+  // "temporary" modifications have a lifecycle; "aura" / "inHand" / "enrage"
+  // are managed entries owned by their refresh pass (refreshOngoing) and are
+  // added/removed automatically as their source condition changes.
+  type: "aura" | "permanent" | "temporary" | "inHand" | "enrage";
   stat:
     | "attack"
     | "health"
@@ -210,6 +241,17 @@ export type DynamicValue =
   | { type: "damage-dealt"; mult?: number }
   | {
       type: "combo-count";
+      mult?: number;
+    }
+  | {
+      // How much health the hero is missing (maxHealth - health)
+      type: "player-missing-health";
+      player: "friendly" | "enemy";
+      mult?: number;
+    }
+  | {
+      // Cards played by the current player this turn (combo-count without the -1)
+      type: "cards-played-turn";
       mult?: number;
     };
 // most recent damage delt
@@ -332,17 +374,22 @@ export interface ReturnToHandEffect {
   modifiers?: ApplyModifierEffect[]; // Applied AFTER stripping all buffs
 }
 
+export type EffectTarget =
+  | "user-select"
+  | "friendly-hero"
+  | "friendly-all"
+  | "friendly-board"
+  | "enemy-hero"
+  | "enemy-board"
+  | "enemy-all"
+  | "board"
+  | "self"
+  | "adjacent" // neighbors of context.card — board index ±1 when on board, hand index ±1 when in hand
+  | "friendly-hand" // cards in the acting player's hand (e.g. Sorcerer's Apprentice)
+  | "enemy-hand";
+
 export type BaseEffectSelection = {
-  target:
-    | "user-select"
-    | "friendly-hero"
-    | "friendly-all"
-    | "friendly-board"
-    | "enemy-hero"
-    | "enemy-board"
-    | "enemy-all"
-    | "board"
-    | "self";
+  target: EffectTarget;
   conditions?: TargetCondition[]; // filter conditions, so like "2 damage to all taunt minions"
   rand?: {
     split: boolean; // random split, just for damage for now, maybe for healing later
@@ -400,8 +447,13 @@ export type ApplyModifierEffect = {
   stat: "attack" | "health" | "mana" | "taunt" | "divineShield" | "frozen";
   override: boolean;
   value: number | DynamicValue;
+  mult?: number | DynamicValue;
   min?: number;
   max?: number;
+  // When false (default), re-applying a modifier with the same sourceCardId +
+  // stat REPLACES the existing one (and a value of 0 removes it). When true,
+  // every application stacks as its own modifier.
+  stackable?: boolean;
   duration?: {
     expiryTrigger: "END_OF_TURN" | "START_OF_TURN";
     expiryOwner: "BUFF_CASTER" | "BUFF_RECEIVER" | "ANY_PLAYER";
@@ -461,8 +513,12 @@ export type MoveMetadata = {
 };
 
 // Game event types for comprehensive event tracking
-// Game event types for comprehensive event tracking
-export type GameEvent =
+// Every recorded event carries a monotonic `seq` (its index in
+// GameState.eventHistory), assigned by recordEvent. Clients use it to filter
+// already-processed events (timestamps can collide within the same ms).
+export type GameEvent = GameEventBody & { seq?: number };
+
+type GameEventBody =
   | AttackEvent
   | BattlecryEvent
   | DamageEvent
@@ -493,7 +549,24 @@ export type GameEvent =
   | DiscardEvent
   | HeroPowerEvent
   | EquipEvent
-  | GameEndEvent;
+  | GameEndEvent
+  | CoinTossEvent
+  | MulliganEvent;
+
+/** Recorded once at game creation: who won the coin toss and goes first. */
+export type CoinTossEvent = {
+  type: "coinToss";
+  firstPlayer: PlayerID;
+  timestamp: number;
+};
+
+/** A player locked in their starting hand (replacedCount cards redrawn). */
+export type MulliganEvent = {
+  type: "mulligan";
+  playerId: PlayerID;
+  replacedCount: number;
+  timestamp: number;
+};
 
 type GameEndEvent = {
   type: "gameEnd";
@@ -768,6 +841,31 @@ export interface GameState {
     playerId: PlayerID;
     sourceEventIndex: number; // Index of the cardPlayed event this battlecry belongs to
   } | null; // Tracks minion waiting to resolve targeted battlecry
+
+  // Index of the top-level event (cardPlayed/attack/heroPower) whose effects
+  // left minions at <= 0 HP. Set by moves, consumed by resolveDeathWave for
+  // eventRef chaining, cleared once the board is clean.
+  pendingSourceEventIndex?: number;
+
+  // Automatic (non-targeted) battlecry waiting to resolve. Set by placeCard,
+  // consumed by resolvePendingAutoBattlecry via the machine's
+  // resolvingBattlecry state (or drained synchronously by engine.applyMove's
+  // settle path).
+  pendingAutoBattlecry?: {
+    cardId: string;
+    playerId: PlayerID;
+    target?: TargetValue;
+    sourceEventIndex?: number;
+  } | null;
+
+  // Pre-game mulligan phase. Set at game creation (coin toss decides
+  // firstPlayer = ctx.currentPlayer); active until both seats confirm their
+  // starting hands, at which point the first turn begins.
+  mulligan?: {
+    active: boolean;
+    firstPlayer: PlayerID;
+    confirmed: Record<PlayerID, boolean>;
+  };
 
   // ADD THIS: Global tracking of spent spells and dead minions
   graveyard: {

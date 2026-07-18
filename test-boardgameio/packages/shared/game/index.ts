@@ -1,14 +1,18 @@
 import type {
   Card,
+  CardModifier,
   GameState,
   Player,
   TargetValue,
   Hero,
   EffectTypes,
   EffectContext,
+  GameCtx,
+  PlayerID,
 } from "./types";
 import {
   createCardFromID,
+  getAttack,
   getCurrentHealth,
   getManaCost,
   getMaxHealth,
@@ -31,8 +35,10 @@ import {
   discardCardsFromHand,
   isUserSelectValue,
   getPlayerAttack,
+  syncManagedModifiers,
+  type ManagedModifierSpec,
 } from "./utils";
-import type { Ctx, Game, Move, PlayerID } from "boardgame.io";
+type Ctx = GameCtx;
 import {
   hasTargets,
   validateHeroAttack,
@@ -40,38 +46,35 @@ import {
   validateTargetQuery,
 } from "./utils/validateMove";
 import type { CardTemplateKey } from "./data/cards";
-import { enumerateAIMoves } from "./ai";
 import {
   checkSingleTargetCondition,
   resolveDynamicValue,
   resolveTargets,
 } from "./utils/effectEngine.js";
 
-export const isVictory = ({ G }: { G: GameState; ctx: Ctx }) => {
+export function checkVictory(G: GameState): { winner: PlayerID } | undefined {
   if (G.players[0].health <= 0) {
     return { winner: "1" };
   } else if (G.players[1].health <= 0) {
     return { winner: "0" };
   }
-};
+}
 
-const setupData = (
-  { ctx }: { ctx: Ctx },
-  setupData: {
-    player0: {
-      playerUsername?: string;
-      deck: Card[];
-      hero: Hero;
-    };
-    player1: {
-      playerUsername?: string;
-      deck: Card[];
-      hero: Hero;
-    };
-  },
-): GameState => {
+export interface GameSetupData {
+  player0: {
+    playerUsername?: string;
+    deck: Card[];
+    hero: Hero;
+  };
+  player1: {
+    playerUsername?: string;
+    deck: Card[];
+    hero: Hero;
+  };
+}
+
+export const setupGame = (setupData: GameSetupData): GameState => {
   // Initialize player decks from setupData or use empty arrays
-  console.debug(ctx);
   const playerDeck = setupData?.player0.deck
     ? shuffleDeck([...setupData.player0.deck])
     : [];
@@ -150,8 +153,9 @@ const setupData = (
   return G;
 };
 
-const placeCard: Move<GameState> = (
-  { G, ctx },
+export const placeCard = (
+  G: GameState,
+  ctx: GameCtx,
   cardId: string,
   target?: TargetValue,
   boardIndex?: number, // Insert position on the board
@@ -243,18 +247,17 @@ const placeCard: Move<GameState> = (
           sourceEventIndex,
         };
       }
-    } else if (!needsTargetedBattlecry) {
-      // Execute onPlace immediately for non-targeted battlecries
-      executeEffects(card.onPlace, {
-        card: card,
-        G,
-        ctx,
-        location: "hand",
-        playerID: ctx.currentPlayer,
+    } else if (!needsTargetedBattlecry && card.onPlace.length > 0) {
+      // Automatic (non-targeted) battlecry: not executed inline — the host
+      // resolves it as its own step (machine: resolvingBattlecry state;
+      // engine.applyMove: settle path), AFTER the minion is on the board,
+      // matching the targeted resolveBattlecry path.
+      G.pendingAutoBattlecry = {
+        cardId: card.id,
+        playerId: ctx.currentPlayer,
         target,
-        type: "minion",
         sourceEventIndex,
-      });
+      };
     }
 
     if (boardIndex !== undefined) {
@@ -296,11 +299,16 @@ const placeCard: Move<GameState> = (
     });
   }
 
-  processDeaths(G, ctx, sourceEventIndex);
+  // Deaths are no longer resolved inside the move: the host resolves them
+  // (engine.applyMove drains waves synchronously; the gameMachine steps
+  // through resolvingDeaths wave-by-wave). Stash the top-level event index
+  // so death events recorded later still reference this move.
+  G.pendingSourceEventIndex = sourceEventIndex;
 };
 
-const minionAttack: Move<GameState> = (
-  { G, ctx },
+export const minionAttack = (
+  G: GameState,
+  ctx: GameCtx,
   attackerId: string,
   target: TargetValue,
 ) => {
@@ -364,12 +372,17 @@ const minionAttack: Move<GameState> = (
     });
   }
 
-  processDeaths(G, ctx, sourceEventIndex);
+  // Deaths are no longer resolved inside the move: the host resolves them
+  // (engine.applyMove drains waves synchronously; the gameMachine steps
+  // through resolvingDeaths wave-by-wave). Stash the top-level event index
+  // so death events recorded later still reference this move.
+  G.pendingSourceEventIndex = sourceEventIndex;
   return G;
 };
 
-const resolveBattlecry: Move<GameState> = (
-  { G, ctx },
+export const resolveBattlecry = (
+  G: GameState,
+  ctx: GameCtx,
   cardId: string,
   target: TargetValue,
 ) => {
@@ -417,10 +430,18 @@ const resolveBattlecry: Move<GameState> = (
 
   // Clear battlecry state
   G.activeBattlecryMinion = null;
-  processDeaths(G, ctx, sourceEventIndex);
+  // Deaths are no longer resolved inside the move: the host resolves them
+  // (engine.applyMove drains waves synchronously; the gameMachine steps
+  // through resolvingDeaths wave-by-wave). Stash the top-level event index
+  // so death events recorded later still reference this move.
+  G.pendingSourceEventIndex = sourceEventIndex;
 };
 
-const useHeroPower: Move<GameState> = ({ G, ctx }, target?: TargetValue) => {
+export const useHeroPower = (
+  G: GameState,
+  ctx: GameCtx,
+  target?: TargetValue,
+) => {
   const player = G.players[ctx.currentPlayer];
   const hero = player.hero;
 
@@ -524,10 +545,14 @@ const useHeroPower: Move<GameState> = ({ G, ctx }, target?: TargetValue) => {
   });
 
   // Process any deaths that may have resulted
-  processDeaths(G, ctx, sourceEventIndex);
+  // Deaths are no longer resolved inside the move: the host resolves them
+  // (engine.applyMove drains waves synchronously; the gameMachine steps
+  // through resolvingDeaths wave-by-wave). Stash the top-level event index
+  // so death events recorded later still reference this move.
+  G.pendingSourceEventIndex = sourceEventIndex;
 };
 
-const heroAttack: Move<GameState> = ({ G, ctx }, target: TargetValue) => {
+export const heroAttack = (G: GameState, ctx: GameCtx, target: TargetValue) => {
   const attackerId = ctx.currentPlayer as PlayerID;
   const attacker = G.players[attackerId];
 
@@ -561,7 +586,7 @@ const heroAttack: Move<GameState> = ({ G, ctx }, target: TargetValue) => {
     attackerPlayerId: attackerId,
     sourceId,
     timestamp: Date.now(),
-    card: attacker.weapon ?? undefined,
+    card: undefined,
   });
 
   if (target.type === "player") {
@@ -609,7 +634,11 @@ const heroAttack: Move<GameState> = ({ G, ctx }, target: TargetValue) => {
     }
   }
 
-  processDeaths(G, ctx, sourceEventIndex);
+  // Deaths are no longer resolved inside the move: the host resolves them
+  // (engine.applyMove drains waves synchronously; the gameMachine steps
+  // through resolvingDeaths wave-by-wave). Stash the top-level event index
+  // so death events recorded later still reference this move.
+  G.pendingSourceEventIndex = sourceEventIndex;
   return G;
 };
 
@@ -654,6 +683,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
             : target.type === "player"
               ? {
                   class: G.players[target.player].hero.class,
+                  set: [],
                   effects: [],
                   divineShield: G.players[target.player].divineShield,
                   frozen: G.players[target.player].frozen,
@@ -930,7 +960,9 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         break;
       case "applyModifier": {
         const modEffect = effect;
-        const value = resolveDynamicValue(effect.value, context);
+        const value =
+          resolveDynamicValue(effect.value, context) *
+          resolveDynamicValue(effect.mult ?? 1, context);
         const targets = resolveTargets(effect, context); // Unified target array resolution
 
         console.log(
@@ -1183,7 +1215,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
   context.temp = undefined;
 };
 
-const cancelBattlecry: Move<GameState> = ({ G, ctx }) => {
+export const cancelBattlecry = (G: GameState, ctx: GameCtx) => {
   // place minion back on hand and give mana back
   if (G.activeBattlecryMinion) {
     const player = G.players[G.activeBattlecryMinion.playerId];
@@ -1211,15 +1243,20 @@ const cancelBattlecry: Move<GameState> = ({ G, ctx }) => {
   return G;
 };
 
-const drawCard: Move<GameState> = ({ G, ctx }) => {
+export const drawCard = (G: GameState, ctx: GameCtx) => {
   handleDrawCard(G, ctx);
 };
 
-const endTurn: Move<GameState> = ({ G, events }) => {
+/**
+ * Clears per-move state when a player ends their turn. Turn advancement itself
+ * (onEnd effects → switch player → onBegin effects) is orchestrated by the
+ * host: advanceTurn() in engine.ts, or boardgame.io's events.endTurn() in the
+ * legacy wrapper below.
+ */
+export const endTurn = (G: GameState, _ctx: GameCtx) => {
   // Clear last move metadata at the end of the turn
   G.gameEvents = [];
   G.activeBattlecryMinion = null;
-  events.endTurn();
 };
 
 function handleDrawCard(
@@ -1329,10 +1366,62 @@ function equipWeapon(
   }
 }
 
-function processDeaths(G: GameState, ctx: Ctx, sourceEventIndex?: number) {
-  // Pass 'ctx' here so doEffects can access it
+/** True while a placed minion's automatic battlecry hasn't resolved yet. */
+export function hasPendingAutoBattlecry(G: GameState): boolean {
+  return !!G.pendingAutoBattlecry;
+}
+
+/**
+ * Resolves the pending automatic (non-targeted) battlecry set by placeCard.
+ * Runs with the minion already ON the board — same as the targeted
+ * resolveBattlecry path. Fizzles silently if the minion is gone. Appends to
+ * G.gameEvents — never clears it.
+ */
+export function resolvePendingAutoBattlecry(G: GameState, ctx: Ctx) {
+  const pending = G.pendingAutoBattlecry;
+  G.pendingAutoBattlecry = null;
+  if (!pending) return;
+
+  const card = G.board[pending.playerId]?.find((c) => c.id === pending.cardId);
+  if (!card) return; // minion vanished before its battlecry could resolve
+
+  executeEffects(card.onPlace, {
+    card,
+    G,
+    ctx,
+    location: "hand",
+    playerID: pending.playerId,
+    target: pending.target,
+    type: "minion",
+    sourceEventIndex: pending.sourceEventIndex,
+  });
+
+  // Battlecries can summon/buff/damage — keep ongoing effects in sync on the
+  // machine path (the engine settle path refreshes in applyMove).
+  refreshOngoing(G, ctx);
+}
+
+/** True while any board minion is marked for death (health <= 0). */
+export function hasPendingDeaths(G: GameState): boolean {
+  return (["0", "1"] as const).some((playerId) =>
+    G.board[playerId].some((card) => getCurrentHealth(card) <= 0),
+  );
+}
+
+/**
+ * Resolves ONE death wave: triggers deathrattles, records death events and
+ * sweeps corpses — but does NOT recurse. If a deathrattle kills another
+ * minion, that death stays pending for the next wave, so hosts can surface
+ * each wave of a chain reaction as its own state update (the gameMachine's
+ * `resolvingDeaths` state re-checks hasPendingDeaths between waves).
+ *
+ * The eventRef of recorded deaths comes from G.pendingSourceEventIndex, which
+ * the triggering move sets; it's cleared once the board is clean.
+ * Appends to G.gameEvents — never clears it.
+ */
+export function resolveDeathWave(G: GameState, ctx: Ctx) {
   const playerIds: ("0" | "1")[] = ["0", "1"];
-  let deathsOccurred = false;
+  const sourceEventIndex = G.pendingSourceEventIndex;
 
   playerIds.forEach((playerId) => {
     // 1. Find all minions on this board marked for death
@@ -1341,8 +1430,6 @@ function processDeaths(G: GameState, ctx: Ctx, sourceEventIndex?: number) {
     );
 
     if (deadMinions.length > 0) {
-      deathsOccurred = true;
-
       deadMinions.forEach((deadCard) => {
         // 2. TRIGGER DEATHRATTLES:
         if (deadCard.deathrattle && deadCard.deathrattle.length > 0) {
@@ -1375,36 +1462,302 @@ function processDeaths(G: GameState, ctx: Ctx, sourceEventIndex?: number) {
         });
       });
 
-      // 4. Clean sweep: Remove dead minions from the board simultaneously
+      // 4. Clean sweep: remove exactly THIS wave's dead minions. Minions
+      // killed by the deathrattles above (e.g. a rattle that AoEs its own
+      // fresh summons) stay on board for the NEXT wave so their own death
+      // events, graveyard entries and deathrattles trigger properly.
+      // (The old health>0 filter silently deleted them — pre-existing bug.)
+      const sweptIds = new Set(deadMinions.map((card) => card.id));
       G.board[playerId] = G.board[playerId].filter(
-        (card) => getCurrentHealth(card) > 0,
+        (card) => !sweptIds.has(card.id),
       );
     }
   });
 
-  // 5. Recursion for chain reactions!
-  // If a deathrattle dealt damage that killed ANOTHER minion, this runs again.
-  if (deathsOccurred) {
-    processDeaths(G, ctx, sourceEventIndex);
+  // A swept minion may have been an aura provider (or a damaged enrage
+  // minion) — refresh before re-checking: minions that die from losing a
+  // +health aura become the NEXT wave.
+  refreshOngoing(G, ctx);
+
+  // Chain fully resolved → the triggering move's event index is spent
+  if (!hasPendingDeaths(G)) {
+    G.pendingSourceEventIndex = undefined;
   }
 }
 
-export function refreshAuras(G: GameState) {
-  const playerIds: ("0" | "1")[] = ["0", "1"];
+/**
+ * Drains ALL pending death waves synchronously. Used by the engine's
+ * applyMove default path (MCTS simulations, tests, headless hosts); the
+ * gameMachine instead steps wave-by-wave via resolveDeathWave.
+ */
+export function processDeaths(G: GameState, ctx: Ctx) {
+  while (hasPendingDeaths(G)) {
+    resolveDeathWave(G, ctx);
+  }
+}
 
-  playerIds.forEach((pId) => {
-    G.board[pId].forEach((card) => {
-      // 1. Clear out historical temporary aura instances, retaining permanent buffs
-      card.modifiers = card.modifiers?.filter((m) => m.type !== "aura");
+// ---------------------------------------------------------------------------
+// ONGOING MECHANICS (auras / in-hand effects / enrage)
+//
+// Three separate mechanics, each with its own Card template field and its own
+// managed CardModifier.type. Every pass is DIFF-BASED: it computes the desired
+// modifier set and syncs it via syncManagedModifiers, which records an
+// applyModifier event only when something actually changed (value 0 on loss).
+// refreshOngoing runs after every state change (applyMove, death waves, auto
+// battlecries, turn boundaries), so the passes must be idempotent and silent
+// when nothing moved.
+// ---------------------------------------------------------------------------
+
+/**
+ * True when a board minion is currently radiating an ongoing effect — used by
+ * the UI for the "pool of light" indicator. Aura providers glow whenever
+ * placed;. `hideAuraGlow` opts a card out
+ * (Old Murk-Eye / Prophet Velen style exceptions).
+ */
+export function providesActiveAura(card: Card): boolean {
+  if (card.hideAuraGlow || !card.isPlaced) return false;
+  if (card.aura?.length) return true;
+  return false;
+}
+
+interface ManagedOwnerRef {
+  owner: Card | Player;
+  ownerType: "card" | "player";
+  ownerPlayerId: PlayerID;
+}
+
+/** Every object that can carry managed modifiers: board, hands, heroes. */
+function listManagedOwners(G: GameState): ManagedOwnerRef[] {
+  const owners: ManagedOwnerRef[] = [];
+  (["0", "1"] as const).forEach((pId) => {
+    G.board[pId].forEach((card) =>
+      owners.push({ owner: card, ownerType: "card", ownerPlayerId: pId }),
+    );
+    G.players[pId].hand.forEach((card) =>
+      owners.push({ owner: card, ownerType: "card", ownerPlayerId: pId }),
+    );
+    owners.push({
+      owner: G.players[pId],
+      ownerType: "player",
+      ownerPlayerId: pId,
     });
   });
+  return owners;
+}
 
-  // 2. Scan the entire board and look for active aura providers
-  // playerIds.forEach((pId) => {
-  //   G.board[pId].forEach((providerCard) => {
-  //     // Add more dynamic data-driven aura checks here...
-  //   });
-  // });
+/**
+ * The owner's stat with all managed modifiers of `managedType` for that stat
+ * removed — the clamp baseline for min/max ("but not less than 1"), so the
+ * previous refresh's own entries don't skew this refresh's math.
+ */
+function getStatExcludingManaged(
+  owner: Card | Player,
+  ownerType: "card" | "player",
+  stat: CardModifier["stat"],
+  managedType: CardModifier["type"],
+): number {
+  const saved = owner.modifiers;
+  owner.modifiers = saved?.filter(
+    (m) => !(m.type === managedType && m.stat === stat),
+  );
+  let value = 0;
+  if (ownerType === "player") {
+    if (stat === "attack") value = getPlayerAttack(owner as Player);
+  } else {
+    const card = owner as Card;
+    if (stat === "attack") value = getAttack(card);
+    else if (stat === "health") value = getMaxHealth(card);
+    else if (stat === "mana") value = getManaCost(card);
+  }
+  owner.modifiers = saved;
+  return value;
+}
+
+/**
+ * Clamps an additive delta so `base + delta` respects min/max — without ever
+ * moving a stat that's already past the bound (a 0-cost card under a
+ * "spells cost 1 less, but not less than 1" aura stays at 0).
+ */
+function clampDelta(
+  base: number,
+  delta: number,
+  min?: number,
+  max?: number,
+): number {
+  let result = base + delta;
+  if (min !== undefined && result < min) result = Math.min(base, min);
+  if (max !== undefined && result > max) result = Math.max(base, max);
+  return result - base;
+}
+
+/**
+ * Resolves one provider's ongoing defs into desired managed-modifier specs,
+ * accumulating them per target owner. Targets come from the standard
+ * resolveTargets (so `adjacent`, `friendly-hand`, conditions etc. all work);
+ * values resolve with the provider as context.card.
+ */
+function collectDesiredModifiers(
+  G: GameState,
+  ctx: Ctx,
+  provider: Card,
+  providerOwner: PlayerID,
+  location: "board" | "hand",
+  defs: EffectTypes[],
+  managedType: "aura" | "inHand" | "enrage",
+  desired: Map<Card | Player, ManagedModifierSpec[]>,
+) {
+  const context: EffectContext = {
+    G,
+    ctx,
+    card: provider,
+    playerID: providerOwner,
+    location,
+    type: "minion",
+  };
+
+  defs.forEach((effect) => {
+    if (effect.type !== "applyModifier") return;
+    const rawValue =
+      resolveDynamicValue(effect.value, context) *
+      resolveDynamicValue(effect.mult ?? 1, context);
+
+    resolveTargets(effect, context).forEach((t) => {
+      const owner = t.type === "player" ? G.players[t.ownerId] : t.cardRef;
+      if (!owner) return;
+
+      let specs = desired.get(owner);
+      if (!specs) {
+        specs = [];
+        desired.set(owner, specs);
+      }
+
+      let value = rawValue;
+      if (effect.override) {
+        if (effect.min !== undefined) value = Math.max(effect.min, value);
+        if (effect.max !== undefined) value = Math.min(effect.max, value);
+      } else {
+        // Clamp against the stat as it stands WITHOUT this pass's previous
+        // entries, plus what this pass has already granted the owner — so
+        // stacked providers (two Sorcerer's Apprentices) respect the floor.
+        const base =
+          getStatExcludingManaged(owner, t.type, effect.stat, managedType) +
+          specs
+            .filter((s) => s.stat === effect.stat && !s.override)
+            .reduce((sum, s) => sum + s.value, 0);
+        value = clampDelta(base, value, effect.min, effect.max);
+        if (value === 0) return; // fully clamped or no-op — no modifier
+      }
+
+      specs.push({
+        sourceCardId: provider.id,
+        stat: effect.stat,
+        value,
+        override: effect.override,
+      });
+    });
+  });
+}
+
+/**
+ * AURAS: continuous effects granted only while the provider minion is on the
+ * board (Stormwind Champion, Dire Wolf Alpha, Sorcerer's Apprentice, ...).
+ * IN-HAND: effects active while the card itself sits in a hand (dynamic
+ * costs, hand adjacency). ENRAGE: self buffs active only while the minion is
+ * damaged — healing to full removes them automatically on the next refresh.
+ */
+export function refreshOngoing(G: GameState, ctx: Ctx) {
+  const owners = listManagedOwners(G);
+  const playerIds: ("0" | "1")[] = ["0", "1"];
+
+  // --- AURAS (providers: board minions with `aura` defs) ---
+  const auraDesired = new Map<Card | Player, ManagedModifierSpec[]>();
+  playerIds.forEach((pId) => {
+    G.board[pId].forEach((provider) => {
+      if (provider.aura?.length) {
+        collectDesiredModifiers(
+          G,
+          ctx,
+          provider,
+          pId,
+          "board",
+          provider.aura,
+          "aura",
+          auraDesired,
+        );
+      }
+    });
+  });
+  owners.forEach(({ owner, ownerType, ownerPlayerId }) =>
+    syncManagedModifiers(
+      G,
+      owner,
+      ownerType,
+      ownerPlayerId,
+      "aura",
+      auraDesired.get(owner) ?? [],
+    ),
+  );
+
+  // --- IN-HAND EFFECTS (providers: hand cards with `inHand` defs) ---
+  const inHandDesired = new Map<Card | Player, ManagedModifierSpec[]>();
+  playerIds.forEach((pId) => {
+    G.players[pId].hand.forEach((provider) => {
+      if (provider.inHand?.length) {
+        collectDesiredModifiers(
+          G,
+          ctx,
+          provider,
+          pId,
+          "hand",
+          provider.inHand,
+          "inHand",
+          inHandDesired,
+        );
+      }
+    });
+  });
+  owners.forEach(({ owner, ownerType, ownerPlayerId }) =>
+    syncManagedModifiers(
+      G,
+      owner,
+      ownerType,
+      ownerPlayerId,
+      "inHand",
+      inHandDesired.get(owner) ?? [],
+    ),
+  );
+
+  // --- ENRAGE (providers: DAMAGED board minions with `enrage` defs) ---
+  const enrageDesired = new Map<Card | Player, ManagedModifierSpec[]>();
+  playerIds.forEach((pId) => {
+    G.board[pId].forEach((provider) => {
+      if (
+        provider.enrage?.length &&
+        getCurrentHealth(provider) < getMaxHealth(provider)
+      ) {
+        collectDesiredModifiers(
+          G,
+          ctx,
+          provider,
+          pId,
+          "board",
+          provider.enrage,
+          "enrage",
+          enrageDesired,
+        );
+      }
+    });
+  });
+  owners.forEach(({ owner, ownerType, ownerPlayerId }) =>
+    syncManagedModifiers(
+      G,
+      owner,
+      ownerType,
+      ownerPlayerId,
+      "enrage",
+      enrageDesired.get(owner) ?? [],
+    ),
+  );
 }
 
 function processModifierLifecycle(
@@ -1489,124 +1842,178 @@ function processModifierLifecycle(
   });
 }
 
-export const HeathStoneGame: Game<GameState> = {
-  name: "hearthstone",
-  setup: setupData,
-  minPlayers: 2,
-  maxPlayers: 2,
-  ai: {
-    enumerate: (G, ctx) => {
-      const moves = enumerateAIMoves(G, ctx);
-      // Convert AIMove format to boardgame.io format and return all moves
-      return moves.map((aiMove) => ({
-        move: aiMove.move,
-        args: aiMove.args,
-      }));
-    },
-  },
-  phases: {
-    play: {
-      start: true,
-      moves: {
-        drawCard,
-        placeCard,
-        cancelBattlecry,
-        endTurn,
-        minionAttack,
-        useHeroPower,
-        heroAttack,
-        resolveBattlecry,
-      },
-      onBegin: ({ G, ctx }) => {
-        // Draw 5 cards for each player at the start
-        for (let i = 0; i < 5; i++) {
-          handleDrawCard(G, ctx, "0");
-          handleDrawCard(G, ctx, "1");
-        }
-      },
-      turn: {
-        onBegin: ({ G, ctx }) => {
-          // 1. Process anything that expires at the START of a turn
-          processModifierLifecycle(G, ctx.currentPlayer, "START_OF_TURN");
+/**
+ * Deals the mulligan hands after the coin toss: the first player draws 3,
+ * the second draws 4 and receives The Coin (not replaceable).
+ */
+export function mulliganDraw(G: GameState, ctx: GameCtx) {
+  const firstPlayer = G.mulligan?.firstPlayer ?? ctx.currentPlayer;
+  const secondPlayer = firstPlayer === "0" ? "1" : "0";
 
-          const manaCrystals = G.players[ctx.currentPlayer].manaCrystals;
-          G.players[ctx.currentPlayer].manaCrystals = Math.min(
-            manaCrystals + 1,
-            G.players[ctx.currentPlayer].maxManaCrystals,
-          );
-          G.players[ctx.currentPlayer].mana =
-            G.players[ctx.currentPlayer].manaCrystals;
+  for (let i = 0; i < 3; i++) {
+    handleDrawCard(G, ctx, firstPlayer);
+    handleDrawCard(G, ctx, secondPlayer);
+  }
+  handleDrawCard(G, ctx, secondPlayer);
 
-          // Reset hero power usage
-          G.players[ctx.currentPlayer].heroPowerUsedThisTurn = false;
+  const coin = createCardFromID("the-coin");
+  if (coin) {
+    G.players[secondPlayer].hand.push(coin);
+  }
+}
 
-          // draw card if the player has less than 10 cards in hand
-          if (ctx.turn > 2) {
-            const player = G.players[ctx.currentPlayer];
-            if (player.hand.length < 10) {
-              handleDrawCard(G, ctx);
-            }
-          }
+/**
+ * Locks in a player's starting hand. Chosen cards are set aside, replacements
+ * are drawn FIRST (you can't redraw what you threw back), then the set-aside
+ * cards are shuffled into the deck. When both seats have confirmed, the
+ * mulligan ends and the first player's turn begins (any resulting deaths stay
+ * pending for the host to resolve).
+ *
+ * Returns false (no-op) for invalid confirmations: mulligan over, seat already
+ * confirmed, unknown card ids, or trying to replace The Coin.
+ */
+export function confirmMulligan(
+  G: GameState,
+  ctx: GameCtx,
+  playerID: PlayerID,
+  replaceCardIds: string[],
+): boolean {
+  const mulligan = G.mulligan;
+  if (!mulligan?.active || mulligan.confirmed[playerID]) return false;
 
-          // reset
-          G.board[ctx.currentPlayer].forEach((card) => {
-            card.attacksLeft = card.windfury ? 2 : 1;
-            card.summoningSickness = false; // Remove summoning sickness
-          });
+  const player = G.players[playerID];
+  if (!player) return false;
 
-          G.players[ctx.currentPlayer].attacksLeft = 1;
+  const toReplace: Card[] = [];
+  for (const cardId of replaceCardIds) {
+    const card = player.hand.find((c) => c.id === cardId);
+    if (!card || card.originalID === "the-coin") {
+      console.warn(`Invalid mulligan replacement: ${cardId}`);
+      return false;
+    }
+    toReplace.push(card);
+  }
 
-          // 2. Always refresh static auras and evaluate cascading health drop deaths[cite: 1]
-          refreshAuras(G);
-          processDeaths(G, ctx); //[cite: 1]
+  // This is a top-level player action — same event convention as moves.
+  G.gameEvents = [];
 
-          recordEvent(G, {
-            type: "beginTurn",
-            playerId: ctx.currentPlayer,
-            timestamp: Date.now(),
-          });
-        },
-        onEnd: ({ G, ctx }) => {
-          // Clear last move metadata at the end of the turn
-          G.gameEvents = [];
-          G.activeBattlecryMinion = null;
+  // 1. Set the chosen cards aside
+  player.hand = player.hand.filter((c) => !replaceCardIds.includes(c.id));
 
-          // 1. Process anything that expires at the END of a turn (like Abusive Sergeant)
-          processModifierLifecycle(G, ctx.currentPlayer, "END_OF_TURN");
+  // 2. Draw replacements before the set-aside cards return to the deck
+  for (let i = 0; i < toReplace.length; i++) {
+    handleDrawCard(G, ctx, playerID);
+  }
 
-          G.board[ctx.currentPlayer].forEach((card) => {
-            if (
-              card.frozen &&
-              shouldMinionUnfreezeAtTurnEnd(G, ctx.currentPlayer, card)
-            ) {
-              card.frozen = false;
-            }
-          });
+  // 3. Shuffle the set-aside cards back in
+  if (toReplace.length > 0) {
+    player.deck.push(...toReplace);
+    player.deck = shuffleDeck(player.deck);
+  }
 
-          const endingPlayer = G.players[ctx.currentPlayer];
-          if (
-            endingPlayer.frozen &&
-            shouldHeroUnfreezeAtTurnEnd(endingPlayer)
-          ) {
-            endingPlayer.frozen = false;
-          }
+  mulligan.confirmed[playerID] = true;
+  recordEvent(G, {
+    type: "mulligan",
+    playerId: playerID,
+    replacedCount: toReplace.length,
+    timestamp: Date.now(),
+  });
 
-          // 2. Refresh auras/deaths again in case losing an attack/health buff altered the board state[cite: 1]
-          refreshAuras(G);
-          processDeaths(G, ctx); //[cite: 1]
+  // Both seats locked in → the game proper starts
+  if (mulligan.confirmed["0"] && mulligan.confirmed["1"]) {
+    mulligan.active = false;
+    beginTurn(G, ctx);
+  }
 
-          recordEvent(G, {
-            type: "endTurn",
-            playerId: ctx.currentPlayer,
-            timestamp: Date.now(),
-          });
-        },
-      },
-    },
-  },
-  turn: {},
-  endIf: isVictory,
-};
+  return true;
+}
+
+/**
+ * Start-of-turn effects for ctx.currentPlayer: expiring buffs, mana crystal
+ * gain, card draw, attack/summoning-sickness resets, auras and cascade deaths.
+ */
+export function beginTurn(G: GameState, ctx: GameCtx) {
+  // 1. Process anything that expires at the START of a turn
+  processModifierLifecycle(G, ctx.currentPlayer, "START_OF_TURN");
+
+  const manaCrystals = G.players[ctx.currentPlayer].manaCrystals;
+  G.players[ctx.currentPlayer].manaCrystals = Math.min(
+    manaCrystals + 1,
+    G.players[ctx.currentPlayer].maxManaCrystals,
+  );
+  G.players[ctx.currentPlayer].mana = G.players[ctx.currentPlayer].manaCrystals;
+
+  // Reset hero power usage
+  G.players[ctx.currentPlayer].heroPowerUsedThisTurn = false;
+
+  // Draw at the start of every turn — including each player's first
+  // (Hearthstone standard; mulligan hands are 3/4+Coin) — unless full.
+  {
+    const player = G.players[ctx.currentPlayer];
+    if (player.hand.length < 10) {
+      handleDrawCard(G, ctx);
+    }
+  }
+
+  // reset
+  G.board[ctx.currentPlayer].forEach((card) => {
+    card.attacksLeft = card.windfury ? 2 : 1;
+    card.summoningSickness = false; // Remove summoning sickness
+  });
+
+  G.players[ctx.currentPlayer].attacksLeft = 1;
+
+  // 2. Always refresh ongoing effects (auras/in-hand/enrage) and evaluate
+  // cascading health drop deaths[cite: 1]
+  refreshOngoing(G, ctx);
+  // Deaths caused by expiring buffs stay pending; the host resolves them
+  // (machine waves / engine drain) right after the turn transition.
+
+  recordEvent(G, {
+    type: "beginTurn",
+    playerId: ctx.currentPlayer,
+    timestamp: Date.now(),
+  });
+}
+
+/**
+ * End-of-turn effects for ctx.currentPlayer: expiring buffs, unfreezing,
+ * auras and cascade deaths.
+ */
+export function endTurnCleanup(G: GameState, ctx: GameCtx) {
+  // Clear last move metadata at the end of the turn
+  G.gameEvents = [];
+  G.activeBattlecryMinion = null;
+
+  // 1. Process anything that expires at the END of a turn (like Abusive Sergeant)
+  processModifierLifecycle(G, ctx.currentPlayer, "END_OF_TURN");
+
+  G.board[ctx.currentPlayer].forEach((card) => {
+    if (
+      card.frozen &&
+      shouldMinionUnfreezeAtTurnEnd(G, ctx.currentPlayer, card)
+    ) {
+      card.frozen = false;
+    }
+  });
+
+  const endingPlayer = G.players[ctx.currentPlayer];
+  if (endingPlayer.frozen && shouldHeroUnfreezeAtTurnEnd(endingPlayer)) {
+    endingPlayer.frozen = false;
+  }
+
+  // 2. Refresh ongoing effects/deaths again in case losing an attack/health
+  // buff altered the board state[cite: 1]
+  refreshOngoing(G, ctx);
+  // Deaths caused by expiring buffs stay pending; the host resolves them
+  // (machine waves / engine drain) right after the turn transition.
+
+  recordEvent(G, {
+    type: "endTurn",
+    playerId: ctx.currentPlayer,
+    timestamp: Date.now(),
+  });
+}
 
 // Export everything from data
 export * from "./data/cards.js";

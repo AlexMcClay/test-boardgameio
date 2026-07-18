@@ -1,4 +1,10 @@
-import type { Card, EffectTypes, GameState, Player } from "../types";
+import type {
+  Card,
+  CardModifier,
+  EffectTypes,
+  GameState,
+  Player,
+} from "../types";
 import { cardTemplates, type CardTemplateKey } from "../data/cards";
 import { isBaseEffectSelection } from "../..";
 
@@ -91,51 +97,65 @@ export function hasToEndTurn(playedID: string, gameState: GameState): boolean {
   return !canPlayCards && !canAttack && !canHeroAttack;
 }
 
+/**
+ * Folds a stat's modifiers over its base value IN ORDER: an `override` entry
+ * replaces the running value, additive entries add to it. Aura and enrage
+ * modifiers are applied AFTER all other enchantments (Hearthstone rule), so
+ * they stack on top of stat-sets regardless of when the aura appeared.
+ */
+function foldModifiers(
+  base: number,
+  modifiers: CardModifier[] | undefined,
+  stat: CardModifier["stat"],
+): number {
+  if (!modifiers || modifiers.length === 0) return base;
+  const relevant = modifiers.filter((m) => m.stat === stat);
+  if (relevant.length === 0) return base;
+  const isOngoing = (m: CardModifier) =>
+    m.type === "aura" || m.type === "enrage";
+  const ordered = [
+    ...relevant.filter((m) => !isOngoing(m)),
+    ...relevant.filter(isOngoing),
+  ];
+  return ordered.reduce(
+    (acc, m) => (m.override ? m.value : acc + m.value),
+    base,
+  );
+}
+
 // Get the current attack, combining base values + permanent buffs + environmental auras
 export function getAttack(card: Card): number {
-  const mods = card.modifiers?.filter((m) => m.stat === "attack") ?? [];
-  const sets = mods.filter((m) => m.override);
-  if (sets.length) {
-    // return newest one
-    return sets[sets.length - 1].value;
-  }
-  const bonus = mods.reduce((sum, m) => sum + m.value, 0) ?? 0;
-  return Math.max(0, (card?.baseAttack ?? 0) + bonus);
+  return Math.max(
+    0,
+    foldModifiers(card?.baseAttack ?? 0, card.modifiers, "attack"),
+  );
 }
 
 export function getPlayerAttack(player: Player): number {
-  const mods = player.modifiers?.filter((m) => m.stat === "attack") ?? [];
-  const sets = mods.filter((m) => m.override);
-  if (sets.length) {
-    // return newest one
-    return sets[sets.length - 1].value;
-  }
-  const bonus = mods.reduce((sum, m) => sum + m.value, 0) ?? 0;
   const weaponAttack = player.weapon ? getAttack(player.weapon) : 0;
-  return Math.max(0, (player?.baseAttack ?? 0) + weaponAttack + bonus);
+  return Math.max(
+    0,
+    foldModifiers(
+      (player?.baseAttack ?? 0) + weaponAttack,
+      player.modifiers,
+      "attack",
+    ),
+  );
 }
 
 // Maximum health capacity is dynamically scaled by modifiers
 export function getMaxHealth(card: Card): number {
-  const mods = card.modifiers?.filter((m) => m.stat === "health") ?? [];
-  const sets = mods.filter((m) => m.override);
-  if (sets.length) {
-    // return newest one
-    return sets[sets.length - 1].value;
-  }
-  const bonus = mods.reduce((sum, m) => sum + m.value, 0) ?? 0;
-  return Math.max(1, (card.baseHealth ?? 0) + bonus);
+  return Math.max(
+    1,
+    foldModifiers(card.baseHealth ?? 0, card.modifiers, "health"),
+  );
 }
 
 export function getMaxDurability(card: Card): number {
-  const mods = card.modifiers?.filter((m) => m.stat === "durability") ?? [];
-  const sets = mods.filter((m) => m.override);
-  if (sets.length) {
-    // return newest one
-    return sets[sets.length - 1].value;
-  }
-  const bonus = mods.reduce((sum, m) => sum + m.value, 0) ?? 0;
-  return Math.max(1, (card.baseDurability ?? 0) + bonus);
+  return Math.max(
+    1,
+    foldModifiers(card.baseDurability ?? 0, card.modifiers, "durability"),
+  );
 }
 
 // Current actual health is Max Health minus recorded damage
@@ -151,14 +171,7 @@ export function getCurrentDurability(card: Card): number {
 
 // Dynamic mana cost parsing (e.g., Sorcerer's Apprentice effects)
 export function getManaCost(card: Card): number {
-  const mods = card.modifiers?.filter((m) => m.stat === "mana") ?? [];
-  const sets = mods.filter((m) => m.override);
-  if (sets.length) {
-    // return newest one
-    return sets[sets.length - 1].value;
-  }
-  const bonus = mods.reduce((sum, m) => sum + m.value, 0) ?? 0;
-  return Math.max(0, (card.baseMana ?? 0) + bonus);
+  return Math.max(0, foldModifiers(card.baseMana ?? 0, card.modifiers, "mana"));
 }
 
 /**

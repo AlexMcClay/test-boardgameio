@@ -1,7 +1,6 @@
 // Animation queue store for managing card animations
 import { create } from "zustand";
 import type { AnimationEvent, AnimationQueueItem } from "@/types/animations";
-import { BATCH_UPDATE_DELAY } from "@/utils/animationDurations";
 import { randomIDGen } from "@project/shared";
 import { useAudioStore } from "./audioStore";
 
@@ -33,25 +32,9 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
   activeAnimations: [],
 
   queueAnimationBatch: (animations, gameState, ctx) => {
-    const currentQueue = get().queue;
-
-    const isDuplicate = currentQueue.some((batch) => {
-      if (batch.animations.length !== animations.length) return false;
-      return batch.animations.every((anim, index) => {
-        const incomingAnim = animations[index];
-        if (anim.type !== incomingAnim.type) return false;
-        return JSON.stringify(anim) === JSON.stringify(incomingAnim);
-      });
-    });
-
-    if (isDuplicate) {
-      console.warn(
-        "⚠️ Animation bug caught: Attempted to add duplicate animation batch to queue. Ignoring.",
-        animations,
-      );
-      return;
-    }
-
+    // No duplicate detection needed: the producer (useGameAnimation) filters
+    // events by monotonic seq, so each batch is queued exactly once — two
+    // legitimately identical consecutive moves no longer get dropped.
     set((state) => ({
       queue: [
         ...state.queue,
@@ -183,13 +166,9 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
       set((state) => ({ queue: state.queue.slice(1) }));
 
       if (onBatchComplete) {
+        // Advance the visual state immediately — pacing comes entirely from
+        // the animations' own durations, not artificial inter-batch delays.
         onBatchComplete(currentBatch.gameState, currentBatch.ctx);
-
-        if (get().queue.length > 0) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, BATCH_UPDATE_DELAY),
-          );
-        }
       }
     }
 

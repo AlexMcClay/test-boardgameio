@@ -20,11 +20,105 @@ import {
 import { checkSingleTargetCondition } from "./effectEngine";
 // Helper function to record game events
 export function recordEvent(G: GameState, event: GameEvent) {
+  // Monotonic sequence number = index in the full history. Clients filter by
+  // this instead of timestamps (which collide within the same millisecond).
+  event.seq = G.eventHistory.length;
+
   // Add to current move events
   G.gameEvents.push(event);
 
   // Also add to persistent history for debugging
   G.eventHistory.push(event);
+}
+
+/**
+ * Applies an ApplyModifierEffect to a card's or player's modifier list with
+ * stacking semantics:
+ * - `effect.stackable === true`: every application pushes its own modifier.
+ * - otherwise (default): a modifier from the same sourceCardId for the same
+ *   stat is REPLACED in place — and a value of 0 removes it entirely.
+ * Only `permanent`/`temporary` entries participate; `aura`/`inHand`/`enrage`
+ * entries are owned by the refreshOngoing passes (see syncManagedModifiers).
+ * Records an applyModifier event whenever the list actually changed.
+ */
+function applyModifierWithStacking(
+  G: GameState,
+  sourceId: string,
+  target: Card | Player,
+  targetType: "card" | "player",
+  playerId: string,
+  effect: ApplyModifierEffect,
+  value: number,
+) {
+  const isTemporary = !!effect.duration;
+  const lifecycle =
+    isTemporary && effect.duration
+      ? {
+          sourcePlayerId: playerId, // The active player casting the spell/battlecry
+          expiryTrigger: effect.duration.expiryTrigger,
+          expiryOwner: effect.duration.expiryOwner,
+          turnsRemaining: effect.duration.turnsRemaining ?? 1,
+        }
+      : undefined;
+
+  if (target.modifiers === undefined) {
+    target.modifiers = [];
+  }
+  const list = target.modifiers;
+
+  if (!effect.stackable) {
+    const existingIndex = list.findIndex(
+      (m) =>
+        (m.type === "permanent" || m.type === "temporary") &&
+        m.sourceCardId === sourceId &&
+        m.stat === effect.stat,
+    );
+    if (existingIndex !== -1) {
+      if (value === 0) {
+        list.splice(existingIndex, 1);
+      } else {
+        const existing = list[existingIndex];
+        existing.value = value;
+        existing.override = effect.override;
+        existing.type = isTemporary ? "temporary" : "permanent";
+        existing.lifecycle = lifecycle;
+      }
+      recordEvent(G, {
+        type: "applyModifier",
+        sourceId,
+        key: effect.stat,
+        value,
+        playerId,
+        timestamp: Date.now(),
+        targetId: target.id,
+        targetType,
+      });
+      return;
+    }
+    // Nothing to replace and nothing to add — silent no-op
+    if (value === 0) return;
+  }
+
+  list.push({
+    id: `mod-${sourceId}-${effect.stat}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+    sourceCardId: sourceId, // Tracks which card created this buff
+    stat: effect.stat,
+    value: value,
+    type: isTemporary ? "temporary" : "permanent",
+    override: effect.override,
+    lifecycle,
+  });
+
+  recordEvent(G, {
+    type: "applyModifier",
+    sourceId,
+    key: effect.stat,
+    value,
+    playerId,
+    timestamp: Date.now(),
+    targetId: target.id,
+    targetType,
+  });
 }
 
 export function proccessApplyModifier(
@@ -35,41 +129,15 @@ export function proccessApplyModifier(
   effect: ApplyModifierEffect,
   value: number,
 ) {
-  const isTemporary = !!effect.duration;
-  const newModifier: CardModifier = {
-    id: `mod-${sourceId}-${effect.stat}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-    sourceCardId: sourceId, // Tracks which card created this buff
-    stat: effect.stat,
-    value: value,
-    type: isTemporary ? "temporary" : "permanent",
-    override: effect.override,
-    lifecycle:
-      isTemporary && effect.duration
-        ? {
-            sourcePlayerId: playerId, // The active player casting the spell/battlecry
-            expiryTrigger: effect.duration.expiryTrigger,
-            expiryOwner: effect.duration.expiryOwner,
-            turnsRemaining: effect.duration.turnsRemaining ?? 1,
-          }
-        : undefined,
-  };
-
-  // 5. Safely push it into our card's modifier scratchpad
-  if (targetCard.modifiers === undefined) {
-    targetCard.modifiers = [];
-  }
-  targetCard.modifiers.push(newModifier);
-
-  recordEvent(G, {
-    type: "applyModifier",
-    sourceId: sourceId,
-    key: effect.stat,
-    value: value,
-    playerId: playerId,
-    timestamp: Date.now(),
-    targetId: targetCard.id,
-    targetType: "card",
-  });
+  applyModifierWithStacking(
+    G,
+    sourceId,
+    targetCard,
+    "card",
+    playerId,
+    effect,
+    value,
+  );
 }
 
 export function processApplyModifierToPlayer(
@@ -80,43 +148,102 @@ export function processApplyModifierToPlayer(
   effect: ApplyModifierEffect,
   value: number,
 ) {
-  // Determine what lifecycle layer this modifier belongs to
-  const isTemporary = !!effect.duration;
+  applyModifierWithStacking(
+    G,
+    sourceId,
+    targetPlayer,
+    "player",
+    playerId,
+    effect,
+    value,
+  );
+}
 
-  // Build out the unified clean modifier instance object
-  const newModifier: CardModifier = {
-    id: `mod-${sourceId}-${effect.stat}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-    sourceCardId: sourceId,
-    stat: effect.stat,
-    value: value,
-    type: isTemporary ? "temporary" : "permanent",
-    override: effect.override,
-    lifecycle:
-      isTemporary && effect.duration
-        ? {
-            sourcePlayerId: playerId,
-            expiryTrigger: effect.duration.expiryTrigger,
-            expiryOwner: effect.duration.expiryOwner,
-            turnsRemaining: effect.duration.turnsRemaining ?? 1,
-          }
-        : undefined,
+/** Desired state of one managed (aura/inHand/enrage) modifier on one target. */
+export interface ManagedModifierSpec {
+  sourceCardId: string;
+  stat: CardModifier["stat"];
+  value: number;
+  override: boolean;
+}
+
+/**
+ * Diff-syncs ALL managed modifiers of one type on one card/player against the
+ * desired list. Adds missing entries, updates changed values, removes stale
+ * ones (recording an applyModifier event with value 0) — and stays completely
+ * silent when nothing changed, so the refresh passes can run after every move
+ * without spamming the event log. Duplicate (source, stat) specs are summed.
+ */
+export function syncManagedModifiers(
+  G: GameState,
+  owner: Card | Player,
+  ownerType: "card" | "player",
+  ownerPlayerId: string,
+  modifierType: "aura" | "inHand" | "enrage",
+  desired: ManagedModifierSpec[],
+) {
+  const hasAny = (owner.modifiers?.length ?? 0) > 0;
+  if (!hasAny && desired.length === 0) return;
+  if (owner.modifiers === undefined) {
+    owner.modifiers = [];
+  }
+  const list = owner.modifiers;
+
+  const keyOf = (source: string, stat: string) => `${source}|${stat}`;
+  const desiredByKey = new Map<string, ManagedModifierSpec>();
+  desired.forEach((spec) => {
+    const key = keyOf(spec.sourceCardId, spec.stat);
+    const existing = desiredByKey.get(key);
+    if (existing && !spec.override && !existing.override) {
+      existing.value += spec.value;
+    } else {
+      desiredByKey.set(key, { ...spec });
+    }
+  });
+
+  const recordChange = (source: string, stat: string, value: number) => {
+    recordEvent(G, {
+      type: "applyModifier",
+      sourceId: source,
+      key: stat,
+      value,
+      playerId: ownerPlayerId,
+      timestamp: Date.now(),
+      targetId: owner.id,
+      targetType: ownerType,
+    });
   };
 
-  // Safely push it into player's modifier array
-  if (targetPlayer.modifiers === undefined) {
-    targetPlayer.modifiers = [];
+  // Update or remove existing managed entries of this type
+  for (let i = list.length - 1; i >= 0; i--) {
+    const mod = list[i];
+    if (mod.type !== modifierType) continue;
+    const key = keyOf(mod.sourceCardId, mod.stat);
+    const want = desiredByKey.get(key);
+    if (!want) {
+      list.splice(i, 1);
+      recordChange(mod.sourceCardId, mod.stat, 0);
+    } else {
+      if (want.value !== mod.value || want.override !== mod.override) {
+        mod.value = want.value;
+        mod.override = want.override;
+        recordChange(mod.sourceCardId, mod.stat, want.value);
+      }
+      desiredByKey.delete(key); // handled (changed or already correct)
+    }
   }
-  targetPlayer.modifiers.push(newModifier);
 
-  recordEvent(G, {
-    type: "applyModifier",
-    sourceId: sourceId,
-    key: effect.stat,
-    value: value,
-    playerId: playerId,
-    timestamp: Date.now(),
-    targetId: targetPlayer.id,
-    targetType: "player",
+  // Add the entries that don't exist yet
+  desiredByKey.forEach((want) => {
+    list.push({
+      id: `mod-${want.sourceCardId}-${want.stat}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      sourceCardId: want.sourceCardId,
+      stat: want.stat,
+      value: want.value,
+      type: modifierType,
+      override: want.override,
+    });
+    recordChange(want.sourceCardId, want.stat, want.value);
   });
 }
 

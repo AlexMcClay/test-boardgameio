@@ -17,7 +17,7 @@
     "@tanstack/react-router": "^1.121.2",
     "@tanstack/react-router-devtools": "^1.121.2",
     "@tanstack/router-plugin": "^1.121.2",
-    "boardgame.io": "^0.50.2",
+    "@xstate/react": "^6.1.0",
     "motion": "^12.23.9",
     "nanoid": "^5.1.5",
     "react": "^19.0.0",

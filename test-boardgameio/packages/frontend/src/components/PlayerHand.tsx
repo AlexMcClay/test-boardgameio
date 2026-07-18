@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import type { BoardProps } from "boardgame.io/dist/types/packages/react";
+import type { GameBoardProps } from "@/types/gameProps";
 import { twMerge } from "tailwind-merge";
 import HandCard from "./Card/HandCard";
 import type { GameState, Player } from "@project/shared";
 import { AnimatePresence } from "motion/react";
+import { useAudioStore } from "@/stores/audioStore";
 
-interface Props extends BoardProps<GameState> {
+interface Props extends GameBoardProps {
   isTop?: boolean; // true for player 1, false or undefined for player 0
   player: Player;
   actualG: GameState;
@@ -25,6 +26,17 @@ const PlayerHand = ({ isTop, ctx, player, playerID, actualG }: Props) => {
   } | null>(null);
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const playSfx = useAudioStore((state) => state.playSfx);
+
+  const isFirstRender = useRef(true);
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      playSfx("mulligan-shuffle");
+      return;
+    }
+  }, []);
 
   // Global mouse move handler for hover detection
   useEffect(() => {
@@ -136,6 +148,7 @@ const PlayerHand = ({ isTop, ctx, player, playerID, actualG }: Props) => {
               discarded={
                 !!actualG.discardedCards.find((c) => c.card.id === card.id)
               }
+              isHandFirstRender={isFirstRender.current}
             />
           );
         })}

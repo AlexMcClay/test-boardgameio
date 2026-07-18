@@ -21,11 +21,15 @@ const DEFAULT_WS_URL = `${protocol}//${subdomain}${cleanHostname}${port}/matchma
 class MatchmakingWebSocketService {
   private socket: WebSocket | null = null;
   private handlers = new Set<MessageHandler>();
+  private openHandlers = new Set<() => void>();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private shouldReconnect = true;
 
   connect() {
-    if (this.socket || !this.shouldReconnect) return;
+    // An explicit connect request always re-arms the connection, even after a
+    // disconnect() (e.g. PlayScreen unmounting into the game view).
+    this.shouldReconnect = true;
+    if (this.socket) return;
 
     const wsUrl = import.meta.env.VITE_BACKEND_WS_URL?.trim() || DEFAULT_WS_URL;
     this.socket = new WebSocket(wsUrl);
@@ -44,6 +48,9 @@ class MatchmakingWebSocketService {
         playerID,
         playerUsername,
       });
+      // Notify listeners (e.g. an active game re-sending game_join after a
+      // reconnect) that a fresh socket is open.
+      this.openHandlers.forEach((handler) => handler());
     };
 
     this.socket.onmessage = (event) => {
@@ -99,11 +106,22 @@ class MatchmakingWebSocketService {
   }
 
   send(message: WebSocketMessage) {
-    this.socket?.send(JSON.stringify(message));
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(message));
+    } else {
+      console.warn(
+        `WS not open; dropped outgoing "${message.type}" message`,
+      );
+    }
   }
 
   isConnected() {
     return !!this.socket;
+  }
+
+  /** True only when the socket is fully open and can send. */
+  isOpen() {
+    return this.socket?.readyState === WebSocket.OPEN;
   }
 
   subscribe(handler: MessageHandler) {
@@ -111,6 +129,15 @@ class MatchmakingWebSocketService {
 
     return () => {
       this.handlers.delete(handler);
+    };
+  }
+
+  /** Fires whenever a (re)connected socket finishes opening. */
+  subscribeOpen(handler: () => void) {
+    this.openHandlers.add(handler);
+
+    return () => {
+      this.openHandlers.delete(handler);
     };
   }
 }

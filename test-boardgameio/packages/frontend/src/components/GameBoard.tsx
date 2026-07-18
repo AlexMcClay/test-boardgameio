@@ -1,5 +1,5 @@
 import PlayerArea from "./PlayerArea";
-import type { BoardProps } from "boardgame.io/react";
+import type { GameBoardProps } from "@/types/gameProps";
 import {
   DndContext,
   DragOverlay,
@@ -26,17 +26,14 @@ import BoardCardDeckBottom from "./Board/BoardCardDeckBottom";
 import DragCard from "./Board/DragCard";
 import YourTurn from "./Board/YourTurn";
 import SettingsOverlay from "./SettingsOverlay";
-import {
-  validateMove,
-  type GameState,
-  type TargetValue,
-} from "@project/shared";
+import { validateMove, type TargetValue } from "@project/shared";
 import SettingsButton from "./SettingsButton";
 import { useGameAnimation, useGameTargeting } from "@/hooks";
 import { useAnimationStore } from "@/stores/animationStore";
 import EventHistory from "./Board/EventHistory";
+import MulliganOverlay from "./Mulligan/MulliganOverlay";
 
-interface Props extends BoardProps<GameState> {}
+interface Props extends GameBoardProps {}
 
 const battlefield = "assets/battlefields/board.jpg"; // Path to your background image
 const moltenCoreMusic = "assets/audio/music/05_Molten_Core.mp3";
@@ -103,6 +100,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   // yourTurn Handler
   useEffect(() => {
     if (
+      visualGameState.mulligan?.active ||
       visualCtx.currentPlayer === prevMovePlayer.current ||
       visualCtx.currentPlayer === undefined ||
       prevMovePlayer.current === undefined
@@ -110,18 +108,14 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       return;
     } else {
       prevMovePlayer.current = visualCtx.currentPlayer;
-      if (
-        props.playerID &&
-        visualCtx.currentPlayer === props.playerID &&
-        visualCtx.turn > 1
-      ) {
+      if (props.playerID && visualCtx.currentPlayer === props.playerID) {
         setYourTurn(true);
         setTimeout(() => {
           setYourTurn(false);
         }, 2000);
       }
     }
-  }, [visualCtx]);
+  }, [visualCtx, visualGameState]);
 
   // add useEffect event listenr for tilde to log G.eventHistory
   useEffect(() => {
@@ -404,13 +398,17 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           </AnimatePresence>
         </DndContext>
       </div>
-      {(visualCtx?.gameover?.winner || ctx?.gameover?.winner) && (
-        <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black/60 z-50">
-          <div className="text-4xl text-white bg-black/90 px-6 py-4 rounded-lg shadow-lg">
-            {`${visualGameState.players[visualCtx?.gameover?.winner || ctx?.gameover?.winner].name} wins!`}
+      {(() => {
+        const winner = visualCtx?.gameover?.winner;
+        if (!winner || winner === "draw") return null;
+        return (
+          <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black/60 z-50">
+            <div className="text-4xl text-white bg-black/90 px-6 py-4 rounded-lg shadow-lg">
+              {`${visualGameState.players[winner].name} wins!`}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       {/* CardPlayed Overlay */}
       <CardPlayed
         {...props}
@@ -423,6 +421,12 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       <AttackArrow ctx={ctx} playerID={props.playerID} />
       {/* Hit Numbers Overlay */}
       <HitNumbers />
+      {/* Mulligan Overlay — reads ACTUAL state; the game hasn't started yet */}
+      <AnimatePresence>
+        {visualGameState.mulligan?.active && (
+          <MulliganOverlay G={G} moves={moves} playerID={props.playerID} />
+        )}
+      </AnimatePresence>
       {/* Settings Overlay */}
       <SettingsButton setIsSettingsOpen={setIsSettingsOpen} />
       <SettingsOverlay

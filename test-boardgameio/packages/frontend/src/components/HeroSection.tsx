@@ -1,13 +1,8 @@
 import { useDragStore } from "@/stores/dragStore";
 import { useAnimationStore } from "@/stores/animationStore";
 import { useDroppable } from "@dnd-kit/core";
-import {
-  getPlayerAttack,
-  type Card,
-  type GameState,
-  type Player,
-} from "@project/shared";
-import type { BoardProps } from "boardgame.io/dist/types/packages/react";
+import { getPlayerAttack, type Card, type Player } from "@project/shared";
+import type { GameBoardProps } from "@/types/gameProps";
 import { twMerge } from "tailwind-merge";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef } from "react";
@@ -16,7 +11,7 @@ import DivineShieldHeroOverlay from "./Card/Overlays/DivineShieldHeroOverlay";
 import FrozenHeroOverlay from "./Card/Overlays/FrozenHeroOverlay";
 import { useAudioStore } from "@/stores/audioStore";
 
-interface Props extends BoardProps<GameState> {
+interface Props extends GameBoardProps {
   isTop?: boolean; // true for player 1, false or undefined for player 0
   player: Player;
 }
@@ -109,6 +104,7 @@ const HeroSection = ({ player, ...props }: Props) => {
       damageTaken: 0,
       attacksLeft: player.attacksLeft,
       class: player.hero.class,
+      set: [],
     };
 
     startTargeting("hero-attack", `hero-${player.id}`, origin, heroAttackCard);
