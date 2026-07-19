@@ -278,19 +278,33 @@ const returnToHand = (
   };
 };
 
+const sfxShortener = (sfx: string) => `/cards/${sfx}`;
+
 const sfx = (
-  play: string[],
-  attack?: string[],
-  death?: string[],
+  play: (string | SFXInstance)[],
+  attack?: (string | SFXInstance)[],
+  death?: (string | SFXInstance)[],
 ): {
   death?: SFXInstance[] | undefined;
   play?: SFXInstance[];
   attack?: SFXInstance[];
 } => {
   return {
-    death: death?.map((soundId) => ({ soundId: `/cards/${soundId}` })),
-    play: play?.map((soundId) => ({ soundId: `/cards/${soundId}` })),
-    attack: attack?.map((soundId) => ({ soundId: `/cards/${soundId}` })),
+    death: death?.map((soundId) =>
+      typeof soundId === "string"
+        ? { soundId: sfxShortener(soundId) }
+        : soundId,
+    ),
+    play: play?.map((soundId) =>
+      typeof soundId === "string"
+        ? { soundId: sfxShortener(soundId) }
+        : soundId,
+    ),
+    attack: attack?.map((soundId) =>
+      typeof soundId === "string"
+        ? { soundId: sfxShortener(soundId) }
+        : soundId,
+    ),
   };
 };
 
@@ -319,6 +333,11 @@ export const cardTemplates = {
     rarity: "Common",
     class: "Warlock",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_319_Play_01.ogg"],
+      ["VO_EX1_319_Attack_02.ogg"],
+      ["VO_EX1_319_Death_03.ogg"],
+    ),
   },
   "chillwind-yeti": {
     title: "Chillwind Yeti",
@@ -342,6 +361,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_182_ChillwindYeti_EnterPlay1.ogg"],
+      ["CS2_182_ChillwindYeti_Attack1.ogg"],
+      ["CS2_182_ChillwindYeti_Death4.ogg"],
+    ),
   },
   fireball: {
     title: "Fireball",
@@ -496,6 +520,13 @@ export const cardTemplates = {
     rarity: "Common",
     class: "Mage",
     set: ["Legacy"],
+    sfx: sfx([
+      "Shared_Frost_Cast_1.ogg",
+      {
+        soundId: sfxShortener("FrostBoltHit1.ogg"),
+        delay: 200,
+      },
+    ]),
   },
   "bloodfen-raptor": {
     title: "Bloodfen Raptor",
@@ -1879,6 +1910,7 @@ export const cardTemplates = {
     isMinion: false,
     class: "Mage",
     set: ["Legacy"],
+    sfx: sfx(["Mage_FrostNova_Cast_1.ogg"]),
   },
   blizzard: {
     title: "Blizzard",
@@ -1944,7 +1976,7 @@ export const cardTemplates = {
   "lay-on-hands": {
     title: "Lay on Hands",
     description: "Restore 8 Health. Draw 3 cards.",
-    baseMana: 8,
+    baseMana: 6,
     type: ["Holy"],
     tags: ["Heal"],
     imageUrl: "assets/cards/Lay_on_Hands.jpg",
@@ -3144,6 +3176,11 @@ export const cardTemplates = {
       type: ["card"],
     },
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_188_Play_01.ogg"],
+      ["VO_CS2_188_Attack_02.ogg"],
+      ["VO_CS2_188_Death_03.ogg"],
+    ),
   },
   "fiery-war-axe": {
     title: "Fiery War Axe",
@@ -3536,6 +3573,99 @@ export const cardTemplates = {
       ["VO_CS2_122_Play_01.ogg"],
       ["VO_CS2_122_Attack_02.ogg"],
       ["VO_CS2_122_Death_03.ogg"],
+    ),
+  },
+  "shattered-sun-cleric": {
+    title: "Shattered Sun Cleric",
+    description: "Battlecry: Give a friendly minion +1/+1.",
+    baseMana: 3,
+    baseAttack: 3,
+    baseHealth: 2,
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Shattered_Sun_Cleric.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [applyModifier("attack", 1), applyModifier("health", 1)],
+    battlecryQuery: {
+      side: "friendly",
+      type: ["card"],
+      conditions: [
+        {
+          type: "exclude-self",
+        },
+      ],
+    },
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_019_Play_01.ogg"],
+      ["VO_EX1_019_Attack_02.ogg"],
+      ["VO_EX1_019_Death_03.ogg"],
+    ),
+  },
+  "war-golem": {
+    title: "War Golem",
+    description: "",
+    baseMana: 7,
+    baseAttack: 7,
+    baseHealth: 7,
+    imageUrl: "assets/cards/War_Golem.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_186_War_Golem_EnterPlay1.ogg"],
+      ["CS2_186_War_Golem_Attack3.ogg"],
+      ["CS2_186_War_Golem_Death3.ogg"],
+    ),
+  },
+  wisp: {
+    title: "Wisp",
+    description: "",
+    baseMana: 0,
+    baseAttack: 1,
+    baseHealth: 1,
+    type: ["Undead"],
+    imageUrl: "assets/cards/Wisp.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Common",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_231_Wisp_EnterPlay1.ogg"],
+      ["CS2_231_Wisp_Attack2.ogg"],
+      ["CS2_231_Wisp_Death1.ogg"],
     ),
   },
 } satisfies Record<
