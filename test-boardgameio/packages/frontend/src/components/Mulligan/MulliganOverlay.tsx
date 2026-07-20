@@ -197,9 +197,9 @@ const MulliganOverlay = ({ G, moves, playerID }: Props) => {
                 transition={{ duration: 0.35 }}
                 className={`relative h-[29vh] aspect-[3/4.3] cursor-pointer select-none rounded-xl ${
                   isNew
-                    ? "shadow-[0_0_22px_8px_rgba(255,215,0,0.9)]"
+                    ? "highlight-shadow"
                     : !replaced && !isCoin
-                      ? "shadow-[0_0_18px_6px_rgba(80,255,80,0.85)]"
+                      ? " canAttack"
                       : ""
                 }`}
                 onClick={() => toggleReplace(card.id, isCoin)}

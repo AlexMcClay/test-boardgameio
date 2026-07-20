@@ -15,6 +15,8 @@ const cardBackgroundMinion = "assets/card_parts/minion_card.png";
 const cardBackgroundWeapon = "assets/card_parts/weapon.png";
 
 const minioncCardBase = "assets/card_parts/minion_frames/";
+const spellCardsBase = "assets/card_parts/spell_frames/";
+
 // const cardBackgroundMinionLegendary = "assets/card_parts/legendary_minion.png";
 
 interface Props extends CardProps {}
@@ -241,12 +243,11 @@ const Card = ({
               ? `${minioncCardBase}/${card.class.toLowerCase()}_minion_frame.webp`
               : card.isWeapon
                 ? cardBackgroundWeapon
-                : cardBackground
+                : `${spellCardsBase}/${card.class.toLowerCase()}_spell_frame.webp`
           }
           alt="Card Background"
           className={twMerge(
-            "object-cover w-full h-full absolute rounded-2xl z-0 ",
-            card.isMinion && "scale-y-107 scale-105 origin-bottom",
+            "object-cover w-full h-full absolute rounded-2xl z-0 scale-y-107 scale-105 origin-bottom ",
             card.isWeapon && "scale-109  origin-bottom",
             // card.isMinion &&
             //   card.rarity === "Legendary" &&
