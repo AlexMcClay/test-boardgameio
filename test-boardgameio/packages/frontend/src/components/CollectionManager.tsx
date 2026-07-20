@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Fuse from "fuse.js";
 import Card from "./Card";
 import MinionCardPopover from "./MinionCardPopover";
 
@@ -41,6 +42,10 @@ const CollectionManager = () => {
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedManaFilter, setSelectedManaFilter] = useState<number | null>(
+    null,
+  ); // 7 represents "7+"
 
   // Singleton hover-preview popover state (card-select mode)
   const [hoveredCard, setHoveredCard] = useState<CardType | null>(null);
@@ -341,6 +346,12 @@ const CollectionManager = () => {
     setCurrentPage(0);
   }
 
+  function handleManaFilterSelect(bucket: number) {
+    playSfx("collection-manager-page-flip");
+    setSelectedManaFilter((prev) => (prev === bucket ? null : bucket));
+    setCurrentPage(0);
+  }
+
   function handlePreviousPage() {
     if (currentPage > 0) {
       playSfx("collection-manager-page-flip");
@@ -355,7 +366,45 @@ const CollectionManager = () => {
     }
   }
 
-  // Filter cards by class and collectibility
+  // Fuzzy search index over collectible cards (title/description/type/class/set/tags)
+  const searchableCards = useMemo(
+    () =>
+      Object.entries(cardTemplates)
+        .filter(
+          ([_, card]) =>
+            !(card as Omit<CardType, "id" | "damageTaken" | "originalID">)
+              .isUncollectible,
+        )
+        .map(([id, card]) => ({ id, card })),
+    [],
+  );
+
+  const fuse = useMemo(
+    () =>
+      new Fuse(searchableCards, {
+        keys: [
+          "card.title",
+          "card.description",
+          "card.type",
+          "card.class",
+          "card.set",
+          "card.tags",
+        ],
+        threshold: 0.35,
+        ignoreLocation: true,
+      }),
+    [searchableCards],
+  );
+
+  const matchedCardIds = useMemo(
+    () =>
+      searchQuery.trim()
+        ? new Set(fuse.search(searchQuery).map((r) => r.item.id))
+        : null,
+    [searchQuery, fuse],
+  );
+
+  // Filter cards by class, collectibility, search, and mana cost
   const filteredCards = Object.entries(cardTemplates)
     .filter(
       ([_, card]) =>
@@ -381,6 +430,12 @@ const CollectionManager = () => {
 
       // Otherwise show all cards
       return true;
+    })
+    .filter(([id]) => matchedCardIds === null || matchedCardIds.has(id))
+    .filter(([_, card]) => {
+      if (selectedManaFilter === null) return true;
+      const mana = card.baseMana ?? 0;
+      return selectedManaFilter === 7 ? mana >= 7 : mana === selectedManaFilter;
     })
     .sort((a, b) => (a[1].baseMana ?? 0) - (b[1].baseMana ?? 0));
 
@@ -603,6 +658,51 @@ const CollectionManager = () => {
             </span>
           </div>
         </div>
+      </div>
+
+      {/* Mana cost filter + fuzzy search, below the card collection panel */}
+      <div className="absolute left-[19.3vw] top-[86.5vh] w-[56vw] h-[9vh] flex items-center  gap-[5vw] px-[1vw]">
+        <div className="flex items-center gap-[0.43vw]">
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((bucket) => (
+            <button
+              key={bucket}
+              onClick={() => handleManaFilterSelect(bucket)}
+              onMouseEnter={() => playSfx("button-over")}
+              className={twMerge(
+                "relative w-[2.2vw] h-[2.2vw] flex items-center justify-center transition-all duration-200 hover:brightness-200 cursor-pointer",
+                selectedManaFilter === bucket ? "brightness-300" : "",
+              )}
+            >
+              <img
+                src={mana_crystal}
+                className="absolute w-full h-full object-cover scale-100 brightness-90 select-none"
+                draggable={false}
+                alt=""
+              />
+              <span
+                className={twMerge(
+                  "relative z-20 text-white text-[1vw] font-extrabold font-belwe scale-150 translate-y-[-5%] translate-x-[-5%] text-shadow-A",
+                  bucket === 7 && "translate-x-[-5%]",
+                )}
+              >
+                {bucket}
+                {bucket === 7 && (
+                  <span className="translate-x-[60%] absolute">+</span>
+                )}
+              </span>
+            </button>
+          ))}
+        </div>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setCurrentPage(0);
+          }}
+          placeholder="Search cards..."
+          className="flex-1 max-w-[12vw] px-[0.8vw] py-[0.4vw] rounded-lg  text-[1vw] placeholder:text-amber-100/40 outline-none text-white"
+        />
       </div>
 
       {mode === "card-select" && selectedHero && (

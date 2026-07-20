@@ -220,7 +220,7 @@ const Card = ({
             src={card.imageUrl}
             // alt={title}
             className={twMerge(
-              "object-cover w-[95%] h-[100%] top-2 left-0.5 select-none absolute z-0",
+              "object-cover w-[95%] h-[100%] top-[0.5vw] left-[0.2vw] select-none absolute z-0",
               card.isMinion && "top-[-0.3vw] rounded-[50%/50%] h-[145%]",
               card.isWeapon && "top-0 h-[120%] left-[0.2vw]",
             )}
