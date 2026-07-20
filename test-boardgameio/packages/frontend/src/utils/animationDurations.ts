@@ -15,7 +15,7 @@ export const SPELL_CAST_ANIMATION: AnimationData = {
 };
 
 export const MINION_SUMMONED_ANIMATION: AnimationData = {
-  duration: 400,
+  duration: 600,
 };
 
 // Mulligan completion: the overlay shows the replaced cards for this long...

@@ -482,6 +482,11 @@ export const cardTemplates = {
     rarity: "Common",
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_200_Play_01.ogg"],
+      ["VO_CS2_200_Attack_02.ogg"],
+      ["VO_CS2_200_Death_03.ogg"],
+    ),
   },
   wolfrider: {
     title: "Wolfrider",
@@ -506,6 +511,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_124_Play_01.ogg", "SFX_CS2_124_Wolf_EnterPlay_00.ogg"],
+      ["VO_CS2_124_Attack_02.ogg", "SFX_CS2_124_Wolf_Attack_00.ogg"],
+      ["VO_CS2_124_Death_03.ogg", "SFX_CS2_124_Wolf_Death_00.ogg"],
+    ),
   },
   frostbolt: {
     title: "Frostbolt",
@@ -554,6 +564,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_172_StranglethornRaptor_EnterPlay.ogg"],
+      ["CS2_172_StranglethornRaptor_Attack.ogg"],
+      ["CS2_172_StranglethornRaptor_Death.ogg"],
+    ),
   },
   "river-crocolisk": {
     title: "River Crocolisk",
@@ -577,6 +592,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["SFX_CS2_120_EnterPlay.ogg"],
+      ["SFX_CS2_120_Attack.ogg"],
+      ["SFX_CS2_120_Death.ogg"],
+    ),
   },
   "ironfur-grizzly": {
     title: "Ironfur Grizzly",
@@ -601,6 +621,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_125_Ironfur_Grizzly_EnterPlay1.ogg"],
+      ["CS2_125_Ironfur_Grizzly_Attack3.ogg"],
+      ["CS2_125_Ironfur_Grizzly_Death1.ogg"],
+    ),
   },
   charge: {
     title: "Charge",
@@ -647,6 +672,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_168_Murloc_Raider_EnterPlay1.ogg"],
+      ["CS2_168_Murloc_Raider_Attack1.ogg"],
+      ["CS2_168_Murloc_Raider_Death2.ogg"],
+    ),
   },
   "silver-hand-recruit": {
     title: "Silver Hand Recruit",
@@ -670,6 +700,11 @@ export const cardTemplates = {
     class: "Paladin",
     isUncollectible: true,
     set: [],
+    sfx: sfx(
+      ["VO_CS2_101t_Play_01.ogg"],
+      ["VO_CS2_101t_Attack_02.ogg"],
+      ["VO_CS2_101t_Death_03.ogg"],
+    ),
   },
   "frostwolf-grunt": {
     title: "Frostwolf Grunt",
@@ -693,6 +728,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_121_Play_01.ogg"],
+      ["VO_CS2_121_Attack_02.ogg"],
+      ["VO_CS2_121_Death_03.ogg"],
+    ),
   },
   "murloc-tidehunter": {
     title: "Murloc Tidehunter",
@@ -716,6 +756,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["EX1_506_Murloc_Scout_EnterPlay1.ogg"],
+      ["EX1_506_Murloc_Scout_Attack2.ogg"],
+      ["EX1_506_Murloc_Scout_Death2.ogg"],
+    ),
   },
   "murloc-scout": {
     title: "Murloc Scout",
@@ -740,6 +785,11 @@ export const cardTemplates = {
     isUncollectible: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["EX1_506a_Murloc_Tidehunter_EnterPlay1.ogg"],
+      ["EX1_506a_Murloc_Tidehunter_Attack1.ogg"],
+      ["EX1_506a_Murloc_Tidehunter_Death1.ogg"],
+    ),
   },
   "razorfen-hunter": {
     title: "Razorfen Hunter",
@@ -762,6 +812,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_196_Play_01.ogg"],
+      ["VO_CS2_196_Attack_02.ogg"],
+      ["VO_CS2_196_Death_03.ogg"],
+    ),
   },
   boar: {
     title: "Boar",
@@ -786,6 +841,11 @@ export const cardTemplates = {
     isUncollectible: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["SFX_CS2_boar_EnterPlay.ogg"],
+      ["SFX_CS2_boar_Attack.ogg"],
+      ["SFX_CS2_boar_Death.ogg"],
+    ),
   },
   "dragonling-mechanic": {
     title: "Dragonling Mechanic",
@@ -808,6 +868,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_025_Play_01.ogg"],
+      ["VO_EX1_025_Attack_02.ogg"],
+      ["VO_EX1_025_Death_03.ogg"],
+    ),
   },
   "mechanical-dragonling": {
     title: "Mechanical Dragonling",
@@ -832,6 +897,11 @@ export const cardTemplates = {
     isUncollectible: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["SFX_EX1_025t_EnterPlay.ogg"],
+      ["SFX_EX1_025t_Attack.ogg"],
+      ["SFX_EX1_025t_Death.ogg"],
+    ),
   },
   "senjin-shieldmasta": {
     title: "Sen'jin Shieldmasta",
@@ -854,23 +924,11 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
-    sfx: {
-      attack: [
-        {
-          soundId: "/cards/Shieldmasta/VO_CS2_179_Attack_02.ogg",
-        },
-      ],
-      death: [
-        {
-          soundId: "/cards/Shieldmasta/VO_CS2_179_Death_03.ogg",
-        },
-      ],
-      play: [
-        {
-          soundId: "/cards/Shieldmasta/VO_CS2_179_Play_01.ogg",
-        },
-      ],
-    },
+    sfx: sfx(
+      ["VO_CS2_179_Play_01.ogg"],
+      ["VO_CS2_179_Attack_02.ogg"],
+      ["VO_CS2_179_Death_03.ogg"],
+    ),
     set: ["Legacy"],
   },
   "lord-of-the-arena": {
@@ -895,6 +953,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_162_Play_01.ogg"],
+      ["VO_CS2_162_Attack_02.ogg"],
+      ["VO_CS2_162_Death_03.ogg"],
+    ),
   },
   "stormwind-knight": {
     title: "Stormwind Knight",
@@ -919,6 +982,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_131_Play_01.ogg"],
+      ["VO_CS2_131_Attack_02.ogg"],
+      ["VO_CS2_131_Death_03.ogg"],
+    ),
   },
   innervate: {
     title: "Innervate",
@@ -993,6 +1061,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_DS1_055_Play_01.ogg"],
+      ["VO_DS1_055_Attack_02.ogg"],
+      ["VO_DS1_055_Death_03.ogg"],
+    ),
   },
   nightblade: {
     title: "Nightblade",
@@ -1016,6 +1089,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_593_Play_01.ogg"],
+      ["VO_EX1_593_Attack_02.ogg"],
+      ["VO_EX1_593_Death_03.ogg"],
+    ),
   },
   "elven-archer": {
     title: "Elven Archer",
@@ -1048,6 +1126,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_189_Play_01.ogg"],
+      ["VO_CS2_189_Attack_02.ogg"],
+      ["VO_CS2_189_Death_03.ogg"],
+    ),
   },
   "ironforge-rifleman": {
     title: "Ironforge Rifleman",
@@ -1080,11 +1163,16 @@ export const cardTemplates = {
     tags: ["Battlecry"],
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_141_Play_01.ogg"],
+      ["VO_CS2_141_Attack_02.ogg"],
+      ["VO_CS2_141_Death_03.ogg"],
+    ),
   },
   "core-hound": {
     title: "Core Hound",
     baseAttack: 9,
-    baseHealth: 7,
+    baseHealth: 5,
     baseMana: 7,
     type: ["Elemental", "Beast"],
     description: "",
@@ -1103,6 +1191,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_201_Core_Hound_EnterPlay1.ogg"],
+      ["CS2_201_Core_Hound_Attack2.ogg"],
+      ["CS2_201_Core_Hound_Death1.ogg"],
+    ),
   },
   "silverback-patriarch": {
     title: "Silverback Patriarch",
@@ -1128,6 +1221,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_127_Silverback_Patriarch_EnterPlay1.ogg"],
+      ["CS2_127_Silverback_Patriarch_Attack3.ogg"],
+      ["CS2_127_Silverback_Patriarch_Death1.ogg"],
+    ),
   },
   "magma-rager": {
     title: "Magma Rager",
@@ -1151,6 +1249,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["SFX_CS2_118_EnterPlay.ogg"],
+      ["SFX_CS2_118_Attack.ogg"],
+      ["SFX_CS2_118_Death.ogg"],
+    ),
   },
   "oasis-snapjaw": {
     title: "Oasis Snapjaw",
@@ -1174,6 +1277,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_119_Oasis_Snapjaw_EnterPlay2.ogg"],
+      ["CS2_119_Oasis_Snapjaw_Attack1.ogg"],
+      ["CS2_119_Oasis_Snapjaw_Death2.ogg"],
+    ),
   },
   "silver-hand-knight": {
     title: "Silver Hand Knight",
@@ -1198,6 +1306,11 @@ export const cardTemplates = {
     rarity: "Common",
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_151_Play_01.ogg"],
+      ["VO_CS2_151_Attack_02.ogg"],
+      ["VO_CS2_151_Death_03.ogg"],
+    ),
   },
   squire: {
     title: "Squire",
@@ -1222,6 +1335,11 @@ export const cardTemplates = {
     isUncollectible: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_152_Play_01.ogg"],
+      ["VO_CS2_152_Attack_02.ogg"],
+      ["VO_CS2_152_Death_03.ogg"],
+    ),
   },
   "voodoo-doctor": {
     title: "Voodoo Doctor",
@@ -1254,6 +1372,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_011_Play_01.ogg"],
+      ["VO_EX1_011_Attack_02.ogg"],
+      ["VO_EX1_011_Death_03.ogg"],
+    ),
   },
   "novice-engineer": {
     title: "Novice Engineer",
@@ -1275,23 +1398,11 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
-    sfx: {
-      attack: [
-        {
-          soundId: "/cards/VO_EX1_015_Attack_02.ogg",
-        },
-      ],
-      death: [
-        {
-          soundId: "/cards/VO_EX1_015_Death_03.ogg",
-        },
-      ],
-      play: [
-        {
-          soundId: "/cards/VO_EX1_015_Play_01.ogg",
-        },
-      ],
-    },
+    sfx: sfx(
+      ["VO_EX1_015_Play_01.ogg"],
+      ["VO_EX1_015_Attack_02.ogg"],
+      ["VO_EX1_015_Death_03.ogg"],
+    ),
     set: ["Legacy"],
   },
   "stormpike-commando": {
@@ -1325,6 +1436,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_150_Play_01.ogg"],
+      ["VO_CS2_150_Attack_02.ogg"],
+      ["VO_CS2_150_Death_03.ogg"],
+    ),
   },
   "gnomish-inventor": {
     title: "Gnomish Inventor",
@@ -1348,6 +1464,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_147_Play_01.ogg"],
+      ["VO_CS2_147_Attack_02.ogg"],
+      ["VO_CS2_147_Death_03.ogg"],
+    ),
   },
   "arcane-shot": {
     title: "Arcane Shot",
@@ -1420,23 +1541,11 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
-    sfx: {
-      attack: [
-        {
-          soundId: "/cards/VO_CS1_042_Attack_02.ogg",
-        },
-      ],
-      death: [
-        {
-          soundId: "/cards/VO_CS1_042_Death_03.ogg",
-        },
-      ],
-      play: [
-        {
-          soundId: "/cards/VO_CS1_042_Play_01.ogg",
-        },
-      ],
-    },
+    sfx: sfx(
+      ["VO_CS1_042_Play_01.ogg"],
+      ["VO_CS1_042_Attack_02.ogg"],
+      ["VO_CS1_042_Death_03.ogg"],
+    ),
     set: ["Legacy"],
   },
   "booty-bay-bodyguard": {
@@ -1462,6 +1571,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_187_Play_01.ogg"],
+      ["VO_CS2_187_Attack_02.ogg"],
+      ["VO_CS2_187_Death_03.ogg"],
+    ),
   },
   "reckless-rocketeer": {
     title: "Reckless Rocketeer",
@@ -1486,6 +1600,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_213_Play_01.ogg"],
+      ["VO_CS2_213_Attack_02.ogg"],
+      ["VO_CS2_213_Death_03.ogg"],
+    ),
   },
   "inner-rage": {
     title: "Inner Rage",
@@ -1528,6 +1647,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_173_Bluegill_Warrior_EnterPlay1.ogg"],
+      ["CS2_173_Bluegill_Warrior_Attack3.ogg"],
+      ["CS2_173_Bluegill_Warrior_Death1.ogg"],
+    ),
   },
   flamestrike: {
     title: "Flamestrike",
@@ -1587,6 +1711,11 @@ export const cardTemplates = {
     rarity: "Common",
     deathrattle: [damage(2, "enemy-hero")],
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_029_Play_01.ogg"],
+      ["VO_EX1_029_Attack_02.ogg"],
+      ["VO_EX1_029_Death_03.ogg"],
+    ),
   },
   "loot-hoarder": {
     title: "Loot Hoarder",
@@ -1643,6 +1772,11 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_008_Play_01.ogg"],
+      ["VO_EX1_008_Attack_02.ogg"],
+      ["VO_EX1_008_Death_03.ogg"],
+    ),
   },
   shielded_minibot: {
     title: "Shielded Minibot",
@@ -1669,6 +1803,11 @@ export const cardTemplates = {
     },
     rarity: "Common",
     set: ["Goblins vs Gnomes"],
+    sfx: sfx(
+      ["CleanMechSmall_Play_Underlay.ogg", "VO_GVG_058_Play_01.ogg"],
+      ["VO_GVG_058_Attack_02.ogg", "CleanMechSmall_Attack_Underlay.ogg"],
+      ["VO_GVG_058_Death_03.ogg", "CleanMechSmall_Death_Underlay.ogg"],
+    ),
   },
   "tirion-fordring": {
     title: "Tirion Fordring",
@@ -1748,6 +1887,11 @@ export const cardTemplates = {
     rarity: "Rare",
     onPlace: [],
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_032_Play_01.ogg"],
+      ["VO_EX1_032_Attack_02.ogg"],
+      ["VO_EX1_032_Death_03.ogg"],
+    ),
   },
   "argent-protector": {
     title: "Argent Protector",
@@ -1783,6 +1927,11 @@ export const cardTemplates = {
       ],
     },
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_362_Play_01.ogg"],
+      ["VO_EX1_362_Attack_02.ogg"],
+      ["VO_EX1_362_Death_03.ogg"],
+    ),
   },
   "hand-of-protection": {
     title: "Hand of Protection",
@@ -1856,6 +2005,11 @@ export const cardTemplates = {
     isUncollectible: true, // Hidden from deckbuilders, matching your rule constraints
     class: "Druid",
     set: ["Legacy"],
+    sfx: sfx(
+      ["EX1_158tTreant_EnterPlay1.ogg"],
+      ["EX1_158tTreant_Attack2.ogg"],
+      ["EX1_158tTreant_Death2.ogg"],
+    ),
   },
   "ironbark-protector": {
     title: "Ironbark Protector",
@@ -1880,6 +2034,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Druid",
     set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_232_Ironbark_Protector_EnterPlay2.ogg"],
+      ["CS2_232_Ironbark_Protector_Attack4.ogg"],
+      ["CS2_232_Ironbark_Protector_Death5.ogg"],
+    ),
   },
   starfire: {
     title: "Starfire",
@@ -1977,6 +2136,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Warrior",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_NEW1_011_Play_01.ogg"],
+      ["VO_NEW1_011_Attack_02.ogg"],
+      ["VO_NEW1_011_Death_03.ogg"],
+    ),
   },
   "lay-on-hands": {
     title: "Lay on Hands",
@@ -2020,6 +2184,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Paladin",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_088_Play_01.ogg"],
+      ["VO_CS2_088_Attack_02.ogg"],
+      ["VO_CS2_088_Death_03.ogg"],
+    ),
   },
   "warsong-outrider": {
     title: "Warsong Outrider",
@@ -2045,6 +2214,11 @@ export const cardTemplates = {
     class: "Warrior",
     rarity: "Common",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS3_030_Female_Orc_Play_01.ogg"],
+      ["VO_CS3_030_Female_Orc_Attack_01.ogg"],
+      ["VO_CS3_030_Female_Orc_Death_01.ogg"],
+    ),
   },
   "cruel-taskmaster": {
     title: "Cruel Taskmaster",
@@ -2078,6 +2252,11 @@ export const cardTemplates = {
     class: "Warrior",
     rarity: "Common",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_603_Play_01.ogg"],
+      ["VO_EX1_603_Attack_02.ogg"],
+      ["VO_EX1_603_Death_03.ogg"],
+    ),
   },
   "shield-block": {
     title: "Shield Block",
@@ -2156,6 +2335,11 @@ export const cardTemplates = {
     isUncollectible: true, // Generated by the parent spell
     class: "Warrior",
     set: ["Across the Timeways"],
+    sfx: sfx(
+      ["TIME_873t_ColosseumCrocolisk_Play.ogg"],
+      ["TIME_873t_ColosseumCrocolisk_Attack.ogg"],
+      ["TIME_873t_ColosseumCrocolisk_Death.ogg"],
+    ),
   },
   execute: {
     title: "Execute",
@@ -2388,6 +2572,11 @@ export const cardTemplates = {
     ],
     onPlace: [],
     set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_033_Play_WaterElemental.ogg"],
+      ["CS2_033_Attack_WaterElemental.ogg"],
+      ["CS2_033_Death_WaterElemental.ogg"],
+    ),
   },
   "deep-freeze": {
     title: "Deep Freeze",
@@ -2498,6 +2687,11 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_065_Play_01.ogg"],
+      ["VO_CS2_065_Attack_02.ogg"],
+      ["VO_CS2_065_Death_03.ogg"],
+    ),
   },
   demonfire: {
     title: "Demonfire",
@@ -2663,6 +2857,11 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_313_Play_01.ogg"],
+      ["VO_EX1_313_Attack_02.ogg"],
+      ["VO_EX1_313_Death_03.ogg"],
+    ),
   },
   "dread-infernal": {
     title: "Dread Infernal",
@@ -2702,6 +2901,11 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     set: ["Legacy"],
+    sfx: sfx(
+      ["SFX_CS2_064_EnterPlay.ogg"],
+      ["SFX_CS2_064_Attack.ogg"],
+      ["SFX_CS2_064_Death.ogg"],
+    ),
   },
   "twisting-nether": {
     title: "Twisting Nether",
@@ -2774,6 +2978,11 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     set: ["Kobolds & Catacombs"],
+    sfx: sfx(
+      ["VO_LOOT_013_Male_Demon_Play_02.ogg"],
+      ["VO_LOOT_013_Male_Demon_Attack_02.ogg"],
+      ["VO_LOOT_013_Male_Demon_Death_01.ogg"],
+    ),
   },
   "demonic-assault": {
     title: "Demonic Assault",
@@ -2846,6 +3055,11 @@ export const cardTemplates = {
     isUncollectible: true,
     class: "Warlock",
     set: ["Legacy"],
+    sfx: sfx(
+      ["WoW_EX1_317t_Worthless_Imp_EnterPlay.ogg"],
+      ["WoW_EX1_317t_Worthless_Imp_Attack.ogg"],
+      ["WoW_EX1_317t_Worthless_Imp_Death.ogg"],
+    ),
   },
   riftcleaver: {
     title: "Riftcleaver",
@@ -2895,6 +3109,11 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     set: ["Saviors of Uldum"],
+    sfx: sfx(
+      ["VO_ULD_165_Male_Demon_Play_01.ogg"],
+      ["VO_ULD_165_Male_Demon_Attack_01.ogg"],
+      ["VO_ULD_165_Male_Demon_Death_01.ogg"],
+    ),
   },
   voidlord: {
     title: "Voidlord",
@@ -2922,6 +3141,11 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     set: ["Kobolds & Catacombs"],
+    sfx: sfx(
+      ["VO_LOOT_368_Male_Demon_Play_01.ogg"],
+      ["VO_LOOT_368_Male_Demon_Attack_01.ogg"],
+      ["VO_LOOT_368_Male_Demon_Death_01.ogg"],
+    ),
   },
   backstab: {
     title: "Backstab",
@@ -3129,6 +3353,11 @@ export const cardTemplates = {
     },
     onPlace: [discard(1, "random")],
     set: ["Legacy"],
+    sfx: sfx(
+      ["Felstalker_EX1_306_Play.ogg"],
+      ["Felstalker_EX1_306_Attack.ogg"],
+      ["Felstalker_EX1_306_Death.ogg"],
+    ),
   },
   doomguard: {
     title: "Doomguard",
@@ -3155,6 +3384,11 @@ export const cardTemplates = {
     },
     onPlace: [discard(2, "random")],
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_310_Play_01.ogg"],
+      ["VO_EX1_310_Attack_02.ogg"],
+      ["VO_EX1_310_Death_03.ogg"],
+    ),
   },
   "abusive-sargent": {
     title: "Abusive Sergeant",
