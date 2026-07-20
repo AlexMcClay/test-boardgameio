@@ -10,6 +10,10 @@ export interface CardProps {
   card: Card;
   back?: boolean;
   isDragging?: boolean;
+  // Skips the layout/layoutId projection animation (Framer's automatic FLIP +
+  // spring correction), for ephemeral duplicate copies (e.g. a zoom preview)
+  // whose position/scale is instead driven entirely by a wrapping motion element.
+  disableLayoutAnimation?: boolean;
   playerID?: PlayerID;
   ctx?: GameCtx;
   type?: "game" | "preview" | "popover";

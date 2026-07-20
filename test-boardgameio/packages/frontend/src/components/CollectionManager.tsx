@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Fuse from "fuse.js";
 import Card from "./Card";
 import MinionCardPopover from "./MinionCardPopover";
+import CardZoomModal from "./CardZoomModal";
 
 import {
   cardTemplates,
@@ -46,6 +47,10 @@ const CollectionManager = () => {
   const [selectedManaFilter, setSelectedManaFilter] = useState<number | null>(
     null,
   ); // 7 represents "7+"
+  const [zoomedCard, setZoomedCard] = useState<{
+    card: CardType;
+    originRect: DOMRect;
+  } | null>(null);
 
   // Singleton hover-preview popover state (card-select mode)
   const [hoveredCard, setHoveredCard] = useState<CardType | null>(null);
@@ -608,12 +613,18 @@ const CollectionManager = () => {
                   mode === "card-select" && !isPremade && playSfx("card-over")
                 }
                 onContextMenu={(e) => {
-                  if (mode === "card-select" && !isPremade) {
-                    e.preventDefault();
-                    const currentCount = deck[id as CardTemplateKey] || 0;
-                    const newCount = currentCount > 0 ? currentCount - 1 : 0;
-                    handleDeckChange(id as CardTemplateKey, newCount);
-                  }
+                  e.preventDefault();
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setZoomedCard({
+                    card: {
+                      ...card,
+                      id,
+                      originalID: id,
+                      damageTaken: 0,
+                      attacksLeft: 1,
+                    } as CardType,
+                    originRect: rect,
+                  });
                 }}
               >
                 <div
@@ -954,6 +965,13 @@ const CollectionManager = () => {
           </div>
         </div>
       )}
+
+      {/* Card zoom modal (right-click on a grid card), rendered via portal to document.body */}
+      <CardZoomModal
+        card={zoomedCard?.card ?? null}
+        originRect={zoomedCard?.originRect ?? null}
+        onClose={() => setZoomedCard(null)}
+      />
 
       {/* Singleton hover-preview popover (rendered via portal to document.body) */}
       {mode === "card-select" && hoveredCard && (
