@@ -13,6 +13,8 @@ const healthIcon = "assets/health.png";
 const cardBackground = "assets/card_parts/card.png";
 const cardBackgroundMinion = "assets/card_parts/minion_card.png";
 const cardBackgroundWeapon = "assets/card_parts/weapon.png";
+
+const minioncCardBase = "assets/card_parts/minion_frames/";
 // const cardBackgroundMinionLegendary = "assets/card_parts/legendary_minion.png";
 
 interface Props extends CardProps {}
@@ -190,9 +192,7 @@ const Card = ({
         onMouseLeave={handleCardMouseLeave}
         layout={!isDragging && !disableLayoutAnimation}
         layoutId={
-          !isDragging && !disableLayoutAnimation
-            ? `card-${card.id}`
-            : undefined
+          !isDragging && !disableLayoutAnimation ? `card-${card.id}` : undefined
         }
         variants={variants}
         // transition={isDragging ? { layout: { duration: 0 } } : undefined}
@@ -200,7 +200,7 @@ const Card = ({
         animate={animate}
         exit={exit}
         className={twMerge(
-          ` w-[7.8vw] relative aspect-[5/7]  rounded-2xl flex-col flex gap-0 items-center shadow-xl text-white font-serif`,
+          ` w-[7.8vw] relative aspect-[5/7] h-[10.92vw]  rounded-2xl flex-col flex gap-0 items-center shadow-xl text-white font-serif`,
           isDragging &&
             !card.isPlaced &&
             " ring-blue-500 ring-2 shadow-blue-400  shadow-[0px_0px_60px_rgba(0,0,0,0.5)] ",
@@ -217,7 +217,7 @@ const Card = ({
         {/* Art */}
         <div
           className={twMerge(
-            "h-[42%] relative rounded-t-2xl bg-transparent  w-full",
+            "h-[44%] relative rounded-t-2xl bg-transparent  w-full",
             card.isMinion && "h-[42%] rounded-[50%/50%]",
           )}
         >
@@ -226,7 +226,8 @@ const Card = ({
             // alt={title}
             className={twMerge(
               "object-cover w-[95%] h-[100%] top-[0.5vw] left-[0.2vw] select-none absolute z-0",
-              card.isMinion && "top-[-0.3vw] rounded-[50%/50%] h-[145%]",
+              card.isMinion &&
+                "top-[-0.33vw] rounded-[50%/50%] h-[145%] left-[0.25vw]",
               card.isWeapon && "top-0 h-[120%] left-[0.2vw]",
             )}
             draggable="false"
@@ -237,15 +238,15 @@ const Card = ({
         <img
           src={
             card.isMinion
-              ? cardBackgroundMinion
+              ? `${minioncCardBase}/${card.class.toLowerCase()}_minion_frame.webp`
               : card.isWeapon
                 ? cardBackgroundWeapon
                 : cardBackground
           }
           alt="Card Background"
           className={twMerge(
-            "object-cover w-full h-full absolute rounded-2xl z-0",
-            card.isMinion && "scale-105 scale-x-110 origin-bottom",
+            "object-cover w-full h-full absolute rounded-2xl z-0 ",
+            card.isMinion && "scale-y-107 scale-105 origin-bottom",
             card.isWeapon && "scale-109  origin-bottom",
             // card.isMinion &&
             //   card.rarity === "Legendary" &&
@@ -286,9 +287,10 @@ const Card = ({
 
         {/* Title */}
         <div
-          className="text-center relative w-full font-extrabold text-white inset-shadow-sm overflow-hidden flex  justify-center
-        h-[3vh]
-        "
+          className={twMerge(
+            "text-center  w-full font-extrabold text-white inset-shadow-sm overflow-hidden flex  justify-center  z-20 h-[3vh]! min-h-[3vh] absolute top-[42%]",
+            card.isMinion && "top-[45%]",
+          )}
           title={card.title}
         >
           {/* Hidden span for font size calculation */}
@@ -316,8 +318,7 @@ const Card = ({
         {/* Highlight Keywords Charge, Taunt, Battlecry */}
         <div
           className={twMerge(
-            "select-none text-[0.45vw] w-full relative text-black px-[1vw] font-[600] py-[0.5vw] pt-[1vw] grow font-base  text-center ",
-            card.isMinion && "pt-[0.5vw]",
+            "select-none text-[0.45vw] w-full absolute top-[40%] text-black px-[1vw] font-[600] py-[0.5vw] pt-[3vw] grow font-base  text-center ",
             card.isWeapon && "text-white",
           )}
         >

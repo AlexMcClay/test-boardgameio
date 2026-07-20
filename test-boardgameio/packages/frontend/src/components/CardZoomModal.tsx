@@ -59,7 +59,7 @@ const CardZoomModal = ({ card, originRect, onClose }: Props) => {
         <>
           <motion.div
             key="card-zoom-backdrop"
-            className="fixed inset-0 z-95 bg-black/30 backdrop-blur-xs"
+            className="fixed inset-0 z-95 bg-black/10 backdrop-blur-xs"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
