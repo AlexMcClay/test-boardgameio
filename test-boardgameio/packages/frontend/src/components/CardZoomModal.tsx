@@ -33,19 +33,19 @@ const CardZoomModal = ({ card, originRect, onClose }: Props) => {
   const flightVariants: Variants = {
     hidden: {
       x: originCenterX,
-      y: originCenterY,
+      y: originCenterY - window.innerWidth * 0.006,
       scale: startScale,
     },
     visible: {
       x: window.innerWidth / 2,
-      y: window.innerHeight / 2,
+      y: window.innerHeight / 2.5,
       scale: 2.25,
       opacity: 1,
       transition: { type: "tween", duration: 0.15, ease: "easeInOut" },
     },
     exit: {
       x: originCenterX,
-      y: originCenterY,
+      y: originCenterY - window.innerWidth * 0.006,
       scale: startScale,
       transition: {
         default: { type: "tween", duration: 0.15, ease: "easeInOut" },

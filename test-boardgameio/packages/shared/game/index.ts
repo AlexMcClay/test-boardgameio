@@ -1062,11 +1062,14 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         }
         break;
       }
-      case "draw":
+      case "draw": {
+        const drawPlayerId =
+          effect.target === "enemy" ? (playerID === "0" ? "1" : "0") : playerID;
         for (let i = 0; i < resolveDynamicValue(effect.value, context); i++) {
-          handleDrawCard(G, ctx, playerID, sourceEventIndex);
+          handleDrawCard(G, ctx, drawPlayerId, sourceEventIndex);
         }
         break;
+      }
       case "destroy": {
         const targets = resolveTargets(effect, context);
         targets.forEach((t) => {

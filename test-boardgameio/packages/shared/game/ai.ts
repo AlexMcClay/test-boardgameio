@@ -1229,9 +1229,15 @@ function evaluateEffect(effect: EffectTypes, context: EffectContext): number {
       }
       break;
 
-    case "draw":
-      score += resolveDynamicValue(effect.value, context) * 12; // Card draw is very valuable
+    case "draw": {
+      const drawCount = resolveDynamicValue(effect.value, context);
+      if (effect.target === "enemy") {
+        score -= drawCount * 12; // Giving the opponent cards is bad for us
+      } else {
+        score += drawCount * 12; // Card draw is very valuable
+      }
       break;
+    }
 
     case "summon":
       score += 25; // Summoning minions is valuable

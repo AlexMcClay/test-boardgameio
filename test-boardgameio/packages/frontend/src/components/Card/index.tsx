@@ -10,8 +10,6 @@ const cardBack = "assets/Card_Back.png";
 const mana_crystal = "assets/mana.png";
 const attackIcon = "assets/attack.png";
 const healthIcon = "assets/health.png";
-const cardBackground = "assets/card_parts/card.png";
-const cardBackgroundMinion = "assets/card_parts/minion_card.png";
 const cardBackgroundWeapon = "assets/card_parts/weapon.png";
 
 const minioncCardBase = "assets/card_parts/minion_frames/";
@@ -203,16 +201,7 @@ const Card = ({
         exit={exit}
         className={twMerge(
           ` w-[7.8vw] relative aspect-[5/7] h-[10.92vw]  rounded-2xl flex-col flex gap-0 items-center shadow-xl text-white font-serif`,
-          isDragging &&
-            !card.isPlaced &&
-            " ring-blue-500 ring-2 shadow-blue-400  shadow-[0px_0px_60px_rgba(0,0,0,0.5)] ",
-          isDragging &&
-            card.isPlaced &&
-            "ring-green-500 ring-2 shadow-green-400  shadow-[0px_0px_60px_rgba(0,0,0,0.5)]",
-          !(card.attacksLeft == 0) &&
-            card.isPlaced &&
-            ctx?.currentPlayer === playerID &&
-            "ring-green-500 ring-2 shadow-green-400  shadow-[0px_0px_20px_rgba(0,0,0,0.5)]",
+          isDragging && !card.isPlaced && " isDragPlay ",
           isDragging && "cursor-grabbing dragging-card scale-110",
         )}
       >
@@ -331,17 +320,18 @@ const Card = ({
 
         {/* Type */}
         {card.type && (
-          <div className="absolute select-none -bottom-1 w-fit px-6 text-center font-extrabold text-white shadow-md rounded bg-[#f1ce8d] flex flex-col">
+          <div className="absolute select-none bottom-[0.4vw] w-fit text-[0.5vw]/[0.55vw] px-6 text-center font-extrabold text-white shadow-md rounded-[25%/50%]  flex flex-col gap-0">
             {card.type.map((t) => (
-              <span
-                style={{
-                  WebkitTextStroke: "0.03vw black",
-                }}
-                className="relative z-10 font-belwe text-[0.6vw]  scale-130  translate-y-[-5%] translate-x-[-5%]"
-              >
+              <span className="relative z-10 font-belwe  py-0   translate-y-[-5%] translate-x-[-5%] text-shadow-A ">
                 {t}
               </span>
             ))}
+            <div
+              className="bg-[#bf965e] absolute w-full self-center smallShadow "
+              style={{
+                height: `${0.5 * card.type.length}vw`,
+              }}
+            ></div>
           </div>
         )}
 

@@ -283,7 +283,8 @@ export type TargetCondition =
   | { type: "tags-include"; value: string } // For "Wisp", "Demon", "Murloc"
   | { type: "state-match"; condition: "isDamaged" | "isUndamaged" } // Special derived states
   | { type: "exclude-self" }
-  | { type: "is-friendly" }; // Prevent hitting self with AoE
+  | { type: "is-friendly" } // Prevent hitting self with AoE
+  | { type: "exclude-target" };
 
 export interface TargetQuery {
   side: "friendly" | "enemy" | "all";
@@ -464,6 +465,7 @@ export type ApplyModifierEffect = {
 type DrawEffect = {
   type: "draw";
   value: number | DynamicValue;
+  target?: "self" | "enemy";
 };
 
 type ChangeKeyEffect = {

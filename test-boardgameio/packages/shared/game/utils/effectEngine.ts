@@ -183,6 +183,8 @@ export function checkSingleTargetCondition(
 
     case "exclude-self":
       return card.id !== conditionSourceID;
+    case "exclude-target":
+      return context.target?.id !== card.id;
     case "is-friendly":
       return context.target?.player === context.playerID;
 
