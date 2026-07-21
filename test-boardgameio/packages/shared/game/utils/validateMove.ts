@@ -114,7 +114,7 @@ export function hasTargets(
         card: c,
         target: {
           id: c.id,
-          player: mainPlayer,
+          player: enemyPlayer,
           type: "card",
         },
       },

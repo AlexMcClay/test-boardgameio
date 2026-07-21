@@ -21,15 +21,15 @@ const YourTurn = ({ mana }: Props) => {
   return (
     // REMOVED: top-[12vw] left-[25vw] absolute
     // CHANGED TO: relative so the text absolute positioning still anchors to this container
-    <div className="relative flex flex-col items-center justify-center yourTurnGlow">
+    <div className="relative flex flex-col items-center justify-center yourTurnGlow pointer-events-none">
       <img
         src={your_turn}
         alt="your-turn"
         // REMOVED: top and left from here as well
-        className="w-[50vw] h-auto"
+        className="w-[50vw] h-auto pointer-events-none"
       />
       {/* Positioned the text relative to the image banner center */}
-      <p className="text-black font-belwe absolute top-[18.6vw] text-[1.5vw]">
+      <p className="text-black font-belwe absolute top-[18.6vw] text-[1.5vw] pointer-events-none">
         You Have {mana} mana.
       </p>
     </div>

@@ -99,6 +99,10 @@ export function detectAllAnimations(events: GameEvent[]): AnimationEvent[] {
       playerId: event.playerId,
       startTime: 0,
       duration: MINION_SUMMONED_ANIMATION.duration,
+      sfx: event.card.sfx?.play?.map((p) => ({
+        ...p,
+        delay: MINION_SUMMONED_ANIMATION.duration,
+      })),
     });
   });
 

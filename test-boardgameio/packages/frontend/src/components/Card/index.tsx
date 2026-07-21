@@ -10,9 +10,11 @@ const cardBack = "assets/Card_Back.png";
 const mana_crystal = "assets/mana.png";
 const attackIcon = "assets/attack.png";
 const healthIcon = "assets/health.png";
-const cardBackground = "assets/card_parts/card.png";
-const cardBackgroundMinion = "assets/card_parts/minion_card.png";
 const cardBackgroundWeapon = "assets/card_parts/weapon.png";
+
+const minioncCardBase = "assets/card_parts/minion_frames/";
+const spellCardsBase = "assets/card_parts/spell_frames/";
+
 // const cardBackgroundMinionLegendary = "assets/card_parts/legendary_minion.png";
 
 interface Props extends CardProps {}
@@ -43,6 +45,7 @@ const Card = ({
   animate,
   initial,
   exit,
+  disableLayoutAnimation = false,
 }: Props) => {
   // Parameters are now multipliers of container height (viewport-scaled)
   // maxFont: 0.8 = 80% of container height, minFont: 0.4 = 40% of container height
@@ -141,23 +144,6 @@ const Card = ({
     };
   }, []);
 
-  if (back) {
-    return (
-      <motion.div
-        className="w-[7.8vw] relative aspect-[5/7] bg-[#37373b] rounded-2xl flex-col flex gap-1 items-center shadow-xl overflow-hidden"
-        layout
-        layoutId={`card-${card.id}`}
-      >
-        <img
-          src={cardBack}
-          alt="Card Back"
-          className="object-cover w-full h-full "
-          draggable="false"
-        />
-      </motion.div>
-    );
-  }
-
   const text = useMemo(() => {
     let parsedDescription = card.description;
     keywords.forEach((keyword) => {
@@ -181,38 +167,48 @@ const Card = ({
     },
   };
 
+  if (back) {
+    return (
+      <motion.div
+        className="w-[7.8vw] relative aspect-[5/7] bg-[#37373b] rounded-2xl flex-col flex gap-1 items-center shadow-xl overflow-hidden"
+        layout={!disableLayoutAnimation}
+        layoutId={!disableLayoutAnimation ? `card-${card.id}` : undefined}
+      >
+        <img
+          src={cardBack}
+          alt="Card Back"
+          className="object-cover w-full h-full "
+          draggable="false"
+        />
+      </motion.div>
+    );
+  }
+
   return (
     <>
       <motion.div
         ref={cardWrapperRef}
         onMouseEnter={handleCardMouseEnter}
         onMouseLeave={handleCardMouseLeave}
-        layout={!isDragging}
-        layoutId={!isDragging ? `card-${card.id}` : undefined}
+        layout={!isDragging && !disableLayoutAnimation}
+        layoutId={
+          !isDragging && !disableLayoutAnimation ? `card-${card.id}` : undefined
+        }
         variants={variants}
         // transition={isDragging ? { layout: { duration: 0 } } : undefined}
         initial={initial}
         animate={animate}
         exit={exit}
         className={twMerge(
-          ` w-[7.8vw] relative aspect-[5/7]  rounded-2xl flex-col flex gap-0 items-center shadow-xl text-white font-serif`,
-          isDragging &&
-            !card.isPlaced &&
-            " ring-blue-500 ring-2 shadow-blue-400  shadow-[0px_0px_60px_rgba(0,0,0,0.5)] ",
-          isDragging &&
-            card.isPlaced &&
-            "ring-green-500 ring-2 shadow-green-400  shadow-[0px_0px_60px_rgba(0,0,0,0.5)]",
-          !(card.attacksLeft == 0) &&
-            card.isPlaced &&
-            ctx?.currentPlayer === playerID &&
-            "ring-green-500 ring-2 shadow-green-400  shadow-[0px_0px_20px_rgba(0,0,0,0.5)]",
+          ` w-[7.8vw] relative aspect-[5/7] h-[10.92vw]  rounded-2xl flex-col flex gap-0 items-center shadow-xl text-white font-serif`,
+          isDragging && !card.isPlaced && " isDragPlay ",
           isDragging && "cursor-grabbing dragging-card scale-110",
         )}
       >
         {/* Art */}
         <div
           className={twMerge(
-            "h-[42%] relative rounded-t-2xl bg-transparent  w-full",
+            "h-[44%] relative rounded-t-2xl bg-transparent  w-full",
             card.isMinion && "h-[42%] rounded-[50%/50%]",
           )}
         >
@@ -220,8 +216,9 @@ const Card = ({
             src={card.imageUrl}
             // alt={title}
             className={twMerge(
-              "object-cover w-[95%] h-[100%] top-2 left-0.5 select-none absolute z-0",
-              card.isMinion && "top-[-0.3vw] rounded-[50%/50%] h-[145%]",
+              "object-cover w-[95%] h-[100%] top-[0.5vw] left-[0.2vw] select-none absolute z-0",
+              card.isMinion &&
+                "top-[-0.33vw] rounded-[50%/50%] h-[145%] left-[0.25vw]",
               card.isWeapon && "top-0 h-[120%] left-[0.2vw]",
             )}
             draggable="false"
@@ -232,15 +229,14 @@ const Card = ({
         <img
           src={
             card.isMinion
-              ? cardBackgroundMinion
+              ? `${minioncCardBase}/${card.class.toLowerCase()}_minion_frame.webp`
               : card.isWeapon
                 ? cardBackgroundWeapon
-                : cardBackground
+                : `${spellCardsBase}/${card.class.toLowerCase()}_spell_frame.webp`
           }
           alt="Card Background"
           className={twMerge(
-            "object-cover w-full h-full absolute rounded-2xl z-0",
-            card.isMinion && "scale-105 scale-x-110 origin-bottom",
+            "object-cover w-full h-full absolute rounded-2xl z-0 scale-y-107 scale-105 origin-bottom ",
             card.isWeapon && "scale-109  origin-bottom",
             // card.isMinion &&
             //   card.rarity === "Legendary" &&
@@ -281,9 +277,10 @@ const Card = ({
 
         {/* Title */}
         <div
-          className="text-center relative w-full font-extrabold text-white inset-shadow-sm overflow-hidden flex  justify-center
-        h-[3vh]
-        "
+          className={twMerge(
+            "text-center  w-full font-extrabold text-white inset-shadow-sm overflow-hidden flex  justify-center  z-20 h-[3vh]! min-h-[3vh] absolute top-[42%]",
+            card.isMinion && "top-[45%]",
+          )}
           title={card.title}
         >
           {/* Hidden span for font size calculation */}
@@ -311,8 +308,7 @@ const Card = ({
         {/* Highlight Keywords Charge, Taunt, Battlecry */}
         <div
           className={twMerge(
-            "select-none text-[0.45vw] w-full relative text-black px-[1vw] font-[600] py-[0.5vw] pt-[1vw] grow font-base  text-center ",
-            card.isMinion && "pt-[0.5vw]",
+            "select-none text-[0.45vw] w-full absolute top-[40%] text-black px-[1vw] font-[600] py-[0.5vw] pt-[3vw] grow font-base  text-center ",
             card.isWeapon && "text-white",
           )}
         >
@@ -324,17 +320,18 @@ const Card = ({
 
         {/* Type */}
         {card.type && (
-          <div className="absolute select-none -bottom-1 w-fit px-6 text-center font-extrabold text-white shadow-md rounded bg-[#f1ce8d] flex flex-col">
+          <div className="absolute select-none bottom-[0.4vw] w-fit text-[0.5vw]/[0.55vw] px-6 text-center font-extrabold text-white shadow-md rounded-[25%/50%]  flex flex-col gap-0">
             {card.type.map((t) => (
-              <span
-                style={{
-                  WebkitTextStroke: "0.03vw black",
-                }}
-                className="relative z-10 font-belwe text-[0.6vw]  scale-130  translate-y-[-5%] translate-x-[-5%]"
-              >
+              <span className="relative z-10 font-belwe  py-0   translate-y-[-5%] translate-x-[-5%] text-shadow-A ">
                 {t}
               </span>
             ))}
+            <div
+              className="bg-[#bf965e] absolute w-full self-center smallShadow "
+              style={{
+                height: `${0.5 * card.type.length}vw`,
+              }}
+            ></div>
           </div>
         )}
 

@@ -7,6 +7,7 @@ import type {
   DynamicValue,
   EffectTypes,
   SFXInstance,
+  TargetCondition,
 } from "../types";
 
 const damage = (
@@ -93,10 +94,14 @@ const heal = (
   };
 };
 
-const draw = (value: number | DynamicValue): EffectTypes => {
+const draw = (
+  value: number | DynamicValue,
+  target: "self" | "enemy" = "self",
+): EffectTypes => {
   return {
     type: "draw",
     value: value,
+    target: target,
   };
 };
 
@@ -151,7 +156,7 @@ const armor = (
 };
 
 // Add to hand utility - for generating/discovering cards
-/* const addToHand = (
+export const addToHand = (
   cardID: string | string[],
   count: number | DynamicValue = 1,
   modifiers?: ApplyModifierEffect[],
@@ -163,12 +168,12 @@ const armor = (
     value: count,
     modifiers: modifiers,
   };
-}; */
+};
 
 // Add from deck - removes cards from deck
-/*
-const addFromDeck = (
-  conditions: import("../types").TargetCondition[],
+
+export const addFromDeck = (
+  conditions: TargetCondition[],
   count: number | DynamicValue = 1,
   random: boolean = false,
   fallback?: { cardID: string; value: number },
@@ -183,11 +188,11 @@ const addFromDeck = (
     fallback: fallback,
   };
 };
- */
+
 // Add copy from deck - creates copy, keeps original in deck
-/*
-const addCopyFromDeck = (
-  conditions: import("../types").TargetCondition[],
+
+export const addCopyFromDeck = (
+  conditions: TargetCondition[],
   count: number | DynamicValue = 1,
   random: boolean = false,
 ): EffectTypes => {
@@ -199,7 +204,7 @@ const addCopyFromDeck = (
     value: count,
     rand: random ? { n: typeof count === "number" ? count : 1 } : undefined,
   };
-}; */
+};
 
 export const combo = (combo: EffectTypes[]): EffectTypes => {
   return {
@@ -241,7 +246,7 @@ const comboOr = (
 
 // Add random card from global pool
 const addRandomCard = (
-  conditions: import("../types").TargetCondition[],
+  conditions: TargetCondition[],
   count: number | DynamicValue = 1,
   modifiers?: ApplyModifierEffect[],
   fallback?:
@@ -265,7 +270,7 @@ const addRandomCard = (
 // Return minion to hand
 const returnToHand = (
   target: "user-select" | "friendly-board" | "enemy-board" | "board",
-  conditions?: import("../types").TargetCondition[],
+  conditions?: TargetCondition[],
   randomCount?: number,
   modifiers?: ApplyModifierEffect[],
 ): EffectTypes => {
@@ -278,19 +283,33 @@ const returnToHand = (
   };
 };
 
+const sfxShortener = (sfx: string) => `/cards/${sfx}`;
+
 const sfx = (
-  play: string[],
-  attack?: string[],
-  death?: string[],
+  play: (string | SFXInstance)[],
+  attack?: (string | SFXInstance)[],
+  death?: (string | SFXInstance)[],
 ): {
   death?: SFXInstance[] | undefined;
   play?: SFXInstance[];
   attack?: SFXInstance[];
 } => {
   return {
-    death: death?.map((soundId) => ({ soundId: `/cards/${soundId}` })),
-    play: play?.map((soundId) => ({ soundId: `/cards/${soundId}` })),
-    attack: attack?.map((soundId) => ({ soundId: `/cards/${soundId}` })),
+    death: death?.map((soundId) =>
+      typeof soundId === "string"
+        ? { soundId: sfxShortener(soundId) }
+        : soundId,
+    ),
+    play: play?.map((soundId) =>
+      typeof soundId === "string"
+        ? { soundId: sfxShortener(soundId) }
+        : soundId,
+    ),
+    attack: attack?.map((soundId) =>
+      typeof soundId === "string"
+        ? { soundId: sfxShortener(soundId) }
+        : soundId,
+    ),
   };
 };
 
@@ -319,6 +338,11 @@ export const cardTemplates = {
     rarity: "Common",
     class: "Warlock",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_319_Play_01.ogg"],
+      ["VO_EX1_319_Attack_02.ogg"],
+      ["VO_EX1_319_Death_03.ogg"],
+    ),
   },
   "chillwind-yeti": {
     title: "Chillwind Yeti",
@@ -342,6 +366,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_182_ChillwindYeti_EnterPlay1.ogg"],
+      ["CS2_182_ChillwindYeti_Attack1.ogg"],
+      ["CS2_182_ChillwindYeti_Death4.ogg"],
+    ),
   },
   fireball: {
     title: "Fireball",
@@ -367,7 +396,7 @@ export const cardTemplates = {
         },
         {
           soundId: "/cards/fireball/FX_FireballEvent04_SpellImpact_01.ogg",
-          delay: 200,
+          delay: 400,
         },
       ],
     },
@@ -454,6 +483,11 @@ export const cardTemplates = {
     rarity: "Common",
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_200_Play_01.ogg"],
+      ["VO_CS2_200_Attack_02.ogg"],
+      ["VO_CS2_200_Death_03.ogg"],
+    ),
   },
   wolfrider: {
     title: "Wolfrider",
@@ -478,6 +512,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_124_Play_01.ogg", "SFX_CS2_124_Wolf_EnterPlay_00.ogg"],
+      ["VO_CS2_124_Attack_02.ogg", "SFX_CS2_124_Wolf_Attack_00.ogg"],
+      ["VO_CS2_124_Death_03.ogg", "SFX_CS2_124_Wolf_Death_00.ogg"],
+    ),
   },
   frostbolt: {
     title: "Frostbolt",
@@ -496,6 +535,13 @@ export const cardTemplates = {
     rarity: "Common",
     class: "Mage",
     set: ["Legacy"],
+    sfx: sfx([
+      "Shared_Frost_Cast_1.ogg",
+      {
+        soundId: sfxShortener("FrostBoltHit1.ogg"),
+        delay: 400,
+      },
+    ]),
   },
   "bloodfen-raptor": {
     title: "Bloodfen Raptor",
@@ -519,6 +565,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_172_StranglethornRaptor_EnterPlay.ogg"],
+      ["CS2_172_StranglethornRaptor_Attack.ogg"],
+      ["CS2_172_StranglethornRaptor_Death.ogg"],
+    ),
   },
   "river-crocolisk": {
     title: "River Crocolisk",
@@ -542,6 +593,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["SFX_CS2_120_EnterPlay.ogg"],
+      ["SFX_CS2_120_Attack.ogg"],
+      ["SFX_CS2_120_Death.ogg"],
+    ),
   },
   "ironfur-grizzly": {
     title: "Ironfur Grizzly",
@@ -566,6 +622,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_125_Ironfur_Grizzly_EnterPlay1.ogg"],
+      ["CS2_125_Ironfur_Grizzly_Attack3.ogg"],
+      ["CS2_125_Ironfur_Grizzly_Death1.ogg"],
+    ),
   },
   charge: {
     title: "Charge",
@@ -612,6 +673,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_168_Murloc_Raider_EnterPlay1.ogg"],
+      ["CS2_168_Murloc_Raider_Attack1.ogg"],
+      ["CS2_168_Murloc_Raider_Death2.ogg"],
+    ),
   },
   "silver-hand-recruit": {
     title: "Silver Hand Recruit",
@@ -635,6 +701,11 @@ export const cardTemplates = {
     class: "Paladin",
     isUncollectible: true,
     set: [],
+    sfx: sfx(
+      ["VO_CS2_101t_Play_01.ogg"],
+      ["VO_CS2_101t_Attack_02.ogg"],
+      ["VO_CS2_101t_Death_03.ogg"],
+    ),
   },
   "frostwolf-grunt": {
     title: "Frostwolf Grunt",
@@ -658,6 +729,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_121_Play_01.ogg"],
+      ["VO_CS2_121_Attack_02.ogg"],
+      ["VO_CS2_121_Death_03.ogg"],
+    ),
   },
   "murloc-tidehunter": {
     title: "Murloc Tidehunter",
@@ -681,6 +757,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["EX1_506_Murloc_Scout_EnterPlay1.ogg"],
+      ["EX1_506_Murloc_Scout_Attack2.ogg"],
+      ["EX1_506_Murloc_Scout_Death2.ogg"],
+    ),
   },
   "murloc-scout": {
     title: "Murloc Scout",
@@ -705,6 +786,11 @@ export const cardTemplates = {
     isUncollectible: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["EX1_506a_Murloc_Tidehunter_EnterPlay1.ogg"],
+      ["EX1_506a_Murloc_Tidehunter_Attack1.ogg"],
+      ["EX1_506a_Murloc_Tidehunter_Death1.ogg"],
+    ),
   },
   "razorfen-hunter": {
     title: "Razorfen Hunter",
@@ -727,6 +813,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_196_Play_01.ogg"],
+      ["VO_CS2_196_Attack_02.ogg"],
+      ["VO_CS2_196_Death_03.ogg"],
+    ),
   },
   boar: {
     title: "Boar",
@@ -751,6 +842,11 @@ export const cardTemplates = {
     isUncollectible: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["SFX_CS2_boar_EnterPlay.ogg"],
+      ["SFX_CS2_boar_Attack.ogg"],
+      ["SFX_CS2_boar_Death.ogg"],
+    ),
   },
   "dragonling-mechanic": {
     title: "Dragonling Mechanic",
@@ -773,6 +869,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_025_Play_01.ogg"],
+      ["VO_EX1_025_Attack_02.ogg"],
+      ["VO_EX1_025_Death_03.ogg"],
+    ),
   },
   "mechanical-dragonling": {
     title: "Mechanical Dragonling",
@@ -797,6 +898,11 @@ export const cardTemplates = {
     isUncollectible: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["SFX_EX1_025t_EnterPlay.ogg"],
+      ["SFX_EX1_025t_Attack.ogg"],
+      ["SFX_EX1_025t_Death.ogg"],
+    ),
   },
   "senjin-shieldmasta": {
     title: "Sen'jin Shieldmasta",
@@ -819,23 +925,11 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
-    sfx: {
-      attack: [
-        {
-          soundId: "/cards/Shieldmasta/VO_CS2_179_Attack_02.ogg",
-        },
-      ],
-      death: [
-        {
-          soundId: "/cards/Shieldmasta/VO_CS2_179_Death_03.ogg",
-        },
-      ],
-      play: [
-        {
-          soundId: "/cards/Shieldmasta/VO_CS2_179_Play_01.ogg",
-        },
-      ],
-    },
+    sfx: sfx(
+      ["VO_CS2_179_Play_01.ogg"],
+      ["VO_CS2_179_Attack_02.ogg"],
+      ["VO_CS2_179_Death_03.ogg"],
+    ),
     set: ["Legacy"],
   },
   "lord-of-the-arena": {
@@ -860,6 +954,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_162_Play_01.ogg"],
+      ["VO_CS2_162_Attack_02.ogg"],
+      ["VO_CS2_162_Death_03.ogg"],
+    ),
   },
   "stormwind-knight": {
     title: "Stormwind Knight",
@@ -884,6 +983,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_131_Play_01.ogg"],
+      ["VO_CS2_131_Attack_02.ogg"],
+      ["VO_CS2_131_Death_03.ogg"],
+    ),
   },
   innervate: {
     title: "Innervate",
@@ -958,6 +1062,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_DS1_055_Play_01.ogg"],
+      ["VO_DS1_055_Attack_02.ogg"],
+      ["VO_DS1_055_Death_03.ogg"],
+    ),
   },
   nightblade: {
     title: "Nightblade",
@@ -981,6 +1090,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_593_Play_01.ogg"],
+      ["VO_EX1_593_Attack_02.ogg"],
+      ["VO_EX1_593_Death_03.ogg"],
+    ),
   },
   "elven-archer": {
     title: "Elven Archer",
@@ -1013,6 +1127,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_189_Play_01.ogg"],
+      ["VO_CS2_189_Attack_02.ogg"],
+      ["VO_CS2_189_Death_03.ogg"],
+    ),
   },
   "ironforge-rifleman": {
     title: "Ironforge Rifleman",
@@ -1045,11 +1164,16 @@ export const cardTemplates = {
     tags: ["Battlecry"],
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_141_Play_01.ogg"],
+      ["VO_CS2_141_Attack_02.ogg"],
+      ["VO_CS2_141_Death_03.ogg"],
+    ),
   },
   "core-hound": {
     title: "Core Hound",
     baseAttack: 9,
-    baseHealth: 7,
+    baseHealth: 5,
     baseMana: 7,
     type: ["Elemental", "Beast"],
     description: "",
@@ -1068,6 +1192,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_201_Core_Hound_EnterPlay1.ogg"],
+      ["CS2_201_Core_Hound_Attack2.ogg"],
+      ["CS2_201_Core_Hound_Death1.ogg"],
+    ),
   },
   "silverback-patriarch": {
     title: "Silverback Patriarch",
@@ -1093,6 +1222,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_127_Silverback_Patriarch_EnterPlay1.ogg"],
+      ["CS2_127_Silverback_Patriarch_Attack3.ogg"],
+      ["CS2_127_Silverback_Patriarch_Death1.ogg"],
+    ),
   },
   "magma-rager": {
     title: "Magma Rager",
@@ -1116,6 +1250,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["SFX_CS2_118_EnterPlay.ogg"],
+      ["SFX_CS2_118_Attack.ogg"],
+      ["SFX_CS2_118_Death.ogg"],
+    ),
   },
   "oasis-snapjaw": {
     title: "Oasis Snapjaw",
@@ -1139,6 +1278,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_119_Oasis_Snapjaw_EnterPlay2.ogg"],
+      ["CS2_119_Oasis_Snapjaw_Attack1.ogg"],
+      ["CS2_119_Oasis_Snapjaw_Death2.ogg"],
+    ),
   },
   "silver-hand-knight": {
     title: "Silver Hand Knight",
@@ -1163,6 +1307,11 @@ export const cardTemplates = {
     rarity: "Common",
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_151_Play_01.ogg"],
+      ["VO_CS2_151_Attack_02.ogg"],
+      ["VO_CS2_151_Death_03.ogg"],
+    ),
   },
   squire: {
     title: "Squire",
@@ -1187,6 +1336,11 @@ export const cardTemplates = {
     isUncollectible: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_152_Play_01.ogg"],
+      ["VO_CS2_152_Attack_02.ogg"],
+      ["VO_CS2_152_Death_03.ogg"],
+    ),
   },
   "voodoo-doctor": {
     title: "Voodoo Doctor",
@@ -1219,6 +1373,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_011_Play_01.ogg"],
+      ["VO_EX1_011_Attack_02.ogg"],
+      ["VO_EX1_011_Death_03.ogg"],
+    ),
   },
   "novice-engineer": {
     title: "Novice Engineer",
@@ -1240,23 +1399,11 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
-    sfx: {
-      attack: [
-        {
-          soundId: "/cards/VO_EX1_015_Attack_02.ogg",
-        },
-      ],
-      death: [
-        {
-          soundId: "/cards/VO_EX1_015_Death_03.ogg",
-        },
-      ],
-      play: [
-        {
-          soundId: "/cards/VO_EX1_015_Play_01.ogg",
-        },
-      ],
-    },
+    sfx: sfx(
+      ["VO_EX1_015_Play_01.ogg"],
+      ["VO_EX1_015_Attack_02.ogg"],
+      ["VO_EX1_015_Death_03.ogg"],
+    ),
     set: ["Legacy"],
   },
   "stormpike-commando": {
@@ -1290,6 +1437,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_150_Play_01.ogg"],
+      ["VO_CS2_150_Attack_02.ogg"],
+      ["VO_CS2_150_Death_03.ogg"],
+    ),
   },
   "gnomish-inventor": {
     title: "Gnomish Inventor",
@@ -1313,6 +1465,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_147_Play_01.ogg"],
+      ["VO_CS2_147_Attack_02.ogg"],
+      ["VO_CS2_147_Death_03.ogg"],
+    ),
   },
   "arcane-shot": {
     title: "Arcane Shot",
@@ -1385,23 +1542,11 @@ export const cardTemplates = {
     },
     isMinion: true,
     class: "Neutral",
-    sfx: {
-      attack: [
-        {
-          soundId: "/cards/VO_CS1_042_Attack_02.ogg",
-        },
-      ],
-      death: [
-        {
-          soundId: "/cards/VO_CS1_042_Death_03.ogg",
-        },
-      ],
-      play: [
-        {
-          soundId: "/cards/VO_CS1_042_Play_01.ogg",
-        },
-      ],
-    },
+    sfx: sfx(
+      ["VO_CS1_042_Play_01.ogg"],
+      ["VO_CS1_042_Attack_02.ogg"],
+      ["VO_CS1_042_Death_03.ogg"],
+    ),
     set: ["Legacy"],
   },
   "booty-bay-bodyguard": {
@@ -1427,6 +1572,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_187_Play_01.ogg"],
+      ["VO_CS2_187_Attack_02.ogg"],
+      ["VO_CS2_187_Death_03.ogg"],
+    ),
   },
   "reckless-rocketeer": {
     title: "Reckless Rocketeer",
@@ -1451,6 +1601,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_213_Play_01.ogg"],
+      ["VO_CS2_213_Attack_02.ogg"],
+      ["VO_CS2_213_Death_03.ogg"],
+    ),
   },
   "inner-rage": {
     title: "Inner Rage",
@@ -1493,6 +1648,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Neutral",
     set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_173_Bluegill_Warrior_EnterPlay1.ogg"],
+      ["CS2_173_Bluegill_Warrior_Attack3.ogg"],
+      ["CS2_173_Bluegill_Warrior_Death1.ogg"],
+    ),
   },
   flamestrike: {
     title: "Flamestrike",
@@ -1552,6 +1712,11 @@ export const cardTemplates = {
     rarity: "Common",
     deathrattle: [damage(2, "enemy-hero")],
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_029_Play_01.ogg"],
+      ["VO_EX1_029_Attack_02.ogg"],
+      ["VO_EX1_029_Death_03.ogg"],
+    ),
   },
   "loot-hoarder": {
     title: "Loot Hoarder",
@@ -1608,6 +1773,11 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_008_Play_01.ogg"],
+      ["VO_EX1_008_Attack_02.ogg"],
+      ["VO_EX1_008_Death_03.ogg"],
+    ),
   },
   shielded_minibot: {
     title: "Shielded Minibot",
@@ -1634,6 +1804,11 @@ export const cardTemplates = {
     },
     rarity: "Common",
     set: ["Goblins vs Gnomes"],
+    sfx: sfx(
+      ["CleanMechSmall_Play_Underlay.ogg", "VO_GVG_058_Play_01.ogg"],
+      ["VO_GVG_058_Attack_02.ogg", "CleanMechSmall_Attack_Underlay.ogg"],
+      ["VO_GVG_058_Death_03.ogg", "CleanMechSmall_Death_Underlay.ogg"],
+    ),
   },
   "tirion-fordring": {
     title: "Tirion Fordring",
@@ -1713,6 +1888,11 @@ export const cardTemplates = {
     rarity: "Rare",
     onPlace: [],
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_032_Play_01.ogg"],
+      ["VO_EX1_032_Attack_02.ogg"],
+      ["VO_EX1_032_Death_03.ogg"],
+    ),
   },
   "argent-protector": {
     title: "Argent Protector",
@@ -1748,6 +1928,11 @@ export const cardTemplates = {
       ],
     },
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_362_Play_01.ogg"],
+      ["VO_EX1_362_Attack_02.ogg"],
+      ["VO_EX1_362_Death_03.ogg"],
+    ),
   },
   "hand-of-protection": {
     title: "Hand of Protection",
@@ -1821,6 +2006,11 @@ export const cardTemplates = {
     isUncollectible: true, // Hidden from deckbuilders, matching your rule constraints
     class: "Druid",
     set: ["Legacy"],
+    sfx: sfx(
+      ["EX1_158tTreant_EnterPlay1.ogg"],
+      ["EX1_158tTreant_Attack2.ogg"],
+      ["EX1_158tTreant_Death2.ogg"],
+    ),
   },
   "ironbark-protector": {
     title: "Ironbark Protector",
@@ -1845,6 +2035,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Druid",
     set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_232_Ironbark_Protector_EnterPlay2.ogg"],
+      ["CS2_232_Ironbark_Protector_Attack4.ogg"],
+      ["CS2_232_Ironbark_Protector_Death5.ogg"],
+    ),
   },
   starfire: {
     title: "Starfire",
@@ -1862,6 +2057,7 @@ export const cardTemplates = {
     isMinion: false,
     class: "Druid",
     set: ["Legacy"],
+    sfx: sfx(["Shared_Arcane_Start_1.ogg"]),
   },
   "frost-nova": {
     title: "Frost Nova",
@@ -1879,6 +2075,7 @@ export const cardTemplates = {
     isMinion: false,
     class: "Mage",
     set: ["Legacy"],
+    sfx: sfx(["Mage_FrostNova_Cast_1.ogg"]),
   },
   blizzard: {
     title: "Blizzard",
@@ -1940,11 +2137,16 @@ export const cardTemplates = {
     isMinion: true,
     class: "Warrior",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_NEW1_011_Play_01.ogg"],
+      ["VO_NEW1_011_Attack_02.ogg"],
+      ["VO_NEW1_011_Death_03.ogg"],
+    ),
   },
   "lay-on-hands": {
     title: "Lay on Hands",
     description: "Restore 8 Health. Draw 3 cards.",
-    baseMana: 8,
+    baseMana: 6,
     type: ["Holy"],
     tags: ["Heal"],
     imageUrl: "assets/cards/Lay_on_Hands.jpg",
@@ -1983,6 +2185,11 @@ export const cardTemplates = {
     isMinion: true,
     class: "Paladin",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_088_Play_01.ogg"],
+      ["VO_CS2_088_Attack_02.ogg"],
+      ["VO_CS2_088_Death_03.ogg"],
+    ),
   },
   "warsong-outrider": {
     title: "Warsong Outrider",
@@ -2008,6 +2215,11 @@ export const cardTemplates = {
     class: "Warrior",
     rarity: "Common",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS3_030_Female_Orc_Play_01.ogg"],
+      ["VO_CS3_030_Female_Orc_Attack_01.ogg"],
+      ["VO_CS3_030_Female_Orc_Death_01.ogg"],
+    ),
   },
   "cruel-taskmaster": {
     title: "Cruel Taskmaster",
@@ -2041,6 +2253,11 @@ export const cardTemplates = {
     class: "Warrior",
     rarity: "Common",
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_603_Play_01.ogg"],
+      ["VO_EX1_603_Attack_02.ogg"],
+      ["VO_EX1_603_Death_03.ogg"],
+    ),
   },
   "shield-block": {
     title: "Shield Block",
@@ -2119,6 +2336,11 @@ export const cardTemplates = {
     isUncollectible: true, // Generated by the parent spell
     class: "Warrior",
     set: ["Across the Timeways"],
+    sfx: sfx(
+      ["TIME_873t_ColosseumCrocolisk_Play.ogg"],
+      ["TIME_873t_ColosseumCrocolisk_Attack.ogg"],
+      ["TIME_873t_ColosseumCrocolisk_Death.ogg"],
+    ),
   },
   execute: {
     title: "Execute",
@@ -2281,6 +2503,13 @@ export const cardTemplates = {
     isMinion: false,
     class: "Mage",
     set: ["Legacy"],
+    sfx: sfx([
+      "Shared_Arcane_Start_1.ogg",
+      {
+        soundId: sfxShortener("Mage_ArcaneMissiles_Impact_1.ogg"),
+        delay: 200,
+      },
+    ]),
   },
   "ice-lance": {
     title: "Ice Lance",
@@ -2289,6 +2518,7 @@ export const cardTemplates = {
     baseMana: 1,
     imageUrl: "assets/cards/Ice_Lance.jpg",
     class: "Mage",
+    type: ["Frost"],
     tags: ["Freeze"],
     rarity: "Common",
     isMinion: false,
@@ -2343,6 +2573,11 @@ export const cardTemplates = {
     ],
     onPlace: [],
     set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_033_Play_WaterElemental.ogg"],
+      ["CS2_033_Attack_WaterElemental.ogg"],
+      ["CS2_033_Death_WaterElemental.ogg"],
+    ),
   },
   "deep-freeze": {
     title: "Deep Freeze",
@@ -2453,6 +2688,11 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_065_Play_01.ogg"],
+      ["VO_CS2_065_Attack_02.ogg"],
+      ["VO_CS2_065_Death_03.ogg"],
+    ),
   },
   demonfire: {
     title: "Demonfire",
@@ -2618,6 +2858,11 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_313_Play_01.ogg"],
+      ["VO_EX1_313_Attack_02.ogg"],
+      ["VO_EX1_313_Death_03.ogg"],
+    ),
   },
   "dread-infernal": {
     title: "Dread Infernal",
@@ -2657,6 +2902,11 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     set: ["Legacy"],
+    sfx: sfx(
+      ["SFX_CS2_064_EnterPlay.ogg"],
+      ["SFX_CS2_064_Attack.ogg"],
+      ["SFX_CS2_064_Death.ogg"],
+    ),
   },
   "twisting-nether": {
     title: "Twisting Nether",
@@ -2729,6 +2979,11 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     set: ["Kobolds & Catacombs"],
+    sfx: sfx(
+      ["VO_LOOT_013_Male_Demon_Play_02.ogg"],
+      ["VO_LOOT_013_Male_Demon_Attack_02.ogg"],
+      ["VO_LOOT_013_Male_Demon_Death_01.ogg"],
+    ),
   },
   "demonic-assault": {
     title: "Demonic Assault",
@@ -2801,6 +3056,11 @@ export const cardTemplates = {
     isUncollectible: true,
     class: "Warlock",
     set: ["Legacy"],
+    sfx: sfx(
+      ["WoW_EX1_317t_Worthless_Imp_EnterPlay.ogg"],
+      ["WoW_EX1_317t_Worthless_Imp_Attack.ogg"],
+      ["WoW_EX1_317t_Worthless_Imp_Death.ogg"],
+    ),
   },
   riftcleaver: {
     title: "Riftcleaver",
@@ -2850,6 +3110,11 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     set: ["Saviors of Uldum"],
+    sfx: sfx(
+      ["VO_ULD_165_Male_Demon_Play_01.ogg"],
+      ["VO_ULD_165_Male_Demon_Attack_01.ogg"],
+      ["VO_ULD_165_Male_Demon_Death_01.ogg"],
+    ),
   },
   voidlord: {
     title: "Voidlord",
@@ -2877,6 +3142,11 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     set: ["Kobolds & Catacombs"],
+    sfx: sfx(
+      ["VO_LOOT_368_Male_Demon_Play_01.ogg"],
+      ["VO_LOOT_368_Male_Demon_Attack_01.ogg"],
+      ["VO_LOOT_368_Male_Demon_Death_01.ogg"],
+    ),
   },
   backstab: {
     title: "Backstab",
@@ -3084,6 +3354,11 @@ export const cardTemplates = {
     },
     onPlace: [discard(1, "random")],
     set: ["Legacy"],
+    sfx: sfx(
+      ["Felstalker_EX1_306_Play.ogg"],
+      ["Felstalker_EX1_306_Attack.ogg"],
+      ["Felstalker_EX1_306_Death.ogg"],
+    ),
   },
   doomguard: {
     title: "Doomguard",
@@ -3110,6 +3385,11 @@ export const cardTemplates = {
     },
     onPlace: [discard(2, "random")],
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_310_Play_01.ogg"],
+      ["VO_EX1_310_Attack_02.ogg"],
+      ["VO_EX1_310_Death_03.ogg"],
+    ),
   },
   "abusive-sargent": {
     title: "Abusive Sergeant",
@@ -3144,6 +3424,11 @@ export const cardTemplates = {
       type: ["card"],
     },
     set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_188_Play_01.ogg"],
+      ["VO_CS2_188_Attack_02.ogg"],
+      ["VO_CS2_188_Death_03.ogg"],
+    ),
   },
   "fiery-war-axe": {
     title: "Fiery War Axe",
@@ -3537,6 +3822,1005 @@ export const cardTemplates = {
       ["VO_CS2_122_Attack_02.ogg"],
       ["VO_CS2_122_Death_03.ogg"],
     ),
+  },
+  "shattered-sun-cleric": {
+    title: "Shattered Sun Cleric",
+    description: "Battlecry: Give a friendly minion +1/+1.",
+    baseMana: 3,
+    baseAttack: 3,
+    baseHealth: 2,
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Shattered_Sun_Cleric.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [applyModifier("attack", 1), applyModifier("health", 1)],
+    battlecryQuery: {
+      side: "friendly",
+      type: ["card"],
+      conditions: [
+        {
+          type: "exclude-self",
+        },
+      ],
+    },
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_019_Play_01.ogg"],
+      ["VO_EX1_019_Attack_02.ogg"],
+      ["VO_EX1_019_Death_03.ogg"],
+    ),
+  },
+  "war-golem": {
+    title: "War Golem",
+    description: "",
+    baseMana: 7,
+    baseAttack: 7,
+    baseHealth: 7,
+    imageUrl: "assets/cards/War_Golem.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_186_War_Golem_EnterPlay1.ogg"],
+      ["CS2_186_War_Golem_Attack3.ogg"],
+      ["CS2_186_War_Golem_Death3.ogg"],
+    ),
+  },
+  wisp: {
+    title: "Wisp",
+    description: "",
+    baseMana: 0,
+    baseAttack: 1,
+    baseHealth: 1,
+    type: ["Undead"],
+    imageUrl: "assets/cards/Wisp.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Common",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_231_Wisp_EnterPlay1.ogg"],
+      ["CS2_231_Wisp_Attack2.ogg"],
+      ["CS2_231_Wisp_Death1.ogg"],
+    ),
+  },
+  claw: {
+    title: "Claw",
+    description: "Give your hero +2 Attack this turn. Gain 2 Armor.",
+    baseMana: 1,
+    imageUrl: "assets/cards/Claw.jpg",
+    effects: [
+      applyModifier("attack", 2, "friendly-hero", false, {
+        expiryOwner: "BUFF_CASTER",
+        expiryTrigger: "END_OF_TURN",
+        turnsRemaining: 1,
+      }),
+      armor(2),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    class: "Druid",
+    set: ["Legacy"],
+    sfx: sfx(["Druid_Claw_Cast_1.ogg"]),
+  },
+  "savage-roar": {
+    title: "Savage Roar",
+    description: "Give your characters +2 Attack this turn.",
+    baseMana: 3,
+    imageUrl: "assets/cards/Savage_Roar.jpg",
+    effects: [
+      applyModifier("attack", 2, "friendly-all", false, {
+        expiryOwner: "BUFF_CASTER",
+        expiryTrigger: "END_OF_TURN",
+        turnsRemaining: 1,
+      }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    class: "Druid",
+    set: ["Legacy"],
+    sfx: sfx(["Druid_SavageRoar_Cast_1.ogg"]),
+  },
+  moonfire: {
+    title: "Moonfire",
+    description: "Deal 1 damage.",
+    baseMana: 0,
+    type: ["Arcane"],
+    imageUrl: "assets/cards/Moonfire.jpg",
+    effects: [damage(1)],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card", "player"],
+    },
+    isMinion: false,
+    class: "Druid",
+    set: ["Legacy"],
+    sfx: sfx(["Shared_Arcane_Start_1.ogg"]),
+  },
+  naturalize: {
+    title: "Naturalize",
+    description: "Destroy a minion. Your opponent draws 2 cards.",
+    baseMana: 1,
+    type: ["Nature"],
+    imageUrl: "assets/cards/Naturalize.jpg",
+    effects: [destroy("user-select"), draw(2, "enemy")],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card"],
+    },
+    isMinion: false,
+    rarity: "Common",
+    class: "Druid",
+    set: ["Legacy"],
+    sfx: sfx(["Druid_Naturalize_Cast_1.ogg"]),
+  },
+  "gift-of-the-wild": {
+    title: "Gift of the Wild",
+    description: "Give your minions +2/+2 and Taunt.",
+    baseMana: 8,
+    type: ["Nature"],
+    imageUrl: "assets/cards/Gift_of_the_Wild.jpg",
+    effects: [
+      applyModifier("attack", 2, "friendly-board"),
+      applyModifier("health", 2, "friendly-board"),
+      taunt("friendly-board"),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    rarity: "Common",
+    class: "Druid",
+    set: ["Legacy"],
+    sfx: sfx(["Druid_GiftoftheWild_Cast_1.ogg"]),
+  },
+  bite: {
+    title: "Bite",
+    description: "Give your hero +4 Attack this turn. Gain 4 Armor.",
+    baseMana: 4,
+    imageUrl: "assets/cards/Bite.jpg",
+    effects: [
+      applyModifier("attack", 4, "friendly-hero", false, {
+        expiryOwner: "BUFF_CASTER",
+        expiryTrigger: "END_OF_TURN",
+        turnsRemaining: 1,
+      }),
+      armor(4),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Druid",
+    set: ["Legacy"],
+    sfx: sfx(["Druid_Bite_Cast_1.ogg"]),
+  },
+  "holy-smite": {
+    title: "Holy Smite",
+    description: "Deal 3 damage to a minion.",
+    baseMana: 1,
+    type: ["Holy"],
+    imageUrl: "assets/cards/Holy_Smite.jpg",
+    effects: [damage(3)],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card"],
+    },
+    isMinion: false,
+    class: "Priest",
+    set: ["Legacy"],
+    sfx: sfx(["Priest_HolySmite_Cast_1.ogg"]),
+  },
+  radiance: {
+    title: "Radiance",
+    description: "Restore 5 Health to your hero.",
+    baseMana: 1,
+    type: ["Holy"],
+    imageUrl: "assets/cards/Radiance.jpg",
+    effects: [heal(5, "friendly-hero")],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    class: "Priest",
+    set: ["Legacy"],
+    sfx: sfx(["Priest_Radiance_Cast_1.ogg"]),
+  },
+  "power-word-shield": {
+    title: "Power Word: Shield",
+    description: "Give a minion +2 Health. Draw a card.",
+    baseMana: 1,
+    type: ["Holy"],
+    imageUrl: "assets/cards/Power_Word_Shield.jpg",
+    effects: [applyModifier("health", 2), draw(1)],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card"],
+    },
+    isMinion: false,
+    class: "Priest",
+    set: ["Legacy"],
+    sfx: sfx(["Priest_PowerWordShield_Cast_1.ogg"]),
+  },
+  "shadow-word-death": {
+    title: "Shadow Word: Death",
+    description: "Destroy a minion with 5 or more Attack.",
+    baseMana: 2,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Shadow_Word_Death.jpg",
+    effects: [destroy("user-select")],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card"],
+      conditions: [
+        {
+          type: "numeric",
+          key: { type: "card-stat", stat: "attack" },
+          operator: ">=",
+          value: 5,
+        },
+      ],
+    },
+    isMinion: false,
+    class: "Priest",
+    set: ["Legacy"],
+    sfx: sfx(["Priest_ShadowWordDeath_Cast_1.ogg"]),
+  },
+  "shadow-word-pain": {
+    title: "Shadow Word: Pain",
+    description: "Destroy a minion with 3 or less Attack.",
+    baseMana: 2,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Shadow_Word_Pain.jpg",
+    effects: [destroy("user-select")],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card"],
+      conditions: [
+        {
+          type: "numeric",
+          key: { type: "card-stat", stat: "attack" },
+          operator: "<=",
+          value: 3,
+        },
+      ],
+    },
+    isMinion: false,
+    class: "Priest",
+    set: ["Legacy"],
+    sfx: sfx(["Priest_ShadowWordPain_Cast_1.ogg"]),
+  },
+  "holy-nova": {
+    title: "Holy Nova",
+    description:
+      "Deal 2 damage to all enemy minions. Restore 2 Health to all friendly characters.",
+    baseMana: 3,
+    type: ["Holy"],
+    imageUrl: "assets/cards/Holy_Nova.jpg",
+    effects: [damage(2, "enemy-board"), heal(2, "friendly-all")],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    class: "Priest",
+    set: ["Legacy"],
+    sfx: sfx(["Priest_HolyNova_Cast_1.ogg"]),
+  },
+  "power-infusion": {
+    title: "Power Infusion",
+    description: "Give a minion +2/+6.",
+    baseMana: 4,
+    type: ["Holy"],
+    imageUrl: "assets/cards/Power_Infusion.jpg",
+    effects: [applyModifier("attack", 2), applyModifier("health", 6)],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card"],
+    },
+    isMinion: false,
+    class: "Priest",
+    set: ["Legacy"],
+    sfx: sfx(["Priest_PowerInfusion_Cast_1.ogg"]),
+  },
+  "circle-of-healing": {
+    title: "Circle of Healing",
+    description: "Restore 4 Health to ALL minions.",
+    baseMana: 0,
+    type: ["Holy"],
+    imageUrl: "assets/cards/Circle_of_Healing.jpg",
+    effects: [{ type: "heal", value: 4, target: "board" }],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    rarity: "Common",
+    class: "Priest",
+    set: ["Legacy"],
+    sfx: sfx(["Priest_CircleofHealing_Cast_1.ogg"]),
+  },
+  "mind-blast": {
+    title: "Mind Blast",
+    description: "Deal 5 damage to the enemy hero.",
+    baseMana: 2,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Mind_Blast.jpg",
+    effects: [damage(5, "enemy-hero")],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    rarity: "Common",
+    class: "Priest",
+    set: ["Legacy"],
+    sfx: sfx(["Priest_MindBlast_Cast_1.ogg"]),
+  },
+  "shadowed-spirit": {
+    title: "Shadowed Spirit",
+    description: "Deathrattle: Deal 3 damage to the enemy hero.",
+    baseMana: 3,
+    baseAttack: 4,
+    baseHealth: 3,
+    type: ["Undead"],
+    tags: ["Deathrattle"],
+    imageUrl: "assets/cards/Shadowed_Spirit.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    deathrattle: [damage(3, "enemy-hero")],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Common",
+    class: "Priest",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS3_013_Male_Shade_Play_01.ogg"],
+      ["VO_CS3_013_Male_Shade_Attack_01.ogg"],
+      ["VO_CS3_013_Male_Shade_Death_01.ogg"],
+    ),
+  },
+  "temple-enforcer": {
+    title: "Temple Enforcer",
+    description: "Battlecry: Give a friendly minion +3 Health.",
+    baseMana: 5,
+    baseAttack: 5,
+    baseHealth: 6,
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Temple_Enforcer.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [applyModifier("health", 3)],
+    battlecryQuery: {
+      side: "friendly",
+      type: ["card"],
+      conditions: [
+        {
+          type: "exclude-self",
+        },
+      ],
+    },
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Common",
+    class: "Priest",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["EX1_623_Temple_Enforcer_EnterPlay_1.ogg"],
+      ["EX1_623_Temple_Enforcer_Attack_2.ogg"],
+      ["EX1_623_Temple_Enforcer_Death_4.ogg"],
+    ),
+  },
+  "scarlet-subjugator": {
+    title: "Scarlet Subjugator",
+    description:
+      "Battlecry: Give an enemy minion -2 Attack until your next turn.",
+    baseMana: 1,
+    baseAttack: 2,
+    baseHealth: 1,
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Scarlet_Subjugator.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [
+      applyModifier("attack", -2, "user-select", false, {
+        expiryOwner: "BUFF_CASTER",
+        expiryTrigger: "START_OF_TURN",
+        turnsRemaining: 1,
+      }),
+    ],
+    battlecryQuery: {
+      side: "enemy",
+      type: ["card"],
+    },
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Rare",
+    class: "Priest",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_196_Male_Human_Play_01.ogg"],
+      ["VO_EX1_196_Male_Human_Attack_01.ogg"],
+      ["VO_EX1_196_Male_Human_Death_01.ogg"],
+    ),
+  },
+  "kul-tiran-chaplain": {
+    title: "Kul Tiran Chaplain",
+    description: "Battlecry: Give a friendly minion +2 Health.",
+    baseMana: 2,
+    baseAttack: 2,
+    baseHealth: 3,
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Kul_Tiran_Chaplain.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [applyModifier("health", 2)],
+    battlecryQuery: {
+      side: "friendly",
+      type: ["card"],
+      conditions: [
+        {
+          type: "exclude-self",
+        },
+      ],
+    },
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Rare",
+    class: "Priest",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_195_Male_KulTiranHuman_Play_01.ogg"],
+      ["VO_EX1_195_Male_KulTiranHuman_Attack_01.ogg"],
+      ["VO_EX1_195_Male_KulTiranHuman_Death_01.ogg"],
+    ),
+  },
+  "holy-fire": {
+    title: "Holy Fire",
+    description: "Deal 5 damage. Restore 5 Health to your hero.",
+    baseMana: 6,
+    type: ["Holy"],
+    imageUrl: "assets/cards/Holy_Fire.jpg",
+    effects: [damage(5), heal(5, "friendly-hero")],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card", "player"],
+    },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Priest",
+    set: ["Legacy"],
+    sfx: sfx(["Priest_HolyFire_Cast_1.ogg"]),
+  },
+  "shadow-word-ruin": {
+    title: "Shadow Word: Ruin",
+    description: "Destroy all minions with 5 or more Attack.",
+    baseMana: 4,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Shadow_Word_Ruin.jpg",
+    effects: [
+      {
+        type: "destroy",
+        target: "board",
+        conditions: [
+          {
+            type: "numeric",
+            key: { type: "card-stat", stat: "attack" },
+            operator: ">=",
+            value: 5,
+          },
+        ],
+      },
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    rarity: "Epic",
+    class: "Priest",
+    set: ["Legacy"],
+    sfx: sfx(["Priest_ShadowWordRuin_Cast_1.ogg"]),
+  },
+  "natalie-seline": {
+    title: "Natalie Seline",
+    description: "Battlecry: Destroy a minion and gain its Health.",
+    baseMana: 7,
+    baseAttack: 7,
+    baseHealth: 1,
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Natalie_Seline.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [
+      {
+        type: "sequence",
+        steps: [
+          {
+            type: "storeVar",
+            target: "user-select",
+            value: { type: "card-stat", stat: "maxHealth" },
+          },
+          destroy("user-select"),
+          applyModifier("health", { type: "temp" }, "self"),
+        ],
+      },
+    ],
+    battlecryQuery: {
+      side: "all",
+      type: ["card"],
+      conditions: [
+        {
+          type: "exclude-self",
+        },
+      ],
+    },
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Legendary",
+    class: "Priest",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["NatalieSeline_Play_Stinger.ogg", "VO_EX1_198_Female_Human_Play_02.ogg"],
+      ["VO_EX1_198_Female_Human_Attack_01.ogg"],
+      ["VO_EX1_198_Female_Human_Death_01.ogg"],
+    ),
+  },
+  "timber-wolf": {
+    title: "Timber Wolf",
+    description: "Your other Beasts have +1 Attack.",
+    baseMana: 1,
+    baseAttack: 1,
+    baseHealth: 2,
+    type: ["Beast"],
+    tags: ["Aura"],
+    imageUrl: "assets/cards/Timber_Wolf.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    aura: [
+      applyModifier("attack", 1, "friendly-board", false, undefined, {
+        conditions: [
+          { type: "exclude-self" },
+          { type: "tags-include", value: "Beast" },
+        ],
+      }),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    class: "Hunter",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["SFX_DS1_175_EnterPlay.ogg"],
+      ["SFX_DS1_175_Attack.ogg"],
+      ["SFX_DS1_175_Death.ogg"],
+    ),
+  },
+  "multi-shot": {
+    title: "Multi-Shot",
+    description: "Deal 3 damage to two random enemy minions.",
+    baseMana: 4,
+    imageUrl: "assets/cards/Multi_Shot.jpg",
+    effects: [
+      {
+        type: "damage",
+        value: 3,
+        target: "enemy-board",
+        rand: { split: false, n: 2 },
+      },
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    class: "Hunter",
+    set: ["Legacy"],
+    sfx: sfx(["Hunter_MultiShot_Cast_1.ogg"]),
+  },
+  houndmaster: {
+    title: "Houndmaster",
+    description: "Battlecry: Give a friendly Beast +2/+2 and Taunt.",
+    baseMana: 4,
+    baseAttack: 4,
+    baseHealth: 3,
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Houndmaster.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [applyModifier("attack", 2), applyModifier("health", 2), taunt()],
+    battlecryQuery: {
+      side: "friendly",
+      type: ["card"],
+      conditions: [{ type: "tags-include", value: "Beast" }],
+    },
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    class: "Hunter",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_DS1_070_Play_01.ogg"],
+      ["VO_DS1_070_Attack_02.ogg"],
+      ["VO_DS1_070_Death_03.ogg"],
+    ),
+  },
+  "deadly-shot": {
+    title: "Deadly Shot",
+    description: "Destroy a random enemy minion.",
+    baseMana: 3,
+    imageUrl: "assets/cards/Deadly_Shot.jpg",
+    effects: [
+      {
+        type: "destroy",
+        target: "enemy-board",
+        rand: { split: false, n: 1 },
+      },
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    rarity: "Common",
+    class: "Hunter",
+    set: ["Legacy"],
+    sfx: sfx(["Hunter_DeadlyShot_Cast_1.ogg"]),
+  },
+  "explosive-shot": {
+    title: "Explosive Shot",
+    description: "Deal 5 damage to a minion and 2 damage to adjacent ones.",
+    baseMana: 5,
+    type: ["Fire"],
+    imageUrl: "assets/cards/Explosive_Shot.jpg",
+    effects: [damage(5), damage(2, "adjacent-target")],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card"],
+    },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Hunter",
+    set: ["Legacy"],
+    sfx: sfx(["Hunter_ExplosiveShot_Cast_1.ogg"]),
+  },
+  "savannah-highmane": {
+    title: "Savannah Highmane",
+    description: "Deathrattle: Summon two 2/2 Hyenas.",
+    baseMana: 6,
+    baseAttack: 7,
+    baseHealth: 5,
+    type: ["Beast"],
+    tags: ["Deathrattle"],
+    imageUrl: "assets/cards/Savannah_Highmane.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    deathrattle: [summon("hyena", "self", 2)],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Rare",
+    class: "Hunter",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["SFX_EX1_534_EnterPlay.ogg"],
+      ["SFX_EX1_534_Attack.ogg"],
+      ["SFX_EX1_534_Death.ogg"],
+    ),
+  },
+  hyena: {
+    title: "Hyena",
+    description: "",
+    baseAttack: 2,
+    baseHealth: 2,
+    baseMana: 2,
+    type: ["Beast"],
+    imageUrl: "assets/cards/Hyena.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    isUncollectible: true,
+    class: "Hunter",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["SFX_EX1_531_EnterPlay.ogg"],
+      ["SFX_EX1_531_Attack.ogg"],
+      ["SFX_EX1_531_Death.ogg"],
+    ),
+  },
+  "king-krush": {
+    title: "King Krush",
+    description: "Charge.",
+    baseMana: 9,
+    baseAttack: 8,
+    baseHealth: 8,
+    type: ["Beast"],
+    tags: ["Charge"],
+    charge: true,
+    imageUrl: "assets/cards/King_Krush.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Legendary",
+    class: "Hunter",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["SFX_EX1_543_EnterPlay.ogg", "Pegasus_Stinger_Beast_Villain.ogg"],
+      ["SFX_EX1_543_Attack.ogg"],
+      ["SFX_EX1_543_Death.ogg"],
+    ),
+  },
+  "lights-justice": {
+    title: "Light's Justice",
+    description: "",
+    isWeapon: true,
+    isMinion: false,
+    baseMana: 1,
+    baseAttack: 1,
+    baseDurability: 4,
+    imageUrl: "assets/cards/Lights_Justice.jpg",
+    class: "Paladin",
+    effects: [],
+    onPlace: [],
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    set: ["Legacy"],
+  },
+  "holy-light": {
+    title: "Holy Light",
+    description: "Restore 8 Health to your hero.",
+    baseMana: 2,
+    type: ["Holy"],
+    imageUrl: "assets/cards/Holy_Light.jpg",
+    effects: [heal(8, "friendly-hero")],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    class: "Paladin",
+    set: ["Legacy"],
+    sfx: sfx(["Paladin_HolyLight_Cast_1.ogg"]),
+  },
+  consecration: {
+    title: "Consecration",
+    description: "Deal 2 damage to all enemies.",
+    baseMana: 3,
+    type: ["Holy"],
+    imageUrl: "assets/cards/Consecration.jpg",
+    effects: [damage(2, "enemy-all")],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    class: "Paladin",
+    set: ["Legacy"],
+    sfx: sfx(["Paladin_Consecration_Cast_1.ogg"]),
+  },
+  "hammer-of-wrath": {
+    title: "Hammer of Wrath",
+    description: "Deal 3 damage. Draw a card.",
+    baseMana: 3,
+    type: ["Holy"],
+    imageUrl: "assets/cards/Hammer_of_Wrath.jpg",
+    effects: [damage(3), draw(1)],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card", "player"],
+    },
+    isMinion: false,
+    class: "Paladin",
+    set: ["Legacy"],
+    sfx: sfx(["Paladin_HammerofWrath_Cast_1.ogg"]),
+  },
+  "truesilver-champion": {
+    title: "Truesilver Champion",
+    description: "Whenever your hero attacks, restore 3 Health to it.",
+    isWeapon: true,
+    isMinion: false,
+    baseMana: 4,
+    baseAttack: 4,
+    baseDurability: 2,
+    imageUrl: "assets/cards/Truesilver_Champion.jpg",
+    class: "Paladin",
+    effects: [heal(3, "friendly-hero")],
+    onPlace: [],
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    set: ["Legacy"],
+  },
+  "avenging-wrath": {
+    title: "Avenging Wrath",
+    description: "Deal 8 damage randomly split among all enemies.",
+    baseMana: 6,
+    type: ["Holy"],
+    imageUrl: "assets/cards/Avenging_Wrath.jpg",
+    effects: [
+      {
+        type: "damage",
+        value: 8,
+        target: "enemy-all",
+        rand: { split: true, n: 0 },
+      },
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    rarity: "Epic",
+    class: "Paladin",
+    set: ["Legacy"],
+    sfx: sfx(["Paladin_AvengingWrath_Cast_1.ogg"]),
   },
 } satisfies Record<
   string,

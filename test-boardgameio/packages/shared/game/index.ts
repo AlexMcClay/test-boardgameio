@@ -626,6 +626,18 @@ export const heroAttack = (G: GameState, ctx: GameCtx, target: TargetValue) => {
   attacker.attacksLeft -= 1;
 
   if (attacker.weapon) {
+    // Weapon-triggered effects, e.g. Truesilver Champion healing the hero on each attack
+    executeEffects(attacker.weapon.effects, {
+      G,
+      ctx,
+      card: attacker.weapon,
+      playerID: attackerId,
+      location: "board",
+      target,
+      type: "minion",
+      sourceEventIndex,
+    });
+
     attacker.weapon.durabilityLost = (attacker.weapon.durabilityLost ?? 0) + 1;
     const remainingDurability =
       (attacker.weapon.baseDurability ?? 0) - attacker.weapon.durabilityLost;
@@ -1062,11 +1074,14 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         }
         break;
       }
-      case "draw":
+      case "draw": {
+        const drawPlayerId =
+          effect.target === "enemy" ? (playerID === "0" ? "1" : "0") : playerID;
         for (let i = 0; i < resolveDynamicValue(effect.value, context); i++) {
-          handleDrawCard(G, ctx, playerID, sourceEventIndex);
+          handleDrawCard(G, ctx, drawPlayerId, sourceEventIndex);
         }
         break;
+      }
       case "destroy": {
         const targets = resolveTargets(effect, context);
         targets.forEach((t) => {

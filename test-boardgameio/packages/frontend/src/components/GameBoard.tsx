@@ -350,7 +350,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
                 <motion.div
                   style={{
                     transformOrigin: "center center",
-                    pointerEvents: "auto", // Re-enable clicks just for the banner itself
+                    pointerEvents: "none", // Re-enable clicks just for the banner itself
                   }}
                 >
                   <YourTurn

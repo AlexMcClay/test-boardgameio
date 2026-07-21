@@ -134,7 +134,7 @@ const HandCard = ({
         }
         onDragStart={() => {}}
         isHovered={isHovered}
-        back={back}
+        back={discarded ? false : back}
         isHandFirstRender={isHandFirstRender}
       />
     </div>

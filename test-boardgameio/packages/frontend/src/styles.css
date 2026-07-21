@@ -69,6 +69,26 @@ code {
     source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
 }
 
+.isDragPlay {
+  /* drop shadow */
+  animation: shadowPulseBlue 1.5s ease-in-out infinite;
+}
+
+@keyframes shadowPulseBlue {
+  0%,
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px oklch(64.248% 0.19446 255.365))
+      drop-shadow(0 0 4px oklch(64.248% 0.19446 255.365))
+      drop-shadow(0 0 6px oklch(64.248% 0.19446 255.365));
+  }
+  50% {
+    filter: drop-shadow(0 0 4px oklch(64.248% 0.19446 255.365/0.5))
+      drop-shadow(0 0 8px oklch(64.248% 0.19446 255.365/0.5))
+      drop-shadow(0 0 12px oklch(64.248% 0.19446 255.365/0.5));
+  }
+}
+
 @keyframes shadowPulse {
   0%,
   0%,

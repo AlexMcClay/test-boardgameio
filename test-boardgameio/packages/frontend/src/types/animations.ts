@@ -74,6 +74,7 @@ export type SummonAnimation = {
   duration: number;
   startTime: number;
   playerId: PlayerID;
+  sfx?: SFXInstance[];
 };
 
 /**

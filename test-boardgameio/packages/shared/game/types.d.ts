@@ -60,12 +60,14 @@ export interface Card {
   baseDurability?: number; // Weapon-only: charges before it breaks
   durabilityLost?: number; // Weapon-only: parallel to damageTaken, charges used toward baseDurability
   isUncollectible?: boolean; // Optional, to indicate if the card is uncollectible (like tokens)
+  // Bool states
   taunt?: boolean; // Optional, to indicate if the card has taunt
   frozen?: boolean;
   stealth?: boolean;
   divineShield?: boolean;
   charge?: boolean;
   rush?: boolean;
+  poisonous?: boolean;
   windfury?: boolean;
   // 2. Structural tracking for real-time damage
   damageTaken: number;
@@ -283,7 +285,8 @@ export type TargetCondition =
   | { type: "tags-include"; value: string } // For "Wisp", "Demon", "Murloc"
   | { type: "state-match"; condition: "isDamaged" | "isUndamaged" } // Special derived states
   | { type: "exclude-self" }
-  | { type: "is-friendly" }; // Prevent hitting self with AoE
+  | { type: "is-friendly" } // Prevent hitting self with AoE
+  | { type: "exclude-target" };
 
 export interface TargetQuery {
   side: "friendly" | "enemy" | "all";
@@ -385,6 +388,7 @@ export type EffectTarget =
   | "board"
   | "self"
   | "adjacent" // neighbors of context.card — board index ±1 when on board, hand index ±1 when in hand
+  | "adjacent-target" // neighbors of context.target on its owner's board (e.g. Explosive Shot)
   | "friendly-hand" // cards in the acting player's hand (e.g. Sorcerer's Apprentice)
   | "enemy-hand";
 
@@ -464,6 +468,7 @@ export type ApplyModifierEffect = {
 type DrawEffect = {
   type: "draw";
   value: number | DynamicValue;
+  target?: "self" | "enemy";
 };
 
 type ChangeKeyEffect = {
