@@ -296,6 +296,25 @@ export function resolveTargets(
       break;
     }
 
+    case "adjacent-target": {
+      // Neighbors of the user-selected target's board position (e.g. Explosive Shot)
+      if (!target || target.type !== "card") break;
+      const zone = G.board[target.player];
+      const index = zone.findIndex((c) => c.id === target.id);
+      if (index === -1) break;
+      [zone[index - 1], zone[index + 1]].forEach((c) => {
+        if (c) {
+          pool.push({
+            type: "card",
+            id: c.id,
+            ownerId: target.player,
+            cardRef: c,
+          });
+        }
+      });
+      break;
+    }
+
     case "friendly-hand":
       G.players[playerID].hand.forEach((c) => {
         pool.push({ type: "card", id: c.id, ownerId: playerID, cardRef: c });

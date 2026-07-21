@@ -386,6 +386,7 @@ export type EffectTarget =
   | "board"
   | "self"
   | "adjacent" // neighbors of context.card — board index ±1 when on board, hand index ±1 when in hand
+  | "adjacent-target" // neighbors of context.target on its owner's board (e.g. Explosive Shot)
   | "friendly-hand" // cards in the acting player's hand (e.g. Sorcerer's Apprentice)
   | "enemy-hand";
 
