@@ -52,6 +52,14 @@ export const SFX_MANIFEST = {
     path: "/gameplay/spell_DivineShield_target_1.ogg",
     preload: true,
   },
+  "hero-power-on": {
+    path: "/gameplay/hero_power_icon_flip_on.ogg",
+    preload: true,
+  },
+  "hero-power-off": {
+    path: "/gameplay/hero_power_icon_flip_off.ogg",
+    preload: true,
+  },
 
   // Basic minion
   "minion-attack": {

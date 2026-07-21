@@ -2,10 +2,11 @@ import type { Card, GameState, Player } from "@project/shared";
 import type { GameBoardProps } from "@/types/gameProps";
 import { isUserSelectValue } from "@project/shared";
 import { useDragStore } from "@/stores/dragStore";
+import { useAudioStore } from "@/stores/audioStore";
 import { useEffect, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
 import HeroPowerPopover from "./HeroPowerPopover";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, motion, useAnimation } from "motion/react";
 import HeroPowerCircle from "./HeroPowerCircle";
 
 interface Props extends GameBoardProps {
@@ -29,6 +30,7 @@ const HeroPower = ({ player, isTop, moves }: Props) => {
   const startTargeting = useDragStore((s) => s.startTargeting);
   const endTargeting = useDragStore((s) => s.endTargeting);
   const targetingMode = useDragStore((s) => s.targetingMode);
+  const playSfx = useAudioStore((state) => state.playSfx);
 
   function handleHeroPowerMouseDown(e: React.MouseEvent) {
     e.preventDefault();
@@ -184,6 +186,26 @@ const HeroPower = ({ player, isTop, moves }: Props) => {
   const canUseHeroPower =
     !used && player.mana >= (player.hero.heroPower?.manaCost || 0) && !isTop;
 
+  // Flip animation + SFX for the used/unused hero power state
+  const flipControls = useAnimation();
+  const prevUsedRef = useRef(used);
+
+  useEffect(() => {
+    if (prevUsedRef.current === used) return;
+    prevUsedRef.current = used;
+
+    playSfx(used ? "hero-power-off" : "hero-power-on");
+
+    flipControls.start({
+      rotateY: used ? 180 : 0,
+      y: [0, "-1vw", 0],
+      transition: {
+        rotateY: { duration: 0.4, ease: "easeInOut" },
+        y: { duration: 0.4, ease: "easeOut", times: [0, 0.4, 1] },
+      },
+    });
+  }, [used, playSfx, flipControls]);
+
   // Hover handlers for popover
   const handleMouseEnter = () => {
     // Clear any existing timer
@@ -241,21 +263,38 @@ const HeroPower = ({ player, isTop, moves }: Props) => {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {used ? (
-          <div
-            className="flex items-center justify-center mt-[0.5vw] pointer-events-auto  px-[0.5vw] py-[0.1vw] rounded-full w-[8vw] h-[8vw] text-center smallShadow"
+        <div
+          className="mt-[0.5vw] w-[8vw] h-[8vw]"
+          style={{ perspective: "1200px" }}
+        >
+          <motion.div
+            className="relative w-full h-full pointer-events-auto"
+            style={{ transformStyle: "preserve-3d" }}
+            initial={{ rotateY: used ? 180 : 0 }}
+            animate={flipControls}
             onMouseDown={handleHeroPowerMouseDown}
-            style={{
-              backgroundImage: `url(${hero_power_used})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
-          ></div>
-        ) : (
-          <div className="relative" onMouseDown={handleHeroPowerMouseDown}>
-            <HeroPowerCircle heroPower={player.hero.heroPower!} />
-          </div>
-        )}
+          >
+            {/* Front face - available */}
+            <div
+              className="absolute inset-0"
+              style={{ backfaceVisibility: "hidden" }}
+            >
+              <HeroPowerCircle heroPower={player.hero.heroPower!} />
+            </div>
+
+            {/* Back face - used */}
+            <div
+              className="absolute inset-0 rounded-full text-center smallShadow"
+              style={{
+                backfaceVisibility: "hidden",
+                transform: "rotateY(180deg)",
+                backgroundImage: `url(${hero_power_used})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }}
+            ></div>
+          </motion.div>
+        </div>
       </div>
       {/* Render popover when hovering */}
       <AnimatePresence>

@@ -7,6 +7,7 @@ import type {
   DynamicValue,
   EffectTypes,
   SFXInstance,
+  TargetCondition,
 } from "../types";
 
 const damage = (
@@ -155,7 +156,7 @@ const armor = (
 };
 
 // Add to hand utility - for generating/discovering cards
-/* const addToHand = (
+export const addToHand = (
   cardID: string | string[],
   count: number | DynamicValue = 1,
   modifiers?: ApplyModifierEffect[],
@@ -167,12 +168,12 @@ const armor = (
     value: count,
     modifiers: modifiers,
   };
-}; */
+};
 
 // Add from deck - removes cards from deck
-/*
-const addFromDeck = (
-  conditions: import("../types").TargetCondition[],
+
+export const addFromDeck = (
+  conditions: TargetCondition[],
   count: number | DynamicValue = 1,
   random: boolean = false,
   fallback?: { cardID: string; value: number },
@@ -187,11 +188,11 @@ const addFromDeck = (
     fallback: fallback,
   };
 };
- */
+
 // Add copy from deck - creates copy, keeps original in deck
-/*
-const addCopyFromDeck = (
-  conditions: import("../types").TargetCondition[],
+
+export const addCopyFromDeck = (
+  conditions: TargetCondition[],
   count: number | DynamicValue = 1,
   random: boolean = false,
 ): EffectTypes => {
@@ -203,7 +204,7 @@ const addCopyFromDeck = (
     value: count,
     rand: random ? { n: typeof count === "number" ? count : 1 } : undefined,
   };
-}; */
+};
 
 export const combo = (combo: EffectTypes[]): EffectTypes => {
   return {
@@ -245,7 +246,7 @@ const comboOr = (
 
 // Add random card from global pool
 const addRandomCard = (
-  conditions: import("../types").TargetCondition[],
+  conditions: TargetCondition[],
   count: number | DynamicValue = 1,
   modifiers?: ApplyModifierEffect[],
   fallback?:
@@ -269,7 +270,7 @@ const addRandomCard = (
 // Return minion to hand
 const returnToHand = (
   target: "user-select" | "friendly-board" | "enemy-board" | "board",
-  conditions?: import("../types").TargetCondition[],
+  conditions?: TargetCondition[],
   randomCount?: number,
   modifiers?: ApplyModifierEffect[],
 ): EffectTypes => {
@@ -395,7 +396,7 @@ export const cardTemplates = {
         },
         {
           soundId: "/cards/fireball/FX_FireballEvent04_SpellImpact_01.ogg",
-          delay: 200,
+          delay: 400,
         },
       ],
     },
@@ -538,7 +539,7 @@ export const cardTemplates = {
       "Shared_Frost_Cast_1.ogg",
       {
         soundId: sfxShortener("FrostBoltHit1.ogg"),
-        delay: 200,
+        delay: 400,
       },
     ]),
   },

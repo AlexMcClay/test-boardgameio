@@ -60,12 +60,14 @@ export interface Card {
   baseDurability?: number; // Weapon-only: charges before it breaks
   durabilityLost?: number; // Weapon-only: parallel to damageTaken, charges used toward baseDurability
   isUncollectible?: boolean; // Optional, to indicate if the card is uncollectible (like tokens)
+  // Bool states
   taunt?: boolean; // Optional, to indicate if the card has taunt
   frozen?: boolean;
   stealth?: boolean;
   divineShield?: boolean;
   charge?: boolean;
   rush?: boolean;
+  poisonous?: boolean;
   windfury?: boolean;
   // 2. Structural tracking for real-time damage
   damageTaken: number;
