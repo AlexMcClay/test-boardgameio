@@ -1940,7 +1940,7 @@ export const cardTemplates = {
     baseMana: 1,
     baseAttack: undefined,
     baseHealth: undefined,
-    type: ["Spell"],
+    type: ["Holy"],
     imageUrl: "assets/cards/Hand_of_Protection.jpg",
     effects: [divineShield("user-select")],
     onPlace: [],

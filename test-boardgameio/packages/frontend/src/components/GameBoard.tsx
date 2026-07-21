@@ -6,6 +6,7 @@ import {
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
+  type DragCancelEvent,
   MeasuringStrategy,
 } from "@dnd-kit/core";
 import Lane from "./Lane";
@@ -163,6 +164,28 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
 
   // console.log(ctx.phase, "Current phase");
 
+  const setDragPointerPosition = useDragStore(
+    (state) => state.setDragPointerPosition,
+  );
+  const clearHoverBoard = useDragStore((state) => state.clearHoverBoard);
+  const pointerMoveListenerRef = useRef<((e: PointerEvent) => void) | null>(
+    null,
+  );
+  const pointerRafRef = useRef<number | null>(null);
+
+  const stopTrackingDragPointer = useCallback(() => {
+    if (pointerMoveListenerRef.current) {
+      window.removeEventListener("pointermove", pointerMoveListenerRef.current);
+      pointerMoveListenerRef.current = null;
+    }
+    if (pointerRafRef.current !== null) {
+      cancelAnimationFrame(pointerRafRef.current);
+      pointerRafRef.current = null;
+    }
+    setDragPointerPosition(null);
+    clearHoverBoard();
+  }, [setDragPointerPosition, clearHoverBoard]);
+
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     // Get the card being dragged from active.data
@@ -170,6 +193,24 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     const wasHoveredOnDrag = active.data.current?.wasHovered || false;
     setActiveCard(card || null);
     setWasHovered(wasHoveredOnDrag);
+
+    // Track raw pointer position for board insertion-index calculation (used
+    // by Lane). Coalesced to once per animation frame — raw pointermove can
+    // fire far faster than React needs to re-render for this.
+    let latestX = 0;
+    let latestY = 0;
+    const handlePointerMove = (e: PointerEvent) => {
+      latestX = e.clientX;
+      latestY = e.clientY;
+      if (pointerRafRef.current === null) {
+        pointerRafRef.current = requestAnimationFrame(() => {
+          pointerRafRef.current = null;
+          setDragPointerPosition({ x: latestX, y: latestY });
+        });
+      }
+    };
+    pointerMoveListenerRef.current = handlePointerMove;
+    window.addEventListener("pointermove", handlePointerMove);
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -178,14 +219,29 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     setActiveCard(null);
     setWasHovered(false);
 
+    // Read the insertion index before clearing drag state
+    const { hoverBoardIndex, hoverBoardLane } = useDragStore.getState();
+    stopTrackingDragPointer();
+
     if (!over) {
       return;
     }
     let target: TargetValue | undefined;
     let location: "hand" | "board" = "hand";
+    let boardIndex: number | undefined;
+
+    const draggedCard = active.data.current?.card;
+    const isUnplacedMinion = draggedCard?.isMinion && !draggedCard?.isPlaced;
 
     // Determine target from drop data (use actual ctx, not visual)
-    if (over.id === `lane-${ctx.currentPlayer}`) {
+    if (isUnplacedMinion && hoverBoardLane === ctx.currentPlayer) {
+      target = {
+        type: "lane",
+        id: `lane-${ctx.currentPlayer}`,
+        player: ctx.currentPlayer,
+      };
+      boardIndex = hoverBoardIndex ?? undefined;
+    } else if (over.id === `lane-${ctx.currentPlayer}`) {
       target = { type: "lane", id: over.id, player: ctx.currentPlayer };
     } else if (over.data.current?.type === "card") {
       if (over.data.current.id === active.id) return;
@@ -206,7 +262,13 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     }
 
     // Execute the move with validation and animations
-    await executePlaceCard(active.id as string, location, target);
+    await executePlaceCard(active.id as string, location, target, boardIndex);
+  };
+
+  const handleDragCancel = (_event: DragCancelEvent) => {
+    setActiveCard(null);
+    setWasHovered(false);
+    stopTrackingDragPointer();
   };
 
   const handleDragOver = (_event: DragOverEvent) => {
@@ -219,6 +281,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       cardId: string,
       location: "hand" | "board",
       target?: TargetValue,
+      boardIndex?: number,
     ) => {
       // Validate BEFORE executing move
       const validation = validateMove(G, ctx, cardId, location, target);
@@ -229,7 +292,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       }
 
       // Execute the move - animations will be detected and played by useEffect
-      moves.placeCard(cardId, target);
+      moves.placeCard(cardId, target, boardIndex);
     },
     [G, ctx, moves],
   );
@@ -271,6 +334,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           onDragEnd={handleDragEnd}
           onDragOver={handleDragOver}
           onDragStart={handleDragStart}
+          onDragCancel={handleDragCancel}
           collisionDetection={pointerWithSmallBuffer}
           measuring={{
             droppable: {
