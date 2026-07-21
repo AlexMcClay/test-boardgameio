@@ -144,23 +144,6 @@ const Card = ({
     };
   }, []);
 
-  if (back) {
-    return (
-      <motion.div
-        className="w-[7.8vw] relative aspect-[5/7] bg-[#37373b] rounded-2xl flex-col flex gap-1 items-center shadow-xl overflow-hidden"
-        layout={!disableLayoutAnimation}
-        layoutId={!disableLayoutAnimation ? `card-${card.id}` : undefined}
-      >
-        <img
-          src={cardBack}
-          alt="Card Back"
-          className="object-cover w-full h-full "
-          draggable="false"
-        />
-      </motion.div>
-    );
-  }
-
   const text = useMemo(() => {
     let parsedDescription = card.description;
     keywords.forEach((keyword) => {
@@ -183,6 +166,23 @@ const Card = ({
       opacity: 1,
     },
   };
+
+  if (back) {
+    return (
+      <motion.div
+        className="w-[7.8vw] relative aspect-[5/7] bg-[#37373b] rounded-2xl flex-col flex gap-1 items-center shadow-xl overflow-hidden"
+        layout={!disableLayoutAnimation}
+        layoutId={!disableLayoutAnimation ? `card-${card.id}` : undefined}
+      >
+        <img
+          src={cardBack}
+          alt="Card Back"
+          className="object-cover w-full h-full "
+          draggable="false"
+        />
+      </motion.div>
+    );
+  }
 
   return (
     <>
