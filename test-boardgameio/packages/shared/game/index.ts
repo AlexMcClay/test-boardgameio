@@ -2,6 +2,7 @@ import type {
   Card,
   CardModifier,
   GameState,
+  ModifierStatKey,
   Player,
   TargetValue,
   Hero,
@@ -12,10 +13,12 @@ import type {
 } from "./types";
 import {
   createCardFromID,
+  consumeKeyword,
   getAttack,
   getCurrentHealth,
   getManaCost,
   getMaxHealth,
+  hasKeyword,
   shuffleDeck,
   applyBoolEffectToCard,
   applyBoolEffectToPlayer,
@@ -359,6 +362,12 @@ export const minionAttack = (
   executeEffects(attacker.effects, context);
 
   attacker.attacksLeft -= 1;
+
+  // Attacking breaks Stealth: clears the base flag and strips the grant from
+  // any modifier providing it ("Stealth until..." enchantments included).
+  if (hasKeyword(attacker, "stealth")) {
+    consumeKeyword(G, attacker, "card", ctx.currentPlayer, "stealth");
+  }
 
   if (target.type === "card") {
     const defender = G.board[target.player].find((c) => c.id === target.id);
@@ -821,7 +830,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
               if (targetCard && targetCard.isMinion) {
                 if (effect.target === "user-select") {
                   const currentHealth = getCurrentHealth(targetCard);
-                  if (targetCard.divineShield && totalDamage > 0) {
+                  if (hasKeyword(targetCard, "divineShield") && totalDamage > 0) {
                     context.excessDamageDealt = 0;
                     context.lastTargetDied = false;
                   } else {
@@ -865,6 +874,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
           stealth: "stealth",
           charge: "charge",
           rush: "rush",
+          windfury: "windfury",
         };
         const cardKey = keyMap[effect.type];
 
@@ -972,9 +982,27 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         break;
       case "applyModifier": {
         const modEffect = effect;
-        const value =
-          resolveDynamicValue(effect.value, context) *
-          resolveDynamicValue(effect.mult ?? 1, context);
+        // Resolve every stat's value once (provider as context.card)
+        const mult = resolveDynamicValue(modEffect.mult ?? 1, context);
+        const stats: Partial<Record<ModifierStatKey, number>> = {};
+        (Object.keys(modEffect.stats ?? {}) as ModifierStatKey[]).forEach(
+          (statKey) => {
+            const raw = modEffect.stats?.[statKey];
+            if (raw === undefined) return;
+            stats[statKey] = resolveDynamicValue(raw, context) * mult;
+          },
+        );
+        const changes = {
+          name:
+            modEffect.name ??
+            card?.title ??
+            context.heroPower?.name ??
+            "Enchantment",
+          description: modEffect.description,
+          img: card?.imageUrl ?? context.heroPower?.imageUrl,
+          stats,
+          keys: modEffect.keys,
+        };
         const targets = resolveTargets(effect, context); // Unified target array resolution
 
         console.log(
@@ -993,7 +1021,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
                 targetPlayer,
                 playerID,
                 modEffect,
-                value,
+                changes,
               );
             }
           }
@@ -1009,7 +1037,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
                 targetCard,
                 playerID, // Note: passing playerID as caster/source scope
                 modEffect,
-                value,
+                changes,
               );
             }
           }
@@ -1561,20 +1589,19 @@ function listManagedOwners(G: GameState): ManagedOwnerRef[] {
 }
 
 /**
- * The owner's stat with all managed modifiers of `managedType` for that stat
- * removed — the clamp baseline for min/max ("but not less than 1"), so the
- * previous refresh's own entries don't skew this refresh's math.
+ * The owner's stat with all managed modifiers of `managedType` removed — the
+ * clamp baseline for min/max ("but not less than 1"), so the previous
+ * refresh's own entries don't skew this refresh's math. (Excluding whole
+ * modifiers of the managed type is exact: the fold only reads this stat.)
  */
 function getStatExcludingManaged(
   owner: Card | Player,
   ownerType: "card" | "player",
-  stat: CardModifier["stat"],
+  stat: ModifierStatKey,
   managedType: CardModifier["type"],
 ): number {
   const saved = owner.modifiers;
-  owner.modifiers = saved?.filter(
-    (m) => !(m.type === managedType && m.stat === stat),
-  );
+  owner.modifiers = saved?.filter((m) => m.type !== managedType);
   let value = 0;
   if (ownerType === "player") {
     if (stat === "attack") value = getPlayerAttack(owner as Player);
@@ -1632,9 +1659,8 @@ function collectDesiredModifiers(
 
   defs.forEach((effect) => {
     if (effect.type !== "applyModifier") return;
-    const rawValue =
-      resolveDynamicValue(effect.value, context) *
-      resolveDynamicValue(effect.mult ?? 1, context);
+    const mult = resolveDynamicValue(effect.mult ?? 1, context);
+    const override = effect.override ?? false;
 
     resolveTargets(effect, context).forEach((t) => {
       const owner = t.type === "player" ? G.players[t.ownerId] : t.cardRef;
@@ -1646,28 +1672,47 @@ function collectDesiredModifiers(
         desired.set(owner, specs);
       }
 
-      let value = rawValue;
-      if (effect.override) {
-        if (effect.min !== undefined) value = Math.max(effect.min, value);
-        if (effect.max !== undefined) value = Math.min(effect.max, value);
-      } else {
-        // Clamp against the stat as it stands WITHOUT this pass's previous
-        // entries, plus what this pass has already granted the owner — so
-        // stacked providers (two Sorcerer's Apprentices) respect the floor.
-        const base =
-          getStatExcludingManaged(owner, t.type, effect.stat, managedType) +
-          specs
-            .filter((s) => s.stat === effect.stat && !s.override)
-            .reduce((sum, s) => sum + s.value, 0);
-        value = clampDelta(base, value, effect.min, effect.max);
-        if (value === 0) return; // fully clamped or no-op — no modifier
-      }
+      // Resolve each stat, clamping additive deltas against the stat as it
+      // stands WITHOUT this pass's previous entries, plus what this pass has
+      // already granted the owner — so stacked providers (two Sorcerer's
+      // Apprentices) respect the floor.
+      const stats: Partial<Record<ModifierStatKey, number>> = {};
+      (Object.keys(effect.stats ?? {}) as ModifierStatKey[]).forEach(
+        (statKey) => {
+          const raw = effect.stats?.[statKey];
+          if (raw === undefined) return;
+          let value = resolveDynamicValue(raw, context) * mult;
+          if (override) {
+            if (effect.min !== undefined) value = Math.max(effect.min, value);
+            if (effect.max !== undefined) value = Math.min(effect.max, value);
+          } else {
+            const base =
+              getStatExcludingManaged(owner, t.type, statKey, managedType) +
+              specs
+                .filter((s) => !s.override)
+                .reduce((sum, s) => sum + (s.stats?.[statKey] ?? 0), 0);
+            value = clampDelta(base, value, effect.min, effect.max);
+            if (value === 0) return; // fully clamped — no entry for this stat
+          }
+          stats[statKey] = value;
+        },
+      );
+
+      const hasStats = Object.keys(stats).length > 0;
+      const keys =
+        effect.keys && Object.keys(effect.keys).length
+          ? effect.keys
+          : undefined;
+      if (!hasStats && !keys) return; // nothing survived — no modifier
 
       specs.push({
         sourceCardId: provider.id,
-        stat: effect.stat,
-        value,
-        override: effect.override,
+        name: effect.name ?? provider.title,
+        description: effect.description,
+        img: provider.imageUrl,
+        stats: hasStats ? stats : undefined,
+        keys,
+        override,
       });
     });
   });
@@ -1972,7 +2017,7 @@ export function beginTurn(G: GameState, ctx: GameCtx) {
 
   // reset
   G.board[ctx.currentPlayer].forEach((card) => {
-    card.attacksLeft = card.windfury ? 2 : 1;
+    card.attacksLeft = hasKeyword(card, "windfury") ? 2 : 1;
     card.summoningSickness = false; // Remove summoning sickness
   });
 
@@ -2005,16 +2050,19 @@ export function endTurnCleanup(G: GameState, ctx: GameCtx) {
 
   G.board[ctx.currentPlayer].forEach((card) => {
     if (
-      card.frozen &&
+      hasKeyword(card, "frozen") &&
       shouldMinionUnfreezeAtTurnEnd(G, ctx.currentPlayer, card)
     ) {
-      card.frozen = false;
+      consumeKeyword(G, card, "card", ctx.currentPlayer, "frozen");
     }
   });
 
   const endingPlayer = G.players[ctx.currentPlayer];
-  if (endingPlayer.frozen && shouldHeroUnfreezeAtTurnEnd(endingPlayer)) {
-    endingPlayer.frozen = false;
+  if (
+    hasKeyword(endingPlayer, "frozen") &&
+    shouldHeroUnfreezeAtTurnEnd(endingPlayer)
+  ) {
+    consumeKeyword(G, endingPlayer, "player", ctx.currentPlayer, "frozen");
   }
 
   // 2. Refresh ongoing effects/deaths again in case losing an attack/health

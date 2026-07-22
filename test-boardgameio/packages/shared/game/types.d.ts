@@ -172,25 +172,45 @@ export interface ModifierLifecycle {
   minionId?: string;
 }
 
+/** Numeric stats a modifier can change. */
+export type ModifierStatKey = "attack" | "health" | "mana" | "durability";
+
+/** Boolean keywords a modifier can grant. */
+export type ModifierBoolKey =
+  | "taunt"
+  | "divineShield"
+  | "stealth"
+  | "charge"
+  | "rush"
+  | "windfury"
+  | "frozen";
+
+/**
+ * One ENCHANTMENT: a single named modifier grouping every change it makes —
+ * stat deltas and boolean keyword grants together ("+2/+2 and Taunt" is ONE
+ * modifier). Shown as a single entry in the card hover UI.
+ *
+ * Boolean grants are derived (see hasKeyword): a card "has taunt" if its base
+ * flag is set OR any modifier grants it. Consumable keywords (divine shield
+ * popped by damage, stealth broken by attacking) are stripped from the
+ * granting modifier via consumeKeyword — the modifier's stats survive; the
+ * modifier itself is removed only once nothing remains.
+ */
 export interface CardModifier {
   id: string;
-  label?: string;
+  name: string; // e.g. "Blessing of Kings" (defaults to the source card title)
+  description: string; // e.g. "+4/+4", "+2/+2 and Taunt" (auto-generated if omitted)
+  img?: string; // imageUrl of the card that granted this modifier
   sourceCardId: string;
   // "temporary" modifications have a lifecycle; "aura" / "inHand" / "enrage"
   // are managed entries owned by their refresh pass (refreshOngoing) and are
   // added/removed automatically as their source condition changes.
   type: "aura" | "permanent" | "temporary" | "inHand" | "enrage";
-  stat:
-    | "attack"
-    | "health"
-    | "mana"
-    | "taunt"
-    | "divineShield"
-    | "frozen"
-    | "durability";
-  value: number;
+  stackable: boolean;
+  stats?: Partial<Record<ModifierStatKey, number>>; // resolved numbers
+  keys?: Partial<Record<ModifierBoolKey, true>>; // boolean keyword grants
+  override?: boolean; // applies to this modifier's stats
   lifecycle?: ModifierLifecycle; // Optional metadata for temporal mechanics
-  override: boolean;
 }
 
 export type TargetValue = {
@@ -448,16 +468,22 @@ type HealEffect = {
 
 export type ApplyModifierEffect = {
   type: "applyModifier";
-  stat: "attack" | "health" | "mana" | "taunt" | "divineShield" | "frozen";
-  override: boolean;
-  value: number | DynamicValue;
-  mult?: number | DynamicValue;
-  min?: number;
-  max?: number;
+  /** Enchantment name; defaults to the source card's title. */
+  name?: string;
+  /** Hover text; auto-generated from stats/keys if omitted ("+2/+2 and Taunt"). */
+  description?: string;
   // When false (default), re-applying a modifier with the same sourceCardId +
-  // stat REPLACES the existing one (and a value of 0 removes it). When true,
-  // every application stacks as its own modifier.
+  // name REPLACES the existing one (and one that resolves to all-zero stats
+  // with no keys removes it). When true, every application stacks.
   stackable?: boolean;
+  /** Stat deltas (or sets, with override). Values resolve at apply time. */
+  stats?: Partial<Record<ModifierStatKey, number | DynamicValue>>;
+  /** Boolean keyword grants: { taunt: true, stealth: true, ... } */
+  keys?: Partial<Record<ModifierBoolKey, true>>;
+  override?: boolean;
+  mult?: number | DynamicValue; // multiplies every stat value
+  min?: number; // per-stat clamp on the resulting stat (refresh passes)
+  max?: number;
   duration?: {
     expiryTrigger: "END_OF_TURN" | "START_OF_TURN";
     expiryOwner: "BUFF_CASTER" | "BUFF_RECEIVER" | "ANY_PLAYER";
@@ -589,12 +615,15 @@ type DebugEvent = {
 type ApplyModifierEvent = {
   type: "applyModifier";
   sourceId?: string; // Card/effect that caused this status change
-  targetId: string; // Card/minion gaining the status
+  targetId: string; // Card/minion gaining the enchantment
   targetType: "card" | "player";
   playerId: PlayerID;
   timestamp: number;
-  key: string;
-  value: any;
+  name: string;
+  description: string;
+  stats?: Partial<Record<ModifierStatKey, number>>;
+  keys?: Partial<Record<ModifierBoolKey, true>>;
+  removed?: boolean; // the modifier (or a keyword grant on it) was removed
 };
 
 type BaseGameBoolEvent = {

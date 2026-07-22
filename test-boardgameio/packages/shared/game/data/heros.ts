@@ -104,8 +104,7 @@ const shapeshift: HeroPower = {
   effects: [
     {
       type: "applyModifier",
-      stat: "attack",
-      value: 1,
+      stats: { attack: 1 },
       target: "friendly-hero",
       duration: {
         expiryTrigger: "END_OF_TURN",

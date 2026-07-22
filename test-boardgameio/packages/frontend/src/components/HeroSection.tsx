@@ -1,7 +1,12 @@
 import { useDragStore } from "@/stores/dragStore";
 import { useAnimationStore } from "@/stores/animationStore";
 import { useDroppable } from "@dnd-kit/core";
-import { getPlayerAttack, type Card, type Player } from "@project/shared";
+import {
+  getPlayerAttack,
+  hasKeyword,
+  type Card,
+  type Player,
+} from "@project/shared";
 import type { GameBoardProps } from "@/types/gameProps";
 import { twMerge } from "tailwind-merge";
 import { AnimatePresence, motion } from "motion/react";
@@ -61,7 +66,7 @@ const HeroSection = ({ player, ...props }: Props) => {
     isOwnHero &&
     isMyTurn &&
     player.attacksLeft > 0 &&
-    !player.frozen &&
+    !hasKeyword(player, "frozen") &&
     getPlayerAttack(player) > 0;
 
   function handleHeroAttackMouseDown(e: React.MouseEvent) {
@@ -73,7 +78,7 @@ const HeroSection = ({ player, ...props }: Props) => {
       console.warn("Hero has already attacked this turn");
       return;
     }
-    if (player.frozen) {
+    if (hasKeyword(player, "frozen")) {
       console.warn("Hero is frozen");
       return;
     }
@@ -342,8 +347,8 @@ const HeroSection = ({ player, ...props }: Props) => {
         />
       </div>
       <AnimatePresence>
-        {player.frozen && <FrozenHeroOverlay />}
-        {player.divineShield && <DivineShieldHeroOverlay />}
+        {hasKeyword(player, "frozen") && <FrozenHeroOverlay />}
+        {hasKeyword(player, "divineShield") && <DivineShieldHeroOverlay />}
       </AnimatePresence>
 
       {/* ARMOR SECTIOn */}

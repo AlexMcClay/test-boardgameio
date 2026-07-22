@@ -10,6 +10,7 @@ import {
   getAttack,
   getCurrentHealth,
   getMaxHealth,
+  hasKeyword,
   providesActiveAura,
 } from "@project/shared";
 
@@ -37,7 +38,10 @@ const PlacedCard = ({
   ...props
 }: Props) => {
   const playSfx = useAudioStore((state) => state.playSfx);
-  const isSicknessActive = card.summoningSickness && !card.charge && !card.rush;
+  const isSicknessActive =
+    card.summoningSickness &&
+    !hasKeyword(card, "charge") &&
+    !hasKeyword(card, "rush");
 
   useEffect(() => {
     if (isAttacking) {
@@ -129,8 +133,10 @@ const PlacedCard = ({
               }}
             />
           )}
-        {card.divineShield && <DivineShieldOverlay key={"divineShield"} />}
-        {card.frozen && <FrozenOverlay key={"frozen"} />}
+        {hasKeyword(card, "divineShield") && (
+          <DivineShieldOverlay key={"divineShield"} />
+        )}
+        {hasKeyword(card, "frozen") && <FrozenOverlay key={"frozen"} />}
       </AnimatePresence>
 
       {/* Card Art - Clipped tightly inside the oval frame */}
@@ -138,7 +144,7 @@ const PlacedCard = ({
         <div
           className={twMerge(
             "absolute top-[0.2vw]! left-[0.4vw]! h-[90%] w-[90%] inset-[0.1vw] overflow-hidden rounded-[50%/50%]",
-            card.taunt && "top-[0.8vw] left-[0.4vw]! w-[87%]",
+            hasKeyword(card, "taunt") && "top-[0.8vw] left-[0.4vw]! w-[87%]",
           )}
         >
           <img
@@ -150,7 +156,7 @@ const PlacedCard = ({
         </div>
         <div className={twMerge("absolute inset-[2px] rounded-[50%/50%] z-0")}>
           <img
-            src={card.taunt ? minionTaunt : minionFrame}
+            src={hasKeyword(card, "taunt") ? minionTaunt : minionFrame}
             alt={card.title}
             className="object-cover w-full h-full select-none scale-105"
             draggable="false"

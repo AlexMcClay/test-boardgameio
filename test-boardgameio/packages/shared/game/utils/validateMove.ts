@@ -1,5 +1,5 @@
 // utils/validateMove.ts
-import { getManaCost, getPlayerAttack } from ".";
+import { getManaCost, getPlayerAttack, hasKeyword } from ".";
 import type {
   Card,
   TargetValue,
@@ -35,7 +35,7 @@ export type MoveValidationResult =
  * Helper: Check if a board has any taunt minions
  */
 export function hasTauntMinions(board: Card[]): boolean {
-  return board.some((card) => card.taunt === true);
+  return board.some((card) => hasKeyword(card, "taunt"));
 }
 
 /**
@@ -329,7 +329,12 @@ export function validateMove(
 
     // --- RUSH MECHANIC CHECK ---
     // If a minion has Rush but NOT Charge, and still has summon sickness, it cannot target a player/hero
-    if (card.isMinion && card.summoningSickness && card.rush && !card.charge) {
+    if (
+      card.isMinion &&
+      card.summoningSickness &&
+      hasKeyword(card, "rush") &&
+      !hasKeyword(card, "charge")
+    ) {
       if (target.type === "player") {
         return { valid: false, error: "invalid-target" };
       }
@@ -347,11 +352,15 @@ export function validateMove(
 
   // --- SUMMONING SICKNESS CHECK ---
   // Bypass summoning sickness if the minion has Charge OR Rush
-  if (card.summoningSickness && !card.charge && !card.rush) {
+  if (
+    card.summoningSickness &&
+    !hasKeyword(card, "charge") &&
+    !hasKeyword(card, "rush")
+  ) {
     return { valid: false, error: "summon-sickness" };
   }
 
-  if (card.frozen) {
+  if (hasKeyword(card, "frozen")) {
     return { valid: false, error: "frozen" };
   }
 
@@ -375,7 +384,7 @@ export function validateHeroAttack(
   if (attackerId === defenderId) {
     return { valid: false, error: "Cannot attack your own side." };
   }
-  if (attacker.frozen) {
+  if (hasKeyword(attacker, "frozen")) {
     return { valid: false, error: "Hero is frozen." };
   }
   if (attacker.attacksLeft <= 0) {
@@ -434,16 +443,20 @@ export function checkTargetRestrictions(
   // --- STEALTH ---
   if (target.type === "card") {
     if (!targetCard) return { ok: false, reason: "target-not-found" };
-    if (targetCard.stealth) return { ok: false, reason: "stealthed" };
+    if (hasKeyword(targetCard, "stealth")) {
+      return { ok: false, reason: "stealthed" };
+    }
   }
 
   // --- TAUNT --- (only enemy taunts count; a stealthed Taunt does not enforce)
   const isTargetingEnemy = target.player !== attackerPlayer;
   if (isTargetingEnemy && !opts.bypassTaunt) {
-    const enemyHasTaunt = defenderBoard.some((c) => c.taunt && !c.stealth);
+    const enemyHasTaunt = defenderBoard.some(
+      (c) => hasKeyword(c, "taunt") && !hasKeyword(c, "stealth"),
+    );
     if (enemyHasTaunt) {
       if (target.type === "player") return { ok: false, reason: "taunt" };
-      if (target.type === "card" && !targetCard!.taunt) {
+      if (target.type === "card" && !hasKeyword(targetCard!, "taunt")) {
         return { ok: false, reason: "taunt" };
       }
     }
@@ -510,8 +523,8 @@ export function canTargetHighlight(
   if (
     activeCard.isMinion &&
     activeCard.summoningSickness &&
-    activeCard.rush &&
-    !activeCard.charge
+    hasKeyword(activeCard, "rush") &&
+    !hasKeyword(activeCard, "charge")
   ) {
     if (context.target.type === "player") {
       return false;
@@ -536,7 +549,7 @@ export function canTargetHighlight(
           const targetCard = enemyBoard.find(
             (c) => c.id === context?.target?.id,
           );
-          if (!targetCard || !targetCard.taunt) {
+          if (!targetCard || !hasKeyword(targetCard, "taunt")) {
             return false;
           }
         }

@@ -39,8 +39,6 @@ const Card = ({
   card,
   back = false,
   isDragging = false, // Default to false if not provided
-  playerID,
-  ctx,
   type,
   animate,
   initial,
@@ -270,7 +268,7 @@ const Card = ({
                     : "text-green-500",
               )}
             >
-              {getManaCost(card)}
+              {type === "popover" ? card.baseMana : getManaCost(card)}
             </span>
           </div>
         )}
@@ -371,7 +369,7 @@ const Card = ({
                       "translate-y-[-0.3vw] translate-x-[0.15vw]",
                   )}
                 >
-                  {getAttack(card)}
+                  {type === "popover" ? card.baseAttack : getAttack(card)}
                 </span>
               </div>
             )}
@@ -385,7 +383,9 @@ const Card = ({
                   draggable="false"
                 />
                 <span className="absolute font-belwe  scale-140 translate-y-[-0.1vw] text-shadow-A">
-                  {getCurrentHealth(card)}
+                  {type === "popover"
+                    ? card.baseHealth
+                    : getCurrentHealth(card)}
                 </span>
               </div>
             )}

@@ -23,25 +23,32 @@ const damage = (
   };
 };
 
+/**
+ * Builds one grouped ENCHANTMENT effect: all stat changes and keyword grants
+ * of a buff live in a single modifier ("+2/+2 and Taunt" is ONE entry on the
+ * card's modifier list, shown as one item on hover).
+ */
 const applyModifier = (
-  stat: ApplyModifierEffect["stat"],
-  value: ApplyModifierEffect["value"],
-  target: ApplyModifierEffect["target"] = "user-select",
-  override: boolean = false,
-  duration?: ApplyModifierEffect["duration"],
-  opts?: Pick<
+  opts: Pick<
     ApplyModifierEffect,
-    "conditions" | "min" | "max" | "mult" | "stackable"
-  >,
+    | "stats"
+    | "keys"
+    | "name"
+    | "description"
+    | "override"
+    | "duration"
+    | "conditions"
+    | "min"
+    | "max"
+    | "mult"
+    | "stackable"
+  > & { target?: ApplyModifierEffect["target"] },
 ): ApplyModifierEffect => {
+  const { target, ...rest } = opts;
   return {
     type: "applyModifier",
-    stat: stat,
-    value: value,
-    target: target,
-    duration: duration,
-    override: override,
-    ...opts,
+    target: target ?? "user-select",
+    ...rest,
   };
 };
 
@@ -61,7 +68,7 @@ const createBoolEffectUtil = (type: EffectTypes["type"]) => {
 // 2. Generate all your utility helpers instantly
 const freeze = createBoolEffectUtil("freeze");
 const divineShield = createBoolEffectUtil("divineShield");
-const taunt = createBoolEffectUtil("taunt");
+export const taunt = createBoolEffectUtil("taunt");
 // const stealth = createBoolEffectUtil("stealth");
 const charge = createBoolEffectUtil("charge");
 // const rush = createBoolEffectUtil("rush");
@@ -1012,7 +1019,9 @@ export const cardTemplates = {
     baseMana: 2,
     type: ["Nature"],
     imageUrl: "assets/cards/Mark_of_the_Wild.jpg",
-    effects: [applyModifier("attack", 2), applyModifier("health", 3), taunt()],
+    effects: [
+      applyModifier({ stats: { attack: 2, health: 3 }, keys: { taunt: true } }),
+    ],
     onPlace: [],
     isSpell: true,
     targetQuery: {
@@ -1509,7 +1518,7 @@ export const cardTemplates = {
     baseMana: 4,
     type: ["Holy"],
     imageUrl: "assets/cards/Blessing_of_Kings.jpg",
-    effects: [applyModifier("attack", 4), applyModifier("health", 4)],
+    effects: [applyModifier({ stats: { attack: 4, health: 4 } })],
     onPlace: [],
     isSpell: true,
     targetQuery: {
@@ -1612,7 +1621,7 @@ export const cardTemplates = {
     imageUrl: "assets/cards/Inner_Rage.jpg",
     description: "Deal 1 damage to a minion and give it +2 attack.",
     baseMana: 0,
-    effects: [damage(1), applyModifier("attack", 2)],
+    effects: [damage(1), applyModifier({ stats: { attack: 2 } })],
     onPlace: [],
     targetQuery: {
       side: "all",
@@ -2235,7 +2244,10 @@ export const cardTemplates = {
         type: "card-stat",
       }),
     ],
-    onPlace: [damage(1, "user-select", true), applyModifier("attack", 2)],
+    onPlace: [
+      damage(1, "user-select", true),
+      applyModifier({ stats: { attack: 2 } }),
+    ],
     battlecryQuery: {
       side: "all",
       type: ["card"],
@@ -2437,10 +2449,7 @@ export const cardTemplates = {
     description: "Give a damaged minion +3/+3.",
     baseMana: 2,
     imageUrl: "assets/cards/Rampage.jpg",
-    effects: [
-      applyModifier("health", 3, "user-select"),
-      applyModifier("attack", 3, "user-select"),
-    ],
+    effects: [applyModifier({ stats: { attack: 3, health: 3 } })],
     onPlace: [],
     isSpell: true,
     targetQuery: {
@@ -2729,10 +2738,7 @@ export const cardTemplates = {
           },
         ],
 
-        then: [
-          applyModifier("attack", 2, "user-select"),
-          applyModifier("health", 2, "user-select"),
-        ],
+        then: [applyModifier({ stats: { attack: 2, health: 2 } })],
         // Otherwise, deal the baseline 2 damage to it
         else: [damage(2, "user-select")],
       },
@@ -3228,7 +3234,7 @@ export const cardTemplates = {
       {
         type: "returnToHand",
         target: "user-select",
-        modifiers: [applyModifier("mana", -2, "self")],
+        modifiers: [applyModifier({ stats: { mana: -2 }, target: "self" })],
       },
     ],
     onPlace: [],
@@ -3413,10 +3419,13 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     onPlace: [
-      applyModifier("attack", 2, "user-select", false, {
-        expiryOwner: "BUFF_CASTER",
-        expiryTrigger: "END_OF_TURN",
-        turnsRemaining: 1,
+      applyModifier({
+        stats: { attack: 2 },
+        duration: {
+          expiryOwner: "BUFF_CASTER",
+          expiryTrigger: "END_OF_TURN",
+          turnsRemaining: 1,
+        },
       }),
     ],
     battlecryQuery: {
@@ -3527,26 +3536,11 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     onPlace: [
-      {
-        type: "applyModifier",
+      applyModifier({
+        stats: { attack: 2, health: 2 },
         target: "self",
-        value: 2,
-        mult: {
-          type: "combo-count",
-        },
-        override: false,
-        stat: "attack",
-      },
-      {
-        type: "applyModifier",
-        target: "self",
-        value: 2,
-        mult: {
-          type: "combo-count",
-        },
-        override: false,
-        stat: "health",
-      },
+        mult: { type: "combo-count" },
+      }),
     ],
     set: ["Legacy"],
 
@@ -3575,10 +3569,9 @@ export const cardTemplates = {
     ],
     onPlace: [],
     aura: [
-      applyModifier("attack", 1, "friendly-board", false, undefined, {
-        conditions: [{ type: "exclude-self" }],
-      }),
-      applyModifier("health", 1, "friendly-board", false, undefined, {
+      applyModifier({
+        stats: { attack: 1, health: 1 },
+        target: "friendly-board",
         conditions: [{ type: "exclude-self" }],
       }),
     ],
@@ -3613,7 +3606,9 @@ export const cardTemplates = {
     ],
     onPlace: [],
     aura: [
-      applyModifier("attack", 2, "friendly-board", false, undefined, {
+      applyModifier({
+        stats: { attack: 2 },
+        target: "friendly-board",
         conditions: [
           { type: "tags-include", value: "Murloc" },
           { type: "exclude-self" },
@@ -3649,7 +3644,7 @@ export const cardTemplates = {
       }),
     ],
     onPlace: [],
-    aura: [applyModifier("attack", 1, "adjacent")],
+    aura: [applyModifier({ stats: { attack: 1 }, target: "adjacent" })],
     targetQuery: {
       side: "enemy",
       type: ["card", "player"],
@@ -3678,7 +3673,9 @@ export const cardTemplates = {
     ],
     onPlace: [],
     aura: [
-      applyModifier("mana", -1, "friendly-hand", false, undefined, {
+      applyModifier({
+        stats: { mana: -1 },
+        target: "friendly-hand",
         conditions: [{ type: "boolean", key: "isSpell", value: true }],
         min: 1,
       }),
@@ -3711,7 +3708,7 @@ export const cardTemplates = {
       }),
     ],
     onPlace: [],
-    enrage: [applyModifier("attack", 3, "self")],
+    enrage: [applyModifier({ stats: { attack: 3 }, target: "self" })],
     targetQuery: {
       side: "enemy",
       type: ["card", "player"],
@@ -3742,7 +3739,9 @@ export const cardTemplates = {
     ],
     onPlace: [],
     inHand: [
-      applyModifier("mana", -1, "self", false, undefined, {
+      applyModifier({
+        stats: { mana: -1 },
+        target: "self",
         mult: { type: "player-missing-health", player: "friendly" },
       }),
     ],
@@ -3776,7 +3775,7 @@ export const cardTemplates = {
       }),
     ],
     onPlace: [],
-    enrage: [applyModifier("attack", 6, "self")],
+    enrage: [applyModifier({ stats: { attack: 6 }, target: "self" })],
     targetQuery: {
       side: "enemy",
       type: ["card", "player"],
@@ -3808,7 +3807,9 @@ export const cardTemplates = {
     ],
     onPlace: [],
     aura: [
-      applyModifier("attack", 1, "friendly-board", false, undefined, {
+      applyModifier({
+        stats: { attack: 1 },
+        target: "friendly-board",
         conditions: [{ type: "exclude-self" }],
       }),
     ],
@@ -3837,7 +3838,7 @@ export const cardTemplates = {
         type: "card-stat",
       }),
     ],
-    onPlace: [applyModifier("attack", 1), applyModifier("health", 1)],
+    onPlace: [applyModifier({ stats: { attack: 1, health: 1 } })],
     battlecryQuery: {
       side: "friendly",
       type: ["card"],
@@ -3922,10 +3923,14 @@ export const cardTemplates = {
     baseMana: 1,
     imageUrl: "assets/cards/Claw.jpg",
     effects: [
-      applyModifier("attack", 2, "friendly-hero", false, {
-        expiryOwner: "BUFF_CASTER",
-        expiryTrigger: "END_OF_TURN",
-        turnsRemaining: 1,
+      applyModifier({
+        stats: { attack: 2 },
+        target: "friendly-hero",
+        duration: {
+          expiryOwner: "BUFF_CASTER",
+          expiryTrigger: "END_OF_TURN",
+          turnsRemaining: 1,
+        },
       }),
       armor(2),
     ],
@@ -3946,10 +3951,14 @@ export const cardTemplates = {
     baseMana: 3,
     imageUrl: "assets/cards/Savage_Roar.jpg",
     effects: [
-      applyModifier("attack", 2, "friendly-all", false, {
-        expiryOwner: "BUFF_CASTER",
-        expiryTrigger: "END_OF_TURN",
-        turnsRemaining: 1,
+      applyModifier({
+        stats: { attack: 2 },
+        target: "friendly-all",
+        duration: {
+          expiryOwner: "BUFF_CASTER",
+          expiryTrigger: "END_OF_TURN",
+          turnsRemaining: 1,
+        },
       }),
     ],
     onPlace: [],
@@ -4007,9 +4016,11 @@ export const cardTemplates = {
     type: ["Nature"],
     imageUrl: "assets/cards/Gift_of_the_Wild.jpg",
     effects: [
-      applyModifier("attack", 2, "friendly-board"),
-      applyModifier("health", 2, "friendly-board"),
-      taunt("friendly-board"),
+      applyModifier({
+        stats: { attack: 2, health: 2 },
+        keys: { taunt: true },
+        target: "friendly-board",
+      }),
     ],
     onPlace: [],
     isSpell: true,
@@ -4029,10 +4040,14 @@ export const cardTemplates = {
     baseMana: 4,
     imageUrl: "assets/cards/Bite.jpg",
     effects: [
-      applyModifier("attack", 4, "friendly-hero", false, {
-        expiryOwner: "BUFF_CASTER",
-        expiryTrigger: "END_OF_TURN",
-        turnsRemaining: 1,
+      applyModifier({
+        stats: { attack: 4 },
+        target: "friendly-hero",
+        duration: {
+          expiryOwner: "BUFF_CASTER",
+          expiryTrigger: "END_OF_TURN",
+          turnsRemaining: 1,
+        },
       }),
       armor(4),
     ],
@@ -4090,7 +4105,7 @@ export const cardTemplates = {
     baseMana: 1,
     type: ["Holy"],
     imageUrl: "assets/cards/Power_Word_Shield.jpg",
-    effects: [applyModifier("health", 2), draw(1)],
+    effects: [applyModifier({ stats: { health: 2 } }), draw(1)],
     onPlace: [],
     isSpell: true,
     targetQuery: {
@@ -4179,7 +4194,7 @@ export const cardTemplates = {
     baseMana: 4,
     type: ["Holy"],
     imageUrl: "assets/cards/Power_Infusion.jpg",
-    effects: [applyModifier("attack", 2), applyModifier("health", 6)],
+    effects: [applyModifier({ stats: { attack: 2, health: 6 } })],
     onPlace: [],
     isSpell: true,
     targetQuery: {
@@ -4274,7 +4289,7 @@ export const cardTemplates = {
         type: "card-stat",
       }),
     ],
-    onPlace: [applyModifier("health", 3)],
+    onPlace: [applyModifier({ stats: { health: 3 } })],
     battlecryQuery: {
       side: "friendly",
       type: ["card"],
@@ -4314,10 +4329,13 @@ export const cardTemplates = {
       }),
     ],
     onPlace: [
-      applyModifier("attack", -2, "user-select", false, {
-        expiryOwner: "BUFF_CASTER",
-        expiryTrigger: "START_OF_TURN",
-        turnsRemaining: 1,
+      applyModifier({
+        stats: { attack: -2 },
+        duration: {
+          expiryOwner: "BUFF_CASTER",
+          expiryTrigger: "START_OF_TURN",
+          turnsRemaining: 1,
+        },
       }),
     ],
     battlecryQuery: {
@@ -4352,7 +4370,7 @@ export const cardTemplates = {
         type: "card-stat",
       }),
     ],
-    onPlace: [applyModifier("health", 2)],
+    onPlace: [applyModifier({ stats: { health: 2 } })],
     battlecryQuery: {
       side: "friendly",
       type: ["card"],
@@ -4451,7 +4469,10 @@ export const cardTemplates = {
             value: { type: "card-stat", stat: "maxHealth" },
           },
           destroy("user-select"),
-          applyModifier("health", { type: "temp" }, "self"),
+          applyModifier({
+            stats: { health: { type: "temp" } },
+            target: "self",
+          }),
         ],
       },
     ],
@@ -4495,7 +4516,9 @@ export const cardTemplates = {
     ],
     onPlace: [],
     aura: [
-      applyModifier("attack", 1, "friendly-board", false, undefined, {
+      applyModifier({
+        stats: { attack: 1 },
+        target: "friendly-board",
         conditions: [
           { type: "exclude-self" },
           { type: "tags-include", value: "Beast" },
@@ -4553,7 +4576,9 @@ export const cardTemplates = {
         type: "card-stat",
       }),
     ],
-    onPlace: [applyModifier("attack", 2), applyModifier("health", 2), taunt()],
+    onPlace: [
+      applyModifier({ stats: { attack: 2, health: 2 }, keys: { taunt: true } }),
+    ],
     battlecryQuery: {
       side: "friendly",
       type: ["card"],
