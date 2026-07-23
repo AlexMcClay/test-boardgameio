@@ -176,7 +176,12 @@ export interface ModifierLifecycle {
 }
 
 /** Numeric stats a modifier can change. */
-export type ModifierStatKey = "attack" | "health" | "mana" | "durability";
+export type ModifierStatKey =
+  | "attack"
+  | "health"
+  | "mana"
+  | "durability"
+  | "spellDamage";
 
 /** Boolean keywords a modifier can grant. */
 export type ModifierBoolKey =

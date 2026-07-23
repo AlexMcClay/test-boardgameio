@@ -4,7 +4,12 @@ import { motion, AnimatePresence } from "motion/react";
 import { twMerge } from "tailwind-merge";
 import { useMemo, useRef, useState, useEffect } from "react";
 import KeywordPopover from "./KeywordPopover";
-import { getAttack, getCurrentHealth, getManaCost } from "@project/shared";
+import {
+  getAttack,
+  getCurrentHealth,
+  getManaCost,
+  getSpellDamage,
+} from "@project/shared";
 
 const cardBack = "assets/Card_Back.png";
 const mana_crystal = "assets/mana.png";
@@ -33,6 +38,7 @@ const keywords = [
   "Combo",
   "Stealth",
   "Poisonous",
+  "Spell Damage",
 ];
 
 const Card = ({
@@ -142,8 +148,19 @@ const Card = ({
     };
   }, []);
 
+  const spellBonus = card.isSpell ? getSpellDamage(card) : 0;
+
   const text = useMemo(() => {
     let parsedDescription = card.description;
+    // Spell Damage: boost each "N damage" in the text by the card's bonus so
+    // the printed number matches what the spell will actually deal.
+    if (spellBonus > 0) {
+      parsedDescription = parsedDescription.replace(
+        /(\d+)(?=\s+damage\b)/gi,
+        (m) =>
+          `<span class="font-extrabold font-base italic">*${Number(m) + spellBonus}*</span>`,
+      );
+    }
     keywords.forEach((keyword) => {
       const regex = new RegExp(`\\b${keyword}\\b`, "g");
       parsedDescription = parsedDescription.replace(
@@ -152,7 +169,7 @@ const Card = ({
       );
     });
     return parsedDescription;
-  }, [card.description]);
+  }, [card.description, spellBonus]);
 
   const variants = {
     normal: {

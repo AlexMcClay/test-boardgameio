@@ -168,9 +168,9 @@ const totemicCall: HeroPower = {
   effects: [
     {
       type: "summon",
-      // Random one of the basic Totems (Wrath of Air / Healing Totem omitted:
-      // Spell Damage and end-of-turn triggers aren't supported by the engine).
-      cardID: ["searing-totem", "stoneclaw-totem"],
+      // Random one of the basic Totems (Healing Totem omitted: its end-of-turn
+      // "restore 1 Health to friendly minions" trigger isn't supported yet).
+      cardID: ["searing-totem", "stoneclaw-totem", "wrath-of-air-totem"],
       target: "self",
       value: 1,
     },

@@ -279,7 +279,13 @@ function statsEqual(
   a: Partial<Record<ModifierStatKey, number>> | undefined,
   b: Partial<Record<ModifierStatKey, number>> | undefined,
 ): boolean {
-  const keys: ModifierStatKey[] = ["attack", "health", "mana", "durability"];
+  const keys: ModifierStatKey[] = [
+    "attack",
+    "health",
+    "mana",
+    "durability",
+    "spellDamage",
+  ];
   return keys.every((k) => (a?.[k] ?? undefined) === (b?.[k] ?? undefined));
 }
 

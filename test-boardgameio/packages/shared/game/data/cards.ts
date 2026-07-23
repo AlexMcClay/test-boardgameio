@@ -52,6 +52,16 @@ const applyModifier = (
   };
 };
 
+// Spell Damage +N source aura: continuously grants +N spell damage to the
+// caster's spell cards in hand (mirrors Sorcerer's Apprentice's cost aura).
+const spellDamageAura = (n: number): ApplyModifierEffect =>
+  applyModifier({
+    name: `Spell Damage +${n}`,
+    stats: { spellDamage: n },
+    target: "friendly-hand",
+    conditions: [{ type: "boolean", key: "isSpell", value: true }],
+  });
+
 // 1. The Generic Factory Function
 const createBoolEffectUtil = (type: EffectTypes["type"]) => {
   return (
@@ -495,6 +505,94 @@ export const cardTemplates = {
       ["CS2_051_Play_StoneclawTotem.ogg"],
       ["SFX_CS2_050_Attack_00.ogg"],
       ["CS2_050_Death_SearingTotem.ogg"],
+    ),
+  },
+  "wrath-of-air-totem": {
+    title: "Wrath of Air Totem",
+    description: "Spell Damage +1",
+    baseAttack: 0,
+    baseHealth: 2,
+    baseMana: 1,
+    type: ["Totem"],
+    imageUrl: "assets/cards/Wrath_of_Air_Totem.png",
+    effects: [], // 0 attack, no attack effect
+    onPlace: [],
+    aura: [spellDamageAura(1)],
+    hideAuraGlow: true, // shows purple sparkles instead of the yellow aura glow
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    isUncollectible: true, // Token, hidden from deckbuilders
+    class: "Shaman",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_051_Play_StoneclawTotem.ogg"],
+      ["SFX_CS2_052_Attack_00.ogg"],
+      ["CS2_052_Death_WrathofAirTotem.ogg"],
+    ),
+  },
+  "kobold-geomancer": {
+    title: "Kobold Geomancer",
+    description: "Spell Damage +1",
+    baseAttack: 2,
+    baseHealth: 2,
+    baseMana: 2,
+    type: ["Minion"],
+    imageUrl: "assets/cards/Kobold_Geomancer.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    aura: [spellDamageAura(1)],
+    hideAuraGlow: true, // shows purple sparkles instead of the yellow aura glow
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Common",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_142_Play_01.ogg"],
+      ["VO_CS2_142_Attack_02.ogg"],
+      ["VO_CS2_142_Death_03.ogg"],
+    ),
+  },
+  "ogre-magi": {
+    title: "Ogre Magi",
+    description: "Spell Damage +1",
+    baseAttack: 4,
+    baseHealth: 4,
+    baseMana: 4,
+    type: ["Minion"],
+    imageUrl: "assets/cards/Ogre_Magi.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    aura: [spellDamageAura(1)],
+    hideAuraGlow: true, // shows purple sparkles instead of the yellow aura glow
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Common",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_197_Play_01_MIX.ogg"],
+      ["VO_CS2_197_Attack_02_MIX.ogg"],
+      ["VO_CS2_197_Death_03_MIX.ogg"],
     ),
   },
   "arcane-intellect": {

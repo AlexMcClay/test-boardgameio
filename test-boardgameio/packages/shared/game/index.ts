@@ -18,6 +18,7 @@ import {
   getCurrentHealth,
   getManaCost,
   getMaxHealth,
+  getSpellDamage,
   hasKeyword,
   shuffleDeck,
   applyBoolEffectToCard,
@@ -760,7 +761,14 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         }
         break;
       case "damage": {
-        const totalDamage = resolveDynamicValue(effect.value, context);
+        let totalDamage = resolveDynamicValue(effect.value, context);
+        // Spell Damage: boost every damage instance of a CAST spell by the
+        // bonus its card carries (from source auras). Gated to spells only —
+        // battlecries/attacks/deathrattles/weapons are "minion", hero powers
+        // "heroPower", and healing is a separate case.
+        if (context.type === "spell" && context.card) {
+          totalDamage += getSpellDamage(context.card);
+        }
 
         // --- BRANCH A: RANDOM SPLIT DAMAGE (e.g., Cinderstorm, Mad Bomber) ---
         if (effect.rand?.split) {

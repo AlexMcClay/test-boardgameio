@@ -177,6 +177,8 @@ export function describeModifier(
   if (stats?.mana !== undefined) parts.push(`${sign(stats.mana)} Cost`);
   if (stats?.durability !== undefined)
     parts.push(`${sign(stats.durability)} Durability`);
+  if (stats?.spellDamage !== undefined)
+    parts.push(`${sign(stats.spellDamage)} Spell Damage`);
 
   (Object.keys(keys ?? {}) as ModifierBoolKey[]).forEach((key) => {
     if (keys?.[key]) parts.push(KEYWORD_LABELS[key]);
@@ -234,6 +236,20 @@ export function getCurrentDurability(card: Card): number {
 // Dynamic mana cost parsing (e.g., Sorcerer's Apprentice effects)
 export function getManaCost(card: Card): number {
   return Math.max(0, foldModifiers(card.baseMana ?? 0, card.modifiers, "mana"));
+}
+
+// Spell-damage bonus a spell card has received from source auras (Spell Damage +N).
+export function getSpellDamage(card: Card): number {
+  return Math.max(0, foldModifiers(0, card.modifiers, "spellDamage"));
+}
+
+// Amount THIS minion grants as a Spell Damage source, read from its aura defs.
+// Used by the UI to show the purple sparkle indicator on source minions.
+export function getSpellDamageSource(card: Card): number {
+  return (card.aura ?? []).reduce((sum, a) => {
+    const v = a.stats?.spellDamage;
+    return sum + (typeof v === "number" ? v : 0);
+  }, 0);
 }
 
 /**

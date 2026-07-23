@@ -6,10 +6,12 @@ import { useAudioStore } from "@/stores/audioStore";
 import { useEffect } from "react";
 import FrozenOverlay from "./Overlays/FrozenOverlay";
 import DivineShieldOverlay from "./Overlays/DivineShieldOverlay";
+import SpellDamageOverlay from "./Overlays/SpellDamageOverlay";
 import {
   getAttack,
   getCurrentHealth,
   getMaxHealth,
+  getSpellDamageSource,
   hasKeyword,
   providesActiveAura,
 } from "@project/shared";
@@ -137,6 +139,9 @@ const PlacedCard = ({
           <DivineShieldOverlay key={"divineShield"} />
         )}
         {hasKeyword(card, "frozen") && <FrozenOverlay key={"frozen"} />}
+        {getSpellDamageSource(card) > 0 && (
+          <SpellDamageOverlay key={"spellDamage"} />
+        )}
       </AnimatePresence>
 
       {/* Card Art - Clipped tightly inside the oval frame */}
