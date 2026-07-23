@@ -26,6 +26,18 @@ const mana_crystal = "assets/mana.png";
 const mana_bar = "assets/mana_bar.png";
 const weapon_frame = "assets/weapon_frame.png";
 
+// Overload padlock — inline so it needs no image asset (swap for art later).
+const OverloadLock = ({ className = "" }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    className={className}
+    fill="currentColor"
+    aria-hidden="true"
+  >
+    <path d="M7 10V7a5 5 0 0 1 10 0v3h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h1zm2 0h6V7a3 3 0 0 0-6 0v3zm3 4a1.5 1.5 0 0 0-.75 2.8V19h1.5v-2.2A1.5 1.5 0 0 0 12 14z" />
+  </svg>
+);
+
 const PlayerArea = ({
   player,
   isTop,
@@ -126,20 +138,40 @@ const PlayerArea = ({
         </div>
         {!isTop && (
           <div className="ml-[0.5vw] mt-[0.05vw] flex items-center justify-center">
-            {Array.from({ length: player.manaCrystals }, (_, i) => (
-              <img
-                key={i}
-                src={mana_crystal}
-                alt="Mana"
-                // darken the crystal if it's above the player's current mana
-                className={twMerge(
-                  "  w-[1.81vw] h-[2vw] object-contain shadow-lg ",
+            {Array.from({ length: player.manaCrystals }, (_, i) => {
+              const overloadLocked = player.overloadLocked ?? 0;
+              const overloadPending = player.overloadPending ?? 0;
+              // Locked/pending crystals are the tail crystals (independent of
+              // how much mana has been spent this turn).
+              const isLocked = i >= player.manaCrystals - overloadLocked;
+              const isPending = i >= player.manaCrystals - overloadPending;
+              return (
+                <div
+                  key={i}
+                  className="relative flex items-center justify-center"
+                >
+                  <img
+                    src={mana_crystal}
+                    alt="Mana"
+                    // darken the crystal if it's above the player's current mana
+                    className={twMerge(
+                      "  w-[1.81vw] h-[2vw] object-contain shadow-lg ",
 
-                  i < player.mana ? "brightness-150" : "brightness-50",
-                )}
-                draggable="false"
-              />
-            ))}
+                      i < player.mana ? "brightness-150" : "brightness-50",
+                    )}
+                    draggable="false"
+                  />
+                  {/* Active lock this turn: padlock blocks the crystal */}
+                  {isLocked && (
+                    <OverloadLock className="pointer-events-none absolute inset-0 m-auto h-[1vw] w-[1vw] text-slate-100 drop-shadow-[0_0_1px_rgba(0,0,0,0.9)]" />
+                  )}
+                  {/* Pending lock: preview beneath the crystal (locks next turn) */}
+                  {isPending && (
+                    <OverloadLock className="pointer-events-none absolute bottom-[-0.85vw] left-1/2 h-[0.8vw] w-[0.8vw] -translate-x-1/2 text-amber-300 drop-shadow-[0_0_1px_rgba(0,0,0,0.9)]" />
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

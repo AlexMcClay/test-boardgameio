@@ -6,7 +6,7 @@ import {
   hasKeyword,
   describeModifier,
 } from ".";
-import { cardTemplates } from "../data/cards";
+import { cardTemplates, type CardTemplateKey } from "../data/cards";
 import {
   type AddToHandEffect,
   type ApplyModifierEffect,
@@ -20,6 +20,7 @@ import {
   type ModifierBoolKey,
   type ModifierStatKey,
   type Player,
+  type SummonEffect,
 } from "../types";
 import { checkSingleTargetCondition } from "./effectEngine";
 // Helper function to record game events
@@ -893,6 +894,42 @@ export function findCardsInPool(
   }
 
   return pool;
+}
+
+/**
+ * Resolve the pool of template IDs a summon effect may draw from.
+ * - `cardID` string/array: those specific cards (a list is picked from at
+ *   random, one roll per summon, in the caller).
+ * - no `cardID`: every summonable minion template (minions, excluding
+ *   uncollectible tokens).
+ * `conditions` further filter whichever pool was built (e.g. "a random Demon").
+ */
+export function resolveSummonCandidates(
+  effect: SummonEffect,
+  context: EffectContext,
+): string[] {
+  let ids: string[] = effect.cardID
+    ? Array.isArray(effect.cardID)
+      ? effect.cardID
+      : [effect.cardID]
+    : Object.keys(cardTemplates).filter((id) => {
+        const c = createCardFromID(id as CardTemplateKey);
+        return !!c && c.isMinion && !c.isUncollectible;
+      });
+
+  if (effect.conditions && effect.conditions.length > 0) {
+    ids = ids.filter((id) => {
+      const probe = createCardFromID(id as CardTemplateKey);
+      return (
+        !!probe &&
+        effect.conditions!.every((cond) =>
+          checkSingleTargetCondition(probe, cond, context),
+        )
+      );
+    });
+  }
+
+  return ids;
 }
 
 /**

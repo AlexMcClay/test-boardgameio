@@ -160,6 +160,27 @@ const daggerMastery: HeroPower = {
   },
 };
 
+const totemicCall: HeroPower = {
+  name: "Totemic Call",
+  description: "Summon a random basic Totem.",
+  imageUrl: "assets/hero_powers/Totemic_Call.jpg",
+  manaCost: 2,
+  effects: [
+    {
+      type: "summon",
+      // Random one of the basic Totems (Wrath of Air / Healing Totem omitted:
+      // Spell Damage and end-of-turn triggers aren't supported by the engine).
+      cardID: ["searing-totem", "stoneclaw-totem"],
+      target: "self",
+      value: 1,
+    },
+  ],
+  targetQuery: {
+    side: "friendly",
+    type: [],
+  },
+};
+
 // Placeholder hero power for heroes not yet implemented
 const placeholderPower: HeroPower = {
   name: "Placeholder",
@@ -187,6 +208,7 @@ export const shamanHero: Hero = {
   portrait: "assets/heros/Thrall.jpg",
   class: "Shaman",
   heroName: "Thrall",
+  heroPower: totemicCall,
 };
 
 export const rogueHero: Hero = {

@@ -36,7 +36,7 @@ export interface Hero {
   ability?: string;
   class: string;
   heroName: string;
-  heroPower?: HeroPower;
+  heroPower: HeroPower;
 }
 
 export interface Card {
@@ -47,6 +47,7 @@ export interface Card {
   baseMana?: number;
   baseAttack?: number;
   baseHealth?: number;
+  overload?: number | DynamicValue; // Mana crystals locked next turn when this card is played
   type?: string[]; // e.g., "Spell", "Beast", "Demon", etc.
   imageUrl?: string; // URL to the card image
   effects: Array<EffectTypes>;
@@ -105,6 +106,8 @@ export interface Player {
   name: string;
   manaCrystals: number;
   maxManaCrystals: number;
+  overloadPending: number; // Accrued this turn from cards played; locks next turn (padlock beneath crystals)
+  overloadLocked: number; // Crystals locked THIS turn (padlock blocking crystals)
   heroPortrait: string;
   maxHealth: number;
   health: number;
@@ -504,11 +507,12 @@ type ChangeKeyEffect = {
   target: "user-select" | "self"; // Target of the change, either "other" or "self"
 };
 
-type SummonEffect = {
+export type SummonEffect = {
   type: "summon";
   target: "self" | "enemy";
-  cardID: string; // ID of the card to summon
-  value: number | DynamicValue; // count
+  cardID?: string | string[]; // A specific card, or a list of options picked from at random (per summon). Omit to summon from all minion templates.
+  conditions?: TargetCondition[]; // Filter candidates (e.g. summon a random Demon)
+  value: number | DynamicValue; // How many minions to summon
 };
 
 type ArmorEffect = {

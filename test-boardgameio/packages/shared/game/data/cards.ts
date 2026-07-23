@@ -139,14 +139,16 @@ const discard = (
 };
 
 const summon = (
-  cardID: string,
+  cardID?: string | string[], // specific card, or a list to pick from at random; omit to summon from all minions
   target: "self" | "enemy" = "self",
-  count: number = 1,
+  count: number | DynamicValue = 1,
+  conditions?: TargetCondition[], // filter candidates (e.g. summon a random Demon)
 ): EffectTypes => {
   return {
     type: "summon",
-    cardID: cardID,
-    target: target,
+    ...(cardID !== undefined ? { cardID } : {}),
+    ...(conditions ? { conditions } : {}),
+    target,
     value: count,
   };
 };
@@ -292,31 +294,30 @@ const returnToHand = (
 
 const sfxShortener = (sfx: string) => `/cards/${sfx}`;
 
+type SFXTHING = string | SFXInstance | [string, number];
+
 const sfx = (
-  play: (string | SFXInstance)[],
-  attack?: (string | SFXInstance)[],
-  death?: (string | SFXInstance)[],
+  play: SFXTHING[],
+  attack?: SFXTHING[],
+  death?: SFXTHING[],
 ): {
-  death?: SFXInstance[] | undefined;
+  death?: SFXInstance[];
   play?: SFXInstance[];
   attack?: SFXInstance[];
 } => {
+  const parser = (soundId: SFXTHING): SFXInstance =>
+    typeof soundId === "string"
+      ? { soundId: sfxShortener(soundId) }
+      : Array.isArray(soundId)
+        ? {
+            soundId: sfxShortener(soundId[0]),
+            delay: soundId[1],
+          }
+        : soundId;
   return {
-    death: death?.map((soundId) =>
-      typeof soundId === "string"
-        ? { soundId: sfxShortener(soundId) }
-        : soundId,
-    ),
-    play: play?.map((soundId) =>
-      typeof soundId === "string"
-        ? { soundId: sfxShortener(soundId) }
-        : soundId,
-    ),
-    attack: attack?.map((soundId) =>
-      typeof soundId === "string"
-        ? { soundId: sfxShortener(soundId) }
-        : soundId,
-    ),
+    death: death?.map(parser),
+    play: play?.map(parser),
+    attack: attack?.map(parser),
   };
 };
 
@@ -396,17 +397,10 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Mage",
-    sfx: {
-      play: [
-        {
-          soundId: "/cards/fireball/FX_FireballEvent03_SpellCast_01.ogg",
-        },
-        {
-          soundId: "/cards/fireball/FX_FireballEvent04_SpellImpact_01.ogg",
-          delay: 400,
-        },
-      ],
-    },
+    sfx: sfx([
+      "FX_FireballEvent03_SpellCast_01.ogg",
+      ["FX_FireballEvent04_SpellImpact_01.ogg", 400],
+    ]),
     set: ["Legacy"],
   },
   "mirror-image-spell": {
@@ -448,6 +442,60 @@ export const cardTemplates = {
     isUncollectible: true, // Hidden from deckbuilders like Murloc Scout
     class: "Mage",
     set: ["Legacy"],
+  },
+  "searing-totem": {
+    title: "Searing Totem",
+    description: "",
+    baseAttack: 1,
+    baseHealth: 1,
+    baseMana: 1,
+    type: ["Totem"],
+    imageUrl: "assets/cards/Searing_Totem.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    isUncollectible: true, // Token, hidden from deckbuilders
+    class: "Shaman",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_051_Play_StoneclawTotem.ogg"],
+      ["SFX_CS2_050_Attack_00.ogg"],
+      ["CS2_050_Death_SearingTotem.ogg"],
+    ),
+  },
+  "stoneclaw-totem": {
+    title: "Stoneclaw Totem",
+    description: "Taunt.",
+    taunt: true,
+    baseAttack: 0,
+    baseHealth: 2,
+    baseMana: 1,
+    type: ["Totem"],
+    imageUrl: "assets/cards/Stoneclaw_Totem.jpg",
+    effects: [], // 0 attack, no attack effect (mirrors mirror-image-token)
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    isUncollectible: true, // Token, hidden from deckbuilders
+    class: "Shaman",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_051_Play_StoneclawTotem.ogg"],
+      ["SFX_CS2_050_Attack_00.ogg"],
+      ["CS2_050_Death_SearingTotem.ogg"],
+    ),
   },
   "arcane-intellect": {
     title: "Arcane Intellect",

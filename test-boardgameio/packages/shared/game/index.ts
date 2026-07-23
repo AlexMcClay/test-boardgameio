@@ -34,6 +34,7 @@ import {
   isBaseEffectSelection,
   addCardToHand,
   findCardsInPool,
+  resolveSummonCandidates,
   returnCardToHand,
   discardCardsFromHand,
   isUserSelectValue,
@@ -98,6 +99,8 @@ export const setupGame = (setupData: GameSetupData): GameState => {
     armor: 0,
     manaCrystals: 0,
     maxManaCrystals: 10,
+    overloadPending: 0,
+    overloadLocked: 0,
     mana: 1,
     baseAttack: 0,
     modifiers: [],
@@ -121,6 +124,8 @@ export const setupGame = (setupData: GameSetupData): GameState => {
     armor: 0,
     manaCrystals: 0,
     maxManaCrystals: 10,
+    overloadPending: 0,
+    overloadLocked: 0,
     mana: 1,
     baseAttack: 0,
     modifiers: [],
@@ -205,6 +210,21 @@ export const placeCard = (
     card,
     turn: ctx.turn,
   });
+
+  // Overload: charged only on a successful play from hand. The pending amount
+  // is promoted into locked crystals at the start of this player's next turn.
+  if (card.overload) {
+    const amount = resolveDynamicValue(card.overload, {
+      card,
+      G,
+      ctx,
+      location: "hand",
+      playerID: ctx.currentPlayer,
+      target,
+      type: card.isSpell ? "spell" : "minion",
+    });
+    player.overloadPending += amount;
+  }
 
   // See if the card can be placed on the board
   if (card.isMinion && !card.isPlaced) {
@@ -1051,15 +1071,26 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
           effect.target === "self" ? playerID : enemyPlayerId;
         const value = resolveDynamicValue(effect.value, context);
 
+        // Candidate template IDs: a specific card, a list to pick from, or all
+        // summonable minions — optionally filtered by conditions.
+        const candidates = resolveSummonCandidates(effect, context);
+        if (candidates.length === 0) {
+          console.warn("No valid summon candidates for effect", effect);
+          break;
+        }
+
         // check if the board can fit the summoned card
         for (let index = 0; index < value; index++) {
           if (G.board[playerTarget].length >= 7) {
             console.warn("Cannot summon more than 7 cards on the board");
             break; // Cannot summon more than 7 cards on the board
           }
-          const summonedCard = createCardFromID(
-            effect.cardID as CardTemplateKey,
-          );
+          // Independent pick per summon (repeats allowed).
+          const pickId =
+            candidates.length === 1
+              ? candidates[0]
+              : candidates[Math.floor(Math.random() * candidates.length)];
+          const summonedCard = createCardFromID(pickId as CardTemplateKey);
           if (summonedCard) {
             summonedCard.isPlaced = true; // Mark the summoned card as placed
             summonedCard.summoningSickness = true; // Summoned minions have summoning sickness
@@ -1073,7 +1104,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
             });
             G.board[playerTarget].push(summonedCard);
           } else {
-            console.warn(`Card with ID ${effect.cardID} not found.`);
+            console.warn(`Card with ID ${pickId} not found.`);
           }
         }
 
@@ -1996,12 +2027,15 @@ export function beginTurn(G: GameState, ctx: GameCtx) {
   // 1. Process anything that expires at the START of a turn
   processModifierLifecycle(G, ctx.currentPlayer, "START_OF_TURN");
 
-  const manaCrystals = G.players[ctx.currentPlayer].manaCrystals;
-  G.players[ctx.currentPlayer].manaCrystals = Math.min(
-    manaCrystals + 1,
-    G.players[ctx.currentPlayer].maxManaCrystals,
-  );
-  G.players[ctx.currentPlayer].mana = G.players[ctx.currentPlayer].manaCrystals;
+  const p = G.players[ctx.currentPlayer];
+  p.manaCrystals = Math.min(p.manaCrystals + 1, p.maxManaCrystals);
+
+  // Overload: promote last turn's pending overload into this turn's active
+  // lock. Locked crystals stay owned (manaCrystals untouched) but are removed
+  // from the spendable pool for this one turn.
+  p.overloadLocked = p.overloadPending ?? 0;
+  p.overloadPending = 0;
+  p.mana = Math.max(0, p.manaCrystals - p.overloadLocked);
 
   // Reset hero power usage
   G.players[ctx.currentPlayer].heroPowerUsedThisTurn = false;
