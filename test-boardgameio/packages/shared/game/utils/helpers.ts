@@ -157,7 +157,14 @@ function applyModifierWithStacking(
         existing.img = changes.img ?? existing.img;
         existing.type = isTemporary ? "temporary" : "permanent";
         existing.lifecycle = lifecycle;
-        recordModifierEvent(G, sourceId, target, targetType, playerId, existing);
+        recordModifierEvent(
+          G,
+          sourceId,
+          target,
+          targetType,
+          playerId,
+          existing,
+        );
       }
       return;
     }
@@ -649,6 +656,7 @@ const types: EffectTypes["type"][] = [
   "stealth",
   "taunt",
   "storeVar",
+  "windfury",
 ];
 
 //  as BaseEffectSelection

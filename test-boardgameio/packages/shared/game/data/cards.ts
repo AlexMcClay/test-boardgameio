@@ -5017,9 +5017,13 @@ export const cardTemplates = {
     imageUrl: "assets/cards/Ancestral_Healing.jpg",
     // heal caps at maxHealth (helpers.healCard), so a large value = "to full"
     effects: [
+      {
+        type: "storeVar",
+        target: "user-select",
+        value: { type: "card-stat", stat: "damageTaken" },
+      },
       heal({
-        type: "card-stat",
-        stat: "damageTaken",
+        type: "temp",
       }),
       applyModifier({ keys: { taunt: true } }),
     ],
