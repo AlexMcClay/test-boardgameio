@@ -21,6 +21,7 @@ const KEYWORD_DEFINITIONS: Record<string, string> = {
   Stealth: "Can't be attacked or targeted until it attacks.",
   Poisonous: "Destroy any minion damaged by this.",
   "Spell Damage": "Your spells deal extra damage.",
+  Overload: "Have X less mana next turn.",
 };
 
 const KeywordPopover = ({ keywords, position }: Props) => {

@@ -39,6 +39,7 @@ const keywords = [
   "Stealth",
   "Poisonous",
   "Spell Damage",
+  "Overload",
 ];
 
 const Card = ({

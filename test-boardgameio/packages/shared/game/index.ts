@@ -858,7 +858,10 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
               if (targetCard && targetCard.isMinion) {
                 if (effect.target === "user-select") {
                   const currentHealth = getCurrentHealth(targetCard);
-                  if (hasKeyword(targetCard, "divineShield") && totalDamage > 0) {
+                  if (
+                    hasKeyword(targetCard, "divineShield") &&
+                    totalDamage > 0
+                  ) {
                     context.excessDamageDealt = 0;
                     context.lastTargetDied = false;
                   } else {
@@ -1424,6 +1427,9 @@ function equipWeapon(
   }
 
   player.weapon = weaponCard;
+  player.attacksLeft !== 2 &&
+    hasKeyword(weaponCard, "windfury") &&
+    player.attacksLeft++;
 
   recordEvent(G, {
     type: "equip",
@@ -2046,13 +2052,12 @@ export function beginTurn(G: GameState, ctx: GameCtx) {
   p.mana = Math.max(0, p.manaCrystals - p.overloadLocked);
 
   // Reset hero power usage
-  G.players[ctx.currentPlayer].heroPowerUsedThisTurn = false;
+  p.heroPowerUsedThisTurn = false;
 
   // Draw at the start of every turn — including each player's first
   // (Hearthstone standard; mulligan hands are 3/4+Coin) — unless full.
   {
-    const player = G.players[ctx.currentPlayer];
-    if (player.hand.length < 10) {
+    if (p.hand.length < 10) {
       handleDrawCard(G, ctx);
     }
   }
@@ -2063,7 +2068,7 @@ export function beginTurn(G: GameState, ctx: GameCtx) {
     card.summoningSickness = false; // Remove summoning sickness
   });
 
-  G.players[ctx.currentPlayer].attacksLeft = 1;
+  p.attacksLeft = p.weapon && hasKeyword(p.weapon, "windfury") ? 2 : 1;
 
   // 2. Always refresh ongoing effects (auras/in-hand/enrage) and evaluate
   // cascading health drop deaths[cite: 1]

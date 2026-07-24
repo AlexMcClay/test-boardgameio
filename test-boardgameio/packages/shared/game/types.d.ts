@@ -252,7 +252,7 @@ export type DynamicValue =
     }
   | {
       type: "card-stat";
-      stat: "attack" | "health" | "mana" | "maxHealth";
+      stat: "attack" | "health" | "mana" | "maxHealth" | 'damageTaken';
       mult?: number;
     } // inspects current target
   | {

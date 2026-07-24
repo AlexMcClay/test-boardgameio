@@ -63,6 +63,7 @@ export function resolveDynamicValue(
       if (val.stat === "health") baseValue = getCurrentHealth(context.card);
       if (val.stat === "maxHealth") baseValue = getMaxHealth(context.card);
       if (val.stat === "mana") baseValue = getManaCost(context.card);
+      if (val.stat === "damageTaken") baseValue = context.card.damageTaken;
 
       break;
 
