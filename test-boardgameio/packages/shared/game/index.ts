@@ -292,7 +292,7 @@ export const placeCard = (
   }
 
   if (card.isWeapon && !card.isPlaced) {
-    equipWeapon(G, ctx, ctx.currentPlayer, card, sourceEventIndex);
+    equipWeapon(G, ctx, ctx.currentPlayer, card, sourceEventIndex, target);
   }
 
   if (card.isSpell) {
@@ -1059,7 +1059,10 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
 
           // --- TARGET TYPE: MINION / CARD ---
           if (t.type === "card") {
-            const targetCard = G.board[t.ownerId].find((c) => c.id === t.id);
+            // Weapons live on the player, not the board — fall back to the
+            // resolved reference (e.g. Deadly Poison buffing your weapon).
+            const targetCard =
+              G.board[t.ownerId].find((c) => c.id === t.id) ?? t.cardRef;
 
             if (targetCard) {
               proccessApplyModifier(
@@ -1417,6 +1420,7 @@ function equipWeapon(
   playerId: PlayerID,
   weaponCard: Card,
   sourceEventIndex?: number,
+  target?: TargetValue,
 ) {
   const player = G.players[playerId];
   const oldWeapon = player.weapon;
@@ -1448,6 +1452,7 @@ function equipWeapon(
       ctx,
       location: "board",
       playerID: playerId,
+      target, // targeted weapon battlecries (e.g. Perdition's Blade)
       type: "minion",
       sourceEventIndex,
     });
