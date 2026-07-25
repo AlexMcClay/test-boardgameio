@@ -104,8 +104,7 @@ const shapeshift: HeroPower = {
   effects: [
     {
       type: "applyModifier",
-      stat: "attack",
-      value: 1,
+      stats: { attack: 1 },
       target: "friendly-hero",
       duration: {
         expiryTrigger: "END_OF_TURN",
@@ -161,6 +160,27 @@ const daggerMastery: HeroPower = {
   },
 };
 
+const totemicCall: HeroPower = {
+  name: "Totemic Call",
+  description: "Summon a random basic Totem.",
+  imageUrl: "assets/hero_powers/Totemic_Call.jpg",
+  manaCost: 2,
+  effects: [
+    {
+      type: "summon",
+      // Random one of the basic Totems (Healing Totem omitted: its end-of-turn
+      // "restore 1 Health to friendly minions" trigger isn't supported yet).
+      cardID: ["searing-totem", "stoneclaw-totem", "wrath-of-air-totem"],
+      target: "self",
+      value: 1,
+    },
+  ],
+  targetQuery: {
+    side: "friendly",
+    type: [],
+  },
+};
+
 // Placeholder hero power for heroes not yet implemented
 const placeholderPower: HeroPower = {
   name: "Placeholder",
@@ -188,6 +208,7 @@ export const shamanHero: Hero = {
   portrait: "assets/heros/Thrall.jpg",
   class: "Shaman",
   heroName: "Thrall",
+  heroPower: totemicCall,
 };
 
 export const rogueHero: Hero = {

@@ -3,6 +3,8 @@ import type {
   CardModifier,
   EffectTypes,
   GameState,
+  ModifierBoolKey,
+  ModifierStatKey,
   Player,
 } from "../types";
 import { cardTemplates, type CardTemplateKey } from "../data/cards";
@@ -90,10 +92,13 @@ export function hasToEndTurn(playedID: string, gameState: GameState): boolean {
     (card) => getManaCost(card) <= player.mana,
   );
   const canAttack = gameState.board[playedID].some(
-    (card) => !card.summoningSickness && !card.attacksLeft && !card.frozen,
+    (card) =>
+      !card.summoningSickness && !card.attacksLeft && !hasKeyword(card, "frozen"),
   );
   const canHeroAttack =
-    player.attacksLeft > 0 && !player.frozen && getPlayerAttack(player) > 0;
+    player.attacksLeft > 0 &&
+    !hasKeyword(player, "frozen") &&
+    getPlayerAttack(player) > 0;
   return !canPlayCards && !canAttack && !canHeroAttack;
 }
 
@@ -106,10 +111,10 @@ export function hasToEndTurn(playedID: string, gameState: GameState): boolean {
 function foldModifiers(
   base: number,
   modifiers: CardModifier[] | undefined,
-  stat: CardModifier["stat"],
+  stat: ModifierStatKey,
 ): number {
   if (!modifiers || modifiers.length === 0) return base;
-  const relevant = modifiers.filter((m) => m.stat === stat);
+  const relevant = modifiers.filter((m) => m.stats?.[stat] !== undefined);
   if (relevant.length === 0) return base;
   const isOngoing = (m: CardModifier) =>
     m.type === "aura" || m.type === "enrage";
@@ -118,9 +123,68 @@ function foldModifiers(
     ...relevant.filter(isOngoing),
   ];
   return ordered.reduce(
-    (acc, m) => (m.override ? m.value : acc + m.value),
+    (acc, m) => (m.override ? m.stats![stat]! : acc + m.stats![stat]!),
     base,
   );
+}
+
+/**
+ * Derived boolean keyword: a card/hero "has" a keyword when its base flag is
+ * set OR any modifier grants it. All engine/UI reads go through this so
+ * enchantment-granted keywords (e.g. "Stealth until your next turn") behave
+ * exactly like intrinsic ones.
+ */
+export function hasKeyword(
+  entity: Card | Player,
+  key: ModifierBoolKey,
+): boolean {
+  if ((entity as Card)[key as keyof Card]) return true;
+  return !!entity.modifiers?.some((m) => m.keys?.[key]);
+}
+
+const KEYWORD_LABELS: Record<ModifierBoolKey, string> = {
+  taunt: "Taunt",
+  divineShield: "Divine Shield",
+  stealth: "Stealth",
+  charge: "Charge",
+  rush: "Rush",
+  windfury: "Windfury",
+  frozen: "Frozen",
+};
+
+/**
+ * Auto-generates an enchantment description from its resolved changes:
+ * "+2/+2", "+2 Attack", "-1 Cost", "+2/+2 and Taunt", "Stealth and Divine
+ * Shield". Used when an ApplyModifierEffect doesn't provide its own text.
+ */
+export function describeModifier(
+  stats?: Partial<Record<ModifierStatKey, number>>,
+  keys?: Partial<Record<ModifierBoolKey, true>>,
+  override?: boolean,
+): string {
+  const parts: string[] = [];
+  const sign = (n: number) => (override ? `${n}` : n >= 0 ? `+${n}` : `${n}`);
+
+  const attack = stats?.attack;
+  const health = stats?.health;
+  if (attack !== undefined && health !== undefined) {
+    parts.push(`${sign(attack)}/${sign(health)}`);
+  } else if (attack !== undefined) {
+    parts.push(`${sign(attack)} Attack`);
+  } else if (health !== undefined) {
+    parts.push(`${sign(health)} Health`);
+  }
+  if (stats?.mana !== undefined) parts.push(`${sign(stats.mana)} Cost`);
+  if (stats?.durability !== undefined)
+    parts.push(`${sign(stats.durability)} Durability`);
+  if (stats?.spellDamage !== undefined)
+    parts.push(`${sign(stats.spellDamage)} Spell Damage`);
+
+  (Object.keys(keys ?? {}) as ModifierBoolKey[]).forEach((key) => {
+    if (keys?.[key]) parts.push(KEYWORD_LABELS[key]);
+  });
+
+  return parts.join(" and ");
 }
 
 // Get the current attack, combining base values + permanent buffs + environmental auras
@@ -172,6 +236,20 @@ export function getCurrentDurability(card: Card): number {
 // Dynamic mana cost parsing (e.g., Sorcerer's Apprentice effects)
 export function getManaCost(card: Card): number {
   return Math.max(0, foldModifiers(card.baseMana ?? 0, card.modifiers, "mana"));
+}
+
+// Spell-damage bonus a spell card has received from source auras (Spell Damage +N).
+export function getSpellDamage(card: Card): number {
+  return Math.max(0, foldModifiers(0, card.modifiers, "spellDamage"));
+}
+
+// Amount THIS minion grants as a Spell Damage source, read from its aura defs.
+// Used by the UI to show the purple sparkle indicator on source minions.
+export function getSpellDamageSource(card: Card): number {
+  return (card.aura ?? []).reduce((sum, a) => {
+    const v = a.stats?.spellDamage;
+    return sum + (typeof v === "number" ? v : 0);
+  }, 0);
 }
 
 /**

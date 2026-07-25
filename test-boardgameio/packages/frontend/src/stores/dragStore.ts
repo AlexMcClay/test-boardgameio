@@ -27,6 +27,16 @@ type DragStore = {
     context: EffectContextWithOptionalCard,
   ) => boolean;
 
+  // Live pointer tracking during a dnd-kit drag (used to compute board insertion index)
+  dragPointerPosition: { x: number; y: number } | null;
+  setDragPointerPosition: (position: { x: number; y: number } | null) => void;
+
+  // Board insertion index preview, published by the Lane currently under the pointer
+  hoverBoardIndex: number | null;
+  hoverBoardLane: PlayerID | null;
+  setHoverBoard: (index: number | null, lane: PlayerID | null) => void;
+  clearHoverBoard: () => void;
+
   // Extensible targeting system
   targetingMode: TargetingMode;
   targetingCardId: string | null;
@@ -67,6 +77,15 @@ export const useDragStore = create<DragStore>((set, get) => ({
     const { activeCard } = get();
     return canTargetHighlight(activeCard, { ...context, target: target });
   },
+
+  dragPointerPosition: null,
+  setDragPointerPosition: (position) => set({ dragPointerPosition: position }),
+
+  hoverBoardIndex: null,
+  hoverBoardLane: null,
+  setHoverBoard: (index, lane) =>
+    set({ hoverBoardIndex: index, hoverBoardLane: lane }),
+  clearHoverBoard: () => set({ hoverBoardIndex: null, hoverBoardLane: null }),
 
   // Extensible targeting system
   targetingMode: null,

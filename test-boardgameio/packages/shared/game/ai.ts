@@ -15,6 +15,7 @@ import {
   getManaCost,
   getMaxHealth,
   getPlayerAttack,
+  hasKeyword,
   isUserSelectValue,
 } from "./utils";
 import { resolveDynamicValue } from "./utils/effectEngine";
@@ -511,16 +512,20 @@ function enumerateAttacks(G: GameState, ctx: Ctx): AIMove[] {
     // Can only attack if not summoning sick and hasn't attacked
 
     const isSicknessActive =
-      card.summoningSickness && !card.charge && !card.rush;
+      card.summoningSickness &&
+      !hasKeyword(card, "charge") &&
+      !hasKeyword(card, "rush");
     const disabled =
-      (card.attacksLeft == 0 || isSicknessActive || card.frozen) &&
+      (card.attacksLeft == 0 || isSicknessActive || hasKeyword(card, "frozen")) &&
       !G?.activeBattlecryMinion;
     if (disabled || !getAttack(card) || getAttack(card) <= 0) {
       return;
     }
 
     // Check if enemy has taunt minions
-    const enemyTaunts = G.board[enemyPlayerId].filter((c) => c.taunt);
+    const enemyTaunts = G.board[enemyPlayerId].filter((c) =>
+      hasKeyword(c, "taunt"),
+    );
 
     if (enemyTaunts.length > 0) {
       // Must attack taunts
@@ -608,7 +613,7 @@ function enumerateHeroAttacks(
 
   if (
     player.attacksLeft <= 0 ||
-    player.frozen ||
+    hasKeyword(player, "frozen") ||
     getPlayerAttack(player) <= 0
   ) {
     return moves;
@@ -616,7 +621,9 @@ function enumerateHeroAttacks(
 
   const enemyPlayerId = ctx.currentPlayer === "0" ? "1" : "0";
   const enemyPlayer = G.players[enemyPlayerId];
-  const enemyTaunts = G.board[enemyPlayerId].filter((c) => c.taunt);
+  const enemyTaunts = G.board[enemyPlayerId].filter((c) =>
+    hasKeyword(c, "taunt"),
+  );
   const candidateTargets: TargetValue[] = [];
 
   if (enemyTaunts.length > 0) {
@@ -694,7 +701,7 @@ function scoreHeroAttack(
       score += targetHealth * 3;
       if (targetAttack >= 6) score += 40;
       else if (targetAttack >= 4) score += 20;
-      if (targetCard.taunt) score += 25;
+      if (hasKeyword(targetCard, "taunt")) score += 25;
     } else {
       score += attackValue * 3;
     }
@@ -922,11 +929,11 @@ function scoreCardPlay(
     if (getCurrentHealth(card)) score += getCurrentHealth(card) * 6; // Health is valuable
 
     // Keyword bonuses
-    if (card.taunt) score += 15; // Protection
-    if (card.divineShield) score += 12; // Survives first hit
-    if (card.charge) score += 15; // Immediate impact
-    if (card.rush) score += 10; // Can trade immediately
-    if (card.stealth) score += 5; // Protected for one turn
+    if (hasKeyword(card, "taunt")) score += 15; // Protection
+    if (hasKeyword(card, "divineShield")) score += 12; // Survives first hit
+    if (hasKeyword(card, "charge")) score += 15; // Immediate impact
+    if (hasKeyword(card, "rush")) score += 10; // Can trade immediately
+    if (hasKeyword(card, "stealth")) score += 5; // Protected for one turn
   }
 
   // Spell value - balance with minions
@@ -1037,7 +1044,7 @@ function scoreAttack(
       }
 
       // Extra value for taunt removal
-      if (targetCard.taunt) score += 25; // Increased from 20
+      if (hasKeyword(targetCard, "taunt")) score += 25; // Increased from 20
     } else {
       // Partial damage (still board control)
       score += getAttack(attacker) * 3; // Increased from 2
@@ -1329,7 +1336,7 @@ function evaluateEffect(effect: EffectTypes, context: EffectContext): number {
             score += 60; // Base destroy value
             score += (getAttack(targetCard) || 0) * 6;
             score += (getCurrentHealth(targetCard) || 0) * 4;
-            if (targetCard.taunt) score += 20; // Extra value for taunt removal
+            if (hasKeyword(targetCard, "taunt")) score += 20; // Extra value for taunt removal
           }
         }
       }
@@ -1343,7 +1350,7 @@ function evaluateEffect(effect: EffectTypes, context: EffectContext): number {
         const targetCard = G.board[target.player].find(
           (c) => c.id === target.id,
         );
-        if (targetCard && !targetCard.divineShield) {
+        if (targetCard && !hasKeyword(targetCard, "divineShield")) {
           if (isFriendly) {
             // Good - buff own minions
             score += 15; // Base value
@@ -1407,11 +1414,12 @@ function evaluateEffect(effect: EffectTypes, context: EffectContext): number {
         );
         if (targetCard) {
           if (isFriendly) {
-            // Good - buff own minions
-            if (modEffect.stat === "attack") {
-              score += resolveDynamicValue(effect.value, context) * 6; // Attack is valuable
-            } else if (modEffect.stat === "health") {
-              score += resolveDynamicValue(effect.value, context) * 5; // Health is valuable
+            // Good - buff own minions (attack is worth a bit more than health)
+            if (modEffect.stats?.attack !== undefined) {
+              score += resolveDynamicValue(modEffect.stats.attack, context) * 6;
+            }
+            if (modEffect.stats?.health !== undefined) {
+              score += resolveDynamicValue(modEffect.stats.health, context) * 5;
             }
             // Better to buff already strong minions
             score += (getAttack(targetCard) || 0) * 1.5;
@@ -1422,10 +1430,11 @@ function evaluateEffect(effect: EffectTypes, context: EffectContext): number {
         }
       } else {
         // Non-targeted buffs (like friendly-all)
-        if (modEffect.stat === "attack") {
-          score += resolveDynamicValue(effect.value, context) * 6;
-        } else if (modEffect.stat === "health") {
-          score += resolveDynamicValue(effect.value, context) * 5;
+        if (modEffect.stats?.attack !== undefined) {
+          score += resolveDynamicValue(modEffect.stats.attack, context) * 6;
+        }
+        if (modEffect.stats?.health !== undefined) {
+          score += resolveDynamicValue(modEffect.stats.health, context) * 5;
         }
       }
       break;

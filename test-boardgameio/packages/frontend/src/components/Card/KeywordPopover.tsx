@@ -20,6 +20,8 @@ const KEYWORD_DEFINITIONS: Record<string, string> = {
   Combo: "A bonus if you already played a card this turn.",
   Stealth: "Can't be attacked or targeted until it attacks.",
   Poisonous: "Destroy any minion damaged by this.",
+  "Spell Damage": "Your spells deal extra damage.",
+  Overload: "Have X less mana next turn.",
 };
 
 const KeywordPopover = ({ keywords, position }: Props) => {

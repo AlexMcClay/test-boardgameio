@@ -2,6 +2,7 @@ import type {
   Card,
   CardModifier,
   GameState,
+  ModifierStatKey,
   Player,
   TargetValue,
   Hero,
@@ -12,10 +13,13 @@ import type {
 } from "./types";
 import {
   createCardFromID,
+  consumeKeyword,
   getAttack,
   getCurrentHealth,
   getManaCost,
   getMaxHealth,
+  getSpellDamage,
+  hasKeyword,
   shuffleDeck,
   applyBoolEffectToCard,
   applyBoolEffectToPlayer,
@@ -31,6 +35,7 @@ import {
   isBaseEffectSelection,
   addCardToHand,
   findCardsInPool,
+  resolveSummonCandidates,
   returnCardToHand,
   discardCardsFromHand,
   isUserSelectValue,
@@ -95,6 +100,8 @@ export const setupGame = (setupData: GameSetupData): GameState => {
     armor: 0,
     manaCrystals: 0,
     maxManaCrystals: 10,
+    overloadPending: 0,
+    overloadLocked: 0,
     mana: 1,
     baseAttack: 0,
     modifiers: [],
@@ -118,6 +125,8 @@ export const setupGame = (setupData: GameSetupData): GameState => {
     armor: 0,
     manaCrystals: 0,
     maxManaCrystals: 10,
+    overloadPending: 0,
+    overloadLocked: 0,
     mana: 1,
     baseAttack: 0,
     modifiers: [],
@@ -203,6 +212,21 @@ export const placeCard = (
     turn: ctx.turn,
   });
 
+  // Overload: charged only on a successful play from hand. The pending amount
+  // is promoted into locked crystals at the start of this player's next turn.
+  if (card.overload) {
+    const amount = resolveDynamicValue(card.overload, {
+      card,
+      G,
+      ctx,
+      location: "hand",
+      playerID: ctx.currentPlayer,
+      target,
+      type: card.isSpell ? "spell" : "minion",
+    });
+    player.overloadPending += amount;
+  }
+
   // See if the card can be placed on the board
   if (card.isMinion && !card.isPlaced) {
     card.isPlaced = true;
@@ -268,7 +292,7 @@ export const placeCard = (
   }
 
   if (card.isWeapon && !card.isPlaced) {
-    equipWeapon(G, ctx, ctx.currentPlayer, card, sourceEventIndex);
+    equipWeapon(G, ctx, ctx.currentPlayer, card, sourceEventIndex, target);
   }
 
   if (card.isSpell) {
@@ -359,6 +383,12 @@ export const minionAttack = (
   executeEffects(attacker.effects, context);
 
   attacker.attacksLeft -= 1;
+
+  // Attacking breaks Stealth: clears the base flag and strips the grant from
+  // any modifier providing it ("Stealth until..." enchantments included).
+  if (hasKeyword(attacker, "stealth")) {
+    consumeKeyword(G, attacker, "card", ctx.currentPlayer, "stealth");
+  }
 
   if (target.type === "card") {
     const defender = G.board[target.player].find((c) => c.id === target.id);
@@ -731,7 +761,14 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         }
         break;
       case "damage": {
-        const totalDamage = resolveDynamicValue(effect.value, context);
+        let totalDamage = resolveDynamicValue(effect.value, context);
+        // Spell Damage: boost every damage instance of a CAST spell by the
+        // bonus its card carries (from source auras). Gated to spells only —
+        // battlecries/attacks/deathrattles/weapons are "minion", hero powers
+        // "heroPower", and healing is a separate case.
+        if (context.type === "spell" && context.card) {
+          totalDamage += getSpellDamage(context.card);
+        }
 
         // --- BRANCH A: RANDOM SPLIT DAMAGE (e.g., Cinderstorm, Mad Bomber) ---
         if (effect.rand?.split) {
@@ -821,7 +858,10 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
               if (targetCard && targetCard.isMinion) {
                 if (effect.target === "user-select") {
                   const currentHealth = getCurrentHealth(targetCard);
-                  if (targetCard.divineShield && totalDamage > 0) {
+                  if (
+                    hasKeyword(targetCard, "divineShield") &&
+                    totalDamage > 0
+                  ) {
                     context.excessDamageDealt = 0;
                     context.lastTargetDied = false;
                   } else {
@@ -865,6 +905,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
           stealth: "stealth",
           charge: "charge",
           rush: "rush",
+          windfury: "windfury",
         };
         const cardKey = keyMap[effect.type];
 
@@ -972,9 +1013,27 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         break;
       case "applyModifier": {
         const modEffect = effect;
-        const value =
-          resolveDynamicValue(effect.value, context) *
-          resolveDynamicValue(effect.mult ?? 1, context);
+        // Resolve every stat's value once (provider as context.card)
+        const mult = resolveDynamicValue(modEffect.mult ?? 1, context);
+        const stats: Partial<Record<ModifierStatKey, number>> = {};
+        (Object.keys(modEffect.stats ?? {}) as ModifierStatKey[]).forEach(
+          (statKey) => {
+            const raw = modEffect.stats?.[statKey];
+            if (raw === undefined) return;
+            stats[statKey] = resolveDynamicValue(raw, context) * mult;
+          },
+        );
+        const changes = {
+          name:
+            modEffect.name ??
+            card?.title ??
+            context.heroPower?.name ??
+            "Enchantment",
+          description: modEffect.description,
+          img: card?.imageUrl ?? context.heroPower?.imageUrl,
+          stats,
+          keys: modEffect.keys,
+        };
         const targets = resolveTargets(effect, context); // Unified target array resolution
 
         console.log(
@@ -993,14 +1052,17 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
                 targetPlayer,
                 playerID,
                 modEffect,
-                value,
+                changes,
               );
             }
           }
 
           // --- TARGET TYPE: MINION / CARD ---
           if (t.type === "card") {
-            const targetCard = G.board[t.ownerId].find((c) => c.id === t.id);
+            // Weapons live on the player, not the board — fall back to the
+            // resolved reference (e.g. Deadly Poison buffing your weapon).
+            const targetCard =
+              G.board[t.ownerId].find((c) => c.id === t.id) ?? t.cardRef;
 
             if (targetCard) {
               proccessApplyModifier(
@@ -1009,7 +1071,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
                 targetCard,
                 playerID, // Note: passing playerID as caster/source scope
                 modEffect,
-                value,
+                changes,
               );
             }
           }
@@ -1023,15 +1085,26 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
           effect.target === "self" ? playerID : enemyPlayerId;
         const value = resolveDynamicValue(effect.value, context);
 
+        // Candidate template IDs: a specific card, a list to pick from, or all
+        // summonable minions — optionally filtered by conditions.
+        const candidates = resolveSummonCandidates(effect, context);
+        if (candidates.length === 0) {
+          console.warn("No valid summon candidates for effect", effect);
+          break;
+        }
+
         // check if the board can fit the summoned card
         for (let index = 0; index < value; index++) {
           if (G.board[playerTarget].length >= 7) {
             console.warn("Cannot summon more than 7 cards on the board");
             break; // Cannot summon more than 7 cards on the board
           }
-          const summonedCard = createCardFromID(
-            effect.cardID as CardTemplateKey,
-          );
+          // Independent pick per summon (repeats allowed).
+          const pickId =
+            candidates.length === 1
+              ? candidates[0]
+              : candidates[Math.floor(Math.random() * candidates.length)];
+          const summonedCard = createCardFromID(pickId as CardTemplateKey);
           if (summonedCard) {
             summonedCard.isPlaced = true; // Mark the summoned card as placed
             summonedCard.summoningSickness = true; // Summoned minions have summoning sickness
@@ -1045,7 +1118,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
             });
             G.board[playerTarget].push(summonedCard);
           } else {
-            console.warn(`Card with ID ${effect.cardID} not found.`);
+            console.warn(`Card with ID ${pickId} not found.`);
           }
         }
 
@@ -1347,6 +1420,7 @@ function equipWeapon(
   playerId: PlayerID,
   weaponCard: Card,
   sourceEventIndex?: number,
+  target?: TargetValue,
 ) {
   const player = G.players[playerId];
   const oldWeapon = player.weapon;
@@ -1357,6 +1431,9 @@ function equipWeapon(
   }
 
   player.weapon = weaponCard;
+  player.attacksLeft !== 2 &&
+    hasKeyword(weaponCard, "windfury") &&
+    player.attacksLeft++;
 
   recordEvent(G, {
     type: "equip",
@@ -1375,6 +1452,7 @@ function equipWeapon(
       ctx,
       location: "board",
       playerID: playerId,
+      target, // targeted weapon battlecries (e.g. Perdition's Blade)
       type: "minion",
       sourceEventIndex,
     });
@@ -1561,20 +1639,19 @@ function listManagedOwners(G: GameState): ManagedOwnerRef[] {
 }
 
 /**
- * The owner's stat with all managed modifiers of `managedType` for that stat
- * removed — the clamp baseline for min/max ("but not less than 1"), so the
- * previous refresh's own entries don't skew this refresh's math.
+ * The owner's stat with all managed modifiers of `managedType` removed — the
+ * clamp baseline for min/max ("but not less than 1"), so the previous
+ * refresh's own entries don't skew this refresh's math. (Excluding whole
+ * modifiers of the managed type is exact: the fold only reads this stat.)
  */
 function getStatExcludingManaged(
   owner: Card | Player,
   ownerType: "card" | "player",
-  stat: CardModifier["stat"],
+  stat: ModifierStatKey,
   managedType: CardModifier["type"],
 ): number {
   const saved = owner.modifiers;
-  owner.modifiers = saved?.filter(
-    (m) => !(m.type === managedType && m.stat === stat),
-  );
+  owner.modifiers = saved?.filter((m) => m.type !== managedType);
   let value = 0;
   if (ownerType === "player") {
     if (stat === "attack") value = getPlayerAttack(owner as Player);
@@ -1632,9 +1709,8 @@ function collectDesiredModifiers(
 
   defs.forEach((effect) => {
     if (effect.type !== "applyModifier") return;
-    const rawValue =
-      resolveDynamicValue(effect.value, context) *
-      resolveDynamicValue(effect.mult ?? 1, context);
+    const mult = resolveDynamicValue(effect.mult ?? 1, context);
+    const override = effect.override ?? false;
 
     resolveTargets(effect, context).forEach((t) => {
       const owner = t.type === "player" ? G.players[t.ownerId] : t.cardRef;
@@ -1646,28 +1722,47 @@ function collectDesiredModifiers(
         desired.set(owner, specs);
       }
 
-      let value = rawValue;
-      if (effect.override) {
-        if (effect.min !== undefined) value = Math.max(effect.min, value);
-        if (effect.max !== undefined) value = Math.min(effect.max, value);
-      } else {
-        // Clamp against the stat as it stands WITHOUT this pass's previous
-        // entries, plus what this pass has already granted the owner — so
-        // stacked providers (two Sorcerer's Apprentices) respect the floor.
-        const base =
-          getStatExcludingManaged(owner, t.type, effect.stat, managedType) +
-          specs
-            .filter((s) => s.stat === effect.stat && !s.override)
-            .reduce((sum, s) => sum + s.value, 0);
-        value = clampDelta(base, value, effect.min, effect.max);
-        if (value === 0) return; // fully clamped or no-op — no modifier
-      }
+      // Resolve each stat, clamping additive deltas against the stat as it
+      // stands WITHOUT this pass's previous entries, plus what this pass has
+      // already granted the owner — so stacked providers (two Sorcerer's
+      // Apprentices) respect the floor.
+      const stats: Partial<Record<ModifierStatKey, number>> = {};
+      (Object.keys(effect.stats ?? {}) as ModifierStatKey[]).forEach(
+        (statKey) => {
+          const raw = effect.stats?.[statKey];
+          if (raw === undefined) return;
+          let value = resolveDynamicValue(raw, context) * mult;
+          if (override) {
+            if (effect.min !== undefined) value = Math.max(effect.min, value);
+            if (effect.max !== undefined) value = Math.min(effect.max, value);
+          } else {
+            const base =
+              getStatExcludingManaged(owner, t.type, statKey, managedType) +
+              specs
+                .filter((s) => !s.override)
+                .reduce((sum, s) => sum + (s.stats?.[statKey] ?? 0), 0);
+            value = clampDelta(base, value, effect.min, effect.max);
+            if (value === 0) return; // fully clamped — no entry for this stat
+          }
+          stats[statKey] = value;
+        },
+      );
+
+      const hasStats = Object.keys(stats).length > 0;
+      const keys =
+        effect.keys && Object.keys(effect.keys).length
+          ? effect.keys
+          : undefined;
+      if (!hasStats && !keys) return; // nothing survived — no modifier
 
       specs.push({
         sourceCardId: provider.id,
-        stat: effect.stat,
-        value,
-        override: effect.override,
+        name: effect.name ?? provider.title,
+        description: effect.description,
+        img: provider.imageUrl,
+        stats: hasStats ? stats : undefined,
+        keys,
+        override,
       });
     });
   });
@@ -1951,32 +2046,34 @@ export function beginTurn(G: GameState, ctx: GameCtx) {
   // 1. Process anything that expires at the START of a turn
   processModifierLifecycle(G, ctx.currentPlayer, "START_OF_TURN");
 
-  const manaCrystals = G.players[ctx.currentPlayer].manaCrystals;
-  G.players[ctx.currentPlayer].manaCrystals = Math.min(
-    manaCrystals + 1,
-    G.players[ctx.currentPlayer].maxManaCrystals,
-  );
-  G.players[ctx.currentPlayer].mana = G.players[ctx.currentPlayer].manaCrystals;
+  const p = G.players[ctx.currentPlayer];
+  p.manaCrystals = Math.min(p.manaCrystals + 1, p.maxManaCrystals);
+
+  // Overload: promote last turn's pending overload into this turn's active
+  // lock. Locked crystals stay owned (manaCrystals untouched) but are removed
+  // from the spendable pool for this one turn.
+  p.overloadLocked = p.overloadPending ?? 0;
+  p.overloadPending = 0;
+  p.mana = Math.max(0, p.manaCrystals - p.overloadLocked);
 
   // Reset hero power usage
-  G.players[ctx.currentPlayer].heroPowerUsedThisTurn = false;
+  p.heroPowerUsedThisTurn = false;
 
   // Draw at the start of every turn — including each player's first
   // (Hearthstone standard; mulligan hands are 3/4+Coin) — unless full.
   {
-    const player = G.players[ctx.currentPlayer];
-    if (player.hand.length < 10) {
+    if (p.hand.length < 10) {
       handleDrawCard(G, ctx);
     }
   }
 
   // reset
   G.board[ctx.currentPlayer].forEach((card) => {
-    card.attacksLeft = card.windfury ? 2 : 1;
+    card.attacksLeft = hasKeyword(card, "windfury") ? 2 : 1;
     card.summoningSickness = false; // Remove summoning sickness
   });
 
-  G.players[ctx.currentPlayer].attacksLeft = 1;
+  p.attacksLeft = p.weapon && hasKeyword(p.weapon, "windfury") ? 2 : 1;
 
   // 2. Always refresh ongoing effects (auras/in-hand/enrage) and evaluate
   // cascading health drop deaths[cite: 1]
@@ -2005,16 +2102,19 @@ export function endTurnCleanup(G: GameState, ctx: GameCtx) {
 
   G.board[ctx.currentPlayer].forEach((card) => {
     if (
-      card.frozen &&
+      hasKeyword(card, "frozen") &&
       shouldMinionUnfreezeAtTurnEnd(G, ctx.currentPlayer, card)
     ) {
-      card.frozen = false;
+      consumeKeyword(G, card, "card", ctx.currentPlayer, "frozen");
     }
   });
 
   const endingPlayer = G.players[ctx.currentPlayer];
-  if (endingPlayer.frozen && shouldHeroUnfreezeAtTurnEnd(endingPlayer)) {
-    endingPlayer.frozen = false;
+  if (
+    hasKeyword(endingPlayer, "frozen") &&
+    shouldHeroUnfreezeAtTurnEnd(endingPlayer)
+  ) {
+    consumeKeyword(G, endingPlayer, "player", ctx.currentPlayer, "frozen");
   }
 
   // 2. Refresh ongoing effects/deaths again in case losing an attack/health

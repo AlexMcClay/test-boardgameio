@@ -549,7 +549,16 @@ const CollectionManager = () => {
       <div className="absolute bg-gradient-to-t pointer-events-none from-black/60 h-[1.5vh] w-[56vw] left-[12.6vw] top-[4.5vh] pl-[1vw]"></div>
 
       {/* Left Panel - Card Collection */}
-      <div className="flex flex-col w-[56vw] absolute h-[81vh] left-[12.6vw] top-[6vh] rounded-lg shadow-lg p-[1vw] px-[0.5vw] overflow-hidden">
+      <div
+        onWheel={(e) => {
+          if (e.deltaY > 0) {
+            handleNextPage();
+          } else {
+            handlePreviousPage();
+          }
+        }}
+        className="flex flex-col w-[56vw] absolute h-[81vh] left-[12.6vw] top-[6vh] rounded-lg shadow-lg p-[1vw] px-[0.5vw] overflow-hidden"
+      >
         <p className="absolute w-[12vw] h-[4vh] left-[21vw] top-[3.3vh] text-center text-[1.4vw]">
           {selectedClass || "All Classes"}
         </p>

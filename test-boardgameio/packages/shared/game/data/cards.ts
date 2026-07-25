@@ -23,27 +23,44 @@ const damage = (
   };
 };
 
+/**
+ * Builds one grouped ENCHANTMENT effect: all stat changes and keyword grants
+ * of a buff live in a single modifier ("+2/+2 and Taunt" is ONE entry on the
+ * card's modifier list, shown as one item on hover).
+ */
 const applyModifier = (
-  stat: ApplyModifierEffect["stat"],
-  value: ApplyModifierEffect["value"],
-  target: ApplyModifierEffect["target"] = "user-select",
-  override: boolean = false,
-  duration?: ApplyModifierEffect["duration"],
-  opts?: Pick<
+  opts: Pick<
     ApplyModifierEffect,
-    "conditions" | "min" | "max" | "mult" | "stackable"
-  >,
+    | "stats"
+    | "keys"
+    | "name"
+    | "description"
+    | "override"
+    | "duration"
+    | "conditions"
+    | "min"
+    | "max"
+    | "mult"
+    | "stackable"
+  > & { target?: ApplyModifierEffect["target"] },
 ): ApplyModifierEffect => {
+  const { target, ...rest } = opts;
   return {
     type: "applyModifier",
-    stat: stat,
-    value: value,
-    target: target,
-    duration: duration,
-    override: override,
-    ...opts,
+    target: target ?? "user-select",
+    ...rest,
   };
 };
+
+// Spell Damage +N source aura: continuously grants +N spell damage to the
+// caster's spell cards in hand (mirrors Sorcerer's Apprentice's cost aura).
+const spellDamageAura = (n: number): ApplyModifierEffect =>
+  applyModifier({
+    name: `Spell Damage +${n}`,
+    stats: { spellDamage: n },
+    target: "friendly-hand",
+    conditions: [{ type: "boolean", key: "isSpell", value: true }],
+  });
 
 // 1. The Generic Factory Function
 const createBoolEffectUtil = (type: EffectTypes["type"]) => {
@@ -61,9 +78,10 @@ const createBoolEffectUtil = (type: EffectTypes["type"]) => {
 // 2. Generate all your utility helpers instantly
 const freeze = createBoolEffectUtil("freeze");
 const divineShield = createBoolEffectUtil("divineShield");
-const taunt = createBoolEffectUtil("taunt");
+export const taunt = createBoolEffectUtil("taunt");
 // const stealth = createBoolEffectUtil("stealth");
 const charge = createBoolEffectUtil("charge");
+const windfury = createBoolEffectUtil("windfury");
 // const rush = createBoolEffectUtil("rush");
 
 const destroy = (
@@ -132,14 +150,16 @@ const discard = (
 };
 
 const summon = (
-  cardID: string,
+  cardID?: string | string[], // specific card, or a list to pick from at random; omit to summon from all minions
   target: "self" | "enemy" = "self",
-  count: number = 1,
+  count: number | DynamicValue = 1,
+  conditions?: TargetCondition[], // filter candidates (e.g. summon a random Demon)
 ): EffectTypes => {
   return {
     type: "summon",
-    cardID: cardID,
-    target: target,
+    ...(cardID !== undefined ? { cardID } : {}),
+    ...(conditions ? { conditions } : {}),
+    target,
     value: count,
   };
 };
@@ -285,31 +305,30 @@ const returnToHand = (
 
 const sfxShortener = (sfx: string) => `/cards/${sfx}`;
 
+type SFXTHING = string | SFXInstance | [string, number];
+
 const sfx = (
-  play: (string | SFXInstance)[],
-  attack?: (string | SFXInstance)[],
-  death?: (string | SFXInstance)[],
+  play: SFXTHING[],
+  attack?: SFXTHING[],
+  death?: SFXTHING[],
 ): {
-  death?: SFXInstance[] | undefined;
+  death?: SFXInstance[];
   play?: SFXInstance[];
   attack?: SFXInstance[];
 } => {
+  const parser = (soundId: SFXTHING): SFXInstance =>
+    typeof soundId === "string"
+      ? { soundId: sfxShortener(soundId) }
+      : Array.isArray(soundId)
+        ? {
+            soundId: sfxShortener(soundId[0]),
+            delay: soundId[1],
+          }
+        : soundId;
   return {
-    death: death?.map((soundId) =>
-      typeof soundId === "string"
-        ? { soundId: sfxShortener(soundId) }
-        : soundId,
-    ),
-    play: play?.map((soundId) =>
-      typeof soundId === "string"
-        ? { soundId: sfxShortener(soundId) }
-        : soundId,
-    ),
-    attack: attack?.map((soundId) =>
-      typeof soundId === "string"
-        ? { soundId: sfxShortener(soundId) }
-        : soundId,
-    ),
+    death: death?.map(parser),
+    play: play?.map(parser),
+    attack: attack?.map(parser),
   };
 };
 
@@ -389,17 +408,10 @@ export const cardTemplates = {
     },
     isMinion: false,
     class: "Mage",
-    sfx: {
-      play: [
-        {
-          soundId: "/cards/fireball/FX_FireballEvent03_SpellCast_01.ogg",
-        },
-        {
-          soundId: "/cards/fireball/FX_FireballEvent04_SpellImpact_01.ogg",
-          delay: 400,
-        },
-      ],
-    },
+    sfx: sfx([
+      "FX_FireballEvent03_SpellCast_01.ogg",
+      ["FX_FireballEvent04_SpellImpact_01.ogg", 400],
+    ]),
     set: ["Legacy"],
   },
   "mirror-image-spell": {
@@ -431,7 +443,12 @@ export const cardTemplates = {
     baseMana: 0,
     type: ["Minion"],
     imageUrl: "assets/cards/Mirror_Image_Summon.jpg",
-    effects: [], // No standard baseAttack value effect because its base baseAttack is 0
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ], // No standard baseAttack value effect because its base baseAttack is 0
     onPlace: [],
     targetQuery: {
       side: "enemy",
@@ -441,6 +458,158 @@ export const cardTemplates = {
     isUncollectible: true, // Hidden from deckbuilders like Murloc Scout
     class: "Mage",
     set: ["Legacy"],
+  },
+  "searing-totem": {
+    title: "Searing Totem",
+    description: "",
+    baseAttack: 1,
+    baseHealth: 1,
+    baseMana: 1,
+    type: ["Totem"],
+    imageUrl: "assets/cards/Searing_Totem.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    isUncollectible: true, // Token, hidden from deckbuilders
+    class: "Shaman",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_051_Play_StoneclawTotem.ogg"],
+      ["SFX_CS2_050_Attack_00.ogg"],
+      ["CS2_050_Death_SearingTotem.ogg"],
+    ),
+  },
+  "stoneclaw-totem": {
+    title: "Stoneclaw Totem",
+    description: "Taunt.",
+    taunt: true,
+    baseAttack: 0,
+    baseHealth: 2,
+    baseMana: 1,
+    type: ["Totem"],
+    imageUrl: "assets/cards/Stoneclaw_Totem.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ], // 0 attack, no attack effect (mirrors mirror-image-token)
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    isUncollectible: true, // Token, hidden from deckbuilders
+    class: "Shaman",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_051_Play_StoneclawTotem.ogg"],
+      ["SFX_CS2_050_Attack_00.ogg"],
+      ["CS2_050_Death_SearingTotem.ogg"],
+    ),
+  },
+  "wrath-of-air-totem": {
+    title: "Wrath of Air Totem",
+    description: "Spell Damage +1",
+    baseAttack: 0,
+    baseHealth: 2,
+    baseMana: 1,
+    type: ["Totem"],
+    imageUrl: "assets/cards/Wrath_of_Air_Totem.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ], // 0 attack, no attack effect
+    onPlace: [],
+    aura: [spellDamageAura(1)],
+    hideAuraGlow: true, // shows purple sparkles instead of the yellow aura glow
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    isUncollectible: true, // Token, hidden from deckbuilders
+    class: "Shaman",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_051_Play_StoneclawTotem.ogg"],
+      ["SFX_CS2_052_Attack_00.ogg"],
+      ["CS2_052_Death_WrathofAirTotem.ogg"],
+    ),
+  },
+  "kobold-geomancer": {
+    title: "Kobold Geomancer",
+    description: "Spell Damage +1",
+    baseAttack: 2,
+    baseHealth: 2,
+    baseMana: 2,
+    type: ["Minion"],
+    imageUrl: "assets/cards/Kobold_Geomancer.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    aura: [spellDamageAura(1)],
+    hideAuraGlow: true, // shows purple sparkles instead of the yellow aura glow
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Common",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_142_Play_01.ogg"],
+      ["VO_CS2_142_Attack_02.ogg"],
+      ["VO_CS2_142_Death_03.ogg"],
+    ),
+  },
+  "ogre-magi": {
+    title: "Ogre Magi",
+    description: "Spell Damage +1",
+    baseAttack: 4,
+    baseHealth: 4,
+    baseMana: 4,
+    type: ["Minion"],
+    imageUrl: "assets/cards/Ogre_Magi.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    aura: [spellDamageAura(1)],
+    hideAuraGlow: true, // shows purple sparkles instead of the yellow aura glow
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Common",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_197_Play_01_MIX.ogg"],
+      ["VO_CS2_197_Attack_02_MIX.ogg"],
+      ["VO_CS2_197_Death_03_MIX.ogg"],
+    ),
   },
   "arcane-intellect": {
     title: "Arcane Intellect",
@@ -1012,7 +1181,9 @@ export const cardTemplates = {
     baseMana: 2,
     type: ["Nature"],
     imageUrl: "assets/cards/Mark_of_the_Wild.jpg",
-    effects: [applyModifier("attack", 2), applyModifier("health", 3), taunt()],
+    effects: [
+      applyModifier({ stats: { attack: 2, health: 3 }, keys: { taunt: true } }),
+    ],
     onPlace: [],
     isSpell: true,
     targetQuery: {
@@ -1509,7 +1680,7 @@ export const cardTemplates = {
     baseMana: 4,
     type: ["Holy"],
     imageUrl: "assets/cards/Blessing_of_Kings.jpg",
-    effects: [applyModifier("attack", 4), applyModifier("health", 4)],
+    effects: [applyModifier({ stats: { attack: 4, health: 4 } })],
     onPlace: [],
     isSpell: true,
     targetQuery: {
@@ -1612,7 +1783,7 @@ export const cardTemplates = {
     imageUrl: "assets/cards/Inner_Rage.jpg",
     description: "Deal 1 damage to a minion and give it +2 attack.",
     baseMana: 0,
-    effects: [damage(1), applyModifier("attack", 2)],
+    effects: [damage(1), applyModifier({ stats: { attack: 2 } })],
     onPlace: [],
     targetQuery: {
       side: "all",
@@ -1940,7 +2111,7 @@ export const cardTemplates = {
     baseMana: 1,
     baseAttack: undefined,
     baseHealth: undefined,
-    type: ["Spell"],
+    type: ["Holy"],
     imageUrl: "assets/cards/Hand_of_Protection.jpg",
     effects: [divineShield("user-select")],
     onPlace: [],
@@ -2235,7 +2406,10 @@ export const cardTemplates = {
         type: "card-stat",
       }),
     ],
-    onPlace: [damage(1, "user-select", true), applyModifier("attack", 2)],
+    onPlace: [
+      damage(1, "user-select", true),
+      applyModifier({ stats: { attack: 2 } }),
+    ],
     battlecryQuery: {
       side: "all",
       type: ["card"],
@@ -2437,10 +2611,7 @@ export const cardTemplates = {
     description: "Give a damaged minion +3/+3.",
     baseMana: 2,
     imageUrl: "assets/cards/Rampage.jpg",
-    effects: [
-      applyModifier("health", 3, "user-select"),
-      applyModifier("attack", 3, "user-select"),
-    ],
+    effects: [applyModifier({ stats: { attack: 3, health: 3 } })],
     onPlace: [],
     isSpell: true,
     targetQuery: {
@@ -2729,10 +2900,7 @@ export const cardTemplates = {
           },
         ],
 
-        then: [
-          applyModifier("attack", 2, "user-select"),
-          applyModifier("health", 2, "user-select"),
-        ],
+        then: [applyModifier({ stats: { attack: 2, health: 2 } })],
         // Otherwise, deal the baseline 2 damage to it
         else: [damage(2, "user-select")],
       },
@@ -3228,7 +3396,7 @@ export const cardTemplates = {
       {
         type: "returnToHand",
         target: "user-select",
-        modifiers: [applyModifier("mana", -2, "self")],
+        modifiers: [applyModifier({ stats: { mana: -2 }, target: "self" })],
       },
     ],
     onPlace: [],
@@ -3413,10 +3581,13 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     onPlace: [
-      applyModifier("attack", 2, "user-select", false, {
-        expiryOwner: "BUFF_CASTER",
-        expiryTrigger: "END_OF_TURN",
-        turnsRemaining: 1,
+      applyModifier({
+        stats: { attack: 2 },
+        duration: {
+          expiryOwner: "BUFF_CASTER",
+          expiryTrigger: "END_OF_TURN",
+          turnsRemaining: 1,
+        },
       }),
     ],
     battlecryQuery: {
@@ -3527,26 +3698,11 @@ export const cardTemplates = {
       type: ["card", "player"],
     },
     onPlace: [
-      {
-        type: "applyModifier",
+      applyModifier({
+        stats: { attack: 2, health: 2 },
         target: "self",
-        value: 2,
-        mult: {
-          type: "combo-count",
-        },
-        override: false,
-        stat: "attack",
-      },
-      {
-        type: "applyModifier",
-        target: "self",
-        value: 2,
-        mult: {
-          type: "combo-count",
-        },
-        override: false,
-        stat: "health",
-      },
+        mult: { type: "combo-count" },
+      }),
     ],
     set: ["Legacy"],
 
@@ -3575,10 +3731,9 @@ export const cardTemplates = {
     ],
     onPlace: [],
     aura: [
-      applyModifier("attack", 1, "friendly-board", false, undefined, {
-        conditions: [{ type: "exclude-self" }],
-      }),
-      applyModifier("health", 1, "friendly-board", false, undefined, {
+      applyModifier({
+        stats: { attack: 1, health: 1 },
+        target: "friendly-board",
         conditions: [{ type: "exclude-self" }],
       }),
     ],
@@ -3613,7 +3768,9 @@ export const cardTemplates = {
     ],
     onPlace: [],
     aura: [
-      applyModifier("attack", 2, "friendly-board", false, undefined, {
+      applyModifier({
+        stats: { attack: 2 },
+        target: "friendly-board",
         conditions: [
           { type: "tags-include", value: "Murloc" },
           { type: "exclude-self" },
@@ -3649,7 +3806,7 @@ export const cardTemplates = {
       }),
     ],
     onPlace: [],
-    aura: [applyModifier("attack", 1, "adjacent")],
+    aura: [applyModifier({ stats: { attack: 1 }, target: "adjacent" })],
     targetQuery: {
       side: "enemy",
       type: ["card", "player"],
@@ -3678,7 +3835,9 @@ export const cardTemplates = {
     ],
     onPlace: [],
     aura: [
-      applyModifier("mana", -1, "friendly-hand", false, undefined, {
+      applyModifier({
+        stats: { mana: -1 },
+        target: "friendly-hand",
         conditions: [{ type: "boolean", key: "isSpell", value: true }],
         min: 1,
       }),
@@ -3711,7 +3870,7 @@ export const cardTemplates = {
       }),
     ],
     onPlace: [],
-    enrage: [applyModifier("attack", 3, "self")],
+    enrage: [applyModifier({ stats: { attack: 3 }, target: "self" })],
     targetQuery: {
       side: "enemy",
       type: ["card", "player"],
@@ -3742,7 +3901,9 @@ export const cardTemplates = {
     ],
     onPlace: [],
     inHand: [
-      applyModifier("mana", -1, "self", false, undefined, {
+      applyModifier({
+        stats: { mana: -1 },
+        target: "self",
         mult: { type: "player-missing-health", player: "friendly" },
       }),
     ],
@@ -3776,7 +3937,7 @@ export const cardTemplates = {
       }),
     ],
     onPlace: [],
-    enrage: [applyModifier("attack", 6, "self")],
+    enrage: [applyModifier({ stats: { attack: 6 }, target: "self" })],
     targetQuery: {
       side: "enemy",
       type: ["card", "player"],
@@ -3808,7 +3969,9 @@ export const cardTemplates = {
     ],
     onPlace: [],
     aura: [
-      applyModifier("attack", 1, "friendly-board", false, undefined, {
+      applyModifier({
+        stats: { attack: 1 },
+        target: "friendly-board",
         conditions: [{ type: "exclude-self" }],
       }),
     ],
@@ -3837,7 +4000,7 @@ export const cardTemplates = {
         type: "card-stat",
       }),
     ],
-    onPlace: [applyModifier("attack", 1), applyModifier("health", 1)],
+    onPlace: [applyModifier({ stats: { attack: 1, health: 1 } })],
     battlecryQuery: {
       side: "friendly",
       type: ["card"],
@@ -3922,10 +4085,14 @@ export const cardTemplates = {
     baseMana: 1,
     imageUrl: "assets/cards/Claw.jpg",
     effects: [
-      applyModifier("attack", 2, "friendly-hero", false, {
-        expiryOwner: "BUFF_CASTER",
-        expiryTrigger: "END_OF_TURN",
-        turnsRemaining: 1,
+      applyModifier({
+        stats: { attack: 2 },
+        target: "friendly-hero",
+        duration: {
+          expiryOwner: "BUFF_CASTER",
+          expiryTrigger: "END_OF_TURN",
+          turnsRemaining: 1,
+        },
       }),
       armor(2),
     ],
@@ -3946,10 +4113,14 @@ export const cardTemplates = {
     baseMana: 3,
     imageUrl: "assets/cards/Savage_Roar.jpg",
     effects: [
-      applyModifier("attack", 2, "friendly-all", false, {
-        expiryOwner: "BUFF_CASTER",
-        expiryTrigger: "END_OF_TURN",
-        turnsRemaining: 1,
+      applyModifier({
+        stats: { attack: 2 },
+        target: "friendly-all",
+        duration: {
+          expiryOwner: "BUFF_CASTER",
+          expiryTrigger: "END_OF_TURN",
+          turnsRemaining: 1,
+        },
       }),
     ],
     onPlace: [],
@@ -4007,9 +4178,11 @@ export const cardTemplates = {
     type: ["Nature"],
     imageUrl: "assets/cards/Gift_of_the_Wild.jpg",
     effects: [
-      applyModifier("attack", 2, "friendly-board"),
-      applyModifier("health", 2, "friendly-board"),
-      taunt("friendly-board"),
+      applyModifier({
+        stats: { attack: 2, health: 2 },
+        keys: { taunt: true },
+        target: "friendly-board",
+      }),
     ],
     onPlace: [],
     isSpell: true,
@@ -4029,10 +4202,14 @@ export const cardTemplates = {
     baseMana: 4,
     imageUrl: "assets/cards/Bite.jpg",
     effects: [
-      applyModifier("attack", 4, "friendly-hero", false, {
-        expiryOwner: "BUFF_CASTER",
-        expiryTrigger: "END_OF_TURN",
-        turnsRemaining: 1,
+      applyModifier({
+        stats: { attack: 4 },
+        target: "friendly-hero",
+        duration: {
+          expiryOwner: "BUFF_CASTER",
+          expiryTrigger: "END_OF_TURN",
+          turnsRemaining: 1,
+        },
       }),
       armor(4),
     ],
@@ -4090,7 +4267,7 @@ export const cardTemplates = {
     baseMana: 1,
     type: ["Holy"],
     imageUrl: "assets/cards/Power_Word_Shield.jpg",
-    effects: [applyModifier("health", 2), draw(1)],
+    effects: [applyModifier({ stats: { health: 2 } }), draw(1)],
     onPlace: [],
     isSpell: true,
     targetQuery: {
@@ -4179,7 +4356,7 @@ export const cardTemplates = {
     baseMana: 4,
     type: ["Holy"],
     imageUrl: "assets/cards/Power_Infusion.jpg",
-    effects: [applyModifier("attack", 2), applyModifier("health", 6)],
+    effects: [applyModifier({ stats: { attack: 2, health: 6 } })],
     onPlace: [],
     isSpell: true,
     targetQuery: {
@@ -4274,7 +4451,7 @@ export const cardTemplates = {
         type: "card-stat",
       }),
     ],
-    onPlace: [applyModifier("health", 3)],
+    onPlace: [applyModifier({ stats: { health: 3 } })],
     battlecryQuery: {
       side: "friendly",
       type: ["card"],
@@ -4314,10 +4491,13 @@ export const cardTemplates = {
       }),
     ],
     onPlace: [
-      applyModifier("attack", -2, "user-select", false, {
-        expiryOwner: "BUFF_CASTER",
-        expiryTrigger: "START_OF_TURN",
-        turnsRemaining: 1,
+      applyModifier({
+        stats: { attack: -2 },
+        duration: {
+          expiryOwner: "BUFF_CASTER",
+          expiryTrigger: "START_OF_TURN",
+          turnsRemaining: 1,
+        },
       }),
     ],
     battlecryQuery: {
@@ -4352,7 +4532,7 @@ export const cardTemplates = {
         type: "card-stat",
       }),
     ],
-    onPlace: [applyModifier("health", 2)],
+    onPlace: [applyModifier({ stats: { health: 2 } })],
     battlecryQuery: {
       side: "friendly",
       type: ["card"],
@@ -4451,7 +4631,10 @@ export const cardTemplates = {
             value: { type: "card-stat", stat: "maxHealth" },
           },
           destroy("user-select"),
-          applyModifier("health", { type: "temp" }, "self"),
+          applyModifier({
+            stats: { health: { type: "temp" } },
+            target: "self",
+          }),
         ],
       },
     ],
@@ -4495,7 +4678,9 @@ export const cardTemplates = {
     ],
     onPlace: [],
     aura: [
-      applyModifier("attack", 1, "friendly-board", false, undefined, {
+      applyModifier({
+        stats: { attack: 1 },
+        target: "friendly-board",
         conditions: [
           { type: "exclude-self" },
           { type: "tags-include", value: "Beast" },
@@ -4553,7 +4738,9 @@ export const cardTemplates = {
         type: "card-stat",
       }),
     ],
-    onPlace: [applyModifier("attack", 2), applyModifier("health", 2), taunt()],
+    onPlace: [
+      applyModifier({ stats: { attack: 2, health: 2 }, keys: { taunt: true } }),
+    ],
     battlecryQuery: {
       side: "friendly",
       type: ["card"],
@@ -4821,6 +5008,714 @@ export const cardTemplates = {
     class: "Paladin",
     set: ["Legacy"],
     sfx: sfx(["Paladin_AvengingWrath_Cast_1.ogg"]),
+  },
+  "ancestral-healing": {
+    title: "Ancestral Healing",
+    description: "Restore a minion to full Health and give it Taunt.",
+    baseMana: 0,
+    type: ["Nature"],
+    imageUrl: "assets/cards/Ancestral_Healing.jpg",
+    // heal caps at maxHealth (helpers.healCard), so a large value = "to full"
+    effects: [
+      {
+        type: "storeVar",
+        target: "user-select",
+        value: { type: "card-stat", stat: "damageTaken" },
+      },
+      heal({
+        type: "temp",
+      }),
+      applyModifier({ keys: { taunt: true } }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card"],
+    },
+    isMinion: false,
+    class: "Shaman",
+    set: ["Legacy"],
+  },
+  "totemic-might": {
+    title: "Totemic Might",
+    description: "Give your Totems +2 Health.",
+    baseMana: 0,
+    imageUrl: "assets/cards/Totemic_Might.jpg",
+    effects: [
+      applyModifier({
+        stats: { health: 2 },
+        target: "friendly-board",
+        conditions: [{ type: "tags-include", value: "Totem" }],
+      }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    class: "Shaman",
+    set: ["Legacy"],
+  },
+  "rockbiter-weapon": {
+    title: "Rockbiter Weapon",
+    description: "Give a friendly character +3 Attack this turn.",
+    baseMana: 2,
+    type: ["Nature"],
+    imageUrl: "assets/cards/Rockbiter_Weapon.jpg",
+    effects: [
+      applyModifier({
+        stats: { attack: 3 },
+        duration: {
+          expiryOwner: "BUFF_CASTER",
+          expiryTrigger: "END_OF_TURN",
+          turnsRemaining: 1,
+        },
+      }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "friendly",
+      type: ["card", "player"],
+    },
+    isMinion: false,
+    class: "Shaman",
+    set: ["Legacy"],
+  },
+  windfury: {
+    title: "Windfury",
+    description: "Give a minion Windfury.",
+    baseMana: 2,
+    type: ["Nature"],
+    imageUrl: "assets/cards/Windfury.jpg",
+    effects: [windfury()],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card"],
+    },
+    isMinion: false,
+    class: "Shaman",
+    set: ["Legacy"],
+  },
+  bloodlust: {
+    title: "Bloodlust",
+    description: "Give your minions +3 Attack this turn.",
+    baseMana: 5,
+    imageUrl: "assets/cards/Bloodlust.jpg",
+    effects: [
+      applyModifier({
+        stats: { attack: 3 },
+        target: "friendly-board",
+        duration: {
+          expiryOwner: "BUFF_CASTER",
+          expiryTrigger: "END_OF_TURN",
+          turnsRemaining: 1,
+        },
+      }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    class: "Shaman",
+    set: ["Legacy"],
+  },
+  "forked-lightning": {
+    title: "Forked Lightning",
+    description: "Deal 2 damage to 2 random enemy minions. Overload: (2)",
+    baseMana: 1,
+    overload: 2,
+    type: ["Nature"],
+    imageUrl: "assets/cards/Forked_Lightning.jpg",
+    effects: [
+      {
+        type: "damage",
+        value: 2,
+        target: "enemy-board",
+        rand: { split: false, n: 2 },
+      },
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    rarity: "Common",
+    class: "Shaman",
+    set: ["Legacy"],
+  },
+  "lightning-bolt": {
+    title: "Lightning Bolt",
+    description: "Deal 3 damage. Overload: (1)",
+    baseMana: 1,
+    overload: 1,
+    type: ["Nature"],
+    imageUrl: "assets/cards/Lightning_Bolt.jpg",
+    effects: [damage(3)],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card", "player"],
+    },
+    isMinion: false,
+    rarity: "Common",
+    class: "Shaman",
+    set: ["Legacy"],
+  },
+  "stormforged-axe": {
+    title: "Stormforged Axe",
+    description: "Overload: (1)",
+    isWeapon: true,
+    isMinion: false,
+    baseMana: 2,
+    baseAttack: 2,
+    baseDurability: 3,
+    overload: 1,
+    imageUrl: "assets/cards/Stormforged_Axe.jpg",
+    effects: [],
+    onPlace: [],
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    rarity: "Common",
+    class: "Shaman",
+    set: ["Legacy"],
+  },
+  "lava-burst": {
+    title: "Lava Burst",
+    description: "Deal 5 damage. Overload: (2)",
+    baseMana: 3,
+    overload: 2,
+    type: ["Fire"],
+    imageUrl: "assets/cards/Lava_Burst.jpg",
+    effects: [damage(5)],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card", "player"],
+    },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Shaman",
+    set: ["Legacy"],
+  },
+  "lightning-storm": {
+    title: "Lightning Storm",
+    description: "Deal 3 damage to all enemy minions. Overload: (1)",
+    baseMana: 3,
+    overload: 1,
+    type: ["Nature"],
+    imageUrl: "assets/cards/Lightning_Storm.jpg",
+    effects: [damage(3, "enemy-board")],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Shaman",
+    set: ["Legacy"],
+  },
+  doomhammer: {
+    title: "Doomhammer",
+    description: "Windfury, Overload: (2)",
+    isWeapon: true,
+    isMinion: false,
+    baseMana: 5,
+    baseAttack: 2,
+    baseDurability: 8,
+    overload: 2,
+    windfury: true,
+    imageUrl: "assets/cards/Doomhammer.jpg",
+    effects: [],
+    onPlace: [],
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    rarity: "Epic",
+    class: "Shaman",
+    set: ["Legacy"],
+  },
+  "dust-devil": {
+    title: "Dust Devil",
+    description: "Windfury. Overload: (2)",
+    baseMana: 1,
+    baseAttack: 3,
+    baseHealth: 1,
+    overload: 2,
+    windfury: true,
+    type: ["Elemental"],
+    tags: ["Windfury", "Overload"],
+    imageUrl: "assets/cards/Dust_Devil.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Common",
+    class: "Shaman",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["EX1_243_Dust_Devil_EnterPlay1.ogg"],
+      ["EX1_243_Dust_Devil_Attack3.ogg"],
+      ["EX1_243_Dust_Devil_Death3.ogg"],
+    ),
+  },
+  "earth-elemental": {
+    title: "Earth Elemental",
+    description: "Taunt. Overload: (2)",
+    baseMana: 5,
+    baseAttack: 7,
+    baseHealth: 9,
+    overload: 2,
+    taunt: true,
+    type: ["Elemental"],
+    tags: ["Taunt", "Overload"],
+    imageUrl: "assets/cards/Earth_Elemental.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Epic",
+    class: "Shaman",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["EX1_250_Earth_Elemental_EnterPlay2.ogg"],
+      ["EX1_250_Earth_Elemental_Attack3.ogg"],
+      ["EX1_250_Earth_Elemental_Death2.ogg"],
+    ),
+  },
+  "fire-elemental": {
+    title: "Fire Elemental",
+    description: "Battlecry: Deal 4 damage.",
+    baseMana: 6,
+    baseAttack: 6,
+    baseHealth: 5,
+    type: ["Elemental"],
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Fire_Elemental.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [damage(4, "user-select", true)],
+    battlecryQuery: {
+      side: "all",
+      type: ["card", "player"],
+      conditions: [{ type: "exclude-self" }],
+    },
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    class: "Shaman",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["CS2_042_Play_FireElemental.ogg"],
+      ["CS2_042_Attack_FireElemental.ogg"],
+      ["CS2_042_Death_FireElemental.ogg"],
+    ),
+  },
+  windspeaker: {
+    title: "Windspeaker",
+    description: "Battlecry: Give a friendly minion Windfury.",
+    baseMana: 4,
+    baseAttack: 3,
+    baseHealth: 3,
+    type: ["Draenei"],
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Windspeaker.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [windfury()],
+    battlecryQuery: {
+      side: "friendly",
+      type: ["card"],
+      conditions: [{ type: "exclude-self" }],
+    },
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    class: "Shaman",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_587_Play_01.ogg"],
+      ["VO_EX1_587_Attack_02.ogg"],
+      ["VO_EX1_587_Death_03.ogg"],
+    ),
+  },
+  "alakir-the-windlord": {
+    title: "Al'Akir the Windlord",
+    description: "Charge, Divine Shield, Taunt, Windfury",
+    baseMana: 8,
+    baseAttack: 3,
+    baseHealth: 6,
+    type: ["Elemental"],
+    tags: ["Charge", "Divine Shield", "Taunt", "Windfury"],
+    charge: true,
+    divineShield: true,
+    taunt: true,
+    windfury: true,
+    imageUrl: "assets/cards/AlAkir_the_Windlord.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Legendary",
+    class: "Shaman",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["Pegasus_Stinger_Elemental_Villain.ogg", "VO_NEW1_010_Play_01.ogg"],
+      ["VO_NEW1_010_Attack_02.ogg"],
+      ["VO_NEW1_010_Death_03.ogg"],
+    ),
+  },
+  "shield-slam": {
+    title: "Shield Slam",
+    description: "Deal 1 damage to a minion for each Armor you have.",
+    baseMana: 1,
+    imageUrl: "assets/cards/Shield_Slam.jpg",
+    effects: [damage({ type: "player-armor", player: "friendly" })],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card"],
+    },
+    isMinion: false,
+    rarity: "Epic",
+    class: "Warrior",
+    set: ["Legacy"],
+  },
+  cleave: {
+    title: "Cleave",
+    description: "Deal 2 damage to two random enemy minions.",
+    baseMana: 2,
+    imageUrl: "assets/cards/Cleave.jpg",
+    effects: [
+      {
+        type: "damage",
+        value: 2,
+        target: "enemy-board",
+        rand: { split: false, n: 2 },
+      },
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    class: "Warrior",
+    set: ["Legacy"],
+  },
+  "heroic-strike": {
+    title: "Heroic Strike",
+    description: "Give your hero +4 Attack this turn.",
+    baseMana: 2,
+    imageUrl: "assets/cards/Heroic_Strike.jpg",
+    effects: [
+      applyModifier({
+        stats: { attack: 4 },
+        target: "friendly-hero",
+        duration: {
+          expiryOwner: "BUFF_CASTER",
+          expiryTrigger: "END_OF_TURN",
+          turnsRemaining: 1,
+        },
+      }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    class: "Warrior",
+    set: ["Legacy"],
+  },
+  slam: {
+    title: "Slam",
+    description: "Deal 2 damage to a minion. If it survives, draw a card.",
+    baseMana: 1,
+    imageUrl: "assets/cards/Slam.jpg",
+    // After the hit, the still-on-board target reads health > 0 only if it lived
+    // (death resolution is deferred until the effect chain completes).
+    effects: [
+      damage(2),
+      {
+        type: "conditional",
+        conditions: [
+          {
+            type: "numeric",
+            key: { type: "card-stat", stat: "health" },
+            operator: ">",
+            value: 0,
+          },
+        ],
+        then: [draw(1)],
+      },
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["card"],
+    },
+    isMinion: false,
+    rarity: "Common",
+    class: "Warrior",
+    set: ["Legacy"],
+  },
+  vanish: {
+    title: "Vanish",
+    description: "Return all minions to their owner's hand.",
+    baseMana: 6,
+    imageUrl: "assets/cards/Vanish.jpg",
+    effects: [returnToHand("board")],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    rarity: "Common",
+    class: "Rogue",
+    set: ["Legacy"],
+  },
+  betrayal: {
+    title: "Betrayal",
+    description:
+      "Force an enemy minion to deal its damage to the minions next to it.",
+    baseMana: 2,
+    imageUrl: "assets/cards/Betrayal.jpg",
+    // Stash the selected minion's Attack, then splash it onto its neighbours.
+    effects: [
+      {
+        type: "sequence",
+        steps: [
+          {
+            type: "storeVar",
+            target: "user-select",
+            value: { type: "card-stat", stat: "attack" },
+          },
+          damage({ type: "temp" }, "adjacent-target"),
+        ],
+      },
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "enemy",
+      type: ["card"],
+    },
+    isMinion: false,
+    rarity: "Common",
+    class: "Rogue",
+    set: ["Legacy"],
+  },
+  conceal: {
+    title: "Conceal",
+    description: "Give your minions Stealth until your next turn.",
+    baseMana: 1,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Conceal.jpg",
+    effects: [
+      applyModifier({
+        keys: { stealth: true },
+        target: "friendly-board",
+        duration: {
+          expiryOwner: "BUFF_CASTER",
+          expiryTrigger: "START_OF_TURN",
+          turnsRemaining: 1,
+        },
+      }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    rarity: "Common",
+    class: "Rogue",
+    set: ["Legacy"],
+  },
+  "cold-blood": {
+    title: "Cold Blood",
+    description: "Give a minion +2 Attack. Combo: +4 Attack instead.",
+    baseMana: 1,
+    imageUrl: "assets/cards/Cold_Blood.jpg",
+    effects: [
+      comboOr(
+        [applyModifier({ stats: { attack: 4 } })],
+        [applyModifier({ stats: { attack: 2 } })],
+      ),
+    ],
+    onPlace: [],
+    isSpell: true,
+    tags: ["Combo"],
+    targetQuery: {
+      side: "all",
+      type: ["card"],
+    },
+    isMinion: false,
+    rarity: "Common",
+    class: "Rogue",
+    set: ["Legacy"],
+  },
+  sprint: {
+    title: "Sprint",
+    description: "Draw 4 cards.",
+    baseMana: 5,
+    imageUrl: "assets/cards/Sprint.jpg",
+    effects: [draw(4)],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    class: "Rogue",
+    set: ["Legacy"],
+  },
+  "deadly-poison": {
+    title: "Deadly Poison",
+    description: "Give your weapon +2 Attack.",
+    baseMana: 1,
+    type: ["Nature"],
+    imageUrl: "assets/cards/Deadly_Poison.jpg",
+    effects: [
+      applyModifier({ stats: { attack: 2 }, target: "friendly-weapon" }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    class: "Rogue",
+    set: ["Legacy"],
+  },
+  "assassins-blade": {
+    title: "Assassin's Blade",
+    description: "",
+    isWeapon: true,
+    isMinion: false,
+    baseMana: 4,
+    baseAttack: 2,
+    baseDurability: 5,
+    imageUrl: "assets/cards/Assassins_Blade.jpg",
+    class: "Rogue",
+    effects: [],
+    onPlace: [],
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    set: ["Legacy"],
+  },
+  "perditions-blade": {
+    title: "Perdition's Blade",
+    description: "Battlecry: Deal 1 damage. Combo: Deal 2 instead.",
+    isWeapon: true,
+    isMinion: false,
+    baseMana: 3,
+    baseAttack: 2,
+    baseDurability: 2,
+    imageUrl: "assets/cards/Perditions_Blade.jpg",
+    class: "Rogue",
+    tags: ["Battlecry", "Combo"],
+    effects: [],
+    onPlace: [
+      comboOr(
+        [damage(2, "user-select", true)],
+        [damage(1, "user-select", true)],
+      ),
+    ],
+    battlecryQuery: {
+      side: "all",
+      type: ["card", "player"],
+      conditions: [{ type: "exclude-self" }],
+    },
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    rarity: "Rare",
+    set: ["Legacy"],
+  },
+  "arcanite-reaper": {
+    title: "Arcanite Reaper",
+    description: "",
+    isWeapon: true,
+    isMinion: false,
+    baseMana: 5,
+    baseAttack: 5,
+    baseDurability: 2,
+    imageUrl: "assets/cards/Arcanite_Reaper.jpg",
+    class: "Warrior",
+    effects: [],
+    onPlace: [],
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    set: ["Legacy"],
   },
 } satisfies Record<
   string,

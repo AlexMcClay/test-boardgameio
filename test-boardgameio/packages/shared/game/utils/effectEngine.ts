@@ -63,6 +63,7 @@ export function resolveDynamicValue(
       if (val.stat === "health") baseValue = getCurrentHealth(context.card);
       if (val.stat === "maxHealth") baseValue = getMaxHealth(context.card);
       if (val.stat === "mana") baseValue = getManaCost(context.card);
+      if (val.stat === "damageTaken") baseValue = context.card.damageTaken;
 
       break;
 
@@ -326,6 +327,34 @@ export function resolveTargets(
         pool.push({ type: "card", id: c.id, ownerId: enemyId, cardRef: c });
       });
       break;
+
+    case "friendly-weapon": {
+      // The equipped weapon lives on the player (not on the board), so cardRef
+      // carries the reference; downstream handlers fall back to it.
+      const weapon = G.players[playerID].weapon;
+      if (weapon) {
+        pool.push({
+          type: "card",
+          id: weapon.id,
+          ownerId: playerID,
+          cardRef: weapon,
+        });
+      }
+      break;
+    }
+
+    case "enemy-weapon": {
+      const weapon = G.players[enemyId].weapon;
+      if (weapon) {
+        pool.push({
+          type: "card",
+          id: weapon.id,
+          ownerId: enemyId,
+          cardRef: weapon,
+        });
+      }
+      break;
+    }
   }
 
   // 2. Filter Targets based on specific card conditions (e.g., "to all TAUNT minions")

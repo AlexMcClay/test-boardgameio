@@ -3,8 +3,10 @@ import {
   getCurrentHealth,
   getMaxHealth,
   getManaCost,
+  hasKeyword,
+  describeModifier,
 } from ".";
-import { cardTemplates } from "../data/cards";
+import { cardTemplates, type CardTemplateKey } from "../data/cards";
 import {
   type AddToHandEffect,
   type ApplyModifierEffect,
@@ -15,7 +17,10 @@ import {
   type EffectTypes,
   type GameEvent,
   type GameState,
+  type ModifierBoolKey,
+  type ModifierStatKey,
   type Player,
+  type SummonEffect,
 } from "../types";
 import { checkSingleTargetCondition } from "./effectEngine";
 // Helper function to record game events
@@ -31,15 +36,65 @@ export function recordEvent(G: GameState, event: GameEvent) {
   G.eventHistory.push(event);
 }
 
+/** The resolved (numeric) changes of one enchantment application. */
+export interface ResolvedModifierChanges {
+  name: string;
+  description?: string; // auto-generated from stats/keys when omitted
+  img?: string; // source card art for the hover UI
+  stats?: Partial<Record<ModifierStatKey, number>>;
+  keys?: Partial<Record<ModifierBoolKey, true>>;
+}
+
+/** Drops zero-valued additive stat entries; returns undefined when empty. */
+function normalizeStats(
+  stats: Partial<Record<ModifierStatKey, number>> | undefined,
+  override: boolean,
+): Partial<Record<ModifierStatKey, number>> | undefined {
+  if (!stats) return undefined;
+  const cleaned: Partial<Record<ModifierStatKey, number>> = {};
+  (Object.keys(stats) as ModifierStatKey[]).forEach((key) => {
+    const value = stats[key];
+    if (value === undefined) return;
+    if (value === 0 && !override) return; // +0 is a no-op; override 0 is a set
+    cleaned[key] = value;
+  });
+  return Object.keys(cleaned).length ? cleaned : undefined;
+}
+
+function recordModifierEvent(
+  G: GameState,
+  sourceId: string,
+  target: Card | Player,
+  targetType: "card" | "player",
+  playerId: string,
+  modifier: Pick<CardModifier, "name" | "description" | "stats" | "keys">,
+  removed?: boolean,
+) {
+  recordEvent(G, {
+    type: "applyModifier",
+    sourceId,
+    playerId,
+    timestamp: Date.now(),
+    targetId: target.id,
+    targetType,
+    name: modifier.name,
+    description: modifier.description,
+    stats: modifier.stats,
+    keys: modifier.keys,
+    removed,
+  });
+}
+
 /**
- * Applies an ApplyModifierEffect to a card's or player's modifier list with
- * stacking semantics:
+ * Applies one ENCHANTMENT (grouped stats + keyword grants) to a card's or
+ * player's modifier list with stacking semantics:
  * - `effect.stackable === true`: every application pushes its own modifier.
- * - otherwise (default): a modifier from the same sourceCardId for the same
- *   stat is REPLACED in place — and a value of 0 removes it entirely.
+ * - otherwise (default): a modifier with the same sourceCardId + name is
+ *   REPLACED in place — and one that resolves to no stats and no keys
+ *   removes it entirely.
  * Only `permanent`/`temporary` entries participate; `aura`/`inHand`/`enrage`
  * entries are owned by the refreshOngoing passes (see syncManagedModifiers).
- * Records an applyModifier event whenever the list actually changed.
+ * Records a grouped applyModifier event whenever the list actually changed.
  */
 function applyModifierWithStacking(
   G: GameState,
@@ -48,9 +103,10 @@ function applyModifierWithStacking(
   targetType: "card" | "player",
   playerId: string,
   effect: ApplyModifierEffect,
-  value: number,
+  changes: ResolvedModifierChanges,
 ) {
   const isTemporary = !!effect.duration;
+  const override = effect.override ?? false;
   const lifecycle =
     isTemporary && effect.duration
       ? {
@@ -60,6 +116,13 @@ function applyModifierWithStacking(
           turnsRemaining: effect.duration.turnsRemaining ?? 1,
         }
       : undefined;
+
+  const stats = normalizeStats(changes.stats, override);
+  const keys =
+    changes.keys && Object.keys(changes.keys).length ? changes.keys : undefined;
+  const isEmpty = !stats && !keys;
+  const description =
+    changes.description ?? describeModifier(stats, keys, override);
 
   if (target.modifiers === undefined) {
     target.modifiers = [];
@@ -71,54 +134,61 @@ function applyModifierWithStacking(
       (m) =>
         (m.type === "permanent" || m.type === "temporary") &&
         m.sourceCardId === sourceId &&
-        m.stat === effect.stat,
+        m.name === changes.name,
     );
     if (existingIndex !== -1) {
-      if (value === 0) {
-        list.splice(existingIndex, 1);
+      if (isEmpty) {
+        const [removedMod] = list.splice(existingIndex, 1);
+        recordModifierEvent(
+          G,
+          sourceId,
+          target,
+          targetType,
+          playerId,
+          removedMod,
+          true,
+        );
       } else {
         const existing = list[existingIndex];
-        existing.value = value;
-        existing.override = effect.override;
+        existing.stats = stats;
+        existing.keys = keys;
+        existing.override = override;
+        existing.description = description;
+        existing.img = changes.img ?? existing.img;
         existing.type = isTemporary ? "temporary" : "permanent";
         existing.lifecycle = lifecycle;
+        recordModifierEvent(
+          G,
+          sourceId,
+          target,
+          targetType,
+          playerId,
+          existing,
+        );
       }
-      recordEvent(G, {
-        type: "applyModifier",
-        sourceId,
-        key: effect.stat,
-        value,
-        playerId,
-        timestamp: Date.now(),
-        targetId: target.id,
-        targetType,
-      });
       return;
     }
     // Nothing to replace and nothing to add — silent no-op
-    if (value === 0) return;
+    if (isEmpty) return;
+  } else if (isEmpty) {
+    return;
   }
 
-  list.push({
-    id: `mod-${sourceId}-${effect.stat}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+  const newModifier: CardModifier = {
+    id: `mod-${sourceId}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+    name: changes.name,
+    description,
+    img: changes.img,
     sourceCardId: sourceId, // Tracks which card created this buff
-    stat: effect.stat,
-    value: value,
     type: isTemporary ? "temporary" : "permanent",
-    override: effect.override,
+    stackable: effect.stackable ?? false,
+    stats,
+    keys,
+    override,
     lifecycle,
-  });
-
-  recordEvent(G, {
-    type: "applyModifier",
-    sourceId,
-    key: effect.stat,
-    value,
-    playerId,
-    timestamp: Date.now(),
-    targetId: target.id,
-    targetType,
-  });
+  };
+  list.push(newModifier);
+  recordModifierEvent(G, sourceId, target, targetType, playerId, newModifier);
 }
 
 export function proccessApplyModifier(
@@ -127,7 +197,7 @@ export function proccessApplyModifier(
   targetCard: Card, // This is our target minion
   playerId: string,
   effect: ApplyModifierEffect,
-  value: number,
+  changes: ResolvedModifierChanges,
 ) {
   applyModifierWithStacking(
     G,
@@ -136,7 +206,7 @@ export function proccessApplyModifier(
     "card",
     playerId,
     effect,
-    value,
+    changes,
   );
 }
 
@@ -146,7 +216,7 @@ export function processApplyModifierToPlayer(
   targetPlayer: Player,
   playerId: string,
   effect: ApplyModifierEffect,
-  value: number,
+  changes: ResolvedModifierChanges,
 ) {
   applyModifierWithStacking(
     G,
@@ -155,24 +225,100 @@ export function processApplyModifierToPlayer(
     "player",
     playerId,
     effect,
-    value,
+    changes,
   );
+}
+
+/**
+ * Consumes a boolean keyword on a card/hero: game rules used it up (damage
+ * pops Divine Shield, attacking breaks Stealth, end-of-turn rules unfreeze).
+ * Clears the base flag AND strips the grant from every modifier providing it
+ * — the modifier's other changes survive; the modifier itself is removed only
+ * when nothing remains. Records a grouped event per changed modifier.
+ */
+export function consumeKeyword(
+  G: GameState,
+  entity: Card | Player,
+  entityType: "card" | "player",
+  playerId: string,
+  key: ModifierBoolKey,
+) {
+  (entity as Record<ModifierBoolKey, boolean | undefined>)[key] = false;
+  const list = entity.modifiers;
+  if (!list) return;
+  for (let i = list.length - 1; i >= 0; i--) {
+    const mod = list[i];
+    if (!mod.keys?.[key]) continue;
+    delete mod.keys[key];
+    if (Object.keys(mod.keys).length === 0) mod.keys = undefined;
+    const empty =
+      !mod.keys && (!mod.stats || Object.keys(mod.stats).length === 0);
+    if (empty) {
+      list.splice(i, 1);
+    } else {
+      // The description stays accurate as grants get consumed
+      mod.description = describeModifier(mod.stats, mod.keys, mod.override);
+    }
+    recordModifierEvent(
+      G,
+      mod.sourceCardId,
+      entity,
+      entityType,
+      playerId,
+      { name: mod.name, description: mod.description, keys: { [key]: true } },
+      true,
+    );
+  }
 }
 
 /** Desired state of one managed (aura/inHand/enrage) modifier on one target. */
 export interface ManagedModifierSpec {
   sourceCardId: string;
-  stat: CardModifier["stat"];
-  value: number;
+  name: string;
+  description?: string; // default via describeModifier
+  img?: string;
+  stats?: Partial<Record<ModifierStatKey, number>>;
+  keys?: Partial<Record<ModifierBoolKey, true>>;
   override: boolean;
+}
+
+function statsEqual(
+  a: Partial<Record<ModifierStatKey, number>> | undefined,
+  b: Partial<Record<ModifierStatKey, number>> | undefined,
+): boolean {
+  const keys: ModifierStatKey[] = [
+    "attack",
+    "health",
+    "mana",
+    "durability",
+    "spellDamage",
+  ];
+  return keys.every((k) => (a?.[k] ?? undefined) === (b?.[k] ?? undefined));
+}
+
+function keysEqual(
+  a: Partial<Record<ModifierBoolKey, true>> | undefined,
+  b: Partial<Record<ModifierBoolKey, true>> | undefined,
+): boolean {
+  const keys: ModifierBoolKey[] = [
+    "taunt",
+    "divineShield",
+    "stealth",
+    "charge",
+    "rush",
+    "windfury",
+    "frozen",
+  ];
+  return keys.every((k) => !!a?.[k] === !!b?.[k]);
 }
 
 /**
  * Diff-syncs ALL managed modifiers of one type on one card/player against the
- * desired list. Adds missing entries, updates changed values, removes stale
- * ones (recording an applyModifier event with value 0) — and stays completely
- * silent when nothing changed, so the refresh passes can run after every move
- * without spamming the event log. Duplicate (source, stat) specs are summed.
+ * desired list. Adds missing entries, updates changed ones, removes stale
+ * ones (recording a grouped applyModifier event with removed: true) — and
+ * stays completely silent when nothing changed, so the refresh passes can run
+ * after every move without spamming the event log. Duplicate (source, name)
+ * specs are merged (stats summed, keys unioned).
  */
 export function syncManagedModifiers(
   G: GameState,
@@ -189,45 +335,65 @@ export function syncManagedModifiers(
   }
   const list = owner.modifiers;
 
-  const keyOf = (source: string, stat: string) => `${source}|${stat}`;
+  const keyOf = (source: string, name: string) => `${source}|${name}`;
   const desiredByKey = new Map<string, ManagedModifierSpec>();
   desired.forEach((spec) => {
-    const key = keyOf(spec.sourceCardId, spec.stat);
+    const key = keyOf(spec.sourceCardId, spec.name);
     const existing = desiredByKey.get(key);
     if (existing && !spec.override && !existing.override) {
-      existing.value += spec.value;
+      const merged: Partial<Record<ModifierStatKey, number>> = {
+        ...existing.stats,
+      };
+      (Object.keys(spec.stats ?? {}) as ModifierStatKey[]).forEach((k) => {
+        merged[k] = (merged[k] ?? 0) + (spec.stats?.[k] ?? 0);
+      });
+      existing.stats = Object.keys(merged).length ? merged : undefined;
+      existing.keys =
+        spec.keys || existing.keys
+          ? { ...existing.keys, ...spec.keys }
+          : undefined;
     } else {
       desiredByKey.set(key, { ...spec });
     }
   });
 
-  const recordChange = (source: string, stat: string, value: number) => {
-    recordEvent(G, {
-      type: "applyModifier",
-      sourceId: source,
-      key: stat,
-      value,
-      playerId: ownerPlayerId,
-      timestamp: Date.now(),
-      targetId: owner.id,
-      targetType: ownerType,
-    });
-  };
-
   // Update or remove existing managed entries of this type
   for (let i = list.length - 1; i >= 0; i--) {
     const mod = list[i];
     if (mod.type !== modifierType) continue;
-    const key = keyOf(mod.sourceCardId, mod.stat);
+    const key = keyOf(mod.sourceCardId, mod.name);
     const want = desiredByKey.get(key);
     if (!want) {
       list.splice(i, 1);
-      recordChange(mod.sourceCardId, mod.stat, 0);
+      recordModifierEvent(
+        G,
+        mod.sourceCardId,
+        owner,
+        ownerType,
+        ownerPlayerId,
+        mod,
+        true,
+      );
     } else {
-      if (want.value !== mod.value || want.override !== mod.override) {
-        mod.value = want.value;
+      if (
+        !statsEqual(want.stats, mod.stats) ||
+        !keysEqual(want.keys, mod.keys) ||
+        want.override !== (mod.override ?? false)
+      ) {
+        mod.stats = want.stats;
+        mod.keys = want.keys;
         mod.override = want.override;
-        recordChange(mod.sourceCardId, mod.stat, want.value);
+        mod.description =
+          want.description ??
+          describeModifier(want.stats, want.keys, want.override);
+        recordModifierEvent(
+          G,
+          mod.sourceCardId,
+          owner,
+          ownerType,
+          ownerPlayerId,
+          mod,
+        );
       }
       desiredByKey.delete(key); // handled (changed or already correct)
     }
@@ -235,15 +401,29 @@ export function syncManagedModifiers(
 
   // Add the entries that don't exist yet
   desiredByKey.forEach((want) => {
-    list.push({
-      id: `mod-${want.sourceCardId}-${want.stat}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+    const newModifier: CardModifier = {
+      id: `mod-${want.sourceCardId}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      name: want.name,
+      description:
+        want.description ??
+        describeModifier(want.stats, want.keys, want.override),
+      img: want.img,
       sourceCardId: want.sourceCardId,
-      stat: want.stat,
-      value: want.value,
       type: modifierType,
+      stackable: false,
+      stats: want.stats,
+      keys: want.keys,
       override: want.override,
-    });
-    recordChange(want.sourceCardId, want.stat, want.value);
+    };
+    list.push(newModifier);
+    recordModifierEvent(
+      G,
+      want.sourceCardId,
+      owner,
+      ownerType,
+      ownerPlayerId,
+      newModifier,
+    );
   });
 }
 
@@ -313,11 +493,13 @@ export function shouldMinionUnfreezeAtTurnEnd(
   ownerId: string,
   card: Card,
 ): boolean {
-  if (card.summoningSickness && !card.charge && !card.rush) {
+  const charge = hasKeyword(card, "charge");
+  const rush = hasKeyword(card, "rush");
+  if (card.summoningSickness && !charge && !rush) {
     return false;
   }
 
-  if (card.summoningSickness && card.rush && !card.charge) {
+  if (card.summoningSickness && rush && !charge) {
     const enemyId = ownerId === "0" ? "1" : "0";
     if (G.board[enemyId].length === 0) return false;
   }
@@ -341,9 +523,9 @@ export function dealDamageToPlayer(
   let hadDivineShield = false;
 
   // 1. DIVINE SHIELD CHECK: Intercept positive damage values
-  if (targetPlayer.divineShield && damageAmount > 0) {
-    // Pop the bubble!
-    targetPlayer.divineShield = false;
+  if (hasKeyword(targetPlayer, "divineShield") && damageAmount > 0) {
+    // Pop the bubble — clears the base flag AND any modifier grants
+    consumeKeyword(G, targetPlayer, "player", targetPlayerId, "divineShield");
     hadDivineShield = true;
     damageAmount = 0;
   }
@@ -406,9 +588,9 @@ export function dealDamageToCard(
   let hadDivineShield = false;
 
   // 1. DIVINE SHIELD CHECK: Intercept positive damage values
-  if (targetCard.divineShield && damageAmount > 0) {
-    // Pop the bubble!
-    targetCard.divineShield = false;
+  if (hasKeyword(targetCard, "divineShield") && damageAmount > 0) {
+    // Pop the bubble — clears the base flag AND any modifier grants
+    consumeKeyword(G, targetCard, "card", targetPlayerId, "divineShield");
     hadDivineShield = true;
   }
 
@@ -474,6 +656,7 @@ const types: EffectTypes["type"][] = [
   "stealth",
   "taunt",
   "storeVar",
+  "windfury",
 ];
 
 //  as BaseEffectSelection
@@ -500,11 +683,24 @@ export function addCardToHand(
 ) {
   const player = G.players[playerID];
 
-  // Apply modifiers if provided
+  // Apply modifiers if provided (numeric-only here — no effect context to
+  // resolve DynamicValues against)
   if (modifiers && modifiers.length > 0) {
     modifiers.forEach((modEffect) => {
-      const value = typeof modEffect.value === "number" ? modEffect.value : 0;
-      proccessApplyModifier(G, card.id, card, playerID, modEffect, value);
+      const stats: Partial<Record<ModifierStatKey, number>> = {};
+      (Object.keys(modEffect.stats ?? {}) as ModifierStatKey[]).forEach(
+        (key) => {
+          const value = modEffect.stats?.[key];
+          if (typeof value === "number") stats[key] = value;
+        },
+      );
+      proccessApplyModifier(G, card.id, card, playerID, modEffect, {
+        name: modEffect.name ?? card.title,
+        description: modEffect.description,
+        img: card.imageUrl,
+        stats,
+        keys: modEffect.keys,
+      });
     });
   }
 
@@ -712,6 +908,42 @@ export function findCardsInPool(
   }
 
   return pool;
+}
+
+/**
+ * Resolve the pool of template IDs a summon effect may draw from.
+ * - `cardID` string/array: those specific cards (a list is picked from at
+ *   random, one roll per summon, in the caller).
+ * - no `cardID`: every summonable minion template (minions, excluding
+ *   uncollectible tokens).
+ * `conditions` further filter whichever pool was built (e.g. "a random Demon").
+ */
+export function resolveSummonCandidates(
+  effect: SummonEffect,
+  context: EffectContext,
+): string[] {
+  let ids: string[] = effect.cardID
+    ? Array.isArray(effect.cardID)
+      ? effect.cardID
+      : [effect.cardID]
+    : Object.keys(cardTemplates).filter((id) => {
+        const c = createCardFromID(id as CardTemplateKey);
+        return !!c && c.isMinion && !c.isUncollectible;
+      });
+
+  if (effect.conditions && effect.conditions.length > 0) {
+    ids = ids.filter((id) => {
+      const probe = createCardFromID(id as CardTemplateKey);
+      return (
+        !!probe &&
+        effect.conditions!.every((cond) =>
+          checkSingleTargetCondition(probe, cond, context),
+        )
+      );
+    });
+  }
+
+  return ids;
 }
 
 /**

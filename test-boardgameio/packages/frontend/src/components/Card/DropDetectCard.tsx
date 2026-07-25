@@ -10,7 +10,7 @@ import { DEATH_ANIMATION } from "@/utils/animationDurations";
 import PlacedCard from "./PlacedCard";
 import { useAudioStore } from "@/stores/audioStore";
 import MinionCardPopover from "../MinionCardPopover";
-import { getAttack, type GameState } from "@project/shared";
+import { getAttack, hasKeyword, type GameState } from "@project/shared";
 
 interface Props extends CardProps {
   playerID: PlayerID;
@@ -42,9 +42,12 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
   const isTargeting = targetingCardId === card.id;
   const isAttackingWithArrow = isTargeting && targetingMode === "attack";
   const isBattlecryTargeting = isTargeting && targetingMode === "battlecry";
-  const isSicknessActive = card.summoningSickness && !card.charge && !card.rush;
+  const isSicknessActive =
+    card.summoningSickness &&
+    !hasKeyword(card, "charge") &&
+    !hasKeyword(card, "rush");
   const disabled =
-    (card.attacksLeft == 0 || isSicknessActive || card.frozen) &&
+    (card.attacksLeft == 0 || isSicknessActive || hasKeyword(card, "frozen")) &&
     !gameState?.activeBattlecryMinion;
   const isBattlecryMinion =
     gameState?.activeBattlecryMinion?.cardId === card.id;

@@ -36,7 +36,7 @@ export interface Hero {
   ability?: string;
   class: string;
   heroName: string;
-  heroPower?: HeroPower;
+  heroPower: HeroPower;
 }
 
 export interface Card {
@@ -47,6 +47,7 @@ export interface Card {
   baseMana?: number;
   baseAttack?: number;
   baseHealth?: number;
+  overload?: number | DynamicValue; // Mana crystals locked next turn when this card is played
   type?: string[]; // e.g., "Spell", "Beast", "Demon", etc.
   imageUrl?: string; // URL to the card image
   effects: Array<EffectTypes>;
@@ -105,6 +106,8 @@ export interface Player {
   name: string;
   manaCrystals: number;
   maxManaCrystals: number;
+  overloadPending: number; // Accrued this turn from cards played; locks next turn (padlock beneath crystals)
+  overloadLocked: number; // Crystals locked THIS turn (padlock blocking crystals)
   heroPortrait: string;
   maxHealth: number;
   health: number;
@@ -172,25 +175,50 @@ export interface ModifierLifecycle {
   minionId?: string;
 }
 
+/** Numeric stats a modifier can change. */
+export type ModifierStatKey =
+  | "attack"
+  | "health"
+  | "mana"
+  | "durability"
+  | "spellDamage";
+
+/** Boolean keywords a modifier can grant. */
+export type ModifierBoolKey =
+  | "taunt"
+  | "divineShield"
+  | "stealth"
+  | "charge"
+  | "rush"
+  | "windfury"
+  | "frozen";
+
+/**
+ * One ENCHANTMENT: a single named modifier grouping every change it makes —
+ * stat deltas and boolean keyword grants together ("+2/+2 and Taunt" is ONE
+ * modifier). Shown as a single entry in the card hover UI.
+ *
+ * Boolean grants are derived (see hasKeyword): a card "has taunt" if its base
+ * flag is set OR any modifier grants it. Consumable keywords (divine shield
+ * popped by damage, stealth broken by attacking) are stripped from the
+ * granting modifier via consumeKeyword — the modifier's stats survive; the
+ * modifier itself is removed only once nothing remains.
+ */
 export interface CardModifier {
   id: string;
-  label?: string;
+  name: string; // e.g. "Blessing of Kings" (defaults to the source card title)
+  description: string; // e.g. "+4/+4", "+2/+2 and Taunt" (auto-generated if omitted)
+  img?: string; // imageUrl of the card that granted this modifier
   sourceCardId: string;
   // "temporary" modifications have a lifecycle; "aura" / "inHand" / "enrage"
   // are managed entries owned by their refresh pass (refreshOngoing) and are
   // added/removed automatically as their source condition changes.
   type: "aura" | "permanent" | "temporary" | "inHand" | "enrage";
-  stat:
-    | "attack"
-    | "health"
-    | "mana"
-    | "taunt"
-    | "divineShield"
-    | "frozen"
-    | "durability";
-  value: number;
+  stackable: boolean;
+  stats?: Partial<Record<ModifierStatKey, number>>; // resolved numbers
+  keys?: Partial<Record<ModifierBoolKey, true>>; // boolean keyword grants
+  override?: boolean; // applies to this modifier's stats
   lifecycle?: ModifierLifecycle; // Optional metadata for temporal mechanics
-  override: boolean;
 }
 
 export type TargetValue = {
@@ -224,7 +252,7 @@ export type DynamicValue =
     }
   | {
       type: "card-stat";
-      stat: "attack" | "health" | "mana" | "maxHealth";
+      stat: "attack" | "health" | "mana" | "maxHealth" | 'damageTaken';
       mult?: number;
     } // inspects current target
   | {
@@ -390,7 +418,9 @@ export type EffectTarget =
   | "adjacent" // neighbors of context.card — board index ±1 when on board, hand index ±1 when in hand
   | "adjacent-target" // neighbors of context.target on its owner's board (e.g. Explosive Shot)
   | "friendly-hand" // cards in the acting player's hand (e.g. Sorcerer's Apprentice)
-  | "enemy-hand";
+  | "enemy-hand"
+  | "friendly-weapon" // the acting player's equipped weapon (e.g. Deadly Poison)
+  | "enemy-weapon"; // the opponent's equipped weapon
 
 export type BaseEffectSelection = {
   target: EffectTarget;
@@ -448,16 +478,22 @@ type HealEffect = {
 
 export type ApplyModifierEffect = {
   type: "applyModifier";
-  stat: "attack" | "health" | "mana" | "taunt" | "divineShield" | "frozen";
-  override: boolean;
-  value: number | DynamicValue;
-  mult?: number | DynamicValue;
-  min?: number;
-  max?: number;
+  /** Enchantment name; defaults to the source card's title. */
+  name?: string;
+  /** Hover text; auto-generated from stats/keys if omitted ("+2/+2 and Taunt"). */
+  description?: string;
   // When false (default), re-applying a modifier with the same sourceCardId +
-  // stat REPLACES the existing one (and a value of 0 removes it). When true,
-  // every application stacks as its own modifier.
+  // name REPLACES the existing one (and one that resolves to all-zero stats
+  // with no keys removes it). When true, every application stacks.
   stackable?: boolean;
+  /** Stat deltas (or sets, with override). Values resolve at apply time. */
+  stats?: Partial<Record<ModifierStatKey, number | DynamicValue>>;
+  /** Boolean keyword grants: { taunt: true, stealth: true, ... } */
+  keys?: Partial<Record<ModifierBoolKey, true>>;
+  override?: boolean;
+  mult?: number | DynamicValue; // multiplies every stat value
+  min?: number; // per-stat clamp on the resulting stat (refresh passes)
+  max?: number;
   duration?: {
     expiryTrigger: "END_OF_TURN" | "START_OF_TURN";
     expiryOwner: "BUFF_CASTER" | "BUFF_RECEIVER" | "ANY_PLAYER";
@@ -478,11 +514,12 @@ type ChangeKeyEffect = {
   target: "user-select" | "self"; // Target of the change, either "other" or "self"
 };
 
-type SummonEffect = {
+export type SummonEffect = {
   type: "summon";
   target: "self" | "enemy";
-  cardID: string; // ID of the card to summon
-  value: number | DynamicValue; // count
+  cardID?: string | string[]; // A specific card, or a list of options picked from at random (per summon). Omit to summon from all minion templates.
+  conditions?: TargetCondition[]; // Filter candidates (e.g. summon a random Demon)
+  value: number | DynamicValue; // How many minions to summon
 };
 
 type ArmorEffect = {
@@ -589,12 +626,15 @@ type DebugEvent = {
 type ApplyModifierEvent = {
   type: "applyModifier";
   sourceId?: string; // Card/effect that caused this status change
-  targetId: string; // Card/minion gaining the status
+  targetId: string; // Card/minion gaining the enchantment
   targetType: "card" | "player";
   playerId: PlayerID;
   timestamp: number;
-  key: string;
-  value: any;
+  name: string;
+  description: string;
+  stats?: Partial<Record<ModifierStatKey, number>>;
+  keys?: Partial<Record<ModifierBoolKey, true>>;
+  removed?: boolean; // the modifier (or a keyword grant on it) was removed
 };
 
 type BaseGameBoolEvent = {
