@@ -15,10 +15,12 @@ const cardBack = "assets/Card_Back.png";
 const mana_crystal = "assets/mana.png";
 const attackIcon = "assets/attack.png";
 const healthIcon = "assets/health.png";
-const cardBackgroundWeapon = "assets/card_parts/weapon.png";
+const weaponAttack = "assets/icons/weapon_attack.png";
+const weaponShield = "assets/icons/weapon_shield.png";
 
 const minioncCardBase = "assets/card_parts/minion_frames/";
 const spellCardsBase = "assets/card_parts/spell_frames/";
+const weaponCardsBase = "assets/card_parts/weapon_frames/";
 
 // const cardBackgroundMinionLegendary = "assets/card_parts/legendary_minion.png";
 
@@ -216,7 +218,7 @@ const Card = ({
         animate={animate}
         exit={exit}
         className={twMerge(
-          ` w-[7.8vw] relative aspect-[5/7] h-[10.92vw]  rounded-2xl flex-col flex gap-0 items-center shadow-xl text-white font-serif`,
+          ` w-[7.8vw] relative aspect-[5/7] h-[10.92vw]  rounded-2xl flex-col flex gap-0 items-center  text-white font-serif`,
           isDragging && !card.isPlaced && " isDragPlay ",
           isDragging && "cursor-grabbing dragging-card scale-110",
         )}
@@ -235,7 +237,7 @@ const Card = ({
               "object-cover w-[95%] h-[100%] top-[0.5vw] left-[0.2vw] select-none absolute z-0",
               card.isMinion &&
                 "top-[-0.33vw] rounded-[50%/50%] h-[145%] left-[0.25vw]",
-              card.isWeapon && "top-0 h-[120%] left-[0.2vw]",
+              card.isWeapon && "top-0 h-[120%] left-[0.2vw] rounded-[1vw]",
             )}
             draggable="false"
           />
@@ -247,13 +249,12 @@ const Card = ({
             card.isMinion
               ? `${minioncCardBase}/${card.class.toLowerCase()}_minion_frame.webp`
               : card.isWeapon
-                ? cardBackgroundWeapon
+                ? `${weaponCardsBase}/${card.class.toLowerCase()}_weapon_frame.webp`
                 : `${spellCardsBase}/${card.class.toLowerCase()}_spell_frame.webp`
           }
           alt="Card Background"
           className={twMerge(
             "object-cover w-full h-full absolute rounded-2xl z-0 scale-y-107 scale-105 origin-bottom ",
-            card.isWeapon && "scale-109  origin-bottom",
             // card.isMinion &&
             //   card.rarity === "Legendary" &&
             //   "scale-114 scale-x-110 origin-bottom",
@@ -369,13 +370,13 @@ const Card = ({
         {(card.baseAttack !== undefined || card.baseHealth !== undefined) && (
           <>
             {card.baseAttack !== undefined && (
-              <div className="absolute select-none left-[-0.1vw] bottom-[-0.2vw] rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center text-[1.1vw] font-bold shadow-lg">
+              <div className="absolute select-none left-[-0.1vw] bottom-[-0.2vw] rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center text-[1.1vw] font-bold ">
                 <img
-                  src={attackIcon}
+                  src={card.isWeapon ? weaponAttack : attackIcon}
                   alt="Card Back"
                   className={twMerge(
                     "object-cover w-full h-full absolute scale-130 -left-1 bottom-1",
-                    card.isWeapon && " hidden",
+                    card.isWeapon && "left-[0.1vw] scale-160 bottom-[0.3vw]",
                   )}
                   // no drag
                   draggable="false"
@@ -392,7 +393,7 @@ const Card = ({
               </div>
             )}
             {card.baseHealth !== undefined && (
-              <div className="absolute select-none right-[-0.5vw] bottom-[-0.2vw] rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center text-[1.1vw] font-bold  shadow-lg">
+              <div className="absolute select-none right-[-0.5vw] bottom-[-0.2vw] rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center text-[1.1vw] font-bold  ">
                 <img
                   src={healthIcon}
                   alt="Card Back"
@@ -411,7 +412,14 @@ const Card = ({
         )}
 
         {card.baseDurability !== undefined && (
-          <div className="absolute select-none right-[-0.5vw] bottom-[-0.2vw] rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center text-[1.1vw] font-bold  shadow-lg">
+          <div className="absolute select-none right-[-0.5vw] bottom-[-0.2vw] rounded-full w-[1.7vw] h-[1.7vw] flex items-center justify-center text-[1.1vw] font-bold  ">
+            <img
+              src={weaponShield}
+              alt="Weapon Durability"
+              className=" object-contain w-full h-full absolute scale-170 left-[-0.1vw]  bottom-[0.2vw]"
+              // no drag
+              draggable="false"
+            />
             <span className="absolute font-belwe  scale-140 translate-y-[-0.3vw] translate-x-[-0.1vw] text-shadow-A">
               {card.baseDurability}
             </span>
