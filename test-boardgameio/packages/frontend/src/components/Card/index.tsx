@@ -40,6 +40,7 @@ const keywords = [
   "Combo",
   "Stealth",
   "Poisonous",
+  "Immune",
   "Spell Damage",
   "Overload",
 ];

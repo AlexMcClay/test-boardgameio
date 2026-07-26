@@ -11,6 +11,7 @@ import {
   type AddToHandEffect,
   type ApplyModifierEffect,
   type BaseEffectSelection,
+  type BoolEffectType,
   type Card,
   type CardModifier,
   type EffectContext,
@@ -342,34 +343,53 @@ export interface ManagedModifierSpec {
   override: boolean;
 }
 
+/**
+ * The keyword and stat registries. `satisfies` makes a missing entry a compile
+ * error, so adding a ModifierBoolKey/ModifierStatKey can't silently skip the
+ * diffing below — a keyword absent from here would make aura/enrage/inHand
+ * grants of it compare equal forever and never sync onto their target.
+ */
+export const MODIFIER_BOOL_KEYS = {
+  taunt: true,
+  divineShield: true,
+  stealth: true,
+  charge: true,
+  rush: true,
+  windfury: true,
+  frozen: true,
+  poisonous: true,
+  immune: true,
+} as const satisfies Record<ModifierBoolKey, true>;
+
+export const MODIFIER_STAT_KEYS = {
+  attack: true,
+  health: true,
+  mana: true,
+  durability: true,
+  spellDamage: true,
+} as const satisfies Record<ModifierStatKey, true>;
+
+export const ALL_BOOL_KEYS = Object.keys(
+  MODIFIER_BOOL_KEYS,
+) as ModifierBoolKey[];
+export const ALL_STAT_KEYS = Object.keys(
+  MODIFIER_STAT_KEYS,
+) as ModifierStatKey[];
+
 function statsEqual(
   a: Partial<Record<ModifierStatKey, number>> | undefined,
   b: Partial<Record<ModifierStatKey, number>> | undefined,
 ): boolean {
-  const keys: ModifierStatKey[] = [
-    "attack",
-    "health",
-    "mana",
-    "durability",
-    "spellDamage",
-  ];
-  return keys.every((k) => (a?.[k] ?? undefined) === (b?.[k] ?? undefined));
+  return ALL_STAT_KEYS.every(
+    (k) => (a?.[k] ?? undefined) === (b?.[k] ?? undefined),
+  );
 }
 
 function keysEqual(
   a: Partial<Record<ModifierBoolKey, true>> | undefined,
   b: Partial<Record<ModifierBoolKey, true>> | undefined,
 ): boolean {
-  const keys: ModifierBoolKey[] = [
-    "taunt",
-    "divineShield",
-    "stealth",
-    "charge",
-    "rush",
-    "windfury",
-    "frozen",
-  ];
-  return keys.every((k) => !!a?.[k] === !!b?.[k]);
+  return ALL_BOOL_KEYS.every((k) => !!a?.[k] === !!b?.[k]);
 }
 
 /**
@@ -487,19 +507,35 @@ export function syncManagedModifiers(
   });
 }
 
+/**
+ * Which keywords mean anything on a HERO. Total over BoolEffectType so a new
+ * keyword must decide — the alternative was a hardcoded
+ * `effect.type === "freeze" || ...` in the effect switch that silently
+ * dropped grants onto heroes.
+ */
+export const PLAYER_BOOL_EFFECTS = {
+  freeze: true,
+  divineShield: true,
+  immune: true,
+  // Board-only keywords — a hero has no combat stats to attach these to.
+  taunt: false,
+  stealth: false,
+  charge: false,
+  rush: false,
+  windfury: false,
+  poisonous: false,
+} as const satisfies Record<BoolEffectType, boolean>;
+
+export function canApplyBoolEffectToPlayer(type: BoolEffectType): boolean {
+  return PLAYER_BOOL_EFFECTS[type];
+}
+
 export function applyBoolEffectToCard(
   G: GameState,
   sourceId: string,
   targetCard: Card,
   targetPlayerId: string,
-  effectType:
-    | "freeze"
-    | "divineShield"
-    | "taunt"
-    | "stealth"
-    | "charge"
-    | "rush"
-    | "windfury",
+  effectType: BoolEffectType,
   cardKey: keyof Card,
 ) {
   if (!targetCard) return;
@@ -522,10 +558,10 @@ export function applyBoolEffectToPlayer(
   G: GameState,
   sourceId: string,
   targetPlayer: Player,
-  effectType: "freeze" | "divineShield",
+  effectType: BoolEffectType,
   playerKey: keyof Player,
 ) {
-  if (!targetPlayer) return;
+  if (!targetPlayer || !canApplyBoolEffectToPlayer(effectType)) return;
 
   // Dynamically set the player property to true (e.g. targetPlayer.frozen = true)
   (targetPlayer as any)[playerKey] = true;
@@ -582,6 +618,11 @@ export function dealDamageToPlayer(
   if (!targetPlayer) return;
   let hadDivineShield = false;
 
+  // 0. IMMUNE: takes no damage at all. Checked BEFORE Divine Shield so an
+  // immune character doesn't waste its bubble, and recorded as nothing at all
+  // — no damage means no visual delta.
+  if (hasKeyword(targetPlayer, "immune") && damageAmount > 0) return;
+
   // 1. DIVINE SHIELD CHECK: Intercept positive damage values
   if (hasKeyword(targetPlayer, "divineShield") && damageAmount > 0) {
     // Pop the bubble — clears the base flag AND any modifier grants
@@ -636,6 +677,25 @@ export function healPlayer(
   });
 }
 
+/**
+ * Best-effort lookup of a damage source by id: both boards, then both equipped
+ * weapons. Returns undefined for spells (already spliced out of hand and not
+ * yet in the graveyard while their effects run) and for hero powers — neither
+ * of which can be Poisonous, so that's the right answer.
+ */
+export function findSourceCard(
+  G: GameState,
+  sourceId: string,
+): Card | undefined {
+  for (const pid of ["0", "1"] as const) {
+    const onBoard = G.board[pid]?.find((c) => c.id === sourceId);
+    if (onBoard) return onBoard;
+    const weapon = G.players[pid]?.weapon;
+    if (weapon?.id === sourceId) return weapon;
+  }
+  return undefined;
+}
+
 export function dealDamageToCard(
   G: GameState,
   sourceId: string,
@@ -643,9 +703,14 @@ export function dealDamageToCard(
   targetPlayerId: string,
   damageAmount: number,
   sourceEventIndex?: number,
+  sourceCard?: Card, // The character dealing the damage, for Poisonous
 ) {
   if (!targetCard || !targetCard.isMinion) return;
   let hadDivineShield = false;
+
+  // 0. IMMUNE: takes no damage at all. Checked BEFORE Divine Shield so the
+  // bubble isn't wasted, and before Poisonous so immunity beats poison.
+  if (hasKeyword(targetCard, "immune") && damageAmount > 0) return;
 
   // 1. DIVINE SHIELD CHECK: Intercept positive damage values
   if (hasKeyword(targetCard, "divineShield") && damageAmount > 0) {
@@ -659,7 +724,19 @@ export function dealDamageToCard(
   // Instead of subtracting directly from health, increase damage taken!
   targetCard.damageTaken += actualDamage;
 
-  // 2. STANDARD DAMAGE FALLBACK (If no shield is present or damage is 0)
+  // 2. POISONOUS: anything actually damaged by a poisonous source dies. A
+  // popped Divine Shield means actualDamage is 0, so the minion survives —
+  // matching Hearthstone. Death is expressed the same way `case "destroy"`
+  // does it, so resolveDeathWave picks it up with no extra plumbing. Written
+  // BEFORE recordEvent so the event's snapshot already carries the kill.
+  if (actualDamage > 0) {
+    const source = sourceCard ?? findSourceCard(G, sourceId);
+    if (source && hasKeyword(source, "poisonous")) {
+      targetCard.damageTaken = getMaxHealth(targetCard);
+    }
+  }
+
+  // 3. STANDARD DAMAGE FALLBACK (If no shield is present or damage is 0)
   recordEvent(G, {
     type: "damage",
     sourceId: sourceId,
@@ -704,28 +781,49 @@ export function healCard(
   });
 }
 
-const types: EffectTypes["type"][] = [
-  "applyModifier",
-  "damage",
-  "destroy",
-  "divineShield",
-  "freeze",
-  "charge",
-  "heal",
-  "rush",
-  "stealth",
-  "taunt",
-  "storeVar",
-  "windfury",
-  "returnToHand",
-];
+/**
+ * Which effects carry BaseEffectSelection (target / conditions / rand). Total
+ * over EffectTypes so a new effect must declare itself either way — miss one
+ * and `isUserSelectValue` never prompts for a target, silently breaking the
+ * targeting UI for that card.
+ */
+const SELECTION_EFFECTS: Record<EffectTypes["type"], boolean> = {
+  applyModifier: true,
+  damage: true,
+  destroy: true,
+  divineShield: true,
+  freeze: true,
+  charge: true,
+  heal: true,
+  rush: true,
+  stealth: true,
+  taunt: true,
+  storeVar: true,
+  windfury: true,
+  poisonous: true,
+  immune: true,
+  durability: true,
+  returnToHand: true,
+  // Effects with no target selection of their own:
+  draw: false,
+  changeKey: false,
+  summon: false,
+  mana: false,
+  armor: false,
+  conditional: false,
+  sequence: false,
+  bounce: false,
+  addToHand: false,
+  discard: false,
+  equip: false,
+};
 
 //  as BaseEffectSelection
 export function isBaseEffectSelection(
   effect: EffectTypes,
   // @ts-ignore
 ): effect is BaseEffectSelection {
-  return types.includes(effect.type);
+  return SELECTION_EFFECTS[effect.type];
 }
 
 // NEW HELPERS FOR ADD TO HAND / RETURN TO HAND MECHANICS

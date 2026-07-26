@@ -27,7 +27,11 @@ import BoardCardDeckBottom from "./Board/BoardCardDeckBottom";
 import DragCard from "./Board/DragCard";
 import YourTurn from "./Board/YourTurn";
 import SettingsOverlay from "./SettingsOverlay";
-import { validateMove, type TargetValue } from "@project/shared";
+import {
+  getSpendableMana,
+  validateMove,
+  type TargetValue,
+} from "@project/shared";
 import SettingsButton from "./SettingsButton";
 import { useGameAnimation, useGameTargeting } from "@/hooks";
 import { useAnimationStore } from "@/stores/animationStore";
@@ -418,7 +422,9 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
                   }}
                 >
                   <YourTurn
-                    mana={visualGameState.players[props.playerID ?? "0"].mana}
+                    mana={getSpendableMana(
+                      visualGameState.players[props.playerID ?? "0"],
+                    )}
                   />
                 </motion.div>
               </motion.div>

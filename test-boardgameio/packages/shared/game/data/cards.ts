@@ -62,17 +62,20 @@ const spellDamageAura = (n: number): ApplyModifierEffect =>
     conditions: [{ type: "boolean", key: "isSpell", value: true }],
   });
 
-// 1. The Generic Factory Function
-const createBoolEffectUtil = (type: EffectTypes["type"]) => {
+// 1. The Generic Factory Function — generic over the keyword so the return
+// type narrows to that exact union member instead of the whole union.
+type BoolEffectType = Extract<EffectTypes, BaseBoolEffect>["type"];
+
+const createBoolEffectUtil = <T extends BoolEffectType>(type: T) => {
   return (
     target: BaseBoolEffect["target"] = "user-select",
     battlecry: boolean = false,
-  ): EffectTypes =>
+  ): Extract<EffectTypes, { type: T }> =>
     ({
       type,
       target,
       battlecry,
-    }) as EffectTypes; // Typecast ensures TypeScript maps it back to the exact union member
+    }) as Extract<EffectTypes, { type: T }>;
 };
 
 // 2. Generate all your utility helpers instantly
@@ -82,6 +85,8 @@ export const taunt = createBoolEffectUtil("taunt");
 // const stealth = createBoolEffectUtil("stealth");
 const charge = createBoolEffectUtil("charge");
 const windfury = createBoolEffectUtil("windfury");
+export const poisonous = createBoolEffectUtil("poisonous");
+export const immune = createBoolEffectUtil("immune");
 // const rush = createBoolEffectUtil("rush");
 
 const destroy = (
@@ -93,8 +98,53 @@ const destroy = (
   };
 };
 
+/** Temporary Mana Crystals for this turn only — The Coin, Innervate. */
 const mana = (value: number): EffectTypes => {
   return { type: "mana", value: value };
+};
+
+/**
+ * Permanent Mana Crystals. Empty by default (Wild Growth, Nourish — the mana
+ * isn't usable until next turn); pass filled to also fill them.
+ */
+const manaCrystal = (
+  count: number = 1,
+  filled: boolean = false,
+  target: "self" | "enemy" = "self",
+): EffectTypes => {
+  return {
+    type: "mana",
+    value: count,
+    mode: filled ? "crystal-filled" : "crystal-empty",
+    target,
+  };
+};
+
+/** Felguard: destroys permanent crystals, empty ones first. */
+const destroyManaCrystal = (
+  count: number = 1,
+  target: "self" | "enemy" = "self",
+): EffectTypes => {
+  return { type: "mana", value: count, mode: "destroy", target };
+};
+
+/**
+ * Changes a weapon's CURRENT durability: positive repairs (clamped at max),
+ * negative chips it and can break it. For MAXIMUM durability use
+ * `applyModifier({ stats: { durability: n }, target: "friendly-weapon" })`.
+ */
+export const durability = (
+  value: number | DynamicValue,
+  target: "friendly-weapon" | "enemy-weapon" | "user-select" = "friendly-weapon",
+): EffectTypes => {
+  return { type: "durability", value, target };
+};
+
+/** Lava Shock: unlock and refill Overloaded crystals. */
+export const unlockOverloadEffect = (
+  scope: "locked" | "pending" | "both" = "locked",
+): EffectTypes => {
+  return { type: "mana", value: 0, mode: "unlock-overload", scope };
 };
 
 const heal = (
@@ -5809,6 +5859,89 @@ export const cardTemplates = {
       ["SFX_EX1_tk11_Death.ogg"],
     ),
   },
+  // --- Mana Crystal cards ---
+  "wild-growth": {
+    title: "Wild Growth",
+    description: "Gain an empty Mana Crystal.",
+    baseMana: 2,
+    type: ["Nature"],
+    imageUrl: "assets/cards/Wild_Growth.jpg",
+    // At full crystals the grant would be wasted, so it draws instead.
+    effects: [
+      {
+        type: "conditional",
+        conditions: [
+          {
+            type: "numeric",
+            key: { type: "player-max-mana", player: "friendly" },
+            operator: ">=",
+            value: { type: "player-mana-cap", player: "friendly" },
+          },
+        ],
+        then: [addToHand("excess-mana")],
+        else: [manaCrystal(1)],
+      },
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    class: "Druid",
+    set: ["Legacy"],
+  },
+  "excess-mana": {
+    title: "Excess Mana",
+    description: "Draw 4 cards.",
+    baseMana: 0,
+    type: ["Nature"],
+    imageUrl: "assets/cards/Excess_Mana.jpg",
+    effects: [draw(4)],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    isMinion: false,
+    isUncollectible: true,
+    class: "Druid",
+    set: ["Legacy"],
+  },
+  felguard: {
+    title: "Felguard",
+    description: "Taunt. Battlecry: Destroy one of your Mana Crystals.",
+    baseMana: 3,
+    baseAttack: 3,
+    baseHealth: 5,
+    taunt: true,
+    type: ["Demon"],
+    tags: ["Taunt", "Battlecry"],
+    imageUrl: "assets/cards/Felguard.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [destroyManaCrystal(1)],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Rare",
+    class: "Warlock",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_301_Play_01.ogg"],
+      ["VO_EX1_301_Attack_02.ogg"],
+      ["VO_EX1_301_Death_03.ogg"],
+    ),
+  },
+
   // ------------------------------------------------------------------ //
   // Legacy set fill-in (no secrets / discover / choose-one / triggers) //
   // ------------------------------------------------------------------ //
@@ -8028,7 +8161,7 @@ export const cardTemplates = {
       applyModifier({
         stats: { mana: -1 },
         target: "self",
-        mult: { type: "minion-count", side: "all" },
+        mult: { type: "minion-count", side: "all", mult: 0.5 },
       }),
     ],
     targetQuery: {
@@ -8064,7 +8197,7 @@ export const cardTemplates = {
       applyModifier({
         stats: { mana: -1 },
         target: "self",
-        mult: { type: "hand-count", side: "friendly", mult: 0.5 },
+        mult: { type: "hand-count", side: "friendly" },
       }),
     ],
     targetQuery: {

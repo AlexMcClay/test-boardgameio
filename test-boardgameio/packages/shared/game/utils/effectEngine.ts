@@ -4,11 +4,14 @@ import {
   getAttack,
   getManaCost,
   getMaxHealth,
+  hasKeyword,
 } from "./index";
+import { MODIFIER_BOOL_KEYS } from "./helpers";
 import type {
   Card,
   DynamicValue,
   EffectContext,
+  ModifierBoolKey,
   TargetCondition,
   BaseEffectSelection,
 } from "../types";
@@ -21,7 +24,7 @@ export function resolveDynamicValue(
 
   const { G, playerID, excessDamageDealt, lastDamageDealt } = context;
   const enemyId = playerID === "0" ? "1" : "0";
-  const multiplier = val.mult ?? 1;
+  const multiplier = typeof val.mult === "number" ? val.mult : 1;
 
   let baseValue = 0;
 
@@ -53,6 +56,14 @@ export function resolveDynamicValue(
         (e) => e.type === "cardPlayed" && e.turn === context.ctx.turn,
       ).length;
       break;
+
+    case "player-max-mana":
+    case "player-mana-cap": {
+      const p =
+        val.player === "friendly" ? G.players[playerID] : G.players[enemyId];
+      baseValue = val.type === "player-max-mana" ? p.maxMana : p.manaCap;
+      break;
+    }
 
     case "card-stat":
       if (!context.card) {
@@ -135,9 +146,18 @@ export function checkSingleTargetCondition(
   conditionSourceID?: string,
 ): boolean {
   switch (condition.type) {
-    case "boolean":
-      // Safely evaluates truthiness (handles undefined properties as false)
-      return !!card[condition.key] === condition.value;
+    case "boolean": {
+      // Keyword flags go through hasKeyword so a MODIFIER-granted keyword
+      // counts too — reading card[key] raw meant a minion given Taunt by Mark
+      // of the Wild never satisfied a `taunt: true` condition. The remaining
+      // BooleanCardKeys (isMinion/isSpell/summoningSickness) aren't keywords
+      // and keep the plain read.
+      const isKeyword = condition.key in MODIFIER_BOOL_KEYS;
+      const actual = isKeyword
+        ? hasKeyword(card, condition.key as ModifierBoolKey)
+        : !!card[condition.key];
+      return actual === condition.value;
+    }
 
     case "numeric": {
       const cardValue = resolveDynamicValue(condition.key, {

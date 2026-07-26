@@ -1,5 +1,5 @@
 // utils/validateMove.ts
-import { getManaCost, getPlayerAttack, hasKeyword } from ".";
+import { canAfford, getManaCost, getPlayerAttack, hasKeyword } from ".";
 import type {
   Card,
   TargetValue,
@@ -25,7 +25,8 @@ export type MoveValidationError =
   | "must-attack-taunt"
   | "summon-sickness"
   | "frozen"
-  | "stealthed";
+  | "stealthed"
+  | "immune";
 
 export type MoveValidationResult =
   | { valid: true }
@@ -214,7 +215,8 @@ const MOVE_TARGET_ERRORS = {
   "target-not-found": "invalid-target",
   stealthed: "stealthed",
   taunt: "must-attack-taunt",
-} as const;
+  immune: "immune",
+} as const satisfies Record<TargetRestrictionReason, MoveValidationError>;
 
 /**
  * Full move validation for game logic
@@ -291,7 +293,7 @@ export function validateMove(
   }
 
   // Mana check for unplaced cards
-  if (!card.isPlaced && player.mana < getManaCost(card)) {
+  if (!card.isPlaced && !canAfford(player, getManaCost(card))) {
     return { valid: false, error: "not-enough-mana" };
   }
 
@@ -411,7 +413,8 @@ export function validateHeroAttack(
 export type TargetRestrictionReason =
   | "target-not-found"
   | "stealthed"
-  | "taunt";
+  | "taunt"
+  | "immune";
 
 export type TargetRestrictionResult =
   | { ok: true }
@@ -422,6 +425,8 @@ export type TargetRestrictionResult =
  * (validateMove) and hero attacks (validateHeroAttack).
  *
  *  - A stealthed minion can never be targeted directly.
+ *  - An Immune character can't be targeted BY THE OPPONENT. Your own Immune
+ *    minion stays a legal target for your buffs, matching Hearthstone.
  *  - If the defending player controls any *non-stealthed* Taunt minion, the
  *    target must be one of those Taunt minions — unless taunt is bypassed.
  *
@@ -448,8 +453,18 @@ export function checkTargetRestrictions(
     }
   }
 
-  // --- TAUNT --- (only enemy taunts count; a stealthed Taunt does not enforce)
   const isTargetingEnemy = target.player !== attackerPlayer;
+
+  // --- IMMUNE --- (opponent only; you can still buff your own immune minion)
+  if (isTargetingEnemy) {
+    const immuneEntity =
+      target.type === "card" ? targetCard : G.players[target.player];
+    if (immuneEntity && hasKeyword(immuneEntity, "immune")) {
+      return { ok: false, reason: "immune" };
+    }
+  }
+
+  // --- TAUNT --- (only enemy taunts count; a stealthed Taunt does not enforce)
   if (isTargetingEnemy && !opts.bypassTaunt) {
     const enemyHasTaunt = defenderBoard.some(
       (c) => hasKeyword(c, "taunt") && !hasKeyword(c, "stealth"),
@@ -531,30 +546,17 @@ export function canTargetHighlight(
     }
   }
 
-  // TAUNT MECHANIC: Check if trying to bypass taunt in UI
+  // STEALTH / IMMUNE / TAUNT: delegate to the same rules the move validator
+  // and hero attacks use, so the highlight can't disagree with what's legal.
+  // (This previously duplicated only the taunt half and never checked stealth.)
   if (context.G) {
-    const isTargetingEnemy = context.target.player !== context.playerID;
-    if (isTargetingEnemy && !isTauntBypassAllowed(activeCard)) {
-      const enemyBoard = context.G.board[context.target.player];
-      const enemyHasTaunt = hasTauntMinions(enemyBoard);
-
-      if (enemyHasTaunt) {
-        // If targeting enemy hero, must attack taunt instead
-        if (context.target.type === "player") {
-          return false;
-        }
-
-        // If targeting an enemy card, it must be a taunt minion
-        if (context.target.type === "card" && context.target.id) {
-          const targetCard = enemyBoard.find(
-            (c) => c.id === context?.target?.id,
-          );
-          if (!targetCard || !hasKeyword(targetCard, "taunt")) {
-            return false;
-          }
-        }
-      }
-    }
+    const restriction = checkTargetRestrictions(
+      context.G,
+      context.playerID,
+      context.target,
+      { bypassTaunt: isTauntBypassAllowed(activeCard) },
+    );
+    if (!restriction.ok) return false;
   }
 
   return true;

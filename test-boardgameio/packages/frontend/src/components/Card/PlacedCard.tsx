@@ -6,6 +6,8 @@ import { useAudioStore } from "@/stores/audioStore";
 import { useEffect } from "react";
 import FrozenOverlay from "./Overlays/FrozenOverlay";
 import DivineShieldOverlay from "./Overlays/DivineShieldOverlay";
+import ImmuneOverlay from "./Overlays/ImmuneOverlay";
+import PoisonousOverlay from "./Overlays/PoisonousOverlay";
 import SpellDamageOverlay from "./Overlays/SpellDamageOverlay";
 import {
   getAttack,
@@ -139,6 +141,10 @@ const PlacedCard = ({
           <DivineShieldOverlay key={"divineShield"} />
         )}
         {hasKeyword(card, "frozen") && <FrozenOverlay key={"frozen"} />}
+        {hasKeyword(card, "immune") && <ImmuneOverlay key={"immune"} />}
+        {hasKeyword(card, "poisonous") && (
+          <PoisonousOverlay key={"poisonous"} />
+        )}
         {getSpellDamageSource(card) > 0 && (
           <SpellDamageOverlay key={"spellDamage"} />
         )}
