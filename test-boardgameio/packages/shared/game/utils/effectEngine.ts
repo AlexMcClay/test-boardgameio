@@ -78,7 +78,7 @@ export function resolveDynamicValue(
       if (val.conditions) {
         targets = targets.filter((card) =>
           val.conditions!.every((cond) =>
-            checkSingleTargetCondition(card, cond, context),
+            checkSingleTargetCondition(card, cond, context, context.card?.id),
           ),
         );
       }
@@ -122,7 +122,7 @@ export function resolveDynamicValue(
       break;
   }
 
-  return baseValue * multiplier;
+  return Math.round(baseValue * multiplier);
 }
 
 /**
