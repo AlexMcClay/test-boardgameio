@@ -86,6 +86,58 @@ function recordModifierEvent(
 }
 
 /**
+ * "Set this stat to N" (an `override` modifier) wipes the slate for that stat
+ * before the new value lands, mirroring Hearthstone's Equality / Hunter's Mark
+ * / Humility rules:
+ *  - Every enchantment buffing or debuffing that ONE stat loses just that
+ *    entry; everything else it does (other stats, keyword grants) survives,
+ *    and the enchantment is dropped only once nothing is left of it.
+ *  - Setting Health also clears recorded damage, so the minion sits at the new
+ *    value instead of dying to damage it took at its old size.
+ * Managed (aura / inHand / enrage) entries are deliberately left alone: their
+ * refresh pass re-derives them every tick and foldModifiers applies them after
+ * the sets, so an aura buff stays on top of a stat that was just set.
+ */
+function stripStatFromEnchantments(
+  G: GameState,
+  target: Card | Player,
+  targetType: "card" | "player",
+  playerId: string,
+  stat: ModifierStatKey,
+) {
+  if (stat === "health" && targetType === "card") {
+    (target as Card).damageTaken = 0;
+  }
+
+  const list = target.modifiers;
+  if (!list) return;
+
+  for (let i = list.length - 1; i >= 0; i--) {
+    const mod = list[i];
+    if (mod.type !== "permanent" && mod.type !== "temporary") continue;
+    if (mod.stats?.[stat] === undefined) continue;
+
+    delete mod.stats[stat];
+    if (Object.keys(mod.stats).length === 0) mod.stats = undefined;
+    const empty = !mod.stats && !mod.keys;
+    if (empty) {
+      list.splice(i, 1);
+    } else {
+      mod.description = describeModifier(mod.stats, mod.keys, mod.override);
+    }
+    recordModifierEvent(
+      G,
+      mod.sourceCardId,
+      target,
+      targetType,
+      playerId,
+      { name: mod.name, description: mod.description, stats: { [stat]: 0 } },
+      true,
+    );
+  }
+}
+
+/**
  * Applies one ENCHANTMENT (grouped stats + keyword grants) to a card's or
  * player's modifier list with stacking semantics:
  * - `effect.stackable === true`: every application pushes its own modifier.
@@ -128,6 +180,14 @@ function applyModifierWithStacking(
     target.modifiers = [];
   }
   const list = target.modifiers;
+
+  // A stat SET clears that stat's existing enchantments (and, for Health, the
+  // damage taken at the old size) before this entry takes effect.
+  if (override && stats) {
+    (Object.keys(stats) as ModifierStatKey[]).forEach((stat) =>
+      stripStatFromEnchantments(G, target, targetType, playerId, stat),
+    );
+  }
 
   if (!effect.stackable) {
     const existingIndex = list.findIndex(
@@ -657,6 +717,7 @@ const types: EffectTypes["type"][] = [
   "taunt",
   "storeVar",
   "windfury",
+  "returnToHand",
 ];
 
 //  as BaseEffectSelection
