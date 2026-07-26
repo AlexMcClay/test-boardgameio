@@ -7,7 +7,6 @@ import { useEffect } from "react";
 import FrozenOverlay from "./Overlays/FrozenOverlay";
 import DivineShieldOverlay from "./Overlays/DivineShieldOverlay";
 import ImmuneOverlay from "./Overlays/ImmuneOverlay";
-import PoisonousOverlay from "./Overlays/PoisonousOverlay";
 import SpellDamageOverlay from "./Overlays/SpellDamageOverlay";
 import {
   getAttack,
@@ -21,6 +20,7 @@ import {
 const attackIcon = "assets/attack.png";
 const healthIcon = "assets/health.png";
 const skullIcon = "assets/icons/skull.png";
+const poisonIcon = "assets/icons/poison.png";
 
 const minionFrame = "assets/minion_frame.png";
 const minionTaunt = "assets/minion_taunt.png";
@@ -143,7 +143,13 @@ const PlacedCard = ({
         {hasKeyword(card, "frozen") && <FrozenOverlay key={"frozen"} />}
         {hasKeyword(card, "immune") && <ImmuneOverlay key={"immune"} />}
         {hasKeyword(card, "poisonous") && (
-          <PoisonousOverlay key={"poisonous"} />
+          <img
+            src={skullIcon}
+            alt="DeathRattle"
+            className=" object-contain h-[2.7vw] absolute  bottom-[-0.7vw]"
+            // no drag
+            draggable="false"
+          />
         )}
         {getSpellDamageSource(card) > 0 && (
           <SpellDamageOverlay key={"spellDamage"} />
@@ -281,6 +287,18 @@ const PlacedCard = ({
           // no drag
           draggable="false"
         />
+      )}
+      {hasKeyword(card, "poisonous") && (
+        <img
+          src={poisonIcon}
+          alt="DeathRattle"
+          className=" object-contain h-[2vw] absolute  bottom-[-0.2vw]"
+          // no drag
+          draggable="false"
+        />
+      )}
+      {getSpellDamageSource(card) > 0 && (
+        <SpellDamageOverlay key={"spellDamage"} />
       )}
     </motion.div>
   );
