@@ -97,6 +97,9 @@ export interface Card {
   aura?: ApplyModifierEffect[]; // Active while THIS minion is on board; targets via effect.target (friendly-board / adjacent / friendly-hand / ...)
   inHand?: ApplyModifierEffect[]; // Active while THIS card is in a hand; targets "self" or "adjacent" (hand neighbors)
   enrage?: ApplyModifierEffect[]; // Active while THIS minion is damaged on board; targets "self"
+  // "Whenever X happens, do Y" — see TriggerDef. Active while this card is in
+  // play (on board, or equipped for weapons like Sword of Justice).
+  triggers?: TriggerDef[];
   hideAuraGlow?: boolean; // Suppress the aura "pool of light" (Old Murk-Eye / Prophet Velen style exceptions)
   rarity?: "Common" | "Rare" | "Epic" | "Legendary";
   tags?: string[];
@@ -181,6 +184,138 @@ type EffectContextWithOptionalCard = Omit<
   "card" | "heroPower" | "type"
 > &
   Partial<Pick<EffectContext, "card" | "heroPower" | "type">>;
+
+// ---------------------------------------------------------------------------
+// TRIGGERS
+//
+// A trigger is "whenever <something happens>, do <effects>". The engine opens a
+// TRIGGER WINDOW at fixed sequence points inside its actions (see fireTriggers
+// in game/index.ts) and every card in play gets a chance to react.
+//
+// Two classes of window, and the difference matters:
+//   - INTERCEPTION windows run their effects INLINE, mid-action, so the result
+//     is visible to the rest of that action. "When your hero is attacked, gain
+//     8 Armor" must add the armor BEFORE combat damage is computed.
+//   - REACTION windows QUEUE their matches onto G.pendingTriggers; the host
+//     drains them one at a time (machine: resolvingTriggers, one macrostep and
+//     therefore one state update per firing). This matches Hearthstone: an AoE
+//     deals all its damage first, then each "whenever damaged" reaction fires.
+// ---------------------------------------------------------------------------
+
+/**
+ * The vocabulary card authors write. Several entries normalize onto the same
+ * internal window with a preset filter — ON_SELF_DAMAGE / ON_MINION_DAMAGE /
+ * ON_HERO_DAMAGE are all the DAMAGE window, differing only in which subject
+ * they accept. See TRIGGER_SPECS in game/utils/triggers.ts.
+ */
+export type TriggerEventType =
+  | "ON_SELF_DAMAGE" // this minion took damage (Acolyte of Pain, Gurubashi)
+  | "ON_MINION_DAMAGE" // any/friendly minion took damage (Frothing, Armorsmith)
+  | "ON_HERO_DAMAGE" // a hero took damage (Eye for an Eye)
+  | "ON_MINION_DEATH" // a minion died (Flesheating Ghoul, Cult Master)
+  | "ON_CHARACTER_HEAL" // anything was healed (Lightwarden)
+  | "ON_MINION_HEALED" // a minion was healed (Northshire Cleric)
+  | "OVERHEAL" // healing exceeded the missing health (Crimson Clergy)
+  | "ON_SUMMON" // a minion entered play by any means (Knife Juggler)
+  | "ON_MINION_PLAYED" // ...specifically played from hand (Repentance, Snipe)
+  | "ON_CARD_PLAYED" // any card played (Questing Adventurer)
+  | "ON_SPELL_CAST" // a spell finished resolving (Mana Wyrm, Pyromancer)
+  | "ON_SECRET_PLAYED" // reserved for Secretkeeper — no call site yet
+  | "ON_END_TURN"
+  | "ON_START_TURN"
+  | "ON_MINION_ATTACK" // a minion declared an attack (INTERCEPTION)
+  | "ON_ENEMY_ATTACK"; // an enemy declared an attack (INTERCEPTION — secrets)
+
+/** The internal windows every TriggerEventType normalizes onto. */
+export type TriggerWindowType =
+  | "DAMAGE"
+  | "HEAL"
+  | "DEATH"
+  | "SUMMON"
+  | "CARD_PLAYED"
+  | "SPELL_CAST"
+  | "SECRET_PLAYED"
+  | "TURN_END"
+  | "TURN_START"
+  | "ATTACK_DECLARED";
+
+/** Facts about the event, captured when the window opens. */
+export interface TriggerData {
+  /** Damage/heal actually applied (after shields, clamping). */
+  amount?: number;
+  /** Healing that went to waste because the target was already full. */
+  overheal?: number;
+  /** SUMMON only: did this minion come from the player's hand? */
+  playedFromHand?: boolean;
+}
+
+/** Who/what the window happened TO. */
+export interface TriggerSubject {
+  kind: "card" | "player";
+  id: string;
+  ownerId: PlayerID;
+}
+
+/** One open window, passed to fireTriggers. */
+export interface TriggerWindow {
+  window: TriggerWindowType;
+  /**
+   * The player the window "belongs to", which FRIENDLY/ENEMY are measured
+   * against: the acting player for turn/play/cast/summon/attack windows, the
+   * subject's controller for damage/heal/death windows.
+   */
+  actingPlayer: PlayerID;
+  subject?: TriggerSubject;
+  data?: TriggerData;
+  /** Index of the top-level event this window belongs to, for event chaining. */
+  sourceEventIndex?: number;
+}
+
+/**
+ * One "whenever X, do Y" clause on a card. Lives in Card.triggers; silence
+ * wipes them along with the rest of the card's text.
+ */
+export interface TriggerDef {
+  on: TriggerEventType;
+  /**
+   * The window's relevant player, relative to THIS card's controller — the
+   * same scoping vocabulary ModifierLifecycle.expiryOwner uses.
+   */
+  player: "FRIENDLY" | "ENEMY" | "ANY_PLAYER";
+  /**
+   * Extra identity filter against the subject: "only" fires just for this card
+   * (Gurubashi Berserker), "exclude" never fires for it (Knife Juggler doesn't
+   * ping himself). Omitted = no identity constraint.
+   */
+  self?: "only" | "exclude";
+  /** Narrows the SUBJECT card — tribe, attack <= 3, and so on. */
+  conditions?: TargetCondition[];
+  /** 0..1, rolled when the window matches (Nat Pagle's coin flip). */
+  chance?: number;
+  /**
+   * Runs with this card as context.card and the subject as context.target, so
+   * `target: "user-select"` inside means "the thing that triggered me".
+   * context.lastDamageDealt / context.temp carry TriggerData.amount.
+   */
+  effects: EffectTypes[];
+  /** Label shown on the trigger event; defaults to the card's title. */
+  name?: string;
+}
+
+/**
+ * A matched REACTION waiting to resolve. Matching (and the data snapshot)
+ * happened when the window opened; resolution happens later, and fizzles
+ * silently if the owner has left play by then.
+ */
+export interface PendingTrigger {
+  cardId: string;
+  ownerId: PlayerID;
+  /** Index into the owner's `triggers` array. */
+  triggerIndex: number;
+  subject?: TriggerSubject;
+  data?: TriggerData;
+  sourceEventIndex?: number;
+}
 
 export interface ModifierLifecycle {
   // Who cast the buff? ("0" or "1")
@@ -747,7 +882,27 @@ type GameEventBody =
   | MulliganEvent
   | SilenceEvent
   | TransformEvent
-  | TakeControlEvent;
+  | TakeControlEvent
+  | TriggerEvent;
+
+/**
+ * A card's trigger fired. Recorded BEFORE the trigger's effects run, so every
+ * event those effects produce points back here via eventRef — the client gets
+ * "this minion lit up, and then these things happened" for free.
+ */
+export type TriggerEvent = {
+  type: "trigger";
+  cardId: string; // the card whose trigger fired
+  playerId: PlayerID; // its controller
+  name: string; // TriggerDef.name, or the card's title
+  triggerType: TriggerEventType;
+  timestamp: number;
+  /** What the window happened to, when there was one. */
+  subjectId?: string;
+  subjectType?: "card" | "player";
+  eventRef?: number;
+  snapshot: Card;
+};
 
 /** A minion had its text and enchantments wiped. */
 export type SilenceEvent = {
@@ -1106,6 +1261,21 @@ export interface GameState {
   // left minions at <= 0 HP. Set by moves, consumed by resolveDeathWave for
   // eventRef chaining, cleared once the board is clean.
   pendingSourceEventIndex?: number;
+
+  // Matched REACTION triggers waiting to resolve, oldest first. Filled by
+  // fireTriggers; drained one per macrostep by the machine's resolvingTriggers
+  // state (or all at once by engine.applyMove's settle path).
+  pendingTriggers?: PendingTrigger[];
+
+  // Set when a player ends their turn; the turn only actually flips once
+  // deaths and end-of-turn triggers have finished resolving. Consumed by
+  // finishTurnAdvance (engine.ts).
+  pendingTurnAdvance?: boolean;
+
+  // Runaway backstop: counts trigger firings within one player action so a
+  // pair of minions that trigger each other can't loop forever. Reset wherever
+  // a move clears G.gameEvents.
+  triggerFires?: number;
 
   // Automatic (non-targeted) battlecry waiting to resolve. Set by placeCard,
   // consumed by resolvePendingAutoBattlecry via the machine's

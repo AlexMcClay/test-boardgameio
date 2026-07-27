@@ -8,6 +8,7 @@ import {
   MINION_PLACED_ANIMATION,
   MINION_SUMMONED_ANIMATION,
   SPELL_CAST_ANIMATION,
+  TRIGGER_ANIMATION,
 } from "./animationDurations";
 import type { GameEvent } from "@project/shared";
 
@@ -29,6 +30,7 @@ export function detectAllAnimations(events: GameEvent[]): AnimationEvent[] {
   const cardPlayedEvents = events.filter((e) => e.type === "cardPlayed");
   const heroPowerEvents = events.filter((e) => e.type === "heroPower");
   const summonEvents = events.filter((e) => e.type === "summon");
+  const triggerEvents = events.filter((e) => e.type === "trigger");
 
   const hasAttacks = attackEvents.length > 0;
 
@@ -50,6 +52,21 @@ export function detectAllAnimations(events: GameEvent[]): AnimationEvent[] {
       duration: CARD_PLAYED_ANIMATION.duration,
       playerId: event.playerId,
       startTime: 0,
+    });
+  });
+
+  // Trigger — one card's "whenever…" clause firing. The engine resolves these
+  // one per state update, so a step normally carries a single trigger; when one
+  // does carry several, stagger them so the icons pulse in sequence and let
+  // only the first play the shared cue (same rule the store uses for deaths —
+  // several copies of one sound firing together just phase against each other).
+  triggerEvents.forEach((event, i) => {
+    animations.push({
+      type: "trigger",
+      minionID: event.cardId,
+      duration: TRIGGER_ANIMATION.duration,
+      startTime: i * TRIGGER_ANIMATION.stagger,
+      sfx: i === 0 ? [{ soundId: "trigger" }] : undefined,
     });
   });
 

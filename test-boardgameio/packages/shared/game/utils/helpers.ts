@@ -16,12 +16,14 @@ import {
   type CardModifier,
   type EffectContext,
   type EffectTypes,
+  type GameCtx,
   type GameEvent,
   type GameState,
   type ModifierBoolKey,
   type ModifierStatKey,
   type Player,
   type SummonEffect,
+  type TriggerWindow,
 } from "../types";
 import { checkSingleTargetCondition } from "./effectEngine";
 // Helper function to record game events
@@ -608,6 +610,47 @@ export function shouldHeroUnfreezeAtTurnEnd(player: Player): boolean {
   return player.attacksLeft > 0;
 }
 
+// ---------------------------------------------------------------------------
+// TRIGGER DISPATCH HOOK
+//
+// Damage and healing funnel through this module, so the DAMAGE / HEAL trigger
+// windows have to open here — but firing a trigger means running effects, and
+// executeEffects lives in game/index.ts (which already imports this file).
+// Rather than invert that dependency, index.ts injects fireTriggers at module
+// load. The reference is module-local, never on GameState, so structuredClone
+// and the MCTS simulations are unaffected.
+// ---------------------------------------------------------------------------
+
+type TriggerDispatcher = (
+  G: GameState,
+  ctx: GameCtx,
+  window: TriggerWindow,
+) => void;
+
+let triggerDispatcher: TriggerDispatcher | null = null;
+
+/** Called once by game/index.ts at import time. */
+export function setTriggerDispatcher(fn: TriggerDispatcher) {
+  triggerDispatcher = fn;
+}
+
+/**
+ * Opens a trigger window from inside a helper. A no-op until index.ts has
+ * registered the dispatcher, so helpers stay usable standalone (tests).
+ *
+ * The ctx passed to the dispatcher only needs `turn`/`currentPlayer` for
+ * condition evaluation; helpers don't carry one, so a minimal ctx is built
+ * from the window itself.
+ */
+function openWindow(G: GameState, window: TriggerWindow) {
+  if (!triggerDispatcher) return;
+  triggerDispatcher(
+    G,
+    { currentPlayer: window.actingPlayer, turn: 0 } as GameCtx,
+    window,
+  );
+}
+
 export function dealDamageToPlayer(
   G: GameState,
   sourceId: string,
@@ -637,17 +680,30 @@ export function dealDamageToPlayer(
   const remainingDamage = damageAmount - armorDamage;
   targetPlayer.health -= remainingDamage;
 
+  const actualDamage = hadDivineShield && damageAmount > 0 ? 0 : damageAmount;
+
   recordEvent(G, {
     type: "damage",
     sourceId: sourceId,
     targetId: targetPlayerId,
     targetType: "player",
     playerId: targetPlayerId,
-    value: hadDivineShield && damageAmount > 0 ? 0 : damageAmount,
+    value: actualDamage,
     timestamp: Date.now(),
     eventRef: sourceEventIndex,
     snapshot: JSON.parse(JSON.stringify(targetPlayer)),
   });
+
+  // Damage that a shield ate isn't damage taken — nothing reacts to it.
+  if (actualDamage > 0) {
+    openWindow(G, {
+      window: "DAMAGE",
+      actingPlayer: targetPlayerId,
+      subject: { kind: "player", id: targetPlayerId, ownerId: targetPlayerId },
+      data: { amount: actualDamage },
+      sourceEventIndex,
+    });
+  }
 }
 
 export function healPlayer(
@@ -658,23 +714,35 @@ export function healPlayer(
   sourceEventIndex?: number,
 ) {
   const player = G.players[targetPlayerId];
-  if (!player) return;
+  if (!player || amount <= 0) return;
 
   const actualHeal = Math.min(amount, player.maxHealth - player.health);
-  if (actualHeal <= 0) return; // No healing needed (already at full health)
+  // Healing a full-health character still counts as OVERHEAL for the trigger
+  // window, even though no health moves and no heal event is recorded.
+  const overheal = amount - actualHeal;
 
-  player.health += actualHeal;
+  if (actualHeal > 0) {
+    player.health += actualHeal;
 
-  recordEvent(G, {
-    type: "heal",
-    sourceId,
-    targetId: targetPlayerId,
-    targetType: "player",
-    playerId: targetPlayerId,
-    value: actualHeal,
-    timestamp: Date.now(),
-    eventRef: sourceEventIndex,
-    snapshot: JSON.parse(JSON.stringify(player)),
+    recordEvent(G, {
+      type: "heal",
+      sourceId,
+      targetId: targetPlayerId,
+      targetType: "player",
+      playerId: targetPlayerId,
+      value: actualHeal,
+      timestamp: Date.now(),
+      eventRef: sourceEventIndex,
+      snapshot: JSON.parse(JSON.stringify(player)),
+    });
+  }
+
+  openWindow(G, {
+    window: "HEAL",
+    actingPlayer: targetPlayerId,
+    subject: { kind: "player", id: targetPlayerId, ownerId: targetPlayerId },
+    data: { amount: actualHeal, overheal },
+    sourceEventIndex,
   });
 }
 
@@ -749,6 +817,19 @@ export function dealDamageToCard(
     eventRef: sourceEventIndex,
     snapshot: JSON.parse(JSON.stringify(targetCard)),
   });
+
+  // One window per damage INSTANCE — Whirlwind hitting five minions gives
+  // Frothing Berserker +5, which is the Hearthstone behaviour. A shielded hit
+  // dealt nothing, so it triggers nothing.
+  if (actualDamage > 0) {
+    openWindow(G, {
+      window: "DAMAGE",
+      actingPlayer: targetPlayerId,
+      subject: { kind: "card", id: targetCard.id, ownerId: targetPlayerId },
+      data: { amount: actualDamage },
+      sourceEventIndex,
+    });
+  }
 }
 
 export function healCard(
@@ -759,26 +840,38 @@ export function healCard(
   amount: number,
   sourceEventIndex?: number,
 ) {
-  if (!targetCard || !targetCard.isMinion) return;
+  if (!targetCard || !targetCard.isMinion || amount <= 0) return;
 
   const actualHeal = Math.min(
     amount,
     getMaxHealth(targetCard) - getCurrentHealth(targetCard),
   );
-  if (actualHeal <= 0) return; // Already at full health
+  // Healing an undamaged minion moves nothing, but the wasted healing is
+  // exactly what OVERHEAL triggers (Crimson Clergy) react to.
+  const overheal = amount - actualHeal;
 
-  targetCard.damageTaken -= actualHeal;
+  if (actualHeal > 0) {
+    targetCard.damageTaken -= actualHeal;
 
-  recordEvent(G, {
-    type: "heal",
-    sourceId,
-    targetId: targetCard.id,
-    targetType: "card",
-    playerId,
-    value: actualHeal,
-    timestamp: Date.now(),
-    eventRef: sourceEventIndex,
-    snapshot: JSON.parse(JSON.stringify(targetCard)),
+    recordEvent(G, {
+      type: "heal",
+      sourceId,
+      targetId: targetCard.id,
+      targetType: "card",
+      playerId,
+      value: actualHeal,
+      timestamp: Date.now(),
+      eventRef: sourceEventIndex,
+      snapshot: JSON.parse(JSON.stringify(targetCard)),
+    });
+  }
+
+  openWindow(G, {
+    window: "HEAL",
+    actingPlayer: playerId,
+    subject: { kind: "card", id: targetCard.id, ownerId: playerId },
+    data: { amount: actualHeal, overheal },
+    sourceEventIndex,
   });
 }
 
@@ -989,13 +1082,15 @@ export function silenceCard(
     (card as unknown as Record<string, unknown>)[flag] = false;
   });
 
-  // 2. Its own text: deathrattles and ongoing definitions. refreshOngoing is
-  // diff-based, so the managed modifiers these produced disappear on the next
-  // pass (every executeEffects caller runs one).
+  // 2. Its own text: deathrattles, ongoing definitions and triggers.
+  // refreshOngoing is diff-based, so the managed modifiers these produced
+  // disappear on the next pass (every executeEffects caller runs one).
+  // Already-queued reactions from this card fizzle at resolution.
   card.deathrattle = [];
   card.aura = [];
   card.enrage = [];
   card.inHand = [];
+  card.triggers = [];
 
   // 3. Its own enchantments. Managed (aura/inHand/enrage) entries are owned by
   // whatever provider created them — leave those to the refresh pass.
@@ -1058,6 +1153,19 @@ export function findCardsInPool(
     const cardIDs = Array.isArray(effect.cardID)
       ? effect.cardID
       : [effect.cardID];
+
+    // With `rand`, a list of ids is a MENU to pick from (Ysera's Dream cards):
+    // build one of each and fall through to the sampling below. Without it,
+    // the list means "add all of these", `count` copies each.
+    if (effect.rand && cardIDs.length > 1) {
+      cardIDs.forEach((id) => {
+        const card = createCardFromID(id as any);
+        if (card) pool.push(card);
+      });
+      const shuffled = [...pool].sort(() => Math.random() - 0.5);
+      return shuffled.slice(0, Math.max(0, Math.min(effect.rand.n, pool.length)));
+    }
+
     cardIDs.forEach((id) => {
       for (let i = 0; i < count; i++) {
         const card = createCardFromID(id as any);

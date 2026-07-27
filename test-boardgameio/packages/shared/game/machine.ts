@@ -15,12 +15,15 @@ import {
   applyMove,
   createInitialState,
   finalizeVictory,
+  finishTurnAdvance,
   type MoveName,
 } from "./engine.js";
 import {
   hasPendingDeaths,
   resolveDeathWave,
   hasPendingAutoBattlecry,
+  hasPendingTriggers,
+  resolveNextTrigger,
   resolvePendingAutoBattlecry,
   type GameSetupData,
 } from "./index.js";
@@ -148,6 +151,28 @@ export const gameMachine = setup({
       finalizeVictory(next);
       return next;
     }),
+    // ONE queued trigger reaction. Deliberately one per macrostep so every
+    // "whenever…" firing becomes its own snapshot — the client sees each
+    // minion react in turn instead of a single collapsed board update.
+    resolveTriggerAction: assign(({ context }) => {
+      const next = {
+        G: structuredClone(context.G),
+        ctx: { ...context.ctx },
+      };
+      resolveNextTrigger(next.G, next.ctx);
+      finalizeVictory(next);
+      return next;
+    }),
+    // Hands the turn over, once end-of-turn triggers and their deaths are done.
+    finishTurnAdvanceAction: assign(({ context }) => {
+      const next = {
+        G: structuredClone(context.G),
+        ctx: { ...context.ctx },
+      };
+      finishTurnAdvance(next);
+      finalizeVictory(next);
+      return next;
+    }),
   },
   guards: {
     hasPendingBattlecry: ({ context }) => !!context.G.activeBattlecryMinion,
@@ -164,6 +189,19 @@ export const gameMachine = setup({
       !hasPendingAutoBattlecry(context.G) && hasPendingDeaths(context.G),
     autoBattlecryDoneClear: ({ context }) =>
       !hasPendingAutoBattlecry(context.G) && !hasPendingDeaths(context.G),
+    // Queued reactions wait while a targeted battlecry is on the player: the
+    // battlecry resolves first (Hearthstone order), and the board shouldn't
+    // churn under them while they're aiming.
+    hasPendingTriggers: ({ context }) =>
+      hasPendingTriggers(context.G) && !context.G.activeBattlecryMinion,
+    noPendingTriggersLeft: ({ context }) => !hasPendingTriggers(context.G),
+    // The turn only hands over once everything this turn queued has resolved.
+    readyToAdvanceTurn: ({ context }) =>
+      !!context.G.pendingTurnAdvance &&
+      !hasPendingDeaths(context.G) &&
+      !hasPendingTriggers(context.G) &&
+      !hasPendingAutoBattlecry(context.G) &&
+      !context.G.activeBattlecryMinion,
     isGameOver: ({ context }) => !!context.ctx.gameover,
     mulliganComplete: ({ context }) => !context.G.mulligan?.active,
   },
@@ -188,6 +226,11 @@ export const gameMachine = setup({
       always: { target: "finished", guard: "isGameOver" },
       initial: "idle",
       states: {
+        // Resolution priority, shared by every state that can leave work
+        // behind: battlecry → deaths → battlecry targeting → queued triggers →
+        // turn hand-off → idle. Deaths outrank triggers so the board is clean
+        // between reactions; targeting outranks triggers so the player isn't
+        // watching the board move while they aim.
         idle: {
           always: [
             // A just-placed minion's automatic battlecry resolves first
@@ -200,6 +243,8 @@ export const gameMachine = setup({
               target: "awaitingBattlecryTarget",
               guard: "hasPendingBattlecry",
             },
+            { target: "resolvingTriggers", guard: "hasPendingTriggers" },
+            { target: "advancingTurn", guard: "readyToAdvanceTurn" },
           ],
           on: {
             PLACE_CARD: { actions: "applyMoveEvent" },
@@ -215,6 +260,7 @@ export const gameMachine = setup({
             { target: "resolvingBattlecry", guard: "hasPendingAutoBattlecry" },
             // Battlecry effects (RESOLVE_BATTLECRY) can kill minions too
             { target: "resolvingDeaths", guard: "hasPendingDeaths" },
+            { target: "resolvingTriggers", guard: "hasPendingTriggers" },
             { target: "idle", guard: "noPendingBattlecry" },
           ],
           on: {
@@ -235,6 +281,7 @@ export const gameMachine = setup({
               target: "resolvingDeaths",
               guard: "autoBattlecryDoneDeathsPending",
             },
+            { target: "resolvingTriggers", guard: "hasPendingTriggers" },
             { target: "idle", guard: "autoBattlecryDoneClear" },
           ],
           after: {
@@ -259,6 +306,10 @@ export const gameMachine = setup({
               target: "awaitingBattlecryTarget",
               guard: "deathsClearBattlecryPending",
             },
+            // Deathrattles queue reactions (Cult Master draws off a death);
+            // they resolve once the wave chain is fully swept.
+            { target: "resolvingTriggers", guard: "hasPendingTriggers" },
+            { target: "advancingTurn", guard: "readyToAdvanceTurn" },
             { target: "idle", guard: "deathsClearNoBattlecry" },
           ],
           after: {
@@ -269,6 +320,43 @@ export const gameMachine = setup({
               // rattles killed more minions) runs as the next macrostep.
               target: "resolvingDeaths",
               reenter: true,
+            },
+          },
+        },
+        // Drains queued "whenever…" reactions ONE AT A TIME. Each 0ms delayed
+        // transition is its own macrostep, so every trigger firing produces a
+        // separate snapshot / game_sync — the player watches each minion react
+        // in sequence rather than seeing one collapsed board update.
+        //
+        // Deaths take priority on the way out: a trigger that kills something
+        // gets swept before the next reaction fires.
+        resolvingTriggers: {
+          always: [
+            { target: "resolvingDeaths", guard: "hasPendingDeaths" },
+            { target: "advancingTurn", guard: "readyToAdvanceTurn" },
+            {
+              target: "awaitingBattlecryTarget",
+              guard: "hasPendingBattlecry",
+            },
+            { target: "idle", guard: "noPendingTriggersLeft" },
+          ],
+          after: {
+            0: {
+              guard: "hasPendingTriggers",
+              actions: "resolveTriggerAction",
+              target: "resolvingTriggers",
+              reenter: true,
+            },
+          },
+        },
+        // The second half of a turn transition, once end-of-turn triggers and
+        // their deaths have finished. Its own macrostep so the client sees the
+        // end-of-turn board state before the next turn's draw lands.
+        advancingTurn: {
+          after: {
+            0: {
+              actions: "finishTurnAdvanceAction",
+              target: "idle",
             },
           },
         },

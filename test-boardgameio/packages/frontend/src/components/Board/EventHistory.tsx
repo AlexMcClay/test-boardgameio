@@ -9,6 +9,7 @@ import HeroPowerExpanded from "../HeroPower/HeroPowerExpanded";
 import { DeathSkullOverlay, StaticHitNumber } from "./EventHistoryOverlays";
 
 const weapon_attack_icon = "/assets/icons/weapon_attack.png";
+const triggerIcon = "/assets/icons/Trigger.webp";
 
 type Props = {
   ctx: Ctx;
@@ -18,8 +19,21 @@ type Props = {
 
 type TopLevelEvent = Extract<
   GameEvent,
-  { type: "cardPlayed" | "heroPower" | "attack" }
+  { type: "cardPlayed" | "heroPower" | "attack" | "trigger" }
 >;
+
+/**
+ * Entries that render at half height (aspect-2/1) and cost half a list slot.
+ * Attacks and triggers are beats WITHIN a turn rather than actions a player
+ * spent a card on, so they read as secondary next to a played card.
+ */
+const HALF_HEIGHT_EVENTS: ReadonlySet<TopLevelEvent["type"]> = new Set([
+  "attack",
+  "trigger",
+]);
+
+const isHalfHeight = (event: TopLevelEvent) =>
+  HALF_HEIGHT_EVENTS.has(event.type);
 
 type ChildEvent = Extract<
   GameEvent,
@@ -38,7 +52,10 @@ type ChildEvent = Extract<
 >;
 
 const isTopLevelEvent = (e: GameEvent): e is TopLevelEvent =>
-  e.type === "cardPlayed" || e.type === "heroPower" || e.type === "attack";
+  e.type === "cardPlayed" ||
+  e.type === "heroPower" ||
+  e.type === "attack" ||
+  e.type === "trigger";
 
 const isChildEvent = (e: GameEvent): e is ChildEvent =>
   e.type === "damage" ||
@@ -61,6 +78,8 @@ function getEventImageUrl(
 ): string | undefined {
   if (event.type === "cardPlayed") return event.card.imageUrl;
   if (event.type === "heroPower") return event.heroPower.imageUrl;
+  // The card whose "whenever…" clause fired, as it looked at that moment.
+  if (event.type === "trigger") return event.snapshot.imageUrl;
   // attack
   if (event.card) return event.card.imageUrl;
   return G.players[event.attackerPlayerId]?.heroPortrait;
@@ -249,6 +268,14 @@ function ParentVisual({
       </div>
     );
   }
+  if (event.type === "trigger") {
+    return (
+      <div className="relative shrink-0">
+        <ScaledCard card={event.snapshot} scale={1.4} />
+        <OverlayLayer overlay={overlay} overlayValue={overlayValue} />
+      </div>
+    );
+  }
   // attack
   if (event.card) {
     return (
@@ -369,14 +396,14 @@ const EventHistory = ({ G, playerID }: Props) => {
     )
     .reverse(); // most recent first
 
-  // Attack entries render at half height (aspect-2/1 vs aspect-square), so
-  // they only cost half a "slot". Capacity is 7 slots - the number of
-  // full-size entries that fit by default - and we fill from most recent
-  // until the next entry would overflow it.
+  // Attack and trigger entries render at half height (aspect-2/1 vs
+  // aspect-square), so they only cost half a "slot". Capacity is 7 slots - the
+  // number of full-size entries that fit by default - and we fill from most
+  // recent until the next entry would overflow it.
   const visibleEntries: typeof topLevelEntries = [];
   let usedSlots = 0;
   for (const entry of topLevelEntries) {
-    const slotCost = entry.event.type === "attack" ? 0.5 : 1;
+    const slotCost = isHalfHeight(entry.event) ? 0.5 : 1;
     if (usedSlots + slotCost > MAX_HISTORY_SLOTS) break;
     usedSlots += slotCost;
     visibleEntries.push(entry);
@@ -410,6 +437,7 @@ const EventHistory = ({ G, playerID }: Props) => {
       {visibleEntries.map(({ event, index }) => {
         const isSelf = getEventOwner(event) === playerID;
         const imageUrl = getEventImageUrl(event, G);
+        const half = isHalfHeight(event);
         return (
           <motion.div
             initial={{ opacity: 1, x: "-10vw" }}
@@ -421,14 +449,14 @@ const EventHistory = ({ G, playerID }: Props) => {
             onMouseLeave={handleMouseLeave}
             className={twMerge(
               "aspect-square w-full relative",
-              event.type === "attack" && "aspect-2/1 ",
+              half && "aspect-2/1 ",
             )}
           >
             <div
               className={twMerge(
                 "w-full minion-shadow relative aspect-square border-[0.25vw] rounded-[0.5vw] overflow-hidden cursor-pointer shrink-0",
                 isSelf ? "border-blue-500" : "border-red-800",
-                event.type === "attack" && "aspect-2/1",
+                half && "aspect-2/1",
               )}
             >
               {/* Conforming Inset Shadow Overlay */}
@@ -449,11 +477,20 @@ const EventHistory = ({ G, playerID }: Props) => {
               )}
             </div>
 
+            {/* Corner badge naming the kind of beat this entry was */}
             {event.type === "attack" && (
               <img
                 src={weapon_attack_icon}
                 alt="Attack"
                 className="absolute w-[3vw] h-[3vw] object-contain pointer-events-none right-[-1vw] top-[-0.2vw] smallShadow"
+              />
+            )}
+            {event.type === "trigger" && (
+              <img
+                src={triggerIcon}
+                alt={event.name}
+                title={event.name}
+                className="absolute w-[2vw] h-[2vw] object-contain pointer-events-none right-[-0.8vw] top-[0.5vw] smallShadow"
               />
             )}
           </motion.div>

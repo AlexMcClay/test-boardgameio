@@ -1,9 +1,12 @@
 import type { CardProps } from "./types";
 import { AnimatePresence, motion } from "motion/react";
 import { twMerge } from "tailwind-merge";
-import { ATTACK_ANIMATION } from "@/utils/animationDurations";
+import {
+  ATTACK_ANIMATION,
+  TRIGGER_ANIMATION,
+} from "@/utils/animationDurations";
 import { useAudioStore } from "@/stores/audioStore";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import FrozenOverlay from "./Overlays/FrozenOverlay";
 import DivineShieldOverlay from "./Overlays/DivineShieldOverlay";
 import ImmuneOverlay from "./Overlays/ImmuneOverlay";
@@ -18,11 +21,14 @@ import {
   hasKeyword,
   providesActiveAura,
 } from "@project/shared";
+import { useAnimationStore } from "@/stores/animationStore";
+import type { TriggerAnimation } from "@/types/animations";
 
 const attackIcon = "assets/attack.png";
 const healthIcon = "assets/health.png";
 const skullIcon = "assets/icons/skull.png";
 const poisonIcon = "assets/icons/poison.png";
+const triggerIcon = "assets/icons/Trigger.webp";
 
 const minionFrame = "assets/minion_frame.png";
 const minionTaunt = "assets/minion_taunt.png";
@@ -43,6 +49,36 @@ const PlacedCard = ({
   cardRef,
   ...props
 }: Props) => {
+  const activeAnimations = useAnimationStore((s) => s.activeAnimations);
+
+  // Trigger firings currently aimed at THIS minion. The store hands every
+  // running animation a unique `uid` and drops it again once its duration is
+  // up, so this is the whole source of truth — no manual bookkeeping needed,
+  // and nothing can fire twice for one event.
+  //
+  // Memoised against the store's array identity (which only changes when an
+  // animation starts or ends) so unrelated re-renders don't churn it.
+  const triggerAnimations = useMemo(
+    () =>
+      activeAnimations.filter(
+        (anim): anim is TriggerAnimation & { uid: string } =>
+          anim.type === "trigger" && anim.minionID === card.id && !!anim.uid,
+      ),
+    [activeAnimations, card.id],
+  );
+
+  const isTriggering = triggerAnimations.length > 0;
+  // Keying the icon on the newest firing restarts the pulse cleanly when a
+  // minion triggers again while the previous pulse is still playing — two
+  // firings can never animate on top of each other.
+  const triggerKey = isTriggering
+    ? triggerAnimations[triggerAnimations.length - 1].uid
+    : "idle";
+
+  // NOTE: the "trigger" cue is played by the animation store from the
+  // animation's own `sfx` (see detectAllAnimations), which is also where
+  // duplicate firings in one batch are collapsed to a single sound.
+
   const playSfx = useAudioStore((state) => state.playSfx);
   const isSicknessActive =
     card.summoningSickness &&
@@ -290,10 +326,10 @@ const PlacedCard = ({
           )}
         </>
       )}
-      {card.deathrattle && card.deathrattle.length && (
+      {!!card.deathrattle?.length && (
         <img
           src={skullIcon}
-          alt="DeathRattle"
+          alt="Deathrattle"
           className=" object-contain h-[2.7vw] absolute  bottom-[-0.7vw]"
           // no drag
           draggable="false"
@@ -306,6 +342,45 @@ const PlacedCard = ({
           className=" object-contain h-[2vw] absolute  bottom-[-0.2vw]"
           // no drag
           draggable="false"
+        />
+      )}
+      {!!card.triggers?.length && (
+        <motion.img
+          // A new firing swaps the key, remounting the icon so its pulse
+          // restarts from the top instead of layering over the previous one.
+          key={triggerKey}
+          src={triggerIcon}
+          alt="Trigger"
+          className=" object-contain h-[1.8vw] absolute bottom-[-0.3vw] z-20 pointer-events-none"
+          // no drag
+          draggable="false"
+          initial={false}
+          animate={
+            isTriggering
+              ? {
+                  // Swells and flares gold, then settles back to its resting size.
+                  scale: [1, 1.2, 1.1, 1],
+                  filter: [
+                    "drop-shadow(0 0 0vw rgba(255,225,120,0))",
+                    "drop-shadow(0 0 0.6vw rgba(255,225,120,1))",
+                    "drop-shadow(0 0 0.35vw rgba(255,225,120,0.85))",
+                    "drop-shadow(0 0 0vw rgba(255,225,120,0))",
+                  ],
+                }
+              : {
+                  scale: 1,
+                  filter: "drop-shadow(0 0 0vw rgba(255,225,120,0))",
+                }
+          }
+          transition={
+            isTriggering
+              ? {
+                  duration: TRIGGER_ANIMATION.duration / 1000,
+                  times: [0, 0.25, 0.55, 1],
+                  ease: "easeOut",
+                }
+              : { duration: 0.2 }
+          }
         />
       )}
       {getSpellDamageSource(card) > 0 && (
