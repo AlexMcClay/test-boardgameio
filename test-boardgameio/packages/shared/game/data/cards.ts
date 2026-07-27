@@ -8495,6 +8495,757 @@ export const cardTemplates = {
       ["VO_NEW1_024_Death_03.ogg"],
     ),
   },
+  "emerald-skytalon": {
+    title: "Emerald Skytalon",
+    description: "Rush",
+    baseMana: 1,
+    baseAttack: 2,
+    baseHealth: 1,
+    rush: true,
+    type: ["Beast", "Elemental"],
+    tags: ["Rush"],
+    imageUrl: "assets/cards/Emerald_Skytalon.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Common",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["UNG_801_NestingRoc_Play.ogg", "WingFlapMedium_Underlay_Play.ogg"],
+      ["UNG_801_NestingRoc_Attack.ogg", "WingFlapMedium_Underlay_Attack.ogg"],
+      ["UNG_801_NestingRoc_Death.ogg", "WingFlapMedium_Underlay_Death.ogg"],
+    ),
+  },
+  "bloodsail-corsair": {
+    title: "Bloodsail Corsair",
+    description: "Battlecry: Remove 1 Durability from your opponent's weapon.",
+    baseMana: 1,
+    baseAttack: 1,
+    baseHealth: 2,
+    type: ["Pirate"],
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Bloodsail_Corsair.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    // Chips the equipped enemy weapon; the durability handler no-ops when the
+    // opponent has none, and breaks the weapon if this was its last charge.
+    onPlace: [durability(-1, "enemy-weapon")],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Rare",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_NEW1_025_Play_01.ogg"],
+      ["VO_NEW1_025_Attack_02.ogg"],
+      ["VO_NEW1_025_Death_03.ogg"],
+    ),
+  },
+  "acidic-swamp-ooze": {
+    title: "Acidic Swamp Ooze",
+    description: "Battlecry: Destroy your opponent's weapon.",
+    baseMana: 2,
+    baseAttack: 3,
+    baseHealth: 2,
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Acidic_Swamp_Ooze.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    // No "destroy weapon" effect exists, so drain more durability than any
+    // weapon can have — getCurrentDurability drops to <= 0 and it breaks.
+    onPlace: [durability(-99, "enemy-weapon")],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["EX1_066_AcidicSwampOoze_EnterPlay.ogg"],
+      ["EX1_066_AcidicSwampOoze_Attack.ogg"],
+      ["EX1_066_AcidicSwampOoze_Death.ogg"],
+    ),
+  },
+  "patient-assassin": {
+    title: "Patient Assassin",
+    description: "Stealth. Poisonous.",
+    baseMana: 2,
+    baseAttack: 1,
+    baseHealth: 1,
+    stealth: true,
+    poisonous: true,
+    tags: ["Stealth", "Poisonous"],
+    imageUrl: "assets/cards/Patient_Assassin.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Epic",
+    class: "Rogue",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_522_Play_01.ogg"],
+      ["VO_EX1_522_Attack_02.ogg"],
+      ["VO_EX1_522_Death_03.ogg"],
+    ),
+  },
+  "arcane-golem": {
+    title: "Arcane Golem",
+    description: "Charge. Battlecry: Give your opponent a Mana Crystal.",
+    baseMana: 3,
+    baseAttack: 4,
+    baseHealth: 2,
+    charge: true,
+    tags: ["Charge", "Battlecry"],
+    imageUrl: "assets/cards/Arcane_Golem.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    // An EMPTY crystal: the opponent's maximum mana grows, but it only fills
+    // on their next turn (same mode Wild Growth uses).
+    onPlace: [manaCrystal(1, false, "enemy")],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Rare",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["EX1_089_Arcane_Golem_EnterPlay2.ogg"],
+      ["EX1_089_Arcane_Golem_Attack5.ogg"],
+      ["EX1_089_Arcane_Golem_Death4.ogg"],
+    ),
+  },
+  "emperor-cobra": {
+    title: "Emperor Cobra",
+    description: "Poisonous",
+    baseMana: 3,
+    baseAttack: 2,
+    baseHealth: 3,
+    poisonous: true,
+    type: ["Beast"],
+    tags: ["Poisonous"],
+    imageUrl: "assets/cards/Emperor_Cobra.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Rare",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["EX1_170_Emperor_Cobra_EnterPlay1.ogg"],
+      ["EX1_170_Emperor_Cobra_Attack1.ogg"],
+      ["EX1_170_Emperor_Cobra_Death2.ogg"],
+    ),
+  },
+  "southsea-captain": {
+    title: "Southsea Captain",
+    description: "Your other Pirates have +1/+1.",
+    baseMana: 3,
+    baseAttack: 3,
+    baseHealth: 3,
+    type: ["Pirate"],
+    tags: ["Aura"],
+    imageUrl: "assets/cards/Southsea_Captain.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    aura: [
+      applyModifier({
+        stats: { attack: 1, health: 1 },
+        target: "friendly-board",
+        conditions: [
+          { type: "tags-include", value: "Pirate" },
+          { type: "exclude-self" },
+        ],
+      }),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Epic",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_NEW1_027_Play_01.ogg"],
+      ["VO_NEW1_027_Attack_02.ogg"],
+      ["VO_NEW1_027_Death_03.ogg"],
+    ),
+  },
+  plaguebringer: {
+    title: "Plaguebringer",
+    description: "Battlecry: Give a friendly minion Poisonous.",
+    baseMana: 4,
+    baseAttack: 3,
+    baseHealth: 3,
+    type: ["Undead"],
+    tags: ["Battlecry", "Poisonous"],
+    imageUrl: "assets/cards/Plaguebringer.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [poisonous("user-select", true)],
+    battlecryQuery: {
+      side: "friendly",
+      type: ["card"],
+      conditions: [{ type: "exclude-self" }],
+    },
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    class: "Rogue",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_191_Male_Undead_Play_01.ogg", "Potion_Underlay_Play_01.ogg"],
+      ["VO_EX1_191_Male_Undead_Attack_01.ogg", "Potion_Underlay_Attack.ogg"],
+      ["VO_EX1_191_Male_Undead_Death_01.ogg", "Potion_Underlay_Play_01.ogg"],
+    ),
+  },
+  abomination: {
+    title: "Abomination",
+    description: "Taunt. Deathrattle: Deal 2 damage to ALL characters.",
+    baseMana: 5,
+    baseAttack: 4,
+    baseHealth: 4,
+    taunt: true,
+    type: ["Undead"],
+    tags: ["Taunt", "Deathrattle"],
+    imageUrl: "assets/cards/Abomination.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    // "ALL characters" = every minion plus both heroes. There is no single
+    // target covering heroes and minions on both sides, so it's three passes.
+    deathrattle: [
+      damage(2, "board"),
+      damage(2, "friendly-hero"),
+      damage(2, "enemy-hero"),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Rare",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_097_Play_01.ogg"],
+      ["VO_EX1_097_Attack_02.ogg"],
+      ["VO_EX1_097_Death_03.ogg"],
+    ),
+  },
+  "stampeding-kodo": {
+    title: "Stampeding Kodo",
+    description: "Battlecry: Destroy a random enemy minion with 2 or less Attack.",
+    baseMana: 5,
+    baseAttack: 3,
+    baseHealth: 5,
+    type: ["Beast"],
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Stampeding_Kodo.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [
+      {
+        type: "destroy",
+        target: "enemy-board",
+        conditions: [
+          {
+            type: "numeric",
+            key: { type: "card-stat", stat: "attack" },
+            operator: "<=",
+            value: 2,
+          },
+        ],
+        rand: { split: false, n: 1 },
+      },
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Rare",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["KotoBeastReady1.ogg"],
+      ["KotoBeastYes1.ogg"],
+      ["KodoBeastDeath.ogg"],
+    ),
+  },
+  "cairne-bloodhoof": {
+    title: "Cairne Bloodhoof",
+    description: "Deathrattle: Summon a 4/5 Baine Bloodhoof.",
+    baseMana: 6,
+    baseAttack: 4,
+    baseHealth: 5,
+    tags: ["Deathrattle"],
+    imageUrl: "assets/cards/Cairne_Bloodhoof.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    deathrattle: [summon("baine-bloodhoof")],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Legendary",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_110_Play_01.ogg", "Pegasus_Stinger_Horde2.ogg"],
+      ["VO_EX1_110_Attack_02.ogg"],
+      ["VO_EX1_110_Death_03.ogg"],
+    ),
+  },
+  "baine-bloodhoof": {
+    title: "Baine Bloodhoof",
+    description: "",
+    baseMana: 4,
+    baseAttack: 4,
+    baseHealth: 5,
+    imageUrl: "assets/cards/Baine_Bloodhoof.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    isUncollectible: true,
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_110t_Play_01.ogg"],
+      ["VO_EX1_110t_Attack_02.ogg"],
+      ["VO_EX1_110t_Death_03.ogg"],
+    ),
+  },
+  "frost-elemental": {
+    title: "Frost Elemental",
+    description: "Battlecry: Freeze a character.",
+    baseMana: 6,
+    baseAttack: 5,
+    baseHealth: 5,
+    type: ["Elemental"],
+    tags: ["Battlecry", "Freeze"],
+    imageUrl: "assets/cards/Frost_Elemental.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [freeze("user-select", true)],
+    battlecryQuery: {
+      side: "all",
+      type: ["card", "player"],
+      conditions: [{ type: "exclude-self" }],
+    },
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Common",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["SFX_EX1_283_EnterPlay.ogg"],
+      ["SFX_EX1_283_Attack.ogg"],
+      ["SFX_EX1_283_Death.ogg"],
+    ),
+  },
+  "the-beast": {
+    title: "The Beast",
+    description: "Deathrattle: Summon a 3/3 Pip Quickwit for your opponent.",
+    baseMana: 6,
+    baseAttack: 9,
+    baseHealth: 7,
+    type: ["Beast"],
+    tags: ["Deathrattle"],
+    imageUrl: "assets/cards/The_Beast.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    deathrattle: [summon("pip-quickwit", "enemy")],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Legendary",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["EX1_577_The_Beast_EnterPlay1.ogg", "Pegasus_Stinger_Beast_Villain.ogg"],
+      ["EX1_577_The_Beast_Attack2.ogg"],
+      ["EX1_577_The_Beast_Death1.ogg"],
+    ),
+  },
+  "pip-quickwit": {
+    title: "Pip Quickwit",
+    description: "",
+    baseMana: 3,
+    baseAttack: 3,
+    baseHealth: 3,
+    imageUrl: "assets/cards/Pip_Quickwit.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    isUncollectible: true,
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_finkle_Play_01.ogg"],
+      ["VO_EX1_finkle_Attack_02.ogg"],
+      ["VO_EX1_finkle_Death_03.ogg"],
+    ),
+  },
+  "barrens-stablehand": {
+    title: "Barrens Stablehand",
+    description: "Battlecry: Summon a random Beast.",
+    baseMana: 7,
+    baseAttack: 5,
+    baseHealth: 5,
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Barrens_Stablehand.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    // No cardID: resolveSummonCandidates falls back to every collectible
+    // minion template, filtered here down to Beasts.
+    onPlace: [
+      summon(undefined, "self", 1, [{ type: "tags-include", value: "Beast" }]),
+    ],
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Epic",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_188_Male_Orc_Play_02.ogg"],
+      ["VO_EX1_188_Male_Orc_Attack_02.ogg"],
+      ["VO_EX1_188_Male_Orc_Death_01.ogg"],
+    ),
+  },
+  "alexstrasza-the-life-binder": {
+    title: "Alexstrasza the Life-Binder",
+    description:
+      "Battlecry: Choose a character. If it's friendly, restore 8 Health. If it's an enemy, deal 8 damage.",
+    baseMana: 9,
+    baseAttack: 8,
+    baseHealth: 8,
+    type: ["Dragon"],
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Alexstrasza_the_Life-Binder.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    // `is-friendly` reads the chosen target's owner, so one battlecry covers
+    // both halves — heal your own characters, burn the opponent's.
+    onPlace: [
+      {
+        type: "conditional",
+        conditions: [{ type: "is-friendly" }],
+        then: [heal(8, "user-select")],
+        else: [damage(8, "user-select", true)],
+      },
+    ],
+    battlecryQuery: {
+      side: "all",
+      type: ["card", "player"],
+      conditions: [{ type: "exclude-self" }],
+    },
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Legendary",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      [
+        "VO_CS3_031_Female_Dragon_Play_01.ogg",
+        "HS_LegendaryStinger_Alexstrasza.ogg",
+      ],
+      ["VO_CS3_031_Female_Dragon_Attack_01.ogg"],
+      ["VO_CS3_031_Female_Dragon_Death_01.ogg"],
+    ),
+  },
+  "bestial-wrath": {
+    title: "Bestial Wrath",
+    description: "Give a friendly Beast +2 Attack and Immune this turn.",
+    baseMana: 1,
+    imageUrl: "assets/cards/Bestial_Wrath.jpg",
+    effects: [
+      applyModifier({
+        stats: { attack: 2 },
+        keys: { immune: true },
+        duration: {
+          expiryTrigger: "END_OF_TURN",
+          expiryOwner: "BUFF_CASTER",
+        },
+      }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "friendly",
+      type: ["card"],
+      conditions: [{ type: "tags-include", value: "Beast" }],
+    },
+    rarity: "Epic",
+    class: "Hunter",
+    set: ["Legacy"],
+  },
+  "tome-of-intellect": {
+    title: "Tome of Intellect",
+    description: "Add a random Mage spell to your hand.",
+    baseMana: 1,
+    type: ["Arcane"],
+    imageUrl: "assets/cards/Tome_of_Intellect.jpg",
+    effects: [
+      addRandomCard(
+        [
+          { type: "boolean", key: "isSpell", value: true },
+          { type: "text-contains", key: "class", value: "Mage" },
+        ],
+        1,
+      ),
+    ],
+    onPlace: [],
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    rarity: "Common",
+    class: "Mage",
+    set: ["Legacy"],
+  },
+  "southsea-deckhand": {
+    title: "Southsea Deckhand",
+    description: "Has Charge while you have a weapon equipped.",
+    baseMana: 1,
+    baseAttack: 2,
+    baseHealth: 1,
+    type: ["Pirate"],
+    tags: ["Charge"],
+    imageUrl: "assets/cards/Southsea_Deckhand.jpg",
+    effects: [
+      damage({
+        stat: "attack",
+        type: "card-stat",
+      }),
+    ],
+    onPlace: [],
+    // Self-targeting aura gated on `has-weapon`: refreshOngoing re-evaluates it
+    // after every state change, so Charge appears the moment a weapon is
+    // equipped and vanishes when it breaks.
+    aura: [
+      applyModifier({
+        description: "Charge",
+        keys: { charge: true },
+        target: "self",
+        conditions: [{ type: "has-weapon", side: "friendly" }],
+      }),
+    ],
+    hideAuraGlow: true, // buffs only itself — nothing radiates to neighbours
+    targetQuery: {
+      side: "enemy",
+      type: ["card", "player"],
+    },
+    isMinion: true,
+    rarity: "Common",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_146_Play_01.ogg"],
+      ["VO_CS2_146_Attack_02.ogg"],
+      ["VO_CS2_146_Death_03.ogg"],
+    ),
+  },
+  upgrade: {
+    title: "Upgrade!",
+    description: "If you have a weapon, give it +1/+1. Otherwise equip a 1/3 weapon.",
+    baseMana: 1,
+    imageUrl: "assets/cards/Upgrade!.jpg",
+    effects: [
+      {
+        type: "conditional",
+        conditions: [{ type: "has-weapon", side: "friendly" }],
+        // `durability` as a modifier stat raises the weapon's MAXIMUM, which is
+        // what "+1/+1" means here (same shape Captain Greenskin uses).
+        then: [
+          applyModifier({
+            stats: { attack: 1, durability: 1 },
+            target: "friendly-weapon",
+          }),
+        ],
+        else: [{ type: "equip", cardID: "heavy-axe", target: "self" }],
+      },
+    ],
+    onPlace: [],
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    rarity: "Rare",
+    class: "Warrior",
+    set: ["Legacy"],
+  },
+  "heavy-axe": {
+    title: "Heavy Axe",
+    description: "",
+    isWeapon: true,
+    isMinion: false,
+    baseMana: 1,
+    baseAttack: 1,
+    baseDurability: 3,
+    imageUrl: "assets/cards/Heavy_Axe.jpg",
+    class: "Warrior",
+    effects: [],
+    onPlace: [],
+    isUncollectible: true,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    set: ["Legacy"],
+  },
+  "mind-vision": {
+    title: "Mind Vision",
+    description:
+      "Put a copy of a random card in your opponent's hand into your hand.",
+    baseMana: 1,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Mind_Vision.jpg",
+    // source "hand" + target "enemy-hand" reads the OPPONENT's hand; with
+    // removeFromSource off, findCardsInPool hands back a fresh copy so the
+    // original stays put.
+    effects: [
+      {
+        type: "addToHand",
+        source: "hand",
+        target: "enemy-hand",
+        removeFromSource: false,
+        value: 1,
+        rand: { n: 1 },
+      },
+    ],
+    onPlace: [],
+    isSpell: true,
+    isMinion: false,
+    targetQuery: {
+      side: "all",
+      type: ["lane"],
+    },
+    class: "Priest",
+    set: ["Legacy"],
+  },
 } satisfies Record<
   string,
   Omit<Card, "id" | "originalID" | "damageTaken" | "attacksLeft">

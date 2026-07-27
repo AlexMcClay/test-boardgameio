@@ -966,6 +966,14 @@ export function findCardsInPool(
   let pool: Card[] = [];
   const player = G.players[playerID];
   const count = typeof effect.value === "number" ? effect.value : 1;
+  // Whose hand a "hand"-sourced effect reads from (Mind Vision peeks at the
+  // opponent's). Every other source stays scoped to the acting player.
+  const handOwnerId =
+    effect.target === "enemy-hand"
+      ? playerID === "0"
+        ? "1"
+        : "0"
+      : playerID;
 
   // Handle specific cardID(s)
   if (effect.cardID) {
@@ -1005,7 +1013,12 @@ export function findCardsInPool(
       break;
 
     case "hand":
-      pool = [...player.hand];
+      // `target` picks WHICH hand; it defaults to the acting player's own.
+      // Anything but "enemy-hand" keeps the historical own-hand behaviour.
+      pool =
+        effect.target === "enemy-hand"
+          ? [...G.players[handOwnerId].hand]
+          : [...player.hand];
       break;
 
     case "board":
@@ -1051,11 +1064,12 @@ export function findCardsInPool(
       }
     });
   } else if (effect.removeFromSource && effect.source === "hand") {
-    // Remove from hand
+    // Remove from whichever hand the pool was built from
+    const handOwner = G.players[handOwnerId];
     pool.forEach((selectedCard) => {
-      const index = player.hand.findIndex((c) => c.id === selectedCard.id);
+      const index = handOwner.hand.findIndex((c) => c.id === selectedCard.id);
       if (index !== -1) {
-        player.hand.splice(index, 1);
+        handOwner.hand.splice(index, 1);
       }
     });
   } else if (effect.source !== "global" && !effect.removeFromSource) {

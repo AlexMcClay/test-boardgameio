@@ -209,6 +209,16 @@ export function checkSingleTargetCondition(
     case "is-friendly":
       return context.target?.player === context.playerID;
 
+    // Board state, not a property of `card` — the candidate is passed through
+    // untouched. "friendly" is the acting player (the aura provider's owner
+    // when this runs inside refreshOngoing, the caster for a played card).
+    case "has-weapon": {
+      const enemyId = context.playerID === "0" ? "1" : "0";
+      const side =
+        condition.side === "friendly" ? context.playerID : enemyId;
+      return !!context.G.players[side]?.weapon;
+    }
+
     default:
       return false;
   }
