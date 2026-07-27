@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  canAfford,
   getManaCost,
   type Card as CardType,
   type GameCtx,
@@ -79,7 +80,7 @@ const HandCard = ({
       key={`${isTop ? "p1" : "p0"}-hand-${card.id}`}
       className={twMerge(
         "relative transition-all duration-300 ease-in-out flex",
-        player.mana >= getManaCost(card) &&
+        canAfford(player, getManaCost(card)) &&
           ctx.currentPlayer === player.id &&
           !back
           ? "canPlayCard"

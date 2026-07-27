@@ -9,6 +9,7 @@ import type {
 } from "../types";
 import { cardTemplates, type CardTemplateKey } from "../data/cards";
 import { isBaseEffectSelection } from "../..";
+import { canAfford } from "./mana";
 
 export function shuffleDeck(deck: Card[]): Card[] {
   const copy = [...deck];
@@ -88,12 +89,15 @@ export const generateCardsFromDeckstring = (
 export function hasToEndTurn(playedID: string, gameState: GameState): boolean {
   // check if the player can play any cards, and check if any minnions can attack, some cards have 0 mana cost so we have to check for that as well
   const player = gameState.players[playedID];
-  const canPlayCards = player.hand.some(
-    (card) => getManaCost(card) <= player.mana,
+  const canPlayCards = player.hand.some((card) =>
+    canAfford(player, getManaCost(card)),
   );
   const canAttack = gameState.board[playedID].some(
     (card) =>
-      !card.summoningSickness && !card.attacksLeft && !hasKeyword(card, "frozen"),
+      !card.summoningSickness &&
+      !card.attacksLeft &&
+      !card.cantAttack &&
+      !hasKeyword(card, "frozen"),
   );
   const canHeroAttack =
     player.attacksLeft > 0 &&
@@ -150,6 +154,9 @@ const KEYWORD_LABELS: Record<ModifierBoolKey, string> = {
   rush: "Rush",
   windfury: "Windfury",
   frozen: "Frozen",
+  poisonous: "Poisonous",
+  immune: "Immune",
+  elusive: "Elusive",
 };
 
 /**
@@ -272,3 +279,4 @@ export function isUserSelectValue(e: EffectTypes): boolean {
 }
 
 export * from "./helpers";
+export * from "./mana";

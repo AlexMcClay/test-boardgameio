@@ -5,7 +5,7 @@
 // move syncs the visual state to the authoritative post-move state, so any
 // event this reducer doesn't model simply resolves one step later. Events
 // carry `snapshot` clones of affected entities precisely to make this cheap.
-import { getManaCost } from "@project/shared";
+import { getManaCost, spendMana } from "@project/shared";
 import type { Card, GameEvent, GameState, Player } from "@project/shared";
 
 function findCardOnBoards(
@@ -24,9 +24,16 @@ function applyPlayerSnapshot(target: Player, snapshot: Player) {
   target.armor = snapshot.armor;
   target.frozen = snapshot.frozen;
   target.divineShield = snapshot.divineShield;
+  target.immune = snapshot.immune;
   target.attacksLeft = snapshot.attacksLeft;
   target.weapon = snapshot.weapon;
   target.modifiers = snapshot.modifiers;
+  target.maxMana = snapshot.maxMana;
+  target.manaCap = snapshot.manaCap;
+  target.availableMana = snapshot.availableMana;
+  target.tempMana = snapshot.tempMana;
+  target.overloadPending = snapshot.overloadPending;
+  target.overloadLocked = snapshot.overloadLocked;
 }
 
 function applyEvent(state: GameState, event: GameEvent) {
@@ -37,7 +44,9 @@ function applyEvent(state: GameState, event: GameEvent) {
       const index = player.hand.findIndex((c) => c.id === event.cardId);
       if (index !== -1) {
         player.hand.splice(index, 1);
-        player.mana = Math.max(0, player.mana - getManaCost(event.card));
+        // Shared helper so replay spends temporary crystals first, exactly as
+        // the engine did.
+        spendMana(player, getManaCost(event.card));
       }
       break;
     }
@@ -138,18 +147,23 @@ function applyEvent(state: GameState, event: GameEvent) {
     case "stealth":
     case "charge":
     case "rush":
-    case "windfury": {
-      const key =
-        event.type === "freeze" ? ("frozen" as const) : event.type;
+    case "windfury":
+    case "poisonous":
+    case "immune": {
+      const key = event.type === "freeze" ? ("frozen" as const) : event.type;
       if (event.targetType === "player") {
         const player = state.players[event.targetId];
-        if (player && (key === "frozen" || key === "divineShield")) {
+        // Only the keywords that mean something on a hero — mirrors
+        // PLAYER_BOOL_EFFECTS on the engine side.
+        if (
+          player &&
+          (key === "frozen" || key === "divineShield" || key === "immune")
+        ) {
           player[key] = true;
         }
       } else {
         const found = findCardOnBoards(state, event.targetId);
-        if (found && key !== "windfury") found.card[key] = true;
-        if (found && key === "windfury") found.card.windfury = true;
+        if (found) found.card[key] = true;
       }
       break;
     }
@@ -161,7 +175,21 @@ function applyEvent(state: GameState, event: GameEvent) {
       }
       break;
     }
-    // Not modeled: applyModifier, armor, mana, battlecry, heroPower, spell,
+    case "durability": {
+      const player = state.players[event.playerId];
+      if (player?.weapon?.id === event.cardId) {
+        player.weapon = structuredClone(event.snapshot);
+      }
+      break;
+    }
+    case "mana": {
+      // Modeled so The Coin / Innervate light a crystal mid-chain rather than
+      // waiting for the end-of-move sync.
+      const player = state.players[event.playerId];
+      if (player && event.snapshot) applyPlayerSnapshot(player, event.snapshot);
+      break;
+    }
+    // Not modeled: applyModifier, armor, battlecry, heroPower, spell,
     // attack, beginTurn, endTurn, gameEnd, debug. Either purely presentational
     // or too rules-entangled to mirror — the end-of-move sync covers them.
     default:

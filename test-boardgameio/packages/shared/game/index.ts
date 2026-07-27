@@ -15,14 +15,17 @@ import {
   createCardFromID,
   consumeKeyword,
   getAttack,
+  getCurrentDurability,
   getCurrentHealth,
   getManaCost,
+  getMaxDurability,
   getMaxHealth,
   getSpellDamage,
   hasKeyword,
   shuffleDeck,
   applyBoolEffectToCard,
   applyBoolEffectToPlayer,
+  canApplyBoolEffectToPlayer,
   shouldMinionUnfreezeAtTurnEnd,
   shouldHeroUnfreezeAtTurnEnd,
   proccessApplyModifier,
@@ -38,10 +41,22 @@ import {
   resolveSummonCandidates,
   returnCardToHand,
   discardCardsFromHand,
+  silenceCard,
   isUserSelectValue,
   getPlayerAttack,
   syncManagedModifiers,
   type ManagedModifierSpec,
+  DEFAULT_MANA_CAP,
+  applyOverload,
+  canAfford,
+  destroyManaCrystals,
+  gainManaCrystals,
+  gainTempMana,
+  raiseManaCap,
+  refillManaAtTurnStart,
+  refundMana,
+  spendMana,
+  unlockOverload,
 } from "./utils";
 type Ctx = GameCtx;
 import {
@@ -98,11 +113,12 @@ export const setupGame = (setupData: GameSetupData): GameState => {
     maxHealth: 30,
     health: 30,
     armor: 0,
-    manaCrystals: 0,
-    maxManaCrystals: 10,
+    maxMana: 0,
+    manaCap: DEFAULT_MANA_CAP,
+    availableMana: 0,
+    tempMana: 0,
     overloadPending: 0,
     overloadLocked: 0,
-    mana: 1,
     baseAttack: 0,
     modifiers: [],
     attacksLeft: 1,
@@ -123,11 +139,12 @@ export const setupGame = (setupData: GameSetupData): GameState => {
     maxHealth: 30,
     health: 30,
     armor: 0,
-    manaCrystals: 0,
-    maxManaCrystals: 10,
+    maxMana: 0,
+    manaCap: DEFAULT_MANA_CAP,
+    availableMana: 0,
+    tempMana: 0,
     overloadPending: 0,
     overloadLocked: 0,
-    mana: 1,
     baseAttack: 0,
     modifiers: [],
     attacksLeft: 1,
@@ -199,7 +216,9 @@ export const placeCard = (
     timestamp: Date.now(),
   };
 
-  player.mana -= !card.isPlaced ? getManaCost(card) : 0;
+  // Temporary crystals are spent first; the receipt lets a cancelled battlecry
+  // refund the exact mix that was paid.
+  const manaPaid = spendMana(player, getManaCost(card));
 
   // Generic event fired for every card played (minion, spell, or weapon)
   const sourceEventIndex = G.eventHistory.length;
@@ -214,8 +233,9 @@ export const placeCard = (
 
   // Overload: charged only on a successful play from hand. The pending amount
   // is promoted into locked crystals at the start of this player's next turn.
+  let overloadPaid = 0;
   if (card.overload) {
-    const amount = resolveDynamicValue(card.overload, {
+    overloadPaid = resolveDynamicValue(card.overload, {
       card,
       G,
       ctx,
@@ -224,7 +244,7 @@ export const placeCard = (
       target,
       type: card.isSpell ? "spell" : "minion",
     });
-    player.overloadPending += amount;
+    applyOverload(player, overloadPaid);
   }
 
   // See if the card can be placed on the board
@@ -269,6 +289,8 @@ export const placeCard = (
           cardId: card.id,
           playerId: ctx.currentPlayer,
           sourceEventIndex,
+          manaPaid,
+          overloadPaid,
         };
       }
     } else if (!needsTargetedBattlecry && card.onPlace.length > 0) {
@@ -486,7 +508,7 @@ export const useHeroPower = (
     return;
   }
 
-  if (player.mana < hero.heroPower.manaCost) {
+  if (!canAfford(player, hero.heroPower.manaCost)) {
     console.warn("Not enough mana for hero power");
     return;
   }
@@ -537,8 +559,8 @@ export const useHeroPower = (
     timestamp: Date.now(),
   };
 
-  // Deduct mana
-  player.mana -= heroPower.manaCost;
+  // Deduct mana (temporary crystals first)
+  spendMana(player, heroPower.manaCost);
 
   // Mark hero power as used
   player.heroPowerUsedThisTurn = true;
@@ -638,6 +660,8 @@ export const heroAttack = (G: GameState, ctx: GameCtx, target: TargetValue) => {
       target.player,
       attackValue,
       sourceEventIndex,
+      // The weapon is the source, so a Poisonous weapon kills what it hits.
+      attacker.weapon ?? undefined,
     );
 
     // Minion strikes back at the attacking hero, same as minion-vs-minion combat,
@@ -669,9 +693,10 @@ export const heroAttack = (G: GameState, ctx: GameCtx, target: TargetValue) => {
     });
 
     attacker.weapon.durabilityLost = (attacker.weapon.durabilityLost ?? 0) + 1;
-    const remainingDurability =
-      (attacker.weapon.baseDurability ?? 0) - attacker.weapon.durabilityLost;
-    if (remainingDurability <= 0) {
+    // Via getCurrentDurability so durability BUFFS count (Captain Greenskin's
+    // +1 Durability): reading baseDurability raw ignored them and broke the
+    // weapon early while the UI still showed the buffed number.
+    if (getCurrentDurability(attacker.weapon) <= 0) {
       destroyWeapon(G, ctx, attackerId, attacker.weapon, sourceEventIndex);
     }
   }
@@ -826,6 +851,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
                   randomTarget.ownerId,
                   1,
                   sourceEventIndex,
+                  context.card,
                 );
               }
             }
@@ -858,9 +884,11 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
               if (targetCard && targetCard.isMinion) {
                 if (effect.target === "user-select") {
                   const currentHealth = getCurrentHealth(targetCard);
+                  // Nothing lands on an immune target, and a Divine Shield
+                  // eats the hit — either way there's no overkill to measure.
                   if (
-                    hasKeyword(targetCard, "divineShield") &&
-                    totalDamage > 0
+                    hasKeyword(targetCard, "immune") ||
+                    (hasKeyword(targetCard, "divineShield") && totalDamage > 0)
                   ) {
                     context.excessDamageDealt = 0;
                     context.lastTargetDied = false;
@@ -880,6 +908,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
                   t.ownerId,
                   totalDamage,
                   sourceEventIndex,
+                  context.card,
                 );
               }
             }
@@ -894,7 +923,9 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
       case "stealth":
       case "charge":
       case "rush":
-      case "windfury": {
+      case "windfury":
+      case "poisonous":
+      case "immune": {
         const targets = resolveTargets(effect, context);
 
         // Map effect types directly to your schema keys
@@ -906,15 +937,17 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
           charge: "charge",
           rush: "rush",
           windfury: "windfury",
+          poisonous: "poisonous",
+          immune: "immune",
         };
         const cardKey = keyMap[effect.type];
 
         targets.forEach((t) => {
           // --- TARGET: PLAYER / HERO ---
           if (t.type === "player") {
-            // Freeze and Divine Shield make sense for a hero. Other stats like
-            // Taunt/Stealth/Charge/Rush/Windfury are skipped for heroes (no weapons yet).
-            if (effect.type === "freeze" || effect.type === "divineShield") {
+            // Only some keywords mean anything on a hero — see
+            // PLAYER_BOOL_EFFECTS. applyBoolEffectToPlayer enforces it.
+            if (canApplyBoolEffectToPlayer(effect.type)) {
               const targetPlayer = G.players[t.ownerId];
               if (targetPlayer) {
                 applyBoolEffectToPlayer(
@@ -979,15 +1012,45 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
 
         break;
       }
-      case "mana":
-        // increment current   player's mana
-        G.players[playerID].mana += resolveDynamicValue(effect.value, context);
+      case "mana": {
+        const manaTargetId =
+          effect.target === "enemy" ? (playerID === "0" ? "1" : "0") : playerID;
+        const manaPlayer = G.players[manaTargetId];
+        if (!manaPlayer) break;
+        const manaValue = resolveDynamicValue(effect.value, context);
+        const mode = effect.mode ?? "temporary";
+
+        switch (mode) {
+          case "temporary": // The Coin / Innervate
+            gainTempMana(manaPlayer, manaValue);
+            break;
+          case "crystal-empty": // Wild Growth
+            gainManaCrystals(manaPlayer, manaValue, false);
+            break;
+          case "crystal-filled":
+            gainManaCrystals(manaPlayer, manaValue, true);
+            break;
+          case "destroy": // Felguard
+            destroyManaCrystals(manaPlayer, manaValue);
+            break;
+          case "unlock-overload": // Lava Shock
+            unlockOverload(manaPlayer, effect.scope ?? "locked");
+            break;
+          case "raise-cap":
+            raiseManaCap(manaPlayer, manaValue);
+            break;
+        }
+
         recordEvent(G, {
           type: "mana",
-          playerId: ctx.currentPlayer,
+          playerId: manaTargetId,
           timestamp: Date.now(),
+          mode,
+          value: manaValue,
+          snapshot: JSON.parse(JSON.stringify(manaPlayer)),
         });
         break;
+      }
 
       case "changeKey":
         let cardToUpdate: typeof card | undefined;
@@ -1150,7 +1213,11 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
       case "draw": {
         const drawPlayerId =
           effect.target === "enemy" ? (playerID === "0" ? "1" : "0") : playerID;
-        for (let i = 0; i < resolveDynamicValue(effect.value, context); i++) {
+        // Resolve the count ONCE. Left in the loop condition it re-evaluated
+        // every iteration, so any value that shrinks as you draw (Divine
+        // Favor's hand difference) converged half way instead of drawing out.
+        const drawCount = resolveDynamicValue(effect.value, context);
+        for (let i = 0; i < drawCount; i++) {
           handleDrawCard(G, ctx, drawPlayerId, sourceEventIndex);
         }
         break;
@@ -1166,6 +1233,127 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
           }
         });
 
+        break;
+      }
+      case "silence": {
+        resolveTargets(effect, context).forEach((t) => {
+          if (t.type !== "card") return;
+          const targetCard = G.board[t.ownerId].find((c) => c.id === t.id);
+          if (targetCard && targetCard.isMinion) {
+            silenceCard(G, cardId, targetCard, t.ownerId);
+          }
+        });
+        break;
+      }
+      case "transform": {
+        resolveTargets(effect, context).forEach((t) => {
+          if (t.type !== "card") return;
+          const board = G.board[t.ownerId];
+          const index = board.findIndex((c) => c.id === t.id);
+          if (index === -1 || !board[index].isMinion) return;
+
+          // One independent roll per target when given a list (Tinkmaster).
+          const ids = Array.isArray(effect.cardID)
+            ? effect.cardID
+            : [effect.cardID];
+          const pickId = ids[Math.floor(Math.random() * ids.length)];
+          const replacement = createCardFromID(pickId as CardTemplateKey);
+          if (!replacement) {
+            console.warn(`Transform target template ${pickId} not found.`);
+            return;
+          }
+
+          // Same id as the card it replaces (stripCardModifiers precedent) so
+          // the UI keeps the slot instead of unmounting and re-animating it.
+          replacement.id = board[index].id;
+          replacement.isPlaced = true;
+          // A transformed minion can't attack the turn it changes.
+          replacement.summoningSickness = true;
+          replacement.attacksLeft = hasKeyword(replacement, "windfury") ? 2 : 1;
+          board[index] = replacement;
+
+          recordEvent(G, {
+            type: "transform",
+            cardId: replacement.id,
+            playerId: t.ownerId,
+            sourceId: cardId,
+            timestamp: Date.now(),
+            card: replacement,
+            eventRef: sourceEventIndex,
+            snapshot: JSON.parse(JSON.stringify(replacement)),
+          });
+        });
+        break;
+      }
+      case "takeControl": {
+        resolveTargets(effect, context).forEach((t) => {
+          if (t.type !== "card") return;
+          // Your own board is the destination — a full one means the steal
+          // simply doesn't happen (the minion stays put).
+          if (G.board[playerID].length >= 7) {
+            console.warn("Board full — cannot take control of another minion");
+            return;
+          }
+          const fromBoard = G.board[t.ownerId];
+          const index = fromBoard.findIndex((c) => c.id === t.id);
+          if (index === -1) return;
+          const [stolen] = fromBoard.splice(index, 1);
+          if (!stolen.isMinion) {
+            fromBoard.splice(index, 0, stolen);
+            return;
+          }
+
+          // Enters your side "freshly summoned": no attack on the turn it flips.
+          stolen.summoningSickness = true;
+          stolen.attacksLeft = 0;
+          G.board[playerID].push(stolen);
+
+          recordEvent(G, {
+            type: "takeControl",
+            cardId: stolen.id,
+            fromPlayerId: t.ownerId,
+            toPlayerId: playerID,
+            playerId: playerID,
+            sourceId: cardId,
+            timestamp: Date.now(),
+            card: stolen,
+            eventRef: sourceEventIndex,
+            snapshot: JSON.parse(JSON.stringify(stolen)),
+          });
+        });
+        break;
+      }
+      case "durability": {
+        // CURRENT durability, unlike applyModifier's `durability` stat which
+        // changes the MAXIMUM. Positive repairs, negative chips (and can break).
+        const delta = resolveDynamicValue(effect.value, context);
+        resolveTargets(effect, context).forEach((t) => {
+          // Weapons hang off the player, not the board — same fallback the
+          // applyModifier case uses for "friendly-weapon".
+          const weapon = t.cardRef ?? G.players[t.ownerId]?.weapon ?? undefined;
+          if (!weapon || !weapon.isWeapon) return;
+          // Only the equipped weapon can be repaired or chipped.
+          if (G.players[t.ownerId]?.weapon?.id !== weapon.id) return;
+
+          const before = getCurrentDurability(weapon);
+          const max = getMaxDurability(weapon);
+          const next = Math.min(max, before + delta);
+          weapon.durabilityLost = max - next;
+
+          recordEvent(G, {
+            type: "durability",
+            cardId: weapon.id,
+            playerId: t.ownerId,
+            value: next - before,
+            timestamp: Date.now(),
+            eventRef: sourceEventIndex,
+            snapshot: JSON.parse(JSON.stringify(weapon)),
+          });
+
+          if (getCurrentDurability(weapon) <= 0) {
+            destroyWeapon(G, ctx, t.ownerId, weapon, sourceEventIndex);
+          }
+        });
         break;
       }
       case "addToHand": {
@@ -1316,7 +1504,13 @@ export const cancelBattlecry = (G: GameState, ctx: GameCtx) => {
     );
     G.board[G.activeBattlecryMinion.playerId].splice(cardIndex, 1); // Remove the card from hand
 
-    player.mana += getManaCost(card);
+    // Restore the exact temp/permanent mix that was paid, and un-charge the
+    // overload — previously the overload stuck even though the play was undone.
+    refundMana(player, G.activeBattlecryMinion.manaPaid);
+    player.overloadPending = Math.max(
+      0,
+      player.overloadPending - G.activeBattlecryMinion.overloadPaid,
+    );
 
     card.isPlaced = false;
     player.hand.push(card);
@@ -2047,14 +2241,9 @@ export function beginTurn(G: GameState, ctx: GameCtx) {
   processModifierLifecycle(G, ctx.currentPlayer, "START_OF_TURN");
 
   const p = G.players[ctx.currentPlayer];
-  p.manaCrystals = Math.min(p.manaCrystals + 1, p.maxManaCrystals);
-
-  // Overload: promote last turn's pending overload into this turn's active
-  // lock. Locked crystals stay owned (manaCrystals untouched) but are removed
-  // from the spendable pool for this one turn.
-  p.overloadLocked = p.overloadPending ?? 0;
-  p.overloadPending = 0;
-  p.mana = Math.max(0, p.manaCrystals - p.overloadLocked);
+  // Gain a crystal, promote last turn's pending overload into this turn's
+  // lock, refill everything not locked, and drop leftover temporary crystals.
+  refillManaAtTurnStart(p);
 
   // Reset hero power usage
   p.heroPowerUsedThisTurn = false;
@@ -2096,6 +2285,9 @@ export function endTurnCleanup(G: GameState, ctx: GameCtx) {
   // Clear last move metadata at the end of the turn
   G.gameEvents = [];
   G.activeBattlecryMinion = null;
+
+  // Temporary crystals don't survive the turn that made them.
+  G.players[ctx.currentPlayer].tempMana = 0;
 
   // 1. Process anything that expires at the END of a turn (like Abusive Sergeant)
   processModifierLifecycle(G, ctx.currentPlayer, "END_OF_TURN");

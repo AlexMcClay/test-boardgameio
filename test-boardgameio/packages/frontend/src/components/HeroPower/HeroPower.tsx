@@ -1,6 +1,6 @@
 import type { Card, GameState, Player } from "@project/shared";
 import type { GameBoardProps } from "@/types/gameProps";
-import { isUserSelectValue } from "@project/shared";
+import { canAfford, isUserSelectValue } from "@project/shared";
 import { useDragStore } from "@/stores/dragStore";
 import { useAudioStore } from "@/stores/audioStore";
 import { useEffect, useRef, useState } from "react";
@@ -45,7 +45,7 @@ const HeroPower = ({ player, isTop, moves }: Props) => {
       return;
     }
 
-    if (player.mana < heroPower.manaCost) {
+    if (!canAfford(player, heroPower.manaCost)) {
       console.warn("Not enough mana for hero power");
       return;
     }
@@ -184,7 +184,7 @@ const HeroPower = ({ player, isTop, moves }: Props) => {
   const used = player.heroPowerUsedThisTurn;
 
   const canUseHeroPower =
-    !used && player.mana >= (player.hero.heroPower?.manaCost || 0) && !isTop;
+    !used && canAfford(player, player.hero.heroPower?.manaCost ?? 0) && !isTop;
 
   // Flip animation + SFX for the used/unused hero power state
   const flipControls = useAnimation();

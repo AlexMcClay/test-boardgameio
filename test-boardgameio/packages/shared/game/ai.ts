@@ -9,12 +9,14 @@ import type {
   HeroPower,
 } from "./types";
 import {
+  canAfford,
   createCardFromID,
   getAttack,
   getCurrentHealth,
   getManaCost,
   getMaxHealth,
   getPlayerAttack,
+  getSpendableMana,
   hasKeyword,
   isUserSelectValue,
 } from "./utils";
@@ -69,7 +71,7 @@ export function enumerateAIMoves(G: GameState, ctx: Ctx): AIMove[] {
   moves.push(...heroAttackMoves);
 
   // Calculate intelligent endTurn score based on game state
-  const wastedMana = player.mana;
+  const wastedMana = getSpendableMana(player);
   const handSize = player.hand.length;
   const boardSize = G.board[ctx.currentPlayer].length;
   let endTurnScore = 0;
@@ -347,7 +349,7 @@ function enumerateHandPlays(G: GameState, ctx: Ctx, player: Player): AIMove[] {
 
   player.hand.forEach((card) => {
     // Check if card is affordable
-    if (getManaCost(card) > player.mana) {
+    if (!canAfford(player, getManaCost(card))) {
       return; // Skip unaffordable cards
     }
 
@@ -384,7 +386,7 @@ function enumerateHeroPower(G: GameState, ctx: Ctx, player: Player): AIMove[] {
 
   if (!heroPower) return moves;
   if (player.heroPowerUsedThisTurn) return moves;
-  if (player.mana < heroPower.manaCost) return moves;
+  if (!canAfford(player, heroPower.manaCost)) return moves;
 
   const requiresTarget = heroPower.effects.some(
     (effect) =>
@@ -918,7 +920,7 @@ function scoreCardPlay(
   const mana = getManaCost(card);
   score += mana * 5; // Each mana used is worth 5 points
   // Bonus for using most of available mana
-  if (player.mana - mana < 2) {
+  if (getSpendableMana(player) - mana < 2) {
     score += 10; // Bonus for efficient mana use
   }
 
@@ -934,6 +936,8 @@ function scoreCardPlay(
     if (hasKeyword(card, "charge")) score += 15; // Immediate impact
     if (hasKeyword(card, "rush")) score += 10; // Can trade immediately
     if (hasKeyword(card, "stealth")) score += 5; // Protected for one turn
+    if (hasKeyword(card, "poisonous")) score += 18; // Trades up with anything
+    if (hasKeyword(card, "immune")) score += 20; // Can't be removed by damage
   }
 
   // Spell value - balance with minions
@@ -1253,7 +1257,7 @@ function evaluateEffect(effect: EffectTypes, context: EffectContext): number {
     case "mana": {
       // Smart mana card logic - check if we have cards that become playable
       const player = G.players[ctx.currentPlayer];
-      const currentMana = player.mana;
+      const currentMana = getSpendableMana(player);
       const extraMana = resolveDynamicValue(effect.value, context);
 
       // Find the best card we can play with extra mana (prefer bigger cards)
@@ -1368,7 +1372,9 @@ function evaluateEffect(effect: EffectTypes, context: EffectContext): number {
     case "charge":
     case "rush":
     case "stealth":
-    case "windfury": {
+    case "windfury":
+    case "poisonous":
+    case "immune": {
       // These are buffs - only good on friendly minions
       if (effect.target === "user-select" && target?.type === "card") {
         const isFriendly = target.player === ctx.currentPlayer;
@@ -1379,6 +1385,15 @@ function evaluateEffect(effect: EffectTypes, context: EffectContext): number {
           if (effect.type === "charge") score += 12; // Immediate value
           if (effect.type === "rush") score += 10; // Can trade immediately
           if (effect.type === "stealth") score += 5; // Protected for one turn
+          if (effect.type === "immune") score += 20; // Dodges removal
+          if (effect.type === "poisonous") {
+            // Worth most on a minion that will actually get to swing
+            const targetCard = G.board[target.player].find(
+              (c) => c.id === target.id,
+            );
+            score += 12;
+            if (targetCard && getAttack(targetCard) > 0) score += 6;
+          }
           if (effect.type === "windfury") {
             const targetCard = G.board[target.player].find(
               (c) => c.id === target.id,
@@ -1398,6 +1413,25 @@ function evaluateEffect(effect: EffectTypes, context: EffectContext): number {
         if (effect.type === "rush") score += 10;
         if (effect.type === "stealth") score += 5;
         if (effect.type === "windfury") score += 20;
+        if (effect.type === "poisonous") score += 18;
+        if (effect.type === "immune") score += 25;
+      }
+      break;
+    }
+
+    case "durability": {
+      // Repairing your own weapon is good; chipping the enemy's is good too.
+      const amount = resolveDynamicValue(effect.value, context);
+      const ownWeapon = effect.target === "friendly-weapon";
+      const player = G.players[ctx.currentPlayer];
+      const enemy = G.players[ctx.currentPlayer === "0" ? "1" : "0"];
+      if (ownWeapon) {
+        // Worthless with no weapon equipped, or one already at full durability.
+        if (!player.weapon) score -= 50;
+        else score += amount * 8;
+      } else if (effect.target === "enemy-weapon") {
+        if (!enemy.weapon) score -= 50;
+        else score += -amount * 8;
       }
       break;
     }
@@ -1581,7 +1615,7 @@ export function evaluateGameState(G: GameState, ctx: Ctx): number {
   score += player.hand.length * 10;
 
   // Tempo advantage - having mana available is good
-  score += player.mana * 0.5;
+  score += getSpendableMana(player) * 0.5;
 
   // Win condition checks
   if (enemyPlayer.health <= 0) {

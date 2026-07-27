@@ -14,6 +14,8 @@ import { useEffect, useRef } from "react";
 import { ATTACK_ANIMATION } from "@/utils/animationDurations";
 import DivineShieldHeroOverlay from "./Card/Overlays/DivineShieldHeroOverlay";
 import FrozenHeroOverlay from "./Card/Overlays/FrozenHeroOverlay";
+import ImmuneOverlay from "./Card/Overlays/ImmuneOverlay";
+import WindfuryOverlay from "./Card/Overlays/WindfuryOverlay";
 import { useAudioStore } from "@/stores/audioStore";
 
 interface Props extends GameBoardProps {
@@ -349,6 +351,10 @@ const HeroSection = ({ player, ...props }: Props) => {
       <AnimatePresence>
         {hasKeyword(player, "frozen") && <FrozenHeroOverlay />}
         {hasKeyword(player, "divineShield") && <DivineShieldHeroOverlay />}
+        {hasKeyword(player, "immune") && <ImmuneOverlay key={"immune"} />}
+        {!!player.weapon && hasKeyword(player.weapon, "windfury") && (
+          <WindfuryOverlay key={"windfury"} variant="hero" />
+        )}
       </AnimatePresence>
 
       {/* ARMOR SECTIOn */}

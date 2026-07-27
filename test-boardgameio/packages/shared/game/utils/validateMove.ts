@@ -1,5 +1,5 @@
 // utils/validateMove.ts
-import { getManaCost, getPlayerAttack, hasKeyword } from ".";
+import { canAfford, getManaCost, getPlayerAttack, hasKeyword } from ".";
 import type {
   Card,
   TargetValue,
@@ -25,7 +25,10 @@ export type MoveValidationError =
   | "must-attack-taunt"
   | "summon-sickness"
   | "frozen"
-  | "stealthed";
+  | "stealthed"
+  | "immune"
+  | "cant-attack"
+  | "elusive";
 
 export type MoveValidationResult =
   | { valid: true }
@@ -169,10 +172,22 @@ export function validateTargetQuery(
       ? G?.board[target?.player].find((c) => c.id === target?.id)
       : undefined;
 
+  // ELUSIVE ("Can't be targeted by spells or Hero Powers"). This is the one
+  // gate every *targeted* play funnels through — spells and battlecries via
+  // validateMove, hero powers via useHeroPower, and the UI's canTargetHighlight
+  // — so the check belongs here rather than in checkTargetRestrictions (which
+  // hero powers never call). Battlecries are minions and stay allowed, matching
+  // Hearthstone; untargeted AoE never reaches this function at all.
+  const isSpellOrHeroPower =
+    context.card?.isSpell === true || context.type === "heroPower";
+
   return query.type.some((type) => {
     switch (type) {
       case "card": {
         if (!targetCard) return false;
+        if (isSpellOrHeroPower && hasKeyword(targetCard, "elusive")) {
+          return false;
+        }
 
         if (query.side === "enemy" && isFriendly) return false;
         if (query.side === "friendly" && !isFriendly) return false;
@@ -214,7 +229,8 @@ const MOVE_TARGET_ERRORS = {
   "target-not-found": "invalid-target",
   stealthed: "stealthed",
   taunt: "must-attack-taunt",
-} as const;
+  immune: "immune",
+} as const satisfies Record<TargetRestrictionReason, MoveValidationError>;
 
 /**
  * Full move validation for game logic
@@ -291,7 +307,7 @@ export function validateMove(
   }
 
   // Mana check for unplaced cards
-  if (!card.isPlaced && player.mana < getManaCost(card)) {
+  if (!card.isPlaced && !canAfford(player, getManaCost(card))) {
     return { valid: false, error: "not-enough-mana" };
   }
 
@@ -348,6 +364,14 @@ export function validateMove(
     if (!restriction.ok) {
       return { valid: false, error: MOVE_TARGET_ERRORS[restriction.reason] };
     }
+  }
+
+  // --- CAN'T ATTACK (Ancient Watcher) ---
+  // Only blocks declaring an attack. resolveBattlecry reuses this same
+  // function with location "board", so a pending battlecry is exempt —
+  // otherwise a cantAttack minion could never resolve its own Battlecry.
+  if (card.cantAttack && location === "board" && !G.activeBattlecryMinion) {
+    return { valid: false, error: "cant-attack" };
   }
 
   // --- SUMMONING SICKNESS CHECK ---
@@ -411,7 +435,8 @@ export function validateHeroAttack(
 export type TargetRestrictionReason =
   | "target-not-found"
   | "stealthed"
-  | "taunt";
+  | "taunt"
+  | "immune";
 
 export type TargetRestrictionResult =
   | { ok: true }
@@ -422,6 +447,8 @@ export type TargetRestrictionResult =
  * (validateMove) and hero attacks (validateHeroAttack).
  *
  *  - A stealthed minion can never be targeted directly.
+ *  - An Immune character can't be targeted BY THE OPPONENT. Your own Immune
+ *    minion stays a legal target for your buffs, matching Hearthstone.
  *  - If the defending player controls any *non-stealthed* Taunt minion, the
  *    target must be one of those Taunt minions — unless taunt is bypassed.
  *
@@ -448,8 +475,18 @@ export function checkTargetRestrictions(
     }
   }
 
-  // --- TAUNT --- (only enemy taunts count; a stealthed Taunt does not enforce)
   const isTargetingEnemy = target.player !== attackerPlayer;
+
+  // --- IMMUNE --- (opponent only; you can still buff your own immune minion)
+  if (isTargetingEnemy) {
+    const immuneEntity =
+      target.type === "card" ? targetCard : G.players[target.player];
+    if (immuneEntity && hasKeyword(immuneEntity, "immune")) {
+      return { ok: false, reason: "immune" };
+    }
+  }
+
+  // --- TAUNT --- (only enemy taunts count; a stealthed Taunt does not enforce)
   if (isTargetingEnemy && !opts.bypassTaunt) {
     const enemyHasTaunt = defenderBoard.some(
       (c) => hasKeyword(c, "taunt") && !hasKeyword(c, "stealth"),
@@ -496,6 +533,12 @@ export function canTargetHighlight(
     return false;
   }
 
+  // Mirrors the validateMove "cant-attack" rule so the UI never glows a
+  // target for a minion that can never attack. Battlecries stay exempt.
+  if (activeCard.isPlaced && activeCard.cantAttack && !isBattlecryMinion) {
+    return false;
+  }
+
   // For battlecry minions, use battlecryTargets for validation
   if (isBattlecryMinion && context.target) {
     const isValidType = validateTargetQuery(
@@ -531,30 +574,17 @@ export function canTargetHighlight(
     }
   }
 
-  // TAUNT MECHANIC: Check if trying to bypass taunt in UI
+  // STEALTH / IMMUNE / TAUNT: delegate to the same rules the move validator
+  // and hero attacks use, so the highlight can't disagree with what's legal.
+  // (This previously duplicated only the taunt half and never checked stealth.)
   if (context.G) {
-    const isTargetingEnemy = context.target.player !== context.playerID;
-    if (isTargetingEnemy && !isTauntBypassAllowed(activeCard)) {
-      const enemyBoard = context.G.board[context.target.player];
-      const enemyHasTaunt = hasTauntMinions(enemyBoard);
-
-      if (enemyHasTaunt) {
-        // If targeting enemy hero, must attack taunt instead
-        if (context.target.type === "player") {
-          return false;
-        }
-
-        // If targeting an enemy card, it must be a taunt minion
-        if (context.target.type === "card" && context.target.id) {
-          const targetCard = enemyBoard.find(
-            (c) => c.id === context?.target?.id,
-          );
-          if (!targetCard || !hasKeyword(targetCard, "taunt")) {
-            return false;
-          }
-        }
-      }
-    }
+    const restriction = checkTargetRestrictions(
+      context.G,
+      context.playerID,
+      context.target,
+      { bypassTaunt: isTauntBypassAllowed(activeCard) },
+    );
+    if (!restriction.ok) return false;
   }
 
   return true;

@@ -6,7 +6,10 @@ import { useAudioStore } from "@/stores/audioStore";
 import { useEffect } from "react";
 import FrozenOverlay from "./Overlays/FrozenOverlay";
 import DivineShieldOverlay from "./Overlays/DivineShieldOverlay";
+import ImmuneOverlay from "./Overlays/ImmuneOverlay";
 import SpellDamageOverlay from "./Overlays/SpellDamageOverlay";
+import WindfuryOverlay from "./Overlays/WindfuryOverlay";
+import StealthOverlay from "./Overlays/StealthOverlay";
 import {
   getAttack,
   getCurrentHealth,
@@ -19,6 +22,7 @@ import {
 const attackIcon = "assets/attack.png";
 const healthIcon = "assets/health.png";
 const skullIcon = "assets/icons/skull.png";
+const poisonIcon = "assets/icons/poison.png";
 
 const minionFrame = "assets/minion_frame.png";
 const minionTaunt = "assets/minion_taunt.png";
@@ -139,6 +143,25 @@ const PlacedCard = ({
           <DivineShieldOverlay key={"divineShield"} />
         )}
         {hasKeyword(card, "frozen") && <FrozenOverlay key={"frozen"} />}
+        {hasKeyword(card, "immune") && (
+          <ImmuneOverlay isMinion key={"immune"} />
+        )}
+        {hasKeyword(card, "windfury") && <WindfuryOverlay key={"windfury"} />}
+        {hasKeyword(card, "stealth") && (
+          <>
+            <motion.div
+              key="enrage"
+              className="absolute   rounded-[50%/50%] inset-0 pointer-events-none mix-blend-multiply opacity-100  z-[10]
+              h-[87%] w-[82%] left-[10%] top-[2%]
+              "
+              style={{
+                boxShadow: "inset 0px 0px 3vw 0.5vw rgba(0, 0, 0, 0)",
+              }}
+            />
+            <StealthOverlay key={"stealth"} />
+          </>
+        )}
+
         {getSpellDamageSource(card) > 0 && (
           <SpellDamageOverlay key={"spellDamage"} />
         )}
@@ -267,7 +290,7 @@ const PlacedCard = ({
           )}
         </>
       )}
-      {card.deathrattle && (
+      {card.deathrattle && card.deathrattle.length && (
         <img
           src={skullIcon}
           alt="DeathRattle"
@@ -275,6 +298,18 @@ const PlacedCard = ({
           // no drag
           draggable="false"
         />
+      )}
+      {hasKeyword(card, "poisonous") && (
+        <img
+          src={poisonIcon}
+          alt="DeathRattle"
+          className=" object-contain h-[2vw] absolute  bottom-[-0.2vw]"
+          // no drag
+          draggable="false"
+        />
+      )}
+      {getSpellDamageSource(card) > 0 && (
+        <SpellDamageOverlay key={"spellDamage"} />
       )}
     </motion.div>
   );

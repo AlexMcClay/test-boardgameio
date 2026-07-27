@@ -11,6 +11,7 @@ import {
   type AddToHandEffect,
   type ApplyModifierEffect,
   type BaseEffectSelection,
+  type BoolEffectType,
   type Card,
   type CardModifier,
   type EffectContext,
@@ -86,6 +87,58 @@ function recordModifierEvent(
 }
 
 /**
+ * "Set this stat to N" (an `override` modifier) wipes the slate for that stat
+ * before the new value lands, mirroring Hearthstone's Equality / Hunter's Mark
+ * / Humility rules:
+ *  - Every enchantment buffing or debuffing that ONE stat loses just that
+ *    entry; everything else it does (other stats, keyword grants) survives,
+ *    and the enchantment is dropped only once nothing is left of it.
+ *  - Setting Health also clears recorded damage, so the minion sits at the new
+ *    value instead of dying to damage it took at its old size.
+ * Managed (aura / inHand / enrage) entries are deliberately left alone: their
+ * refresh pass re-derives them every tick and foldModifiers applies them after
+ * the sets, so an aura buff stays on top of a stat that was just set.
+ */
+function stripStatFromEnchantments(
+  G: GameState,
+  target: Card | Player,
+  targetType: "card" | "player",
+  playerId: string,
+  stat: ModifierStatKey,
+) {
+  if (stat === "health" && targetType === "card") {
+    (target as Card).damageTaken = 0;
+  }
+
+  const list = target.modifiers;
+  if (!list) return;
+
+  for (let i = list.length - 1; i >= 0; i--) {
+    const mod = list[i];
+    if (mod.type !== "permanent" && mod.type !== "temporary") continue;
+    if (mod.stats?.[stat] === undefined) continue;
+
+    delete mod.stats[stat];
+    if (Object.keys(mod.stats).length === 0) mod.stats = undefined;
+    const empty = !mod.stats && !mod.keys;
+    if (empty) {
+      list.splice(i, 1);
+    } else {
+      mod.description = describeModifier(mod.stats, mod.keys, mod.override);
+    }
+    recordModifierEvent(
+      G,
+      mod.sourceCardId,
+      target,
+      targetType,
+      playerId,
+      { name: mod.name, description: mod.description, stats: { [stat]: 0 } },
+      true,
+    );
+  }
+}
+
+/**
  * Applies one ENCHANTMENT (grouped stats + keyword grants) to a card's or
  * player's modifier list with stacking semantics:
  * - `effect.stackable === true`: every application pushes its own modifier.
@@ -128,6 +181,14 @@ function applyModifierWithStacking(
     target.modifiers = [];
   }
   const list = target.modifiers;
+
+  // A stat SET clears that stat's existing enchantments (and, for Health, the
+  // damage taken at the old size) before this entry takes effect.
+  if (override && stats) {
+    (Object.keys(stats) as ModifierStatKey[]).forEach((stat) =>
+      stripStatFromEnchantments(G, target, targetType, playerId, stat),
+    );
+  }
 
   if (!effect.stackable) {
     const existingIndex = list.findIndex(
@@ -282,34 +343,54 @@ export interface ManagedModifierSpec {
   override: boolean;
 }
 
+/**
+ * The keyword and stat registries. `satisfies` makes a missing entry a compile
+ * error, so adding a ModifierBoolKey/ModifierStatKey can't silently skip the
+ * diffing below — a keyword absent from here would make aura/enrage/inHand
+ * grants of it compare equal forever and never sync onto their target.
+ */
+export const MODIFIER_BOOL_KEYS = {
+  taunt: true,
+  divineShield: true,
+  stealth: true,
+  charge: true,
+  rush: true,
+  windfury: true,
+  frozen: true,
+  poisonous: true,
+  immune: true,
+  elusive: true,
+} as const satisfies Record<ModifierBoolKey, true>;
+
+export const MODIFIER_STAT_KEYS = {
+  attack: true,
+  health: true,
+  mana: true,
+  durability: true,
+  spellDamage: true,
+} as const satisfies Record<ModifierStatKey, true>;
+
+export const ALL_BOOL_KEYS = Object.keys(
+  MODIFIER_BOOL_KEYS,
+) as ModifierBoolKey[];
+export const ALL_STAT_KEYS = Object.keys(
+  MODIFIER_STAT_KEYS,
+) as ModifierStatKey[];
+
 function statsEqual(
   a: Partial<Record<ModifierStatKey, number>> | undefined,
   b: Partial<Record<ModifierStatKey, number>> | undefined,
 ): boolean {
-  const keys: ModifierStatKey[] = [
-    "attack",
-    "health",
-    "mana",
-    "durability",
-    "spellDamage",
-  ];
-  return keys.every((k) => (a?.[k] ?? undefined) === (b?.[k] ?? undefined));
+  return ALL_STAT_KEYS.every(
+    (k) => (a?.[k] ?? undefined) === (b?.[k] ?? undefined),
+  );
 }
 
 function keysEqual(
   a: Partial<Record<ModifierBoolKey, true>> | undefined,
   b: Partial<Record<ModifierBoolKey, true>> | undefined,
 ): boolean {
-  const keys: ModifierBoolKey[] = [
-    "taunt",
-    "divineShield",
-    "stealth",
-    "charge",
-    "rush",
-    "windfury",
-    "frozen",
-  ];
-  return keys.every((k) => !!a?.[k] === !!b?.[k]);
+  return ALL_BOOL_KEYS.every((k) => !!a?.[k] === !!b?.[k]);
 }
 
 /**
@@ -427,19 +508,35 @@ export function syncManagedModifiers(
   });
 }
 
+/**
+ * Which keywords mean anything on a HERO. Total over BoolEffectType so a new
+ * keyword must decide — the alternative was a hardcoded
+ * `effect.type === "freeze" || ...` in the effect switch that silently
+ * dropped grants onto heroes.
+ */
+export const PLAYER_BOOL_EFFECTS = {
+  freeze: true,
+  divineShield: true,
+  immune: true,
+  // Board-only keywords — a hero has no combat stats to attach these to.
+  taunt: false,
+  stealth: false,
+  charge: false,
+  rush: false,
+  windfury: false,
+  poisonous: false,
+} as const satisfies Record<BoolEffectType, boolean>;
+
+export function canApplyBoolEffectToPlayer(type: BoolEffectType): boolean {
+  return PLAYER_BOOL_EFFECTS[type];
+}
+
 export function applyBoolEffectToCard(
   G: GameState,
   sourceId: string,
   targetCard: Card,
   targetPlayerId: string,
-  effectType:
-    | "freeze"
-    | "divineShield"
-    | "taunt"
-    | "stealth"
-    | "charge"
-    | "rush"
-    | "windfury",
+  effectType: BoolEffectType,
   cardKey: keyof Card,
 ) {
   if (!targetCard) return;
@@ -462,10 +559,10 @@ export function applyBoolEffectToPlayer(
   G: GameState,
   sourceId: string,
   targetPlayer: Player,
-  effectType: "freeze" | "divineShield",
+  effectType: BoolEffectType,
   playerKey: keyof Player,
 ) {
-  if (!targetPlayer) return;
+  if (!targetPlayer || !canApplyBoolEffectToPlayer(effectType)) return;
 
   // Dynamically set the player property to true (e.g. targetPlayer.frozen = true)
   (targetPlayer as any)[playerKey] = true;
@@ -522,6 +619,11 @@ export function dealDamageToPlayer(
   if (!targetPlayer) return;
   let hadDivineShield = false;
 
+  // 0. IMMUNE: takes no damage at all. Checked BEFORE Divine Shield so an
+  // immune character doesn't waste its bubble, and recorded as nothing at all
+  // — no damage means no visual delta.
+  if (hasKeyword(targetPlayer, "immune") && damageAmount > 0) return;
+
   // 1. DIVINE SHIELD CHECK: Intercept positive damage values
   if (hasKeyword(targetPlayer, "divineShield") && damageAmount > 0) {
     // Pop the bubble — clears the base flag AND any modifier grants
@@ -576,6 +678,25 @@ export function healPlayer(
   });
 }
 
+/**
+ * Best-effort lookup of a damage source by id: both boards, then both equipped
+ * weapons. Returns undefined for spells (already spliced out of hand and not
+ * yet in the graveyard while their effects run) and for hero powers — neither
+ * of which can be Poisonous, so that's the right answer.
+ */
+export function findSourceCard(
+  G: GameState,
+  sourceId: string,
+): Card | undefined {
+  for (const pid of ["0", "1"] as const) {
+    const onBoard = G.board[pid]?.find((c) => c.id === sourceId);
+    if (onBoard) return onBoard;
+    const weapon = G.players[pid]?.weapon;
+    if (weapon?.id === sourceId) return weapon;
+  }
+  return undefined;
+}
+
 export function dealDamageToCard(
   G: GameState,
   sourceId: string,
@@ -583,9 +704,14 @@ export function dealDamageToCard(
   targetPlayerId: string,
   damageAmount: number,
   sourceEventIndex?: number,
+  sourceCard?: Card, // The character dealing the damage, for Poisonous
 ) {
   if (!targetCard || !targetCard.isMinion) return;
   let hadDivineShield = false;
+
+  // 0. IMMUNE: takes no damage at all. Checked BEFORE Divine Shield so the
+  // bubble isn't wasted, and before Poisonous so immunity beats poison.
+  if (hasKeyword(targetCard, "immune") && damageAmount > 0) return;
 
   // 1. DIVINE SHIELD CHECK: Intercept positive damage values
   if (hasKeyword(targetCard, "divineShield") && damageAmount > 0) {
@@ -599,7 +725,19 @@ export function dealDamageToCard(
   // Instead of subtracting directly from health, increase damage taken!
   targetCard.damageTaken += actualDamage;
 
-  // 2. STANDARD DAMAGE FALLBACK (If no shield is present or damage is 0)
+  // 2. POISONOUS: anything actually damaged by a poisonous source dies. A
+  // popped Divine Shield means actualDamage is 0, so the minion survives —
+  // matching Hearthstone. Death is expressed the same way `case "destroy"`
+  // does it, so resolveDeathWave picks it up with no extra plumbing. Written
+  // BEFORE recordEvent so the event's snapshot already carries the kill.
+  if (actualDamage > 0) {
+    const source = sourceCard ?? findSourceCard(G, sourceId);
+    if (source && hasKeyword(source, "poisonous")) {
+      targetCard.damageTaken = getMaxHealth(targetCard);
+    }
+  }
+
+  // 3. STANDARD DAMAGE FALLBACK (If no shield is present or damage is 0)
   recordEvent(G, {
     type: "damage",
     sourceId: sourceId,
@@ -644,27 +782,52 @@ export function healCard(
   });
 }
 
-const types: EffectTypes["type"][] = [
-  "applyModifier",
-  "damage",
-  "destroy",
-  "divineShield",
-  "freeze",
-  "charge",
-  "heal",
-  "rush",
-  "stealth",
-  "taunt",
-  "storeVar",
-  "windfury",
-];
+/**
+ * Which effects carry BaseEffectSelection (target / conditions / rand). Total
+ * over EffectTypes so a new effect must declare itself either way — miss one
+ * and `isUserSelectValue` never prompts for a target, silently breaking the
+ * targeting UI for that card.
+ */
+const SELECTION_EFFECTS: Record<EffectTypes["type"], boolean> = {
+  applyModifier: true,
+  damage: true,
+  destroy: true,
+  divineShield: true,
+  freeze: true,
+  charge: true,
+  heal: true,
+  rush: true,
+  stealth: true,
+  taunt: true,
+  storeVar: true,
+  windfury: true,
+  poisonous: true,
+  immune: true,
+  durability: true,
+  returnToHand: true,
+  silence: true,
+  transform: true,
+  takeControl: true,
+  // Effects with no target selection of their own:
+  draw: false,
+  changeKey: false,
+  summon: false,
+  mana: false,
+  armor: false,
+  conditional: false,
+  sequence: false,
+  bounce: false,
+  addToHand: false,
+  discard: false,
+  equip: false,
+};
 
 //  as BaseEffectSelection
 export function isBaseEffectSelection(
   effect: EffectTypes,
   // @ts-ignore
 ): effect is BaseEffectSelection {
-  return types.includes(effect.type);
+  return SELECTION_EFFECTS[effect.type];
 }
 
 // NEW HELPERS FOR ADD TO HAND / RETURN TO HAND MECHANICS
@@ -794,6 +957,79 @@ export function stripCardModifiers(card: Card): Card {
   return freshCard;
 }
 
+/** Every base keyword flag silence has to clear off the card instance. */
+const SILENCEABLE_FLAGS = [
+  ...(Object.keys(MODIFIER_BOOL_KEYS) as ModifierBoolKey[]),
+  "cantAttack",
+] as const;
+
+/**
+ * SILENCE: wipes everything the card's TEXT granted — keyword flags, its own
+ * enchantments, and its deathrattle/aura/enrage/inHand definitions. The printed
+ * description is deliberately left alone; `silenced` drives the UI's red X.
+ *
+ * Externally-granted ongoing buffs (a neighbouring Stormwind Champion) are NOT
+ * removed: their managed modifiers belong to the provider, and refreshOngoing
+ * re-syncs them on the next pass regardless. Only the card's own permanent and
+ * temporary enchantments go.
+ *
+ * Silence never kills: clearing a +health buff can drop max health below the
+ * damage already taken, so damage is clamped to leave the minion on 1 HP.
+ */
+export function silenceCard(
+  G: GameState,
+  sourceId: string,
+  card: Card,
+  ownerId: string,
+) {
+  card.silenced = true;
+
+  // 1. Base keyword flags printed on the card
+  SILENCEABLE_FLAGS.forEach((flag) => {
+    (card as unknown as Record<string, unknown>)[flag] = false;
+  });
+
+  // 2. Its own text: deathrattles and ongoing definitions. refreshOngoing is
+  // diff-based, so the managed modifiers these produced disappear on the next
+  // pass (every executeEffects caller runs one).
+  card.deathrattle = [];
+  card.aura = [];
+  card.enrage = [];
+  card.inHand = [];
+
+  // 3. Its own enchantments. Managed (aura/inHand/enrage) entries are owned by
+  // whatever provider created them — leave those to the refresh pass.
+  const list = card.modifiers;
+  if (list) {
+    for (let i = list.length - 1; i >= 0; i--) {
+      const mod = list[i];
+      if (mod.type !== "permanent" && mod.type !== "temporary") continue;
+      list.splice(i, 1);
+      recordModifierEvent(
+        G,
+        mod.sourceCardId,
+        card,
+        "card",
+        ownerId,
+        { name: mod.name, description: mod.description, stats: mod.stats, keys: mod.keys },
+        true,
+      );
+    }
+  }
+
+  // 4. Losing a health buff must never be lethal.
+  card.damageTaken = Math.min(card.damageTaken, getMaxHealth(card) - 1);
+
+  recordEvent(G, {
+    type: "silence",
+    cardId: card.id,
+    playerId: ownerId,
+    sourceId,
+    timestamp: Date.now(),
+    snapshot: JSON.parse(JSON.stringify(card)),
+  });
+}
+
 /**
  * Finds cards from various sources (deck, global pool, graveyard, etc.)
  * and returns an array of cards matching the given conditions
@@ -805,8 +1041,17 @@ export function findCardsInPool(
   context: EffectContext,
 ): Card[] {
   let pool: Card[] = [];
-  const player = G.players[playerID];
   const count = typeof effect.value === "number" ? effect.value : 1;
+  // Whose hand/deck a zone-sourced effect reads from. `target` names the zone:
+  // "enemy-hand" (Mind Vision) / "enemy-deck" (Thoughtsteal) flip to the
+  // opponent; everything else stays scoped to the acting player.
+  const zoneOwnerId =
+    effect.target === "enemy-hand" || effect.target === "enemy-deck"
+      ? playerID === "0"
+        ? "1"
+        : "0"
+      : playerID;
+  const zoneOwner = G.players[zoneOwnerId];
 
   // Handle specific cardID(s)
   if (effect.cardID) {
@@ -825,7 +1070,7 @@ export function findCardsInPool(
   // Build pool based on source
   switch (effect.source) {
     case "deck":
-      pool = [...player.deck];
+      pool = [...zoneOwner.deck];
       break;
 
     case "global":
@@ -846,7 +1091,7 @@ export function findCardsInPool(
       break;
 
     case "hand":
-      pool = [...player.hand];
+      pool = [...zoneOwner.hand];
       break;
 
     case "board":
@@ -874,13 +1119,13 @@ export function findCardsInPool(
     pool = pool.slice(effect.rand.n);
   }
 
-  // Handle removeFromSource
+  // Handle removeFromSource — always from whichever zone the pool was built
+  // from, so an enemy-targeted read can't splice the acting player's own zone.
   if (effect.removeFromSource && effect.source === "deck") {
-    // Remove selected cards from deck
     pool.forEach((selectedCard) => {
-      const index = player.deck.findIndex((c) => c.id === selectedCard.id);
+      const index = zoneOwner.deck.findIndex((c) => c.id === selectedCard.id);
       if (index !== -1) {
-        player.deck.splice(index, 1);
+        zoneOwner.deck.splice(index, 1);
       }
     });
   } else if (effect.removeFromSource && effect.source === "graveyard") {
@@ -892,11 +1137,10 @@ export function findCardsInPool(
       }
     });
   } else if (effect.removeFromSource && effect.source === "hand") {
-    // Remove from hand
     pool.forEach((selectedCard) => {
-      const index = player.hand.findIndex((c) => c.id === selectedCard.id);
+      const index = zoneOwner.hand.findIndex((c) => c.id === selectedCard.id);
       if (index !== -1) {
-        player.hand.splice(index, 1);
+        zoneOwner.hand.splice(index, 1);
       }
     });
   } else if (effect.source !== "global" && !effect.removeFromSource) {

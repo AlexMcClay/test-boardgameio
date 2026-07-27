@@ -21,6 +21,15 @@ export type Ctx = GameCtx;
 
 export type DeckString = Partial<Record<CardTemplateKey, number>>;
 
+/**
+ * Receipt from spending mana, recording how much came from temporary vs
+ * permanent crystals so a refund can restore the exact mix. See game/utils/mana.ts.
+ */
+export interface ManaPayment {
+  temp: number;
+  permanent: number;
+}
+
 export interface HeroPower {
   name: string;
   description: string;
@@ -69,7 +78,14 @@ export interface Card {
   charge?: boolean;
   rush?: boolean;
   poisonous?: boolean;
+  immune?: boolean;
   windfury?: boolean;
+  elusive?: boolean; // Can't be targeted by spells or Hero Powers (Faerie Dragon)
+  // Plain flag, not a grantable keyword — nothing in Legacy hands this out.
+  cantAttack?: boolean; // Ancient Watcher / Ragnaros: may never declare an attack
+  // Set by the silence effect. Card text keeps its printed description; the UI
+  // stamps a red X over it (Card/Overlays/SilencedOverlay).
+  silenced?: boolean;
   // 2. Structural tracking for real-time damage
   damageTaken: number;
   attacksLeft: number;
@@ -104,8 +120,12 @@ export interface SFXInstance {
 export interface Player {
   id: PlayerID;
   name: string;
-  manaCrystals: number;
-  maxManaCrystals: number;
+  // Mana crystals — see game/utils/mana.ts for the full rules. Every crystal
+  // state (filled / empty / locked / pending / temporary) derives from these.
+  maxMana: number; // Permanent crystals owned ("maximum mana")
+  manaCap: number; // Ceiling on maxMana; 10 by default, raisable, hard cap 99
+  availableMana: number; // Filled permanent crystals. MAY BE NEGATIVE when overload exceeds maxMana
+  tempMana: number; // This-turn-only crystals (Coin/Innervate): spent first, vanish when spent
   overloadPending: number; // Accrued this turn from cards played; locks next turn (padlock beneath crystals)
   overloadLocked: number; // Crystals locked THIS turn (padlock blocking crystals)
   heroPortrait: string;
@@ -114,10 +134,10 @@ export interface Player {
   armor: number;
   frozen?: boolean;
   divineShield?: boolean;
+  immune?: boolean;
   attacksLeft: number;
   baseAttack: number;
   modifiers: CardModifier[];
-  mana: number;
   hand: Card[];
   deck: Card[];
   burntCards: Card[]; // Cards that couldn't fit in hand (hand was full)
@@ -191,7 +211,10 @@ export type ModifierBoolKey =
   | "charge"
   | "rush"
   | "windfury"
-  | "frozen";
+  | "frozen"
+  | "poisonous"
+  | "immune"
+  | "elusive";
 
 /**
  * One ENCHANTMENT: a single named modifier grouping every change it makes —
@@ -252,7 +275,7 @@ export type DynamicValue =
     }
   | {
       type: "card-stat";
-      stat: "attack" | "health" | "mana" | "maxHealth" | 'damageTaken';
+      stat: "attack" | "health" | "mana" | "maxHealth" | "damageTaken";
       mult?: number;
     } // inspects current target
   | {
@@ -283,6 +306,31 @@ export type DynamicValue =
       // Cards played by the current player this turn (combo-count without the -1)
       type: "cards-played-turn";
       mult?: number;
+    }
+  | {
+      // Permanent Mana Crystals owned ("maximum mana"), or the ceiling on them.
+      type: "player-max-mana" | "player-mana-cap";
+      player: "friendly" | "enemy";
+      mult?: number;
+    }
+  | {
+      // A hero's current Attack, weapon and buffs included (Savagery).
+      type: "player-attack";
+      player: "friendly" | "enemy";
+      mult?: number;
+    }
+  | {
+      // How many more cards the OTHER player holds; 0 when not behind
+      // (Divine Favor).
+      type: "hand-diff";
+      player: "friendly" | "enemy";
+      mult?: number;
+    }
+  | {
+      // Charges left on an equipped weapon; 0 when unarmed (Harrison Jones).
+      type: "weapon-durability";
+      player: "friendly" | "enemy";
+      mult?: number;
     };
 // most recent damage delt
 
@@ -293,6 +341,11 @@ export type BooleanCardKey =
   | "stealth"
   | "charge"
   | "rush"
+  | "poisonous"
+  | "immune"
+  | "elusive"
+  | "cantAttack"
+  | "silenced"
   | "isMinion"
   | "isSpell"
   | "summoningSickness";
@@ -314,7 +367,8 @@ export type TargetCondition =
   | { type: "state-match"; condition: "isDamaged" | "isUndamaged" } // Special derived states
   | { type: "exclude-self" }
   | { type: "is-friendly" } // Prevent hitting self with AoE
-  | { type: "exclude-target" };
+  | { type: "exclude-target" }
+  | { type: "has-weapon"; side: "friendly" | "enemy" };
 
 export interface TargetQuery {
   side: "friendly" | "enemy" | "all";
@@ -339,6 +393,8 @@ export type EffectTypes =
   | ChargeEffect
   | RushEffect
   | WindfuryEffect
+  | PoisonousEffect
+  | ImmuneEffect
   | ApplyModifierEffect
   | ArmorEffect
   | ConditionalEffect
@@ -348,7 +404,40 @@ export type EffectTypes =
   | AddToHandEffect
   | ReturnToHandEffect
   | DiscardEffect
-  | EquipEffect;
+  | EquipEffect
+  | DurabilityEffect
+  | SilenceEffect
+  | TransformEffect
+  | TakeControlEffect;
+
+/**
+ * Wipes everything text-granted from a minion: keyword flags, enchantments,
+ * deathrattle/aura/enrage/inHand. Never kills (damage is clamped below max
+ * health afterwards). Externally-granted auras survive — refreshOngoing
+ * re-applies them on the next pass.
+ */
+export type SilenceEffect = {
+  type: "silence";
+} & BaseEffectSelection;
+
+/**
+ * Replaces a board minion with a different template IN PLACE — same board
+ * index, same card.id (so the UI doesn't remount the slot). Irreversible:
+ * the new card's originalID is the template it became.
+ */
+export type TransformEffect = {
+  type: "transform";
+  /** A specific template, or a list picked from at random per target. */
+  cardID: string | string[];
+} & BaseEffectSelection;
+
+/**
+ * Moves a minion to the acting player's board. No-ops when that board is
+ * already full (7). The stolen minion enters with summoning sickness.
+ */
+export type TakeControlEffect = {
+  type: "takeControl";
+} & BaseEffectSelection;
 
 export interface StoreTempVarEffect {
   type: "storeVar";
@@ -378,12 +467,17 @@ export interface AddToHandEffect {
   type: "addToHand";
   source: "deck" | "global" | "graveyard" | "hand" | "board";
   removeFromSource?: boolean; // If true, removes from source (e.g., draw from deck)
+  // Which zone the `source` is read from. Defaults to the acting player's own;
+  // "enemy-hand" / "enemy-deck" flip it to the opponent (Mind Vision,
+  // Thoughtsteal). Also used for board/hand copies.
   target?:
     | "user-select"
     | "friendly-board"
     | "enemy-board"
     | "friendly-hand"
-    | "enemy-hand"; // For board/hand copies
+    | "enemy-hand"
+    | "friendly-deck"
+    | "enemy-deck";
   conditions?: TargetCondition[]; // Filter cards (e.g., Demons, cost 7-10, etc.)
   cardID?: string | string[]; // Specific card(s) to add (e.g., "Cub", "Arcane Bolt")
   value: number | DynamicValue; // Count of cards to add
@@ -431,7 +525,11 @@ export type BaseEffectSelection = {
   };
 };
 
-export type BaseBoolEffect = {} & BaseEffectSelection;
+export type BaseBoolEffect = {
+  // Set by battlecry keyword grants (e.g. Argent Protector). Mirrors the flag
+  // on DamageEffect; it was previously smuggled through an `as` cast.
+  battlecry?: boolean;
+} & BaseEffectSelection;
 
 export type FreezeEffect = {
   type: "freeze";
@@ -460,6 +558,32 @@ export type RushEffect = {
 export type WindfuryEffect = {
   type: "windfury";
 } & BaseBoolEffect;
+
+export type PoisonousEffect = {
+  type: "poisonous";
+} & BaseBoolEffect;
+
+export type ImmuneEffect = {
+  type: "immune";
+} & BaseBoolEffect;
+
+/**
+ * The keyword effects — the ones whose whole job is flipping a boolean on a
+ * target. Listed explicitly rather than Extract'd from EffectTypes, because
+ * damage/heal/destroy also carry BaseEffectSelection and would sneak in.
+ */
+export type BoolKeywordEffect =
+  | FreezeEffect
+  | DivineShieldEffect
+  | TauntEffect
+  | StealthEffect
+  | ChargeEffect
+  | RushEffect
+  | WindfuryEffect
+  | PoisonousEffect
+  | ImmuneEffect;
+
+export type BoolEffectType = BoolKeywordEffect["type"];
 
 export type DamageEffect = {
   type: "damage";
@@ -534,9 +658,33 @@ type EquipEffect = {
   cardID: string; // ID of the weapon card to equip
 };
 
+/**
+ * Changes a weapon's CURRENT durability — distinct from
+ * `applyModifier({ stats: { durability: n } })`, which changes its MAXIMUM.
+ * Positive repairs (clamped at max), negative chips it (and can break it).
+ */
+export type DurabilityEffect = {
+  type: "durability";
+  value: number | DynamicValue;
+} & BaseEffectSelection;
+
+export type ManaMode =
+  | "temporary" // The Coin / Innervate: this turn only, spent first, vanishes
+  | "crystal-empty" // Wild Growth: +maximum mana, no available mana
+  | "crystal-filled" // +maximum AND +available mana
+  | "destroy" // Felguard: destroy permanent crystals, empty ones first
+  | "unlock-overload" // Lava Shock: unlock and refill overloaded crystals
+  | "raise-cap"; // Wildheart Guff: raise the ceiling above 10
+
 type ManaEffect = {
   type: "mana";
   value: number | DynamicValue;
+  /** Defaults to "temporary", which is what The Coin and Innervate want. */
+  mode?: ManaMode;
+  /** "unlock-overload" only. Defaults to "locked". */
+  scope?: "locked" | "pending" | "both";
+  /** Defaults to "self". */
+  target?: "self" | "enemy";
 };
 
 type DiscardEffect = {
@@ -582,6 +730,8 @@ type GameEventBody =
   | ChargeEvent
   | RushEvent
   | WindfuryEvent
+  | PoisonousEvent
+  | ImmuneEvent
   | ApplyModifierEvent
   | ArmorEvent
   | DebugEvent
@@ -591,9 +741,50 @@ type GameEventBody =
   | DiscardEvent
   | HeroPowerEvent
   | EquipEvent
+  | DurabilityEvent
   | GameEndEvent
   | CoinTossEvent
-  | MulliganEvent;
+  | MulliganEvent
+  | SilenceEvent
+  | TransformEvent
+  | TakeControlEvent;
+
+/** A minion had its text and enchantments wiped. */
+export type SilenceEvent = {
+  type: "silence";
+  cardId: string;
+  playerId: PlayerID;
+  sourceId?: string;
+  timestamp: number;
+  eventRef?: number;
+  snapshot: Card; // Deep clone of the card AFTER the wipe
+};
+
+/** A minion was replaced in place by a different template (Polymorph/Hex). */
+export type TransformEvent = {
+  type: "transform";
+  cardId: string; // preserved across the swap
+  playerId: PlayerID;
+  sourceId?: string;
+  timestamp: number;
+  card: Card; // what it became
+  eventRef?: number;
+  snapshot: Card; // Deep clone of the replacement at record time
+};
+
+/** A minion changed sides (Mind Control, Sylvanas). */
+export type TakeControlEvent = {
+  type: "takeControl";
+  cardId: string;
+  fromPlayerId: PlayerID;
+  toPlayerId: PlayerID;
+  playerId: PlayerID; // the player who GAINED it (mirrors other events)
+  sourceId?: string;
+  timestamp: number;
+  card: Card;
+  eventRef?: number;
+  snapshot: Card;
+};
 
 /** Recorded once at game creation: who won the coin toss and goes first. */
 export type CoinTossEvent = {
@@ -673,6 +864,14 @@ export type WindfuryEvent = {
   type: "windfury";
 } & BaseGameBoolEvent;
 
+export type PoisonousEvent = {
+  type: "poisonous";
+} & BaseGameBoolEvent;
+
+export type ImmuneEvent = {
+  type: "immune";
+} & BaseGameBoolEvent;
+
 export type SummonEvent = {
   type: "summon";
   cardId: string;
@@ -690,6 +889,16 @@ export type EquipEvent = {
   card: Card; // Include full weapon card data for easier animation handling
   eventRef?: number; // Index of the top-level event that caused this
   snapshot: Card; // Deep clone of the equipped weapon at record time
+};
+
+export type DurabilityEvent = {
+  type: "durability";
+  cardId: string;
+  playerId: PlayerID;
+  value: number; // Signed delta actually applied after clamping
+  timestamp: number;
+  eventRef?: number; // Index of the top-level event that caused this
+  snapshot: Card; // Deep clone of the weapon after the change
 };
 
 export type ArmorEvent = {
@@ -713,6 +922,10 @@ export type ManaEvent = {
   type: "mana";
   playerId: PlayerID;
   timestamp: number;
+  // Optional so the hero-power recordEvent can stay as-is.
+  mode?: ManaMode;
+  value?: number;
+  snapshot?: Player; // Deep clone of the player after the change
 };
 
 export type EndTurnEvent = {
@@ -885,6 +1098,8 @@ export interface GameState {
     cardId: string;
     playerId: PlayerID;
     sourceEventIndex: number; // Index of the cardPlayed event this battlecry belongs to
+    manaPaid: ManaPayment; // Receipt so cancelling refunds the exact temp/permanent mix
+    overloadPaid: number; // Overload charged by this play, refunded on cancel
   } | null; // Tracks minion waiting to resolve targeted battlecry
 
   // Index of the top-level event (cardPlayed/attack/heroPower) whose effects

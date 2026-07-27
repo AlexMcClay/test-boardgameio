@@ -5,7 +5,9 @@ import PlayerHand from "./PlayerHand";
 import {
   getAttack,
   getCurrentDurability,
+  getDisplayMaxMana,
   getMaxDurability,
+  getSpendableMana,
   type Card,
   type GameState,
   type Player,
@@ -120,7 +122,7 @@ const PlayerArea = ({
       >
         <div
           className="flex items-center justify-center  px-[0.5vw] py-[0.1vw] rounded-full w-[4.5vw] text-center "
-          title={`${player.mana} / ${player.manaCrystals} Mana`}
+          title={`${getSpendableMana(player)} / ${getDisplayMaxMana(player)} Mana`}
           style={{
             backgroundImage: `url(${mana_bar})`,
             backgroundSize: "cover",
@@ -133,21 +135,24 @@ const PlayerArea = ({
           }}
         >
           <span className="text-[1.1vw] scale-150 text-center font-extrabold text-white font-belwe text-shadow-A">
-            {player.mana}/{player.manaCrystals}
+            {getSpendableMana(player)}/{getDisplayMaxMana(player)}
           </span>
         </div>
         {!isTop && (
           <div className="ml-[0.5vw] mt-[0.05vw] flex items-center justify-center">
-            {Array.from({ length: player.manaCrystals }, (_, i) => {
+            {/* Permanent crystals: filled up to availableMana, then empty.
+                Overload padlocks sit on the tail crystals. */}
+            {Array.from({ length: player.maxMana }, (_, i) => {
               const overloadLocked = player.overloadLocked ?? 0;
               const overloadPending = player.overloadPending ?? 0;
               // Locked/pending crystals are the tail crystals (independent of
               // how much mana has been spent this turn).
-              const isLocked = i >= player.manaCrystals - overloadLocked;
-              const isPending = i >= player.manaCrystals - overloadPending;
+              const isLocked = i >= player.maxMana - overloadLocked;
+              const isPending = i >= player.maxMana - overloadPending;
+              const isFilled = i < Math.max(0, player.availableMana);
               return (
                 <div
-                  key={i}
+                  key={`permanent-${i}`}
                   className="relative flex items-center justify-center"
                 >
                   <img
@@ -157,7 +162,7 @@ const PlayerArea = ({
                     className={twMerge(
                       "  w-[1.81vw] h-[2vw] object-contain shadow-lg ",
 
-                      i < player.mana ? "brightness-150" : "brightness-50",
+                      isFilled ? "brightness-150" : "brightness-50",
                     )}
                     draggable="false"
                   />
@@ -172,6 +177,23 @@ const PlayerArea = ({
                 </div>
               );
             })}
+            {/* Temporary crystals (The Coin / Innervate) trail the permanent
+                run, tinted so an 11th crystal reads as this-turn-only. They
+                vanish when spent rather than emptying. */}
+            {Array.from({ length: player.tempMana ?? 0 }, (_, j) => (
+              <div
+                key={`temp-${j}`}
+                className="relative flex items-center justify-center"
+                title="Temporary Mana Crystal — this turn only"
+              >
+                <img
+                  src={mana_crystal}
+                  alt="Temporary Mana"
+                  className="w-[1.81vw] h-[2vw] object-contain shadow-lg brightness-150 hue-rotate-65 saturate-150 animate-pulse"
+                  draggable="false"
+                />
+              </div>
+            ))}
           </div>
         )}
       </div>

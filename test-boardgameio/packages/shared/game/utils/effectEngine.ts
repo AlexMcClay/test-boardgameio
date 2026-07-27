@@ -2,13 +2,18 @@
 import {
   getCurrentHealth,
   getAttack,
+  getCurrentDurability,
   getManaCost,
   getMaxHealth,
+  getPlayerAttack,
+  hasKeyword,
 } from "./index";
+import { MODIFIER_BOOL_KEYS } from "./helpers";
 import type {
   Card,
   DynamicValue,
   EffectContext,
+  ModifierBoolKey,
   TargetCondition,
   BaseEffectSelection,
 } from "../types";
@@ -21,7 +26,7 @@ export function resolveDynamicValue(
 
   const { G, playerID, excessDamageDealt, lastDamageDealt } = context;
   const enemyId = playerID === "0" ? "1" : "0";
-  const multiplier = val.mult ?? 1;
+  const multiplier = typeof val.mult === "number" ? val.mult : 1;
 
   let baseValue = 0;
 
@@ -54,6 +59,42 @@ export function resolveDynamicValue(
       ).length;
       break;
 
+    case "player-max-mana":
+    case "player-mana-cap": {
+      const p =
+        val.player === "friendly" ? G.players[playerID] : G.players[enemyId];
+      baseValue = val.type === "player-max-mana" ? p.maxMana : p.manaCap;
+      break;
+    }
+
+    case "player-attack": {
+      // Weapon and hero buffs included — getPlayerAttack is the same fold the
+      // hero's own attacks use, so Savagery matches what the hero would hit for.
+      const p =
+        val.player === "friendly" ? G.players[playerID] : G.players[enemyId];
+      baseValue = getPlayerAttack(p);
+      break;
+    }
+
+    case "hand-diff": {
+      // How many MORE cards the other side holds. Never negative, so
+      // "draw until you match" is a no-op when you're already ahead.
+      const mine =
+        val.player === "friendly" ? G.players[playerID] : G.players[enemyId];
+      const theirs =
+        val.player === "friendly" ? G.players[enemyId] : G.players[playerID];
+      baseValue = Math.max(0, theirs.hand.length - mine.hand.length);
+      break;
+    }
+
+    case "weapon-durability": {
+      // Charges left on the equipped weapon; 0 when unarmed.
+      const p =
+        val.player === "friendly" ? G.players[playerID] : G.players[enemyId];
+      baseValue = p.weapon ? getCurrentDurability(p.weapon) : 0;
+      break;
+    }
+
     case "card-stat":
       if (!context.card) {
         baseValue = 0;
@@ -78,7 +119,7 @@ export function resolveDynamicValue(
       if (val.conditions) {
         targets = targets.filter((card) =>
           val.conditions!.every((cond) =>
-            checkSingleTargetCondition(card, cond, context),
+            checkSingleTargetCondition(card, cond, context, context.card?.id),
           ),
         );
       }
@@ -122,7 +163,7 @@ export function resolveDynamicValue(
       break;
   }
 
-  return baseValue * multiplier;
+  return Math.round(baseValue * multiplier);
 }
 
 /**
@@ -135,9 +176,18 @@ export function checkSingleTargetCondition(
   conditionSourceID?: string,
 ): boolean {
   switch (condition.type) {
-    case "boolean":
-      // Safely evaluates truthiness (handles undefined properties as false)
-      return !!card[condition.key] === condition.value;
+    case "boolean": {
+      // Keyword flags go through hasKeyword so a MODIFIER-granted keyword
+      // counts too — reading card[key] raw meant a minion given Taunt by Mark
+      // of the Wild never satisfied a `taunt: true` condition. The remaining
+      // BooleanCardKeys (isMinion/isSpell/summoningSickness) aren't keywords
+      // and keep the plain read.
+      const isKeyword = condition.key in MODIFIER_BOOL_KEYS;
+      const actual = isKeyword
+        ? hasKeyword(card, condition.key as ModifierBoolKey)
+        : !!card[condition.key];
+      return actual === condition.value;
+    }
 
     case "numeric": {
       const cardValue = resolveDynamicValue(condition.key, {
@@ -188,6 +238,16 @@ export function checkSingleTargetCondition(
       return context.target?.id !== card.id;
     case "is-friendly":
       return context.target?.player === context.playerID;
+
+    // Board state, not a property of `card` — the candidate is passed through
+    // untouched. "friendly" is the acting player (the aura provider's owner
+    // when this runs inside refreshOngoing, the caster for a played card).
+    case "has-weapon": {
+      const enemyId = context.playerID === "0" ? "1" : "0";
+      const side =
+        condition.side === "friendly" ? context.playerID : enemyId;
+      return !!context.G.players[side]?.weapon;
+    }
 
     default:
       return false;
