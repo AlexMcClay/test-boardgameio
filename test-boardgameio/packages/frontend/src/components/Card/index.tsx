@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { twMerge } from "tailwind-merge";
 import { useMemo, useRef, useState, useEffect } from "react";
 import KeywordPopover from "./KeywordPopover";
+import SilencedOverlay from "./Overlays/SilencedOverlay";
 import {
   getAttack,
   getCurrentHealth,
@@ -334,6 +335,8 @@ const Card = ({
             className="font-base"
             dangerouslySetInnerHTML={{ __html: text }}
           />
+          {/* Silenced: the text stays printed, struck through with a red X */}
+          {card.silenced && <SilencedOverlay />}
         </div>
 
         {/* Type */}

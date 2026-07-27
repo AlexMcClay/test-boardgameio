@@ -80,6 +80,12 @@ export interface Card {
   poisonous?: boolean;
   immune?: boolean;
   windfury?: boolean;
+  elusive?: boolean; // Can't be targeted by spells or Hero Powers (Faerie Dragon)
+  // Plain flag, not a grantable keyword — nothing in Legacy hands this out.
+  cantAttack?: boolean; // Ancient Watcher / Ragnaros: may never declare an attack
+  // Set by the silence effect. Card text keeps its printed description; the UI
+  // stamps a red X over it (Card/Overlays/SilencedOverlay).
+  silenced?: boolean;
   // 2. Structural tracking for real-time damage
   damageTaken: number;
   attacksLeft: number;
@@ -207,7 +213,8 @@ export type ModifierBoolKey =
   | "windfury"
   | "frozen"
   | "poisonous"
-  | "immune";
+  | "immune"
+  | "elusive";
 
 /**
  * One ENCHANTMENT: a single named modifier grouping every change it makes —
@@ -305,6 +312,25 @@ export type DynamicValue =
       type: "player-max-mana" | "player-mana-cap";
       player: "friendly" | "enemy";
       mult?: number;
+    }
+  | {
+      // A hero's current Attack, weapon and buffs included (Savagery).
+      type: "player-attack";
+      player: "friendly" | "enemy";
+      mult?: number;
+    }
+  | {
+      // How many more cards the OTHER player holds; 0 when not behind
+      // (Divine Favor).
+      type: "hand-diff";
+      player: "friendly" | "enemy";
+      mult?: number;
+    }
+  | {
+      // Charges left on an equipped weapon; 0 when unarmed (Harrison Jones).
+      type: "weapon-durability";
+      player: "friendly" | "enemy";
+      mult?: number;
     };
 // most recent damage delt
 
@@ -317,6 +343,9 @@ export type BooleanCardKey =
   | "rush"
   | "poisonous"
   | "immune"
+  | "elusive"
+  | "cantAttack"
+  | "silenced"
   | "isMinion"
   | "isSpell"
   | "summoningSickness";
@@ -376,7 +405,39 @@ export type EffectTypes =
   | ReturnToHandEffect
   | DiscardEffect
   | EquipEffect
-  | DurabilityEffect;
+  | DurabilityEffect
+  | SilenceEffect
+  | TransformEffect
+  | TakeControlEffect;
+
+/**
+ * Wipes everything text-granted from a minion: keyword flags, enchantments,
+ * deathrattle/aura/enrage/inHand. Never kills (damage is clamped below max
+ * health afterwards). Externally-granted auras survive — refreshOngoing
+ * re-applies them on the next pass.
+ */
+export type SilenceEffect = {
+  type: "silence";
+} & BaseEffectSelection;
+
+/**
+ * Replaces a board minion with a different template IN PLACE — same board
+ * index, same card.id (so the UI doesn't remount the slot). Irreversible:
+ * the new card's originalID is the template it became.
+ */
+export type TransformEffect = {
+  type: "transform";
+  /** A specific template, or a list picked from at random per target. */
+  cardID: string | string[];
+} & BaseEffectSelection;
+
+/**
+ * Moves a minion to the acting player's board. No-ops when that board is
+ * already full (7). The stolen minion enters with summoning sickness.
+ */
+export type TakeControlEffect = {
+  type: "takeControl";
+} & BaseEffectSelection;
 
 export interface StoreTempVarEffect {
   type: "storeVar";
@@ -406,12 +467,17 @@ export interface AddToHandEffect {
   type: "addToHand";
   source: "deck" | "global" | "graveyard" | "hand" | "board";
   removeFromSource?: boolean; // If true, removes from source (e.g., draw from deck)
+  // Which zone the `source` is read from. Defaults to the acting player's own;
+  // "enemy-hand" / "enemy-deck" flip it to the opponent (Mind Vision,
+  // Thoughtsteal). Also used for board/hand copies.
   target?:
     | "user-select"
     | "friendly-board"
     | "enemy-board"
     | "friendly-hand"
-    | "enemy-hand"; // For board/hand copies
+    | "enemy-hand"
+    | "friendly-deck"
+    | "enemy-deck";
   conditions?: TargetCondition[]; // Filter cards (e.g., Demons, cost 7-10, etc.)
   cardID?: string | string[]; // Specific card(s) to add (e.g., "Cub", "Arcane Bolt")
   value: number | DynamicValue; // Count of cards to add
@@ -678,7 +744,47 @@ type GameEventBody =
   | DurabilityEvent
   | GameEndEvent
   | CoinTossEvent
-  | MulliganEvent;
+  | MulliganEvent
+  | SilenceEvent
+  | TransformEvent
+  | TakeControlEvent;
+
+/** A minion had its text and enchantments wiped. */
+export type SilenceEvent = {
+  type: "silence";
+  cardId: string;
+  playerId: PlayerID;
+  sourceId?: string;
+  timestamp: number;
+  eventRef?: number;
+  snapshot: Card; // Deep clone of the card AFTER the wipe
+};
+
+/** A minion was replaced in place by a different template (Polymorph/Hex). */
+export type TransformEvent = {
+  type: "transform";
+  cardId: string; // preserved across the swap
+  playerId: PlayerID;
+  sourceId?: string;
+  timestamp: number;
+  card: Card; // what it became
+  eventRef?: number;
+  snapshot: Card; // Deep clone of the replacement at record time
+};
+
+/** A minion changed sides (Mind Control, Sylvanas). */
+export type TakeControlEvent = {
+  type: "takeControl";
+  cardId: string;
+  fromPlayerId: PlayerID;
+  toPlayerId: PlayerID;
+  playerId: PlayerID; // the player who GAINED it (mirrors other events)
+  sourceId?: string;
+  timestamp: number;
+  card: Card;
+  eventRef?: number;
+  snapshot: Card;
+};
 
 /** Recorded once at game creation: who won the coin toss and goes first. */
 export type CoinTossEvent = {

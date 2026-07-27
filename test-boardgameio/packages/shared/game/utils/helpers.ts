@@ -359,6 +359,7 @@ export const MODIFIER_BOOL_KEYS = {
   frozen: true,
   poisonous: true,
   immune: true,
+  elusive: true,
 } as const satisfies Record<ModifierBoolKey, true>;
 
 export const MODIFIER_STAT_KEYS = {
@@ -804,6 +805,9 @@ const SELECTION_EFFECTS: Record<EffectTypes["type"], boolean> = {
   immune: true,
   durability: true,
   returnToHand: true,
+  silence: true,
+  transform: true,
+  takeControl: true,
   // Effects with no target selection of their own:
   draw: false,
   changeKey: false,
@@ -953,6 +957,79 @@ export function stripCardModifiers(card: Card): Card {
   return freshCard;
 }
 
+/** Every base keyword flag silence has to clear off the card instance. */
+const SILENCEABLE_FLAGS = [
+  ...(Object.keys(MODIFIER_BOOL_KEYS) as ModifierBoolKey[]),
+  "cantAttack",
+] as const;
+
+/**
+ * SILENCE: wipes everything the card's TEXT granted — keyword flags, its own
+ * enchantments, and its deathrattle/aura/enrage/inHand definitions. The printed
+ * description is deliberately left alone; `silenced` drives the UI's red X.
+ *
+ * Externally-granted ongoing buffs (a neighbouring Stormwind Champion) are NOT
+ * removed: their managed modifiers belong to the provider, and refreshOngoing
+ * re-syncs them on the next pass regardless. Only the card's own permanent and
+ * temporary enchantments go.
+ *
+ * Silence never kills: clearing a +health buff can drop max health below the
+ * damage already taken, so damage is clamped to leave the minion on 1 HP.
+ */
+export function silenceCard(
+  G: GameState,
+  sourceId: string,
+  card: Card,
+  ownerId: string,
+) {
+  card.silenced = true;
+
+  // 1. Base keyword flags printed on the card
+  SILENCEABLE_FLAGS.forEach((flag) => {
+    (card as unknown as Record<string, unknown>)[flag] = false;
+  });
+
+  // 2. Its own text: deathrattles and ongoing definitions. refreshOngoing is
+  // diff-based, so the managed modifiers these produced disappear on the next
+  // pass (every executeEffects caller runs one).
+  card.deathrattle = [];
+  card.aura = [];
+  card.enrage = [];
+  card.inHand = [];
+
+  // 3. Its own enchantments. Managed (aura/inHand/enrage) entries are owned by
+  // whatever provider created them — leave those to the refresh pass.
+  const list = card.modifiers;
+  if (list) {
+    for (let i = list.length - 1; i >= 0; i--) {
+      const mod = list[i];
+      if (mod.type !== "permanent" && mod.type !== "temporary") continue;
+      list.splice(i, 1);
+      recordModifierEvent(
+        G,
+        mod.sourceCardId,
+        card,
+        "card",
+        ownerId,
+        { name: mod.name, description: mod.description, stats: mod.stats, keys: mod.keys },
+        true,
+      );
+    }
+  }
+
+  // 4. Losing a health buff must never be lethal.
+  card.damageTaken = Math.min(card.damageTaken, getMaxHealth(card) - 1);
+
+  recordEvent(G, {
+    type: "silence",
+    cardId: card.id,
+    playerId: ownerId,
+    sourceId,
+    timestamp: Date.now(),
+    snapshot: JSON.parse(JSON.stringify(card)),
+  });
+}
+
 /**
  * Finds cards from various sources (deck, global pool, graveyard, etc.)
  * and returns an array of cards matching the given conditions
@@ -964,16 +1041,17 @@ export function findCardsInPool(
   context: EffectContext,
 ): Card[] {
   let pool: Card[] = [];
-  const player = G.players[playerID];
   const count = typeof effect.value === "number" ? effect.value : 1;
-  // Whose hand a "hand"-sourced effect reads from (Mind Vision peeks at the
-  // opponent's). Every other source stays scoped to the acting player.
-  const handOwnerId =
-    effect.target === "enemy-hand"
+  // Whose hand/deck a zone-sourced effect reads from. `target` names the zone:
+  // "enemy-hand" (Mind Vision) / "enemy-deck" (Thoughtsteal) flip to the
+  // opponent; everything else stays scoped to the acting player.
+  const zoneOwnerId =
+    effect.target === "enemy-hand" || effect.target === "enemy-deck"
       ? playerID === "0"
         ? "1"
         : "0"
       : playerID;
+  const zoneOwner = G.players[zoneOwnerId];
 
   // Handle specific cardID(s)
   if (effect.cardID) {
@@ -992,7 +1070,7 @@ export function findCardsInPool(
   // Build pool based on source
   switch (effect.source) {
     case "deck":
-      pool = [...player.deck];
+      pool = [...zoneOwner.deck];
       break;
 
     case "global":
@@ -1013,12 +1091,7 @@ export function findCardsInPool(
       break;
 
     case "hand":
-      // `target` picks WHICH hand; it defaults to the acting player's own.
-      // Anything but "enemy-hand" keeps the historical own-hand behaviour.
-      pool =
-        effect.target === "enemy-hand"
-          ? [...G.players[handOwnerId].hand]
-          : [...player.hand];
+      pool = [...zoneOwner.hand];
       break;
 
     case "board":
@@ -1046,13 +1119,13 @@ export function findCardsInPool(
     pool = pool.slice(effect.rand.n);
   }
 
-  // Handle removeFromSource
+  // Handle removeFromSource — always from whichever zone the pool was built
+  // from, so an enemy-targeted read can't splice the acting player's own zone.
   if (effect.removeFromSource && effect.source === "deck") {
-    // Remove selected cards from deck
     pool.forEach((selectedCard) => {
-      const index = player.deck.findIndex((c) => c.id === selectedCard.id);
+      const index = zoneOwner.deck.findIndex((c) => c.id === selectedCard.id);
       if (index !== -1) {
-        player.deck.splice(index, 1);
+        zoneOwner.deck.splice(index, 1);
       }
     });
   } else if (effect.removeFromSource && effect.source === "graveyard") {
@@ -1064,12 +1137,10 @@ export function findCardsInPool(
       }
     });
   } else if (effect.removeFromSource && effect.source === "hand") {
-    // Remove from whichever hand the pool was built from
-    const handOwner = G.players[handOwnerId];
     pool.forEach((selectedCard) => {
-      const index = handOwner.hand.findIndex((c) => c.id === selectedCard.id);
+      const index = zoneOwner.hand.findIndex((c) => c.id === selectedCard.id);
       if (index !== -1) {
-        handOwner.hand.splice(index, 1);
+        zoneOwner.hand.splice(index, 1);
       }
     });
   } else if (effect.source !== "global" && !effect.removeFromSource) {

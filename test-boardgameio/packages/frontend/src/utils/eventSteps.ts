@@ -37,6 +37,11 @@ const CHAIN_EVENTS: Record<GameEvent["type"], boolean> = {
   poisonous: true,
   immune: true,
   durability: true,
+  silence: true,
+  transform: true,
+  // Sylvanas resolves hers from a deathrattle, so it must open its own step
+  // rather than merge into the wave that killed her.
+  takeControl: true,
   // Not chain continuations — bookkeeping, turn structure, or the action itself:
   attack: false,
   battlecry: false,

@@ -26,7 +26,9 @@ export type MoveValidationError =
   | "summon-sickness"
   | "frozen"
   | "stealthed"
-  | "immune";
+  | "immune"
+  | "cant-attack"
+  | "elusive";
 
 export type MoveValidationResult =
   | { valid: true }
@@ -170,10 +172,22 @@ export function validateTargetQuery(
       ? G?.board[target?.player].find((c) => c.id === target?.id)
       : undefined;
 
+  // ELUSIVE ("Can't be targeted by spells or Hero Powers"). This is the one
+  // gate every *targeted* play funnels through — spells and battlecries via
+  // validateMove, hero powers via useHeroPower, and the UI's canTargetHighlight
+  // — so the check belongs here rather than in checkTargetRestrictions (which
+  // hero powers never call). Battlecries are minions and stay allowed, matching
+  // Hearthstone; untargeted AoE never reaches this function at all.
+  const isSpellOrHeroPower =
+    context.card?.isSpell === true || context.type === "heroPower";
+
   return query.type.some((type) => {
     switch (type) {
       case "card": {
         if (!targetCard) return false;
+        if (isSpellOrHeroPower && hasKeyword(targetCard, "elusive")) {
+          return false;
+        }
 
         if (query.side === "enemy" && isFriendly) return false;
         if (query.side === "friendly" && !isFriendly) return false;
@@ -352,6 +366,14 @@ export function validateMove(
     }
   }
 
+  // --- CAN'T ATTACK (Ancient Watcher) ---
+  // Only blocks declaring an attack. resolveBattlecry reuses this same
+  // function with location "board", so a pending battlecry is exempt —
+  // otherwise a cantAttack minion could never resolve its own Battlecry.
+  if (card.cantAttack && location === "board" && !G.activeBattlecryMinion) {
+    return { valid: false, error: "cant-attack" };
+  }
+
   // --- SUMMONING SICKNESS CHECK ---
   // Bypass summoning sickness if the minion has Charge OR Rush
   if (
@@ -508,6 +530,12 @@ export function canTargetHighlight(
     activeCard.attacksLeft == 0 &&
     !isBattlecryMinion
   ) {
+    return false;
+  }
+
+  // Mirrors the validateMove "cant-attack" rule so the UI never glows a
+  // target for a minion that can never attack. Battlecries stay exempt.
+  if (activeCard.isPlaced && activeCard.cantAttack && !isBattlecryMinion) {
     return false;
   }
 

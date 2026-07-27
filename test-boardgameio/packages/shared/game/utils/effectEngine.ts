@@ -2,8 +2,10 @@
 import {
   getCurrentHealth,
   getAttack,
+  getCurrentDurability,
   getManaCost,
   getMaxHealth,
+  getPlayerAttack,
   hasKeyword,
 } from "./index";
 import { MODIFIER_BOOL_KEYS } from "./helpers";
@@ -62,6 +64,34 @@ export function resolveDynamicValue(
       const p =
         val.player === "friendly" ? G.players[playerID] : G.players[enemyId];
       baseValue = val.type === "player-max-mana" ? p.maxMana : p.manaCap;
+      break;
+    }
+
+    case "player-attack": {
+      // Weapon and hero buffs included — getPlayerAttack is the same fold the
+      // hero's own attacks use, so Savagery matches what the hero would hit for.
+      const p =
+        val.player === "friendly" ? G.players[playerID] : G.players[enemyId];
+      baseValue = getPlayerAttack(p);
+      break;
+    }
+
+    case "hand-diff": {
+      // How many MORE cards the other side holds. Never negative, so
+      // "draw until you match" is a no-op when you're already ahead.
+      const mine =
+        val.player === "friendly" ? G.players[playerID] : G.players[enemyId];
+      const theirs =
+        val.player === "friendly" ? G.players[enemyId] : G.players[playerID];
+      baseValue = Math.max(0, theirs.hand.length - mine.hand.length);
+      break;
+    }
+
+    case "weapon-durability": {
+      // Charges left on the equipped weapon; 0 when unarmed.
+      const p =
+        val.player === "friendly" ? G.players[playerID] : G.players[enemyId];
+      baseValue = p.weapon ? getCurrentDurability(p.weapon) : 0;
       break;
     }
 

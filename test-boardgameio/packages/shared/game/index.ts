@@ -41,6 +41,7 @@ import {
   resolveSummonCandidates,
   returnCardToHand,
   discardCardsFromHand,
+  silenceCard,
   isUserSelectValue,
   getPlayerAttack,
   syncManagedModifiers,
@@ -1212,7 +1213,11 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
       case "draw": {
         const drawPlayerId =
           effect.target === "enemy" ? (playerID === "0" ? "1" : "0") : playerID;
-        for (let i = 0; i < resolveDynamicValue(effect.value, context); i++) {
+        // Resolve the count ONCE. Left in the loop condition it re-evaluated
+        // every iteration, so any value that shrinks as you draw (Divine
+        // Favor's hand difference) converged half way instead of drawing out.
+        const drawCount = resolveDynamicValue(effect.value, context);
+        for (let i = 0; i < drawCount; i++) {
           handleDrawCard(G, ctx, drawPlayerId, sourceEventIndex);
         }
         break;
@@ -1228,6 +1233,94 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
           }
         });
 
+        break;
+      }
+      case "silence": {
+        resolveTargets(effect, context).forEach((t) => {
+          if (t.type !== "card") return;
+          const targetCard = G.board[t.ownerId].find((c) => c.id === t.id);
+          if (targetCard && targetCard.isMinion) {
+            silenceCard(G, cardId, targetCard, t.ownerId);
+          }
+        });
+        break;
+      }
+      case "transform": {
+        resolveTargets(effect, context).forEach((t) => {
+          if (t.type !== "card") return;
+          const board = G.board[t.ownerId];
+          const index = board.findIndex((c) => c.id === t.id);
+          if (index === -1 || !board[index].isMinion) return;
+
+          // One independent roll per target when given a list (Tinkmaster).
+          const ids = Array.isArray(effect.cardID)
+            ? effect.cardID
+            : [effect.cardID];
+          const pickId = ids[Math.floor(Math.random() * ids.length)];
+          const replacement = createCardFromID(pickId as CardTemplateKey);
+          if (!replacement) {
+            console.warn(`Transform target template ${pickId} not found.`);
+            return;
+          }
+
+          // Same id as the card it replaces (stripCardModifiers precedent) so
+          // the UI keeps the slot instead of unmounting and re-animating it.
+          replacement.id = board[index].id;
+          replacement.isPlaced = true;
+          // A transformed minion can't attack the turn it changes.
+          replacement.summoningSickness = true;
+          replacement.attacksLeft = hasKeyword(replacement, "windfury") ? 2 : 1;
+          board[index] = replacement;
+
+          recordEvent(G, {
+            type: "transform",
+            cardId: replacement.id,
+            playerId: t.ownerId,
+            sourceId: cardId,
+            timestamp: Date.now(),
+            card: replacement,
+            eventRef: sourceEventIndex,
+            snapshot: JSON.parse(JSON.stringify(replacement)),
+          });
+        });
+        break;
+      }
+      case "takeControl": {
+        resolveTargets(effect, context).forEach((t) => {
+          if (t.type !== "card") return;
+          // Your own board is the destination — a full one means the steal
+          // simply doesn't happen (the minion stays put).
+          if (G.board[playerID].length >= 7) {
+            console.warn("Board full — cannot take control of another minion");
+            return;
+          }
+          const fromBoard = G.board[t.ownerId];
+          const index = fromBoard.findIndex((c) => c.id === t.id);
+          if (index === -1) return;
+          const [stolen] = fromBoard.splice(index, 1);
+          if (!stolen.isMinion) {
+            fromBoard.splice(index, 0, stolen);
+            return;
+          }
+
+          // Enters your side "freshly summoned": no attack on the turn it flips.
+          stolen.summoningSickness = true;
+          stolen.attacksLeft = 0;
+          G.board[playerID].push(stolen);
+
+          recordEvent(G, {
+            type: "takeControl",
+            cardId: stolen.id,
+            fromPlayerId: t.ownerId,
+            toPlayerId: playerID,
+            playerId: playerID,
+            sourceId: cardId,
+            timestamp: Date.now(),
+            card: stolen,
+            eventRef: sourceEventIndex,
+            snapshot: JSON.parse(JSON.stringify(stolen)),
+          });
+        });
         break;
       }
       case "durability": {

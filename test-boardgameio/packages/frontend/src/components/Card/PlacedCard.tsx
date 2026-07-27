@@ -143,7 +143,9 @@ const PlacedCard = ({
           <DivineShieldOverlay key={"divineShield"} />
         )}
         {hasKeyword(card, "frozen") && <FrozenOverlay key={"frozen"} />}
-        {hasKeyword(card, "immune") && <ImmuneOverlay key={"immune"} />}
+        {hasKeyword(card, "immune") && (
+          <ImmuneOverlay isMinion key={"immune"} />
+        )}
         {hasKeyword(card, "windfury") && <WindfuryOverlay key={"windfury"} />}
         {hasKeyword(card, "stealth") && (
           <>

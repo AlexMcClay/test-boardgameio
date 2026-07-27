@@ -1,12 +1,16 @@
 import { useEffect, useRef } from "react";
 import { motion } from "motion/react";
+import { twMerge } from "tailwind-merge";
 // import { useAudioStore } from "@/stores/audioStore";
 
-type Props = {};
+type Props = {
+  isMinion?: boolean;
+};
 
 const divineShield = "assets/DamageShield_Bubble2.webp";
+const immune_bubble = "assets/immune_bubble.png";
 
-const ImmuneOverlay = (_props: Props) => {
+const ImmuneOverlay = ({ isMinion }: Props) => {
   const isFirstRender = useRef(true);
   // const playSfx = useAudioStore((state) => state.playSfx);
 
@@ -36,11 +40,12 @@ const ImmuneOverlay = (_props: Props) => {
       className={"absolute inset-0  z-10"}
     >
       <img
-        src={divineShield}
+        src={isMinion ? immune_bubble : divineShield}
         alt="Immune Hero"
-        className={
-          " w-full h-full object-cover pointer-events-none scale-150 scale-x-165 brightness-125 "
-        }
+        className={twMerge(
+          " w-full h-full object-cover pointer-events-none scale-150 scale-x-165 brightness-125 ",
+          isMinion && "scale-x-140 scale-140 brightness-100",
+        )}
       />
     </motion.div>
   );

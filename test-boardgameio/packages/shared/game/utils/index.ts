@@ -94,7 +94,10 @@ export function hasToEndTurn(playedID: string, gameState: GameState): boolean {
   );
   const canAttack = gameState.board[playedID].some(
     (card) =>
-      !card.summoningSickness && !card.attacksLeft && !hasKeyword(card, "frozen"),
+      !card.summoningSickness &&
+      !card.attacksLeft &&
+      !card.cantAttack &&
+      !hasKeyword(card, "frozen"),
   );
   const canHeroAttack =
     player.attacksLeft > 0 &&
@@ -153,6 +156,7 @@ const KEYWORD_LABELS: Record<ModifierBoolKey, string> = {
   frozen: "Frozen",
   poisonous: "Poisonous",
   immune: "Immune",
+  elusive: "Elusive",
 };
 
 /**
