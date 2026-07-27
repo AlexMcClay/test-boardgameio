@@ -8,6 +8,8 @@ import FrozenOverlay from "./Overlays/FrozenOverlay";
 import DivineShieldOverlay from "./Overlays/DivineShieldOverlay";
 import ImmuneOverlay from "./Overlays/ImmuneOverlay";
 import SpellDamageOverlay from "./Overlays/SpellDamageOverlay";
+import WindfuryOverlay from "./Overlays/WindfuryOverlay";
+import StealthOverlay from "./Overlays/StealthOverlay";
 import {
   getAttack,
   getCurrentHealth,
@@ -142,6 +144,21 @@ const PlacedCard = ({
         )}
         {hasKeyword(card, "frozen") && <FrozenOverlay key={"frozen"} />}
         {hasKeyword(card, "immune") && <ImmuneOverlay key={"immune"} />}
+        {hasKeyword(card, "windfury") && <WindfuryOverlay key={"windfury"} />}
+        {hasKeyword(card, "stealth") && (
+          <>
+            <motion.div
+              key="enrage"
+              className="absolute   rounded-[50%/50%] inset-0 pointer-events-none mix-blend-multiply opacity-100  z-[10]
+              h-[87%] w-[82%] left-[10%] top-[2%]
+              "
+              style={{
+                boxShadow: "inset 0px 0px 3vw 0.5vw rgba(0, 0, 0, 0)",
+              }}
+            />
+            <StealthOverlay key={"stealth"} />
+          </>
+        )}
         {hasKeyword(card, "poisonous") && (
           <img
             src={skullIcon}

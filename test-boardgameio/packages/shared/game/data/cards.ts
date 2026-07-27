@@ -135,7 +135,10 @@ const destroyManaCrystal = (
  */
 export const durability = (
   value: number | DynamicValue,
-  target: "friendly-weapon" | "enemy-weapon" | "user-select" = "friendly-weapon",
+  target:
+    | "friendly-weapon"
+    | "enemy-weapon"
+    | "user-select" = "friendly-weapon",
 ): EffectTypes => {
   return { type: "durability", value, target };
 };
@@ -2728,7 +2731,7 @@ export const cardTemplates = {
       "Shared_Arcane_Start_1.ogg",
       {
         soundId: sfxShortener("Mage_ArcaneMissiles_Impact_1.ogg"),
-        delay: 200,
+        delay: 500,
       },
     ]),
   },
