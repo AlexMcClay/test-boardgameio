@@ -18,6 +18,13 @@ export const MINION_SUMMONED_ANIMATION: AnimationData = {
   duration: 600,
 };
 
+export const TRIGGER_ANIMATION: AnimationData & { stagger: number } = {
+  duration: 500,
+  // Offset between trigger firings that land in the SAME replay step, so two
+  // minions reacting to one event read as a sequence instead of a single flash.
+  stagger: 220,
+};
+
 // Mulligan completion: the overlay shows the replaced cards for this long...
 export const MULLIGAN_REVEAL_ANIMATION: AnimationData = {
   duration: 2000,

@@ -39,6 +39,9 @@ const CHAIN_EVENTS: Record<GameEvent["type"], boolean> = {
   durability: true,
   silence: true,
   transform: true,
+  // Each "whenever…" firing opens its own replay step, so the source minion
+  // reads as reacting rather than merging into whatever caused it.
+  trigger: true,
   // Sylvanas resolves hers from a deathrattle, so it must open its own step
   // rather than merge into the wave that killed her.
   takeControl: true,

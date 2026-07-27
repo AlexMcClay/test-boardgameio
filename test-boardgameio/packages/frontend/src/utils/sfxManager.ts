@@ -60,6 +60,14 @@ export const SFX_MANIFEST = {
     path: "/gameplay/hero_power_icon_flip_off.ogg",
     preload: true,
   },
+  trigger: {
+    path: "/gameplay/Trigger_Effect_Cast_03.ogg",
+    preload: true,
+  },
+  "secret-revealed": {
+    path: "/gameplay/FX_Secret_Trigger.ogg",
+    preload: true,
+  },
 
   // Basic minion
   "minion-attack": {

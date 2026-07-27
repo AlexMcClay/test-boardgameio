@@ -10,7 +10,17 @@ import type {
   EffectContext,
   GameCtx,
   PlayerID,
+  TriggerData,
+  TriggerDef,
+  TriggerSubject,
+  TriggerWindow,
 } from "./types";
+import {
+  isInPlay,
+  isInterceptionWindow,
+  listTriggerOwners,
+  triggerMatches,
+} from "./utils/triggers.js";
 import {
   createCardFromID,
   consumeKeyword,
@@ -42,6 +52,7 @@ import {
   returnCardToHand,
   discardCardsFromHand,
   silenceCard,
+  setTriggerDispatcher,
   isUserSelectValue,
   getPlayerAttack,
   syncManagedModifiers,
@@ -172,6 +183,7 @@ export const setupGame = (setupData: GameSetupData): GameState => {
     gameEvents: [],
     eventHistory: [],
     activeBattlecryMinion: null,
+    pendingTriggers: [],
     graveyard: [],
     discardedCards: [],
   };
@@ -311,6 +323,13 @@ export const placeCard = (
     } else {
       G.board[ctx.currentPlayer].push(card);
     }
+
+    // SUMMON window — only when nothing is still pending. A battlecry resolves
+    // BEFORE play-reactions (modern Hearthstone order), so a minion with one
+    // opens its window from resolveBattlecry / resolvePendingAutoBattlecry.
+    if (!G.activeBattlecryMinion && !G.pendingAutoBattlecry) {
+      fireMinionSummoned(G, ctx, card, ctx.currentPlayer, true, sourceEventIndex);
+    }
   }
 
   if (card.isWeapon && !card.isPlaced) {
@@ -343,7 +362,25 @@ export const placeCard = (
       originalOwner: ctx.currentPlayer,
       diedOnTurn: ctx.turn,
     });
+
+    // SPELL_CAST fires AFTER the spell resolves, so Wild Pyromancer's ping
+    // lands on the board the spell left behind.
+    fireTriggers(G, ctx, {
+      window: "SPELL_CAST",
+      actingPlayer: ctx.currentPlayer,
+      subject: { kind: "card", id: card.id, ownerId: ctx.currentPlayer },
+      sourceEventIndex,
+    });
   }
+
+  // CARD_PLAYED covers every card type (Questing Adventurer). Queued, so with
+  // a pending battlecry it still resolves after that battlecry.
+  fireTriggers(G, ctx, {
+    window: "CARD_PLAYED",
+    actingPlayer: ctx.currentPlayer,
+    subject: { kind: "card", id: card.id, ownerId: ctx.currentPlayer },
+    sourceEventIndex,
+  });
 
   // Deaths are no longer resolved inside the move: the host resolves them
   // (engine.applyMove drains waves synchronously; the gameMachine steps
@@ -351,6 +388,27 @@ export const placeCard = (
   // so death events recorded later still reference this move.
   G.pendingSourceEventIndex = sourceEventIndex;
 };
+
+/**
+ * Opens the SUMMON window for a minion that just entered play. `fromHand`
+ * separates ON_SUMMON (any arrival) from ON_MINION_PLAYED (hand only).
+ */
+function fireMinionSummoned(
+  G: GameState,
+  ctx: Ctx,
+  card: Card,
+  ownerId: PlayerID,
+  fromHand: boolean,
+  sourceEventIndex?: number,
+) {
+  fireTriggers(G, ctx, {
+    window: "SUMMON",
+    actingPlayer: ownerId,
+    subject: { kind: "card", id: card.id, ownerId },
+    data: { playedFromHand: fromHand },
+    sourceEventIndex,
+  });
+}
 
 export const minionAttack = (
   G: GameState,
@@ -389,6 +447,21 @@ export const minionAttack = (
     sourceId: attackerId,
     timestamp: Date.now(),
     card: attacker,
+  });
+
+  // INTERCEPTION WINDOW: the attack is declared but no damage has been dealt.
+  // Effects here run inline so the combat math below sees them — that's what
+  // makes "when your hero is attacked, gain 8 Armor" absorb this very hit.
+  // The subject is the ATTACKER, so a def can condition on who is swinging.
+  fireTriggers(G, ctx, {
+    window: "ATTACK_DECLARED",
+    actingPlayer: ctx.currentPlayer,
+    subject: {
+      kind: "card",
+      id: attacker.id,
+      ownerId: ctx.currentPlayer,
+    },
+    sourceEventIndex,
   });
 
   const context: EffectContext = {
@@ -482,6 +555,11 @@ export const resolveBattlecry = (
 
   // Clear battlecry state
   G.activeBattlecryMinion = null;
+
+  // The battlecry has resolved, so the minion's arrival is now "complete" —
+  // open the SUMMON window that placeCard deferred.
+  fireMinionSummoned(G, ctx, card, ctx.currentPlayer, true, sourceEventIndex);
+
   // Deaths are no longer resolved inside the move: the host resolves them
   // (engine.applyMove drains waves synchronously; the gameMachine steps
   // through resolvingDeaths wave-by-wave). Stash the top-level event index
@@ -614,7 +692,6 @@ export const heroAttack = (G: GameState, ctx: GameCtx, target: TargetValue) => {
     return;
   }
 
-  const attackValue = getPlayerAttack(attacker);
   const sourceId = `hero-${attackerId}`;
 
   G.lastMove = {
@@ -641,12 +718,24 @@ export const heroAttack = (G: GameState, ctx: GameCtx, target: TargetValue) => {
     card: undefined,
   });
 
+  // INTERCEPTION WINDOW — see minionAttack. The hero is the attacker, so the
+  // subject is the player rather than a card.
+  fireTriggers(G, ctx, {
+    window: "ATTACK_DECLARED",
+    actingPlayer: attackerId,
+    subject: { kind: "player", id: attackerId, ownerId: attackerId },
+    sourceEventIndex,
+  });
+
+  // Re-read attack: an interception may have buffed or disarmed the hero.
+  const attackValueAfterTriggers = getPlayerAttack(attacker);
+
   if (target.type === "player") {
     dealDamageToPlayer(
       G,
       sourceId,
       target.player,
-      attackValue,
+      attackValueAfterTriggers,
       sourceEventIndex,
     );
   } else {
@@ -658,7 +747,7 @@ export const heroAttack = (G: GameState, ctx: GameCtx, target: TargetValue) => {
       sourceId,
       defenderCard,
       target.player,
-      attackValue,
+      attackValueAfterTriggers,
       sourceEventIndex,
       // The weapon is the source, so a Poisonous weapon kills what it hits.
       attacker.weapon ?? undefined,
@@ -1180,6 +1269,16 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
               eventRef: sourceEventIndex,
             });
             G.board[playerTarget].push(summonedCard);
+            // Not from hand: Knife Juggler pings for tokens too, but
+            // ON_MINION_PLAYED effects (secrets) must not fire.
+            fireMinionSummoned(
+              G,
+              ctx,
+              summonedCard,
+              playerTarget,
+              false,
+              sourceEventIndex,
+            );
           } else {
             console.warn(`Card with ID ${pickId} not found.`);
           }
@@ -1653,6 +1752,214 @@ function equipWeapon(
   }
 }
 
+// ---------------------------------------------------------------------------
+// TRIGGERS ("whenever X happens, do Y")
+//
+// The engine opens a WINDOW at fixed points inside its actions and every card
+// in play gets a chance to react. Two classes, and the split is the whole
+// design (see types.d.ts for the long version):
+//
+//   INTERCEPTION (ATTACK_DECLARED) runs matched effects INLINE, because the
+//   rest of the action reads the result — "when your hero is attacked, gain 8
+//   Armor" has to add the armor before combat damage is computed.
+//
+//   REACTION (everything else) QUEUES matches onto G.pendingTriggers. The host
+//   drains them one at a time, so each firing is its own state update. This is
+//   also more faithful: an AoE deals all its damage, THEN each "whenever
+//   damaged" minion reacts, one visible step each.
+// ---------------------------------------------------------------------------
+
+/**
+ * Ceiling on trigger firings within a single player action. Two minions that
+ * trigger each other (Wild Pyromancer chains, a damage trigger that deals
+ * damage) would otherwise loop forever and hang the host.
+ */
+const MAX_TRIGGER_FIRES_PER_ACTION = 100;
+
+/** True once a chain has run away; logged once, then everything stops firing. */
+function triggerBudgetExhausted(G: GameState): boolean {
+  const fires = G.triggerFires ?? 0;
+  if (fires < MAX_TRIGGER_FIRES_PER_ACTION) return false;
+  if (fires === MAX_TRIGGER_FIRES_PER_ACTION) {
+    G.triggerFires = fires + 1; // record the warning exactly once
+    recordEvent(G, {
+      type: "debug",
+      playerId: "0",
+      timestamp: Date.now(),
+      details: `Trigger chain exceeded ${MAX_TRIGGER_FIRES_PER_ACTION} firings — halted`,
+    });
+  }
+  return true;
+}
+
+/** Runs one trigger's effects, recording the trigger event that owns them. */
+function executeTrigger(
+  G: GameState,
+  ctx: Ctx,
+  owner: Card,
+  ownerId: PlayerID,
+  def: TriggerDef,
+  subject?: TriggerSubject,
+  data?: TriggerData,
+  sourceEventIndex?: number,
+) {
+  G.triggerFires = (G.triggerFires ?? 0) + 1;
+
+  // Recorded BEFORE the effects so everything they produce chains back to it:
+  // the client reads "this minion lit up, then these things happened".
+  const triggerEventIndex = G.eventHistory.length;
+  recordEvent(G, {
+    type: "trigger",
+    cardId: owner.id,
+    playerId: ownerId,
+    name: def.name ?? owner.title,
+    triggerType: def.on,
+    timestamp: Date.now(),
+    subjectId: subject?.id,
+    subjectType: subject?.kind,
+    eventRef: sourceEventIndex,
+    snapshot: JSON.parse(JSON.stringify(owner)),
+  });
+
+  // The subject rides in as context.target, so `target: "user-select"` inside
+  // a trigger's effects means "the thing that triggered me" (Warsong Commander
+  // giving Charge to the minion that was just summoned).
+  const target: TargetValue | undefined = subject
+    ? {
+        type: subject.kind === "player" ? "player" : "card",
+        id: subject.id,
+        player: subject.ownerId,
+      }
+    : undefined;
+
+  executeEffects(def.effects, {
+    card: owner,
+    G,
+    ctx,
+    location: "board",
+    playerID: ownerId,
+    target,
+    type: "minion",
+    sourceEventIndex: triggerEventIndex,
+    // Event facts, reachable from effects via the existing DynamicValues:
+    // {type:"damage-dealt"} and {type:"temp"} (Eye for an Eye reflects damage).
+    lastDamageDealt: data?.amount,
+    temp: data?.amount ?? data?.overheal,
+  });
+}
+
+/**
+ * Opens a trigger window: finds every card in play that reacts to it, then
+ * either runs it now (interception) or queues it (reaction).
+ *
+ * Registered as helpers.ts's dispatcher at module load, so damage/heal windows
+ * can be opened from inside dealDamageToCard and friends.
+ */
+export function fireTriggers(G: GameState, ctx: Ctx, window: TriggerWindow) {
+  if (triggerBudgetExhausted(G)) return;
+
+  const inline = isInterceptionWindow(window.window);
+  // Snapshot the owner list: an interception's effects can change the board,
+  // and a card that arrives mid-window shouldn't react to it.
+  const owners = listTriggerOwners(G, window.actingPlayer);
+
+  for (const { card: owner, ownerId } of owners) {
+    if (!owner.triggers?.length) continue;
+
+    owner.triggers.forEach((def, triggerIndex) => {
+      if (!triggerMatches(def, owner, ownerId, window, G, ctx)) return;
+      // Rolled at match time so a queued reaction's odds are locked in when
+      // the event happened, not when it eventually resolves.
+      if (def.chance !== undefined && Math.random() >= def.chance) return;
+
+      if (inline) {
+        if (triggerBudgetExhausted(G)) return;
+        executeTrigger(
+          G,
+          ctx,
+          owner,
+          ownerId,
+          def,
+          window.subject,
+          window.data,
+          window.sourceEventIndex,
+        );
+      } else {
+        (G.pendingTriggers ??= []).push({
+          cardId: owner.id,
+          ownerId,
+          triggerIndex,
+          subject: window.subject,
+          data: window.data,
+          sourceEventIndex: window.sourceEventIndex,
+        });
+      }
+    });
+  }
+
+  if (inline) refreshOngoing(G, ctx);
+}
+
+// Damage and healing live in utils/helpers.ts, which can't import
+// executeEffects from here without a cycle — so it takes the dispatcher by
+// injection instead. Registered once, at module load.
+setTriggerDispatcher(fireTriggers);
+
+/** True while queued reactions are waiting to resolve. */
+export function hasPendingTriggers(G: GameState): boolean {
+  return !!G.pendingTriggers?.length;
+}
+
+/**
+ * Resolves exactly ONE queued reaction — the unit the machine turns into a
+ * single state update. Fizzles silently when the owner has left play or been
+ * silenced since the window opened, which is the Hearthstone rule.
+ */
+export function resolveNextTrigger(G: GameState, ctx: Ctx) {
+  const pending = G.pendingTriggers?.shift();
+  if (!pending) return;
+  if (triggerBudgetExhausted(G)) return;
+
+  const owner = isInPlay(G, pending.cardId, pending.ownerId)
+    ? (G.board[pending.ownerId].find((c) => c.id === pending.cardId) ??
+      G.players[pending.ownerId].weapon ??
+      undefined)
+    : undefined;
+  if (!owner) return; // left play before it could react
+
+  const def = owner.triggers?.[pending.triggerIndex];
+  if (!def) return; // silenced since the window opened
+
+  executeTrigger(
+    G,
+    ctx,
+    owner,
+    pending.ownerId,
+    def,
+    pending.subject,
+    pending.data,
+    pending.sourceEventIndex,
+  );
+
+  refreshOngoing(G, ctx);
+}
+
+/**
+ * Drains every queued reaction synchronously, sweeping deaths between them.
+ * Used by the engine's settle path (MCTS, headless hosts); the gameMachine
+ * instead steps one trigger per macrostep via resolveNextTrigger.
+ */
+export function processTriggers(G: GameState, ctx: Ctx) {
+  while (hasPendingTriggers(G)) {
+    resolveNextTrigger(G, ctx);
+    processDeaths(G, ctx);
+    if (triggerBudgetExhausted(G)) {
+      G.pendingTriggers = [];
+      return;
+    }
+  }
+}
+
 /** True while a placed minion's automatic battlecry hasn't resolved yet. */
 export function hasPendingAutoBattlecry(G: GameState): boolean {
   return !!G.pendingAutoBattlecry;
@@ -1682,6 +1989,17 @@ export function resolvePendingAutoBattlecry(G: GameState, ctx: Ctx) {
     type: "minion",
     sourceEventIndex: pending.sourceEventIndex,
   });
+
+  // Arrival is complete now the battlecry has run — same deferral as the
+  // targeted path in resolveBattlecry.
+  fireMinionSummoned(
+    G,
+    ctx,
+    card,
+    pending.playerId,
+    true,
+    pending.sourceEventIndex,
+  );
 
   // Battlecries can summon/buff/damage — keep ongoing effects in sync on the
   // machine path (the engine settle path refreshes in applyMove).
@@ -1746,6 +2064,16 @@ export function resolveDeathWave(G: GameState, ctx: Ctx) {
           card: JSON.parse(JSON.stringify(deadCard)),
           originalOwner: playerId,
           diedOnTurn: ctx.turn,
+        });
+
+        // DEATH window, once per corpse. Queued, so the reactions (Cult
+        // Master's draws, Flesheating Ghoul's buffs) resolve after this whole
+        // wave is swept rather than mid-sweep.
+        fireTriggers(G, ctx, {
+          window: "DEATH",
+          actingPlayer: playerId,
+          subject: { kind: "card", id: deadCard.id, ownerId: playerId },
+          sourceEventIndex,
         });
       });
 
@@ -2248,6 +2576,19 @@ export function beginTurn(G: GameState, ctx: GameCtx) {
   // Reset hero power usage
   p.heroPowerUsedThisTurn = false;
 
+  recordEvent(G, {
+    type: "beginTurn",
+    playerId: ctx.currentPlayer,
+    timestamp: Date.now(),
+  });
+
+  // START_TURN window opens BEFORE the draw, matching Hearthstone — Doomsayer
+  // wipes the board and Nat Pagle rolls before you see your card.
+  fireTriggers(G, ctx, {
+    window: "TURN_START",
+    actingPlayer: ctx.currentPlayer,
+  });
+
   // Draw at the start of every turn — including each player's first
   // (Hearthstone standard; mulligan hands are 3/4+Coin) — unless full.
   {
@@ -2269,12 +2610,6 @@ export function beginTurn(G: GameState, ctx: GameCtx) {
   refreshOngoing(G, ctx);
   // Deaths caused by expiring buffs stay pending; the host resolves them
   // (machine waves / engine drain) right after the turn transition.
-
-  recordEvent(G, {
-    type: "beginTurn",
-    playerId: ctx.currentPlayer,
-    timestamp: Date.now(),
-  });
 }
 
 /**
@@ -2285,6 +2620,20 @@ export function endTurnCleanup(G: GameState, ctx: GameCtx) {
   // Clear last move metadata at the end of the turn
   G.gameEvents = [];
   G.activeBattlecryMinion = null;
+  G.triggerFires = 0;
+
+  recordEvent(G, {
+    type: "endTurn",
+    playerId: ctx.currentPlayer,
+    timestamp: Date.now(),
+  });
+
+  // END_TURN window opens FIRST, while this turn's temporary buffs are still
+  // attached — a buffed Ragnaros hits for the buffed amount.
+  fireTriggers(G, ctx, {
+    window: "TURN_END",
+    actingPlayer: ctx.currentPlayer,
+  });
 
   // Temporary crystals don't survive the turn that made them.
   G.players[ctx.currentPlayer].tempMana = 0;
@@ -2314,12 +2663,6 @@ export function endTurnCleanup(G: GameState, ctx: GameCtx) {
   refreshOngoing(G, ctx);
   // Deaths caused by expiring buffs stay pending; the host resolves them
   // (machine waves / engine drain) right after the turn transition.
-
-  recordEvent(G, {
-    type: "endTurn",
-    playerId: ctx.currentPlayer,
-    timestamp: Date.now(),
-  });
 }
 
 // Export everything from data

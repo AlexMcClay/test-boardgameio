@@ -89,6 +89,14 @@ export type MulliganEndAnimation = {
   startTime: number;
 };
 
+export type TriggerAnimation = {
+  type: "trigger";
+  duration: number;
+  startTime: number;
+  minionID: string;
+  sfx?: SFXInstance[];
+};
+
 export type AnimationEvent =
   | AttackAnimation
   | DeathAnimation
@@ -98,7 +106,8 @@ export type AnimationEvent =
   | MinionPlacedAnimation
   | SpellCastAnimation
   | SummonAnimation
-  | MulliganEndAnimation;
+  | MulliganEndAnimation
+  | TriggerAnimation;
 
 // Queue item that pairs animations with their game state and context
 export type AnimationQueueItem = {

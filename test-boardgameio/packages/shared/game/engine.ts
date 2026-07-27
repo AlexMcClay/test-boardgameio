@@ -22,7 +22,10 @@ import {
   setupGame,
   checkVictory,
   processDeaths,
+  hasPendingDeaths,
   hasPendingAutoBattlecry,
+  hasPendingTriggers,
+  processTriggers,
   resolvePendingAutoBattlecry,
   refreshOngoing,
   type GameSetupData,
@@ -107,13 +110,36 @@ export function createInitialState(setupData: GameSetupData): EngineState {
   return { G, ctx };
 }
 
-/** Ends the current player's turn and starts the opponent's. */
+/**
+ * Ends the current player's turn and starts the opponent's, in one step.
+ * Kept for callers that want the whole transition atomically; the endTurn MOVE
+ * instead splits it (endTurnCleanup now, finishTurnAdvance once end-of-turn
+ * triggers and their deaths have resolved).
+ */
 export function advanceTurn(state: EngineState) {
   const { G, ctx } = state;
   endTurnCleanup(G, ctx);
+  finishTurnAdvance(state);
+}
+
+/**
+ * The second half of a turn transition: hand the turn over and run start-of-
+ * turn effects. Split out so end-of-turn TRIGGERS (Baron Geddon's damage, and
+ * any deaths it causes) fully resolve while it is still that player's turn —
+ * resolving them after the flip would attribute them to the wrong player and
+ * fire START_TURN triggers out of order.
+ */
+export function finishTurnAdvance(state: EngineState) {
+  const { G, ctx } = state;
+  G.pendingTurnAdvance = false;
   ctx.currentPlayer = ctx.currentPlayer === "0" ? "1" : "0";
   ctx.turn += 1;
   beginTurn(G, ctx);
+}
+
+/** True once endTurn has run but the turn hasn't handed over yet. */
+export function isTurnAdvancePending(G: GameState): boolean {
+  return !!G.pendingTurnAdvance;
 }
 
 /**
@@ -138,6 +164,12 @@ export function applyMove(
     return { ok: false, error: "game-over" };
   }
 
+  // The runaway-trigger budget is PER ACTION. Reset it here, at the single
+  // entry point every move funnels through — left to accumulate across a turn,
+  // a busy board (Knife Juggler, Questing Adventurer, Wild Pyromancer) would
+  // quietly hit the cap and stop triggering anything for the rest of the turn.
+  G.triggerFires = 0;
+
   // The mulligan is a simultaneous phase: either seat may confirm regardless
   // of ctx.currentPlayer, and nothing else is legal until it's over.
   if (move === "mulliganConfirm") {
@@ -154,9 +186,11 @@ export function applyMove(
       return { ok: false, error: "invalid-mulligan" };
     }
     // A completed mulligan runs beginTurn, which can leave pending deaths
-    // (e.g. expiring modifiers) — fall through to the settle path below.
+    // (e.g. expiring modifiers) and queue START_TURN triggers.
     refreshOngoing(G, ctx);
     if (settle) {
+      processDeaths(G, ctx);
+      processTriggers(G, ctx);
       processDeaths(G, ctx);
     }
     finalizeVictory(state);
@@ -200,7 +234,11 @@ export function applyMove(
       break;
     case "endTurn":
       endTurn(G, ctx);
-      advanceTurn(state);
+      // Ends the turn but does NOT hand it over: end-of-turn triggers queued
+      // by endTurnCleanup must resolve first. finishTurnAdvance runs from the
+      // settle loop below, or from the machine's advancingTurn state.
+      endTurnCleanup(G, ctx);
+      G.pendingTurnAdvance = true;
       break;
     default:
       return { ok: false, error: `unknown-move:${String(move)}` };
@@ -212,11 +250,31 @@ export function applyMove(
   refreshOngoing(G, ctx);
 
   if (settle) {
-    // Same order the machine steps through: battlecry → death waves
-    if (hasPendingAutoBattlecry(G)) {
-      resolvePendingAutoBattlecry(G, ctx);
+    // Drive the whole resolution to quiescence, in the same priority order the
+    // machine steps through: auto-battlecry → deaths → triggers → turn hand-off.
+    // Looped because each stage can feed the others (a trigger kills a minion,
+    // whose deathrattle queues another trigger).
+    for (;;) {
+      if (hasPendingAutoBattlecry(G)) {
+        resolvePendingAutoBattlecry(G, ctx);
+        continue;
+      }
+      if (hasPendingDeaths(G)) {
+        processDeaths(G, ctx);
+        continue;
+      }
+      // A pending targeted battlecry is waiting on the PLAYER, so reactions
+      // hold until they've aimed it (or cancelled).
+      if (hasPendingTriggers(G) && !G.activeBattlecryMinion) {
+        processTriggers(G, ctx);
+        continue;
+      }
+      if (G.pendingTurnAdvance && !G.activeBattlecryMinion) {
+        finishTurnAdvance(state);
+        continue;
+      }
+      break;
     }
-    processDeaths(G, ctx);
   }
 
   finalizeVictory(state);
