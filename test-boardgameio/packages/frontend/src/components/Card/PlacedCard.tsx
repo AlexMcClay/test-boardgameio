@@ -161,15 +161,7 @@ const PlacedCard = ({
             <StealthOverlay key={"stealth"} />
           </>
         )}
-        {hasKeyword(card, "poisonous") && (
-          <img
-            src={skullIcon}
-            alt="DeathRattle"
-            className=" object-contain h-[2.7vw] absolute  bottom-[-0.7vw]"
-            // no drag
-            draggable="false"
-          />
-        )}
+
         {getSpellDamageSource(card) > 0 && (
           <SpellDamageOverlay key={"spellDamage"} />
         )}
@@ -298,7 +290,7 @@ const PlacedCard = ({
           )}
         </>
       )}
-      {card.deathrattle && (
+      {card.deathrattle && card.deathrattle.length && (
         <img
           src={skullIcon}
           alt="DeathRattle"
