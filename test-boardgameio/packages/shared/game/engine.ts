@@ -164,6 +164,12 @@ export function applyMove(
     return { ok: false, error: "game-over" };
   }
 
+  // The runaway-trigger budget is PER ACTION. Reset it here, at the single
+  // entry point every move funnels through — left to accumulate across a turn,
+  // a busy board (Knife Juggler, Questing Adventurer, Wild Pyromancer) would
+  // quietly hit the cap and stop triggering anything for the rest of the turn.
+  G.triggerFires = 0;
+
   // The mulligan is a simultaneous phase: either seat may confirm regardless
   // of ctx.currentPlayer, and nothing else is legal until it's over.
   if (move === "mulliganConfirm") {

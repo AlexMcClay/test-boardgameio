@@ -195,6 +195,21 @@ export const gameMachine = setup({
     hasPendingTriggers: ({ context }) =>
       hasPendingTriggers(context.G) && !context.G.activeBattlecryMinion,
     noPendingTriggersLeft: ({ context }) => !hasPendingTriggers(context.G),
+    // INVARIANT: a resolution state may only leave via `always` once its OWN
+    // work is finished. These two exits are entered from resolvingDeaths /
+    // resolvingBattlecry, so they each re-assert that state's own condition —
+    // a bare hasPendingTriggers there let the state abandon its queue, and
+    // resolvingTriggers routed straight back on hasPendingDeaths, producing an
+    // infinite always-loop that exhausted the heap.
+    deathsClearTriggersPending: ({ context }) =>
+      !hasPendingDeaths(context.G) &&
+      hasPendingTriggers(context.G) &&
+      !context.G.activeBattlecryMinion,
+    autoBattlecryDoneTriggersPending: ({ context }) =>
+      !hasPendingAutoBattlecry(context.G) &&
+      !hasPendingDeaths(context.G) &&
+      hasPendingTriggers(context.G) &&
+      !context.G.activeBattlecryMinion,
     // The turn only hands over once everything this turn queued has resolved.
     readyToAdvanceTurn: ({ context }) =>
       !!context.G.pendingTurnAdvance &&
@@ -281,7 +296,12 @@ export const gameMachine = setup({
               target: "resolvingDeaths",
               guard: "autoBattlecryDoneDeathsPending",
             },
-            { target: "resolvingTriggers", guard: "hasPendingTriggers" },
+            // Same rule: only once the battlecry itself has resolved, or the
+            // minion's own Battlecry gets skipped in favour of reactions to it.
+            {
+              target: "resolvingTriggers",
+              guard: "autoBattlecryDoneTriggersPending",
+            },
             { target: "idle", guard: "autoBattlecryDoneClear" },
           ],
           after: {
@@ -307,8 +327,10 @@ export const gameMachine = setup({
               guard: "deathsClearBattlecryPending",
             },
             // Deathrattles queue reactions (Cult Master draws off a death);
-            // they resolve once the wave chain is fully swept.
-            { target: "resolvingTriggers", guard: "hasPendingTriggers" },
+            // they resolve once the wave chain is FULLY swept — the guard has
+            // to re-assert that, or this state hands control to
+            // resolvingTriggers mid-sweep and gets thrown straight back.
+            { target: "resolvingTriggers", guard: "deathsClearTriggersPending" },
             { target: "advancingTurn", guard: "readyToAdvanceTurn" },
             { target: "idle", guard: "deathsClearNoBattlecry" },
           ],
