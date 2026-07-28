@@ -47,8 +47,11 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
     !hasKeyword(card, "charge") &&
     !hasKeyword(card, "rush");
   const disabled =
-    (card.attacksLeft == 0 || isSicknessActive || hasKeyword(card, "frozen")) &&
-    !gameState?.activeBattlecryMinion;
+    ((card.attacksLeft == 0 ||
+      isSicknessActive ||
+      hasKeyword(card, "frozen")) &&
+      !gameState?.activeBattlecryMinion) ||
+    card.cantAttack;
   const isBattlecryMinion =
     gameState?.activeBattlecryMinion?.cardId === card.id;
   const prevIsBattlecryRef = useRef(isBattlecryMinion);

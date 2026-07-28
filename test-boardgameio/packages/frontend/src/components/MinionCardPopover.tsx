@@ -23,6 +23,18 @@ const MinionCardPopover = ({
 
   const modifiers = card.modifiers ?? [];
 
+  // Stackable modifiers sharing a name collapse into a single entry with a count
+  const groupedModifiers = modifiers.reduce<
+    { mod: (typeof modifiers)[number]; count: number }[]
+  >((acc, mod) => {
+    const existing = mod.stackable
+      ? acc.find((entry) => entry.mod.stackable && entry.mod.name === mod.name)
+      : undefined;
+    if (existing) existing.count += 1;
+    else acc.push({ mod, count: 1 });
+    return acc;
+  }, []);
+
   return createPortal(
     <motion.div
       key={"minion-card-overlay"}
@@ -43,7 +55,7 @@ const MinionCardPopover = ({
         {/* Enchantment list: one entry per grouped modifier on the card */}
         {modifiers.length > 0 && (
           <div className="flex max-w-[16vw] flex-col gap-[0.4vw]">
-            {modifiers.map((mod) => (
+            {groupedModifiers.map(({ mod, count }) => (
               <div
                 key={mod.id}
                 className="flex items-center gap-[0.5vw] rounded-md border border-yellow-600/60 bg-stone-900/90 px-[0.6vw] py-[0.35vw] shadow-lg"
@@ -61,9 +73,9 @@ const MinionCardPopover = ({
                     <span className="truncate text-[0.85vw] font-bold text-yellow-200">
                       {mod.name}
                     </span>
-                    {mod.stackable && (
+                    {count > 1 && (
                       <span className="rounded bg-yellow-700/80 px-[0.3vw] text-[0.6vw] font-semibold text-yellow-100">
-                        stacks
+                        x{count}
                       </span>
                     )}
                   </div>

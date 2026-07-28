@@ -5,6 +5,12 @@ import HandCard from "./Card/HandCard";
 import type { GameState, Player } from "@project/shared";
 import { AnimatePresence } from "motion/react";
 import { useAudioStore } from "@/stores/audioStore";
+import CountPopover from "./Board/CountPopover";
+import {
+  COUNT_POPOVER_HEIGHT,
+  positionCentered,
+  useHoverPopover,
+} from "./Board/useHoverPopover";
 
 interface Props extends GameBoardProps {
   isTop?: boolean; // true for player 1, false or undefined for player 0
@@ -26,7 +32,20 @@ const PlayerHand = ({ isTop, ctx, player, playerID, actualG }: Props) => {
   } | null>(null);
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const handRef = useRef<HTMLDivElement>(null);
   const playSfx = useAudioStore((state) => state.playSfx);
+
+  // Hand-count popover, top player only. The bottom player's count is reached
+  // by hovering their deck (see BoardCardDeckBottom).
+  const {
+    popover: handCountPopover,
+    onMouseEnter: onHandMouseEnter,
+    onMouseLeave: onHandMouseLeave,
+  } = useHoverPopover(() => {
+    const rect = handRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    return positionCentered(rect, COUNT_POPOVER_HEIGHT, "below");
+  });
 
   const isFirstRender = useRef(true);
 
@@ -124,6 +143,11 @@ const PlayerHand = ({ isTop, ctx, player, playerID, actualG }: Props) => {
 
   return (
     <div
+      ref={handRef}
+      data-player-hand={isTop ? "top" : "bottom"}
+      data-hand-count={player.hand.length}
+      onMouseEnter={isTop ? onHandMouseEnter : undefined}
+      onMouseLeave={isTop ? onHandMouseLeave : undefined}
       className={twMerge(
         "flex absolute self-center justify-center w-full z-50 ",
         !isTop && "translate-y-[44%] translate-x-[-1%]",
@@ -152,6 +176,18 @@ const PlayerHand = ({ isTop, ctx, player, playerID, actualG }: Props) => {
             />
           );
         })}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {handCountPopover && (
+          <CountPopover
+            title="Hand"
+            count={player.hand.length}
+            position={handCountPopover}
+            maxCount={10}
+            fullMessage="10 cards, your hand is full"
+          />
+        )}
       </AnimatePresence>
     </div>
   );

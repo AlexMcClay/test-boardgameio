@@ -205,7 +205,7 @@ export const placeCard = (
   const validation = validateMove(G, ctx, cardId, "hand", target);
 
   if (!validation.valid) {
-    console.warn(`Invalid move: ${validation.error}`);
+    console.warn(`Invalid move: ${validation.error}`, card.title);
     return;
   }
 
@@ -328,7 +328,14 @@ export const placeCard = (
     // BEFORE play-reactions (modern Hearthstone order), so a minion with one
     // opens its window from resolveBattlecry / resolvePendingAutoBattlecry.
     if (!G.activeBattlecryMinion && !G.pendingAutoBattlecry) {
-      fireMinionSummoned(G, ctx, card, ctx.currentPlayer, true, sourceEventIndex);
+      fireMinionSummoned(
+        G,
+        ctx,
+        card,
+        ctx.currentPlayer,
+        true,
+        sourceEventIndex,
+      );
     }
   }
 
@@ -422,7 +429,7 @@ export const minionAttack = (
   const validation = validateMove(G, ctx, attackerId, "board", target);
 
   if (!validation.valid) {
-    console.warn(`Invalid move: ${validation.error}`);
+    console.warn(`Invalid move: ${validation.error}`, attacker.title);
     return;
   }
 
