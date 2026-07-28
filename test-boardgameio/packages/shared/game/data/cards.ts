@@ -12902,3 +12902,14 @@ export type CardTemplateKey = keyof typeof cardTemplates;
 
 // 2. An actual type-safe Record mapping your exact keys to cards
 export type CardTemplateRecord = typeof cardTemplates;
+
+// 3. A single template, widened.
+//
+// `satisfies` above keeps each entry's literal type, which is what makes
+// CardTemplateKey exhaustive — but it also means optional fields like `rarity`
+// and `isWeapon` are missing from the union for any card that doesn't set them.
+// Read a template through this type when you need those fields.
+export type CardTemplate = Omit<
+  Card,
+  "id" | "originalID" | "damageTaken" | "attacksLeft"
+>;
