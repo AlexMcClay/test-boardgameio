@@ -13,10 +13,25 @@ import type {
   Card,
   DynamicValue,
   EffectContext,
+  GameState,
   ModifierBoolKey,
   TargetCondition,
   BaseEffectSelection,
 } from "../types";
+
+/**
+ * Cards played this turn, counted in ONE pass. Combo and cards-played-turn both
+ * need it, and the event history is append-only and unbounded — it is the
+ * longest list in the game state by mid-game, and this runs inside every MCTS
+ * simulation, so repeat scans are not free.
+ */
+function countCardsPlayedThisTurn(G: GameState, turn: number): number {
+  let count = 0;
+  for (const event of G.eventHistory) {
+    if (event.type === "cardPlayed" && event.turn === turn) count++;
+  }
+  return count;
+}
 
 export function resolveDynamicValue(
   val: number | DynamicValue,
@@ -54,9 +69,7 @@ export function resolveDynamicValue(
     }
 
     case "cards-played-turn":
-      baseValue = G.eventHistory.filter(
-        (e) => e.type === "cardPlayed" && e.turn === context.ctx.turn,
-      ).length;
+      baseValue = countCardsPlayedThisTurn(G, context.ctx.turn);
       break;
 
     case "player-max-mana":
@@ -156,21 +169,10 @@ export function resolveDynamicValue(
       baseValue = excessDamageDealt ?? 0;
       break;
 
-    case "combo-count": {
-      baseValue =
-        G.eventHistory.filter(
-          (e) => e.type === "cardPlayed" && e.turn === context.ctx.turn,
-        ).length - 1; // subtracting this card played
-      console.log(
-        G.eventHistory.filter(
-          (e) => e.type === "cardPlayed" && e.turn === context.ctx.turn,
-        ),
-        G.eventHistory.filter(
-          (e) => e.type === "cardPlayed" && e.turn === context.ctx.turn,
-        ).length,
-      );
+    case "combo-count":
+      // Minus one: the card doing the asking has already been recorded.
+      baseValue = countCardsPlayedThisTurn(G, context.ctx.turn) - 1;
       break;
-    }
 
     case "damage-dealt":
       baseValue = lastDamageDealt ?? 0;

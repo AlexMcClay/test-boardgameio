@@ -1500,6 +1500,52 @@ function evaluateEffect(effect: EffectTypes, context: EffectContext): number {
 }
 
 /**
+ * What one minion on the board is worth.
+ *
+ * Raw stats alone can't tell a 4/5 Taunt from a 4/5 vanilla, so every playout
+ * that traded into the wrong one looked equally good. Keywords are scored as a
+ * fraction of the body they're attached to, because that is how they actually
+ * behave: Divine Shield on a 1/1 is nearly worthless and on a 7/7 is a second
+ * minion, and Windfury doubles whatever attack it is given.
+ */
+function minionValue(card: Card): number {
+  const attack = getAttack(card) || 0;
+  const health = getCurrentHealth(card) || 0;
+  if (health <= 0) return 0;
+
+  let value = attack * 2 + health;
+
+  if (hasKeyword(card, "taunt")) value += 2 + health * 0.5;
+  if (hasKeyword(card, "divineShield")) value += 2 + attack;
+  if (hasKeyword(card, "windfury")) value += attack;
+  if (hasKeyword(card, "poisonous")) value += 4;
+  if (hasKeyword(card, "stealth")) value += 2;
+  if (hasKeyword(card, "elusive")) value += 2;
+  if (hasKeyword(card, "immune")) value += 4;
+  // Frozen or unable to swing: the attack half is off the table for now.
+  if (hasKeyword(card, "frozen") || card.cantAttack) value -= attack;
+  // A minion that cannot attack yet is worth less than one that can.
+  if (
+    card.summoningSickness &&
+    !hasKeyword(card, "charge") &&
+    !hasKeyword(card, "rush")
+  ) {
+    value -= attack * 0.5;
+  }
+
+  return value;
+}
+
+/** Remaining damage an equipped weapon represents. */
+function weaponValue(player: Player): number {
+  const weapon = player.weapon;
+  if (!weapon) return 0;
+  const durability =
+    (weapon.baseDurability ?? 0) - (weapon.durabilityLost ?? 0);
+  return Math.max(0, (getAttack(weapon) || 0) * Math.max(0, durability));
+}
+
+/**
  * Evaluate overall game state
  * IMPORTANT: These weights are critical for MCTS simulations!
  * MCTS uses this function to evaluate game positions during playouts.
@@ -1514,20 +1560,14 @@ export function evaluateGameState(G: GameState, ctx: Ctx): number {
   const ourBoard = G.board[ctx.currentPlayer];
   const theirBoard = G.board[enemyPlayerId];
 
-  // Count total stats on board
-  const ourBoardValue = ourBoard.reduce(
-    (sum, card) =>
-      sum + (getAttack(card) || 0) * 2 + (getCurrentHealth(card) || 0),
-    0,
-  );
-  const theirBoardValue = theirBoard.reduce(
-    (sum, card) =>
-      sum + (getAttack(card) || 0) * 2 + (getCurrentHealth(card) || 0),
-    0,
-  );
+  const ourBoardValue = ourBoard.reduce((sum, c) => sum + minionValue(c), 0);
+  const theirBoardValue = theirBoard.reduce((sum, c) => sum + minionValue(c), 0);
 
   // Board control is CRITICAL - increased 10x for MCTS
   score += (ourBoardValue - theirBoardValue) * 5;
+
+  // Weapons are board presence too: attack the hero can make on future turns.
+  score += (weaponValue(player) - weaponValue(enemyPlayer)) * 5;
 
   // HP difference - increased 7x for MCTS. Armor counts: it is effective HP.
   score += (effectiveHealth(player) - effectiveHealth(enemyPlayer)) * 2;

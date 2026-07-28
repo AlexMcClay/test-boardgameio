@@ -28,11 +28,16 @@ import {
 } from "../types";
 import { checkSingleTargetCondition } from "./effectEngine";
 import { findSubjectCard } from "./triggers";
+import { stripForSimulation } from "./simulation";
 // Helper function to record game events
 export function recordEvent(G: GameState, event: GameEvent) {
   // Monotonic sequence number = index in the full history. Clients filter by
   // this instead of timestamps (which collide within the same millisecond).
   event.seq = G.eventHistory.length;
+
+  // Inside a search the animation payloads are dead weight on a state that
+  // gets deep-cloned thousands of times; see utils/simulation.ts.
+  stripForSimulation(event);
 
   // Add to current move events
   G.gameEvents.push(event);

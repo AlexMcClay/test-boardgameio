@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { enumerateAIMoves } from "./ai";
-import { findBestMove } from "./mcts";
+import { enumerateAIMoves, evaluateGameState } from "./ai";
+import { findBestMove, resetSearchTree } from "./mcts";
 import { applyMove } from "./engine";
 import { validateMove } from "./utils/validateMove";
+import {
+  compactHistoryForSearch,
+  isSimulating,
+  runSimulated,
+} from "./utils/simulation";
+import { recordEvent } from "./utils/helpers";
 import { createCardFromID } from "./utils";
 import { mageHero, warriorHero } from "./data/heros";
 import type { CardTemplateKey } from "./data/cards";
@@ -419,6 +425,114 @@ describe("endTurn is always available", () => {
 // ---------------------------------------------------------------------------
 // MCTS end-to-end
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Search hygiene: simulation mode, determinization, tree reuse
+// ---------------------------------------------------------------------------
+
+describe("simulation mode", () => {
+  it("keeps event payloads during real play and drops them while searching", () => {
+    const { G } = makeState({});
+    const heavy = () => ({
+      type: "damage" as const,
+      targetId: "x",
+      targetType: "card" as const,
+      playerId: "0",
+      value: 1,
+      timestamp: 0,
+      snapshot: { big: "payload" } as never,
+    });
+
+    recordEvent(G, heavy());
+    expect(G.eventHistory[0]).toHaveProperty("snapshot");
+
+    runSimulated(() => recordEvent(G, heavy()));
+    expect(G.eventHistory[1]).not.toHaveProperty("snapshot");
+    // Rules-relevant fields survive.
+    expect(G.eventHistory[1].type).toBe("damage");
+    expect(G.eventHistory[1].seq).toBe(1);
+  });
+
+  it("always restores the flag and the console, even on a throw", () => {
+    const log = console.log;
+    expect(() =>
+      runSimulated(() => {
+        throw new Error("boom");
+      }),
+    ).toThrow("boom");
+    expect(isSimulating()).toBe(false);
+    expect(console.log).toBe(log);
+  });
+
+  it("compacts history to what the rules read, preserving indices", () => {
+    const history = [
+      { type: "cardPlayed", turn: 3, seq: 0, card: { huge: 1 }, snapshot: {} },
+      { type: "damage", seq: 1, snapshot: { huge: 1 } },
+    ] as never[];
+
+    const compact = compactHistoryForSearch(history) as any[];
+    expect(compact).toHaveLength(history.length); // sourceEventIndex stays valid
+    expect(compact[0]).toEqual({ type: "cardPlayed", turn: 3, seq: 0 });
+    expect(compact[1]).toEqual({ type: "damage", seq: 1 });
+  });
+});
+
+describe("search does not disturb the caller's state", () => {
+  it("leaves the real game state untouched, including hidden cards", () => {
+    resetSearchTree();
+    const { G, ctx } = makeState({
+      hand: [card("fireball")],
+      board: [placed("chillwind-yeti")],
+      enemyBoard: [placed("bloodfen-raptor")],
+    });
+    G.players["1"].hand = [card("execute"), card("flamestrike")];
+    G.players["1"].deck = [card("core-hound"), card("frostbolt")];
+    const before = JSON.stringify(G);
+
+    findBestMove({ G, ctx }, { iterations: 60, playoutDepth: 8 });
+
+    // Determinization shuffles hidden cards — on a COPY. The original must be
+    // byte-identical, or the bot would be rewriting the live game.
+    expect(JSON.stringify(G)).toBe(before);
+  });
+
+  it("still finds lethal with tree reuse enabled across repeated searches", () => {
+    resetSearchTree();
+    for (let i = 0; i < 3; i++) {
+      const { G, ctx } = makeState({
+        board: [placed("core-hound")],
+        enemy: { health: 4 },
+      });
+      const chosen = findBestMove({ G, ctx }, { iterations: 60, playoutDepth: 8 });
+      expect(chosen?.move).toBe("minionAttack");
+    }
+  });
+});
+
+describe("board evaluation understands keywords", () => {
+  const evalWith = (mine: Card[]) => {
+    const { G, ctx } = makeState({ board: mine });
+    return evaluateGameState(G, ctx);
+  };
+
+  it("values a Taunt body above the same body without it", () => {
+    expect(evalWith([placed("goldshire-footman", { taunt: true })])).toBeGreaterThan(
+      evalWith([placed("goldshire-footman", { taunt: false })]),
+    );
+  });
+
+  it("values Divine Shield and Windfury above a plain body", () => {
+    const plain = evalWith([placed("chillwind-yeti")]);
+    expect(evalWith([placed("chillwind-yeti", { divineShield: true })])).toBeGreaterThan(plain);
+    expect(evalWith([placed("chillwind-yeti", { windfury: true })])).toBeGreaterThan(plain);
+  });
+
+  it("discounts a frozen minion", () => {
+    expect(evalWith([placed("chillwind-yeti", { frozen: true })])).toBeLessThan(
+      evalWith([placed("chillwind-yeti")]),
+    );
+  });
+});
 
 describe("findBestMove", () => {
   it("takes lethal when it is on the board", () => {
