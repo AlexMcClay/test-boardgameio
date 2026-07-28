@@ -89,6 +89,26 @@ code {
   }
 }
 
+.isTempCard {
+  /* drop shadow */
+  animation: shadowPulseRed 1.5s ease-in-out infinite;
+}
+
+@keyframes shadowPulseRed {
+  0%,
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px oklch(63.98% 0.24576 27.855))
+      drop-shadow(0 0 4px oklch(63.98% 0.24576 27.855))
+      drop-shadow(0 0 6px oklch(63.98% 0.24576 27.855));
+  }
+  50% {
+    filter: drop-shadow(0 0 4px oklch(63.98% 0.24576 27.855/0.5))
+      drop-shadow(0 0 8px oklch(63.98% 0.24576 27.855/0.5))
+      drop-shadow(0 0 12px oklch(63.98% 0.24576 27.855/0.5));
+  }
+}
+
 @keyframes shadowPulse {
   0%,
   0%,

@@ -52,6 +52,8 @@ const MOVE_NAMES: MoveName[] = [
   "useHeroPower",
   "resolveBattlecry",
   "cancelBattlecry",
+  "resolveChoice",
+  "cancelChoice",
   "drawCard",
   "endTurn",
   "mulliganConfirm",

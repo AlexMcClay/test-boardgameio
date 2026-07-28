@@ -12,8 +12,15 @@
       "default": "./index.ts"
     }
   },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
   "dependencies": {
     "boardgame.io": "^0.50.2",
     "xstate": "^5.32.4"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.7"
   }
 }

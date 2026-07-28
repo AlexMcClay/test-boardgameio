@@ -5,10 +5,12 @@ import type {
   BaseEffectSelection,
   Card,
   DamageEffect,
+  DiscoverEffect,
   DynamicValue,
   EffectTypes,
   SFXInstance,
   TargetCondition,
+  TargetQuery,
   TriggerDef,
 } from "../types";
 
@@ -46,6 +48,9 @@ const applyModifier = (
     | "stackable"
     // "…a random friendly minion" (Young Priestess, Master Swordsmith)
     | "rand"
+    // Granted rules text: Soul of the Forest, Power Overwhelming, Corruption.
+    | "deathrattle"
+    | "triggers"
   > & { target?: ApplyModifierEffect["target"] },
 ): ApplyModifierEffect => {
   const { target, ...rest } = opts;
@@ -426,6 +431,55 @@ const returnToHand = (
   };
 };
 
+/**
+ * Offer a pick of `count` cards; the picked one goes to hand. Opens a prompt
+ * and HALTS the effect list, so it must always be the last effect on a card.
+ */
+const discover = (
+  opts: Omit<DiscoverEffect, "type" | "source"> & {
+    source?: DiscoverEffect["source"];
+  } = {},
+): EffectTypes => {
+  const { source = "global", ...rest } = opts;
+  return { type: "discover", source, ...rest };
+};
+
+/** Discover a fixed menu of cards, each a Temporary copy (the *'s Gift cards). */
+const giftDiscover = (cardID: string[]): EffectTypes =>
+  discover({ cardID, temporary: true });
+
+/**
+ * One half of a Choose One card. These are REAL uncollectible card templates
+ * (Hearthstone's own model — Wrath EX1_154a/b, "Cat Form"/"Bear Form"): the
+ * parent names them in `chooseOne`, the picked one's `effects` run with the
+ * PARENT as context. Its own `targetQuery` is what drives per-option targeting.
+ */
+const chooseOneOption = (opts: {
+  title: string;
+  description: string;
+  parentMana: number;
+  parentClass: string;
+  imageUrl: string;
+  effects: EffectTypes[];
+  targetQuery?: TargetQuery;
+}) => ({
+  title: opts.title,
+  description: opts.description,
+  baseMana: opts.parentMana,
+  imageUrl: opts.imageUrl,
+  effects: opts.effects,
+  onPlace: [],
+  isSpell: true,
+  isMinion: false,
+  isUncollectible: true,
+  targetQuery: opts.targetQuery ?? {
+    side: "all" as const,
+    type: ["lane" as const],
+  },
+  class: opts.parentClass,
+  set: ["Legacy"],
+});
+
 const sfxShortener = (sfx: string) => `/cards/${sfx}`;
 
 type SFXTHING = string | SFXInstance | [string, number];
@@ -434,10 +488,14 @@ const sfx = (
   play: SFXTHING[],
   attack?: SFXTHING[],
   death?: SFXTHING[],
+  // SFXTHING, not SFXInstance — the other buckets accept a bare filename
+  // string (or a [file, delay] pair), and that's how the scraper emits them.
+  trigger?: SFXTHING[],
 ): {
   death?: SFXInstance[];
   play?: SFXInstance[];
   attack?: SFXInstance[];
+  trigger?: SFXInstance[];
 } => {
   const parser = (soundId: SFXTHING): SFXInstance =>
     typeof soundId === "string"
@@ -452,6 +510,7 @@ const sfx = (
     death: death?.map(parser),
     play: play?.map(parser),
     attack: attack?.map(parser),
+    trigger: trigger?.map(parser),
   };
 };
 
@@ -492,7 +551,8 @@ export const cardTemplates = {
     baseMana: 4,
     baseAttack: 4,
     baseHealth: 5,
-    type: ["Beast"],
+    // No tribe — it was mistagged Beast, which let Houndmaster, Kill Command,
+    // Timber Wolf and friends treat it as one.
     imageUrl: "assets/cards/Chillwind_Yeti.jpg",
     effects: [
       damage({
@@ -787,7 +847,7 @@ export const cardTemplates = {
     baseMana: 3,
     baseAttack: 3,
     baseHealth: 1,
-    type: ["Beast"],
+    // No tribe — the RIDER is the minion; it was mistagged Beast.
     imageUrl: "assets/cards/Wolfrider.jpg",
     effects: [
       damage({
@@ -2305,6 +2365,53 @@ export const cardTemplates = {
       ["EX1_158tTreant_Attack2.ogg"],
       ["EX1_158tTreant_Death2.ogg"],
     ),
+  },
+  // Soul of the Forest's Treant (EX1_158t) is a PLAIN 2/2 — distinct from
+  // treant-token above, which is Force of Nature's Charge version.
+  "soul-treant": {
+    title: "Treant",
+    description: "",
+    baseMana: 1,
+    baseAttack: 2,
+    baseHealth: 2,
+    imageUrl: "assets/cards/Treant.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    isUncollectible: true,
+    class: "Druid",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["EX1_158tTreant_EnterPlay1.ogg"],
+      ["EX1_158tTreant_Attack2.ogg"],
+      ["EX1_158tTreant_Death2.ogg"],
+    ),
+  },
+  "soul-of-the-forest": {
+    title: "Soul of the Forest",
+    description: 'Give your minions "Deathrattle: Summon a 2/2 Treant."',
+    baseMana: 3,
+    type: ["Nature"],
+    imageUrl: "assets/cards/Soul_of_the_Forest.jpg",
+    // A modifier carrying only TEXT — no stats, no keywords. getCardDeathrattles
+    // folds it in alongside whatever the minion already had, so a Loot Hoarder
+    // both draws AND leaves a Treant.
+    effects: [
+      applyModifier({
+        target: "friendly-board",
+        name: "Soul of the Forest",
+        description: "Deathrattle: Summon a 2/2 Treant",
+        deathrattle: [summon("soul-treant")],
+      }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Common",
+    class: "Druid",
+    set: ["Legacy"],
   },
   "ironbark-protector": {
     title: "Ironbark Protector",
@@ -4862,7 +4969,11 @@ export const cardTemplates = {
       }),
     ],
     onPlace: [
-      applyModifier({ stats: { attack: 2, health: 2 }, keys: { taunt: true } }),
+      applyModifier({
+        stats: { attack: 2, health: 2 },
+        keys: { taunt: true },
+        name: "Master's Presence",
+      }),
     ],
     battlecryQuery: {
       side: "friendly",
@@ -6091,7 +6202,802 @@ export const cardTemplates = {
     set: ["Legacy"],
   },
 
+  // ------------------------------------------------------------------ //
+  // CHOOSE ONE — Druid                                                  //
+  //                                                                     //
+  // Each parent names its halves in `chooseOne`; the halves below are    //
+  // real uncollectible CARDS (Hearthstone's own model). Playing the      //
+  // parent pays its mana and opens a prompt; the picked option card's    //
+  // `effects` run with the PARENT as context — so `target: "self"` and   //
+  // `transform` land on the parent minion, and a spell parent is what    //
+  // reaches the graveyard.                                              //
+  // ------------------------------------------------------------------ //
+
+  wrath: {
+    title: "Wrath",
+    description:
+      "Choose One - Deal 3 damage to a minion; or 1 damage and draw a card.",
+    baseMana: 2,
+    type: ["Nature"],
+    tags: ["Choose One"],
+    imageUrl: "assets/cards/Wrath.jpg",
+    chooseOne: ["solar-wrath", "natures-wrath"],
+    effects: [],
+    onPlace: [],
+    isSpell: true,
+    // The PARENT is untargeted (drag to the board); each half carries its own
+    // targetQuery, which is what the prompt aims with.
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Common",
+    class: "Druid",
+    set: ["Legacy"],
+  },
+  "solar-wrath": chooseOneOption({
+    title: "Solar Wrath",
+    description: "Deal 3 damage to a minion.",
+    parentMana: 2,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Solar_Wrath.jpg",
+    effects: [damage(3)],
+    targetQuery: { side: "all", type: ["card"] },
+  }),
+  "natures-wrath": chooseOneOption({
+    title: "Nature's Wrath",
+    description: "Deal 1 damage to a minion. Draw a card.",
+    parentMana: 2,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Natures_Wrath.jpg",
+    effects: [damage(1), draw(1)],
+    targetQuery: { side: "all", type: ["card"] },
+  }),
+
+  "power-of-the-wild": {
+    title: "Power of the Wild",
+    description:
+      "Choose One - Give your minions +1/+1; or Summon a 3/2 Panther.",
+    baseMana: 2,
+    type: ["Nature"],
+    tags: ["Choose One"],
+    imageUrl: "assets/cards/Power_of_the_Wild.jpg",
+    chooseOne: ["leader-of-the-pack", "summon-a-panther"],
+    effects: [],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Common",
+    class: "Druid",
+    set: ["Legacy"],
+  },
+  "leader-of-the-pack": chooseOneOption({
+    title: "Leader of the Pack",
+    description: "Give your minions +1/+1.",
+    parentMana: 2,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Leader_of_the_Pack.jpg",
+    effects: [
+      applyModifier({
+        target: "friendly-board",
+        stats: { attack: 1, health: 1 },
+        stackable: true,
+      }),
+    ],
+  }),
+  "summon-a-panther": chooseOneOption({
+    title: "Summon a Panther",
+    description: "Summon a 3/2 Panther.",
+    parentMana: 2,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Summon_a_Panther.jpg",
+    effects: [summon("panther")],
+  }),
+  panther: {
+    title: "Panther",
+    description: "",
+    baseMana: 2,
+    baseAttack: 3,
+    baseHealth: 2,
+    type: ["Beast"],
+    imageUrl: "assets/cards/Panther.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    isUncollectible: true,
+    class: "Druid",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["SFX_EX1_160t_EnterPlay.ogg"],
+      ["SFX_EX1_160t_Attack.ogg"],
+      ["SFX_EX1_160t_Death.ogg"],
+    ),
+  },
+
+  "mark-of-nature": {
+    title: "Mark of Nature",
+    description:
+      "Choose One - Give a minion +4 Attack; or +4 Health and Taunt.",
+    baseMana: 3,
+    type: ["Nature"],
+    tags: ["Choose One"],
+    imageUrl: "assets/cards/Mark_of_Nature.jpg",
+    chooseOne: ["tigers-fury", "thick-hide"],
+    effects: [],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Common",
+    class: "Druid",
+    set: ["Legacy"],
+  },
+  "tigers-fury": chooseOneOption({
+    title: "Tiger's Fury",
+    description: "Give a minion +4 Attack.",
+    parentMana: 3,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Tigers_Fury.jpg",
+    effects: [applyModifier({ stats: { attack: 4 }, stackable: true })],
+    targetQuery: { side: "all", type: ["card"] },
+  }),
+  "thick-hide": chooseOneOption({
+    title: "Thick Hide",
+    description: "Give a minion +4 Health and Taunt.",
+    parentMana: 3,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Thick_Hide.jpg",
+    effects: [
+      applyModifier({
+        stats: { health: 4 },
+        keys: { taunt: true },
+        stackable: true,
+      }),
+    ],
+    targetQuery: { side: "all", type: ["card"] },
+  }),
+
+  starfall: {
+    title: "Starfall",
+    description:
+      "Choose One - Deal 5 damage to a minion; or 2 damage to all enemy minions.",
+    baseMana: 5,
+    type: ["Arcane"],
+    tags: ["Choose One"],
+    imageUrl: "assets/cards/Starfall.jpg",
+    chooseOne: ["starlord", "stellar-drift"],
+    effects: [],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Druid",
+    set: ["Legacy"],
+  },
+  starlord: chooseOneOption({
+    title: "Starlord",
+    description: "Deal 5 damage to a minion.",
+    parentMana: 5,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Starlord.jpg",
+    effects: [damage(5)],
+    targetQuery: { side: "all", type: ["card"] },
+  }),
+  "stellar-drift": chooseOneOption({
+    title: "Stellar Drift",
+    description: "Deal 2 damage to all enemy minions.",
+    parentMana: 5,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Stellar_Drift.jpg",
+    effects: [damage(2, "enemy-board")],
+  }),
+
+  nourish: {
+    title: "Nourish",
+    description: "Choose One - Gain 2 Mana Crystals; or Draw 3 cards.",
+    baseMana: 5,
+    type: ["Nature"],
+    tags: ["Choose One"],
+    imageUrl: "assets/cards/Nourish.jpg",
+    chooseOne: ["rampant-growth", "enrich"],
+    effects: [],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Druid",
+    set: ["Legacy"],
+  },
+  "rampant-growth": chooseOneOption({
+    title: "Rampant Growth",
+    description: "Gain 2 Mana Crystals.",
+    parentMana: 5,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Rampant_Growth.jpg",
+    // Permanent crystals, filled — Nourish's ramp is usable the same turn.
+    effects: [manaCrystal(2, true)],
+  }),
+  enrich: chooseOneOption({
+    title: "Enrich",
+    description: "Draw 3 cards.",
+    parentMana: 5,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Enrich.jpg",
+    effects: [draw(3)],
+  }),
+
+  "keeper-of-the-grove": {
+    title: "Keeper of the Grove",
+    description: "Choose One - Deal 2 damage; or Silence a minion.",
+    baseMana: 4,
+    baseAttack: 2,
+    baseHealth: 4,
+    tags: ["Choose One"],
+    imageUrl: "assets/cards/Keeper_of_the_Grove.jpg",
+    chooseOne: ["keeper-moonfire", "keeper-dispel"],
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Rare",
+    class: "Druid",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_166_Play_01.ogg"],
+      ["VO_EX1_166_Attack_02.ogg"],
+      ["VO_EX1_166_Death_03.ogg"],
+    ),
+  },
+  "keeper-moonfire": chooseOneOption({
+    title: "Moonfire",
+    description: "Deal 2 damage.",
+    parentMana: 4,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Moonfire.jpg",
+    effects: [damage(2)],
+    targetQuery: { side: "all", type: ["card", "player"] },
+  }),
+  "keeper-dispel": chooseOneOption({
+    title: "Dispel",
+    description: "Silence a minion.",
+    parentMana: 4,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Dispel.jpg",
+    effects: [silence()],
+    targetQuery: { side: "all", type: ["card"] },
+  }),
+
+  "druid-of-the-claw": {
+    title: "Druid of the Claw",
+    description:
+      "Choose One - Transform into a 7/6 with Rush; or a 4/9 with Taunt.",
+    baseMana: 6,
+    baseAttack: 4,
+    baseHealth: 6,
+    tags: ["Choose One"],
+    imageUrl: "assets/cards/Druid_of_the_Claw.jpg",
+    chooseOne: ["druid-cat-form-option", "druid-bear-form-option"],
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Common",
+    class: "Druid",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_165_Play_01.ogg"],
+      ["VO_EX1_165_Attack_02.ogg"],
+      ["VO_EX1_165_Death_03.ogg"],
+    ),
+  },
+  // `transform` with target "self" replaces the parent minion IN PLACE, which
+  // is exactly what "transform into" means — same board slot, same card.id.
+  "druid-cat-form-option": chooseOneOption({
+    title: "Cat Form",
+    description: "Transform into a 7/6 with Rush.",
+    parentMana: 6,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Druid_of_the_Claw_Cat_Form.jpg",
+    effects: [transform("druid-cat-form", "self")],
+  }),
+  "druid-bear-form-option": chooseOneOption({
+    title: "Bear Form",
+    description: "Transform into a 4/9 with Taunt.",
+    parentMana: 6,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Druid_of_the_Claw_Bear_Form.jpg",
+    effects: [transform("druid-bear-form", "self")],
+  }),
+  "druid-cat-form": {
+    title: "Druid of the Claw",
+    description: "Rush.",
+    baseMana: 6,
+    baseAttack: 7,
+    baseHealth: 6,
+    rush: true,
+    type: ["Beast"],
+    tags: ["Rush"],
+    imageUrl: "assets/cards/Druid_of_the_Claw_Cat_Form.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    isUncollectible: true,
+    class: "Druid",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_165_Play_01.ogg"],
+      ["VO_EX1_165_Attack_02.ogg"],
+      ["VO_EX1_165_Death_03.ogg"],
+    ),
+  },
+  "druid-bear-form": {
+    title: "Druid of the Claw",
+    description: "Taunt.",
+    baseMana: 6,
+    baseAttack: 4,
+    baseHealth: 9,
+    taunt: true,
+    type: ["Beast"],
+    tags: ["Taunt"],
+    imageUrl: "assets/cards/Druid_of_the_Claw_Bear_Form.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    isUncollectible: true,
+    class: "Druid",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_165_Play_01.ogg"],
+      ["VO_EX1_165_Attack_02.ogg"],
+      ["VO_EX1_165_Death_03.ogg"],
+    ),
+  },
+
+  "ancient-of-lore": {
+    title: "Ancient of Lore",
+    description: "Choose One - Draw 2 cards; or Restore 7 Health.",
+    baseMana: 7,
+    baseAttack: 7,
+    baseHealth: 7,
+    tags: ["Choose One"],
+    imageUrl: "assets/cards/Ancient_of_Lore.jpg",
+    chooseOne: ["ancient-teachings", "ancient-secrets"],
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Epic",
+    class: "Druid",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["NEW1_008_AncientOfLore_EnterPlay.ogg"],
+      ["NEW1_008_AncientOfLore_Attack.ogg"],
+      ["NEW1_008_AncientOfLore_Death.ogg"],
+    ),
+  },
+  "ancient-teachings": chooseOneOption({
+    title: "Ancient Teachings",
+    description: "Draw 2 cards.",
+    parentMana: 7,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Ancient_Teachings.jpg",
+    effects: [draw(2)],
+  }),
+  "ancient-secrets": chooseOneOption({
+    title: "Ancient Secrets",
+    description: "Restore 7 Health.",
+    parentMana: 7,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Ancient_Secrets.jpg",
+    effects: [heal(7)],
+    targetQuery: { side: "all", type: ["card", "player"] },
+  }),
+
+  "ancient-of-war": {
+    title: "Ancient of War",
+    description: "Choose One - +5 Attack; or +5 Health and Taunt.",
+    baseMana: 7,
+    baseAttack: 5,
+    baseHealth: 5,
+    tags: ["Choose One"],
+    imageUrl: "assets/cards/Ancient_of_War.jpg",
+    chooseOne: ["ancient-uproot", "ancient-rooted"],
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Epic",
+    class: "Druid",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["EX1_178_Ancient_Of_War_EnterPlay1.ogg"],
+      ["EX1_178_Ancient_Of_War_Attack3.ogg"],
+      ["EX1_178_Ancient_Of_War_Death2.ogg"],
+    ),
+  },
+  // "self" is the PARENT minion — resolveChoice runs these with it as context.
+  "ancient-uproot": chooseOneOption({
+    title: "Uproot",
+    description: "+5 Attack.",
+    parentMana: 7,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Uproot.jpg",
+    effects: [
+      applyModifier({ target: "self", stats: { attack: 5 }, stackable: true }),
+    ],
+  }),
+  "ancient-rooted": chooseOneOption({
+    title: "Rooted",
+    description: "+5 Health and Taunt.",
+    parentMana: 7,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Rooted.jpg",
+    effects: [
+      applyModifier({
+        target: "self",
+        stats: { health: 5 },
+        keys: { taunt: true },
+        stackable: true,
+      }),
+    ],
+  }),
+
+  cenarius: {
+    title: "Cenarius",
+    description:
+      "Choose One - Give your other minions +2/+2; or Summon two 2/2 Treants with Taunt.",
+    baseMana: 8,
+    baseAttack: 5,
+    baseHealth: 8,
+    tags: ["Choose One"],
+    imageUrl: "assets/cards/Cenarius.jpg",
+    chooseOne: ["demigods-favor", "shandos-lesson"],
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Legendary",
+    class: "Druid",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_573_Play_01.ogg", "Pegasus_Stinger_Misc1.ogg"],
+      ["VO_EX1_573_Attack_02.ogg"],
+      ["VO_EX1_573_Death_03.ogg"],
+    ),
+  },
+  "demigods-favor": chooseOneOption({
+    title: "Demigod's Favor",
+    description: "Give your other minions +2/+2.",
+    parentMana: 8,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Demigods_Favor.jpg",
+    // exclude-self keeps Cenarius himself out of "your OTHER minions".
+    effects: [
+      applyModifier({
+        target: "friendly-board",
+        conditions: [{ type: "exclude-self" }],
+        stats: { attack: 2, health: 2 },
+        stackable: true,
+      }),
+    ],
+  }),
+  "shandos-lesson": chooseOneOption({
+    title: "Shan'do's Lesson",
+    description: "Summon two 2/2 Treants with Taunt.",
+    parentMana: 8,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Treant.jpg",
+    effects: [summon("treant-taunt"), summon("treant-taunt")],
+  }),
+  "treant-taunt": {
+    title: "Treant",
+    description: "Taunt.",
+    baseMana: 2,
+    baseAttack: 2,
+    baseHealth: 2,
+    taunt: true,
+    tags: ["Taunt"],
+    imageUrl: "assets/cards/Treant.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    isUncollectible: true,
+    class: "Druid",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["EX1_158tTreant_EnterPlay1.ogg"],
+      ["EX1_158tTreant_Attack2.ogg"],
+      ["EX1_158tTreant_Death2.ogg"],
+    ),
+  },
+
+  // Uncollectible: generated by Malfurion's Gift. Also the smallest possible
+  // Choose One (both halves untargeted), which makes it a handy sanity case.
+  "feral-rage": {
+    title: "Feral Rage",
+    description:
+      "Choose One - Give your hero +4 Attack this turn; or Gain 8 Armor.",
+    baseMana: 3,
+    type: ["Nature"],
+    tags: ["Choose One"],
+    imageUrl: "assets/cards/Feral_Rage.jpg",
+    chooseOne: ["evolve-spines", "evolve-scales"],
+    effects: [],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    isUncollectible: true,
+    class: "Druid",
+    set: ["Legacy"],
+  },
+  "evolve-spines": chooseOneOption({
+    title: "Evolve Spines",
+    description: "Give your hero +4 Attack this turn.",
+    parentMana: 3,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Evolve_Spines.jpg",
+    effects: [
+      applyModifier({
+        target: "friendly-hero",
+        stats: { attack: 4 },
+        stackable: true,
+        duration: {
+          expiryTrigger: "END_OF_TURN",
+          expiryOwner: "BUFF_RECEIVER",
+        },
+      }),
+    ],
+  }),
+  "evolve-scales": chooseOneOption({
+    title: "Evolve Scales",
+    description: "Gain 8 Armor.",
+    parentMana: 3,
+    parentClass: "Druid",
+    imageUrl: "assets/cards/Evolve_Scales.jpg",
+    effects: [armor(8)],
+  }),
+
+  // ------------------------------------------------------------------ //
+  // DISCOVER                                                            //
+  //                                                                     //
+  // `discover` opens a prompt and HALTS the effect list, so it is always //
+  // the last effect on a card. Two shapes: a fixed menu (the *'s Gift    //
+  // cards, whose picks are Temporary) and a filtered search of your own  //
+  // deck (Tracking / Thrive, where the pick is REMOVED from the deck —   //
+  // it's a draw, not a copy).                                           //
+  // ------------------------------------------------------------------ //
+
+  "malfurions-gift": {
+    title: "Malfurion's Gift",
+    description: "Discover a Temporary Feral Rage, Wild Growth, or Swipe.",
+    baseMana: 1,
+    type: ["Nature"],
+    tags: ["Discover"],
+    imageUrl: "assets/cards/Malfurion's_Gift.jpg",
+    effects: [giftDiscover(["feral-rage", "wild-growth", "swipe"])],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Druid",
+    set: ["Legacy"],
+  },
+  "rexxars-gift": {
+    title: "Rexxar's Gift",
+    description:
+      "Discover a Temporary Quick Shot, Deadly Shot, or Explosive Shot.",
+    baseMana: 1,
+    type: ["Nature"],
+    tags: ["Discover"],
+    imageUrl: "assets/cards/Rexxar's_Gift.jpg",
+    effects: [giftDiscover(["quick-shot", "deadly-shot", "explosive-shot"])],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Hunter",
+    set: ["Legacy"],
+  },
+  "jainas-gift": {
+    title: "Jaina's Gift",
+    description:
+      "Discover a Temporary Frostbolt, Arcane Intellect, or Fireball.",
+    baseMana: 1,
+    type: ["Arcane"],
+    tags: ["Discover"],
+    imageUrl: "assets/cards/Jaina's_Gift.jpg",
+    effects: [giftDiscover(["frostbolt", "arcane-intellect", "fireball"])],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Mage",
+    set: ["Legacy"],
+  },
+  "uthers-gift": {
+    title: "Uther's Gift",
+    description:
+      "Discover a Temporary Equality, Consecration, or Blessing of Kings.",
+    baseMana: 1,
+    type: ["Holy"],
+    tags: ["Discover"],
+    imageUrl: "assets/cards/Uther's_Gift.jpg",
+    effects: [giftDiscover(["equality", "consecration", "blessing-of-kings"])],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Paladin",
+    set: ["Legacy"],
+  },
+  "anduins-gift": {
+    title: "Anduin's Gift",
+    description:
+      "Discover a Temporary Power Word: Shield, Shadow Word: Pain, or Mind Control.",
+    baseMana: 1,
+    type: ["Holy"],
+    tags: ["Discover"],
+    imageUrl: "assets/cards/Anduin's_Gift.jpg",
+    effects: [
+      giftDiscover(["power-word-shield", "shadow-word-pain", "mind-control"]),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Priest",
+    set: ["Legacy"],
+  },
+  "valeeras-gift": {
+    title: "Valeera's Gift",
+    description:
+      "Discover a Temporary Backstab, Deadly Poison, or Fan of Knives.",
+    baseMana: 1,
+    type: ["Shadow"],
+    tags: ["Discover"],
+    imageUrl: "assets/cards/Valeera's_Gift.jpg",
+    effects: [giftDiscover(["backstab", "deadly-poison", "fan-of-knives"])],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Rogue",
+    set: ["Legacy"],
+  },
+  "thralls-gift": {
+    title: "Thrall's Gift",
+    description: "Discover a Temporary Lightning Storm, Hex, or Bloodlust.",
+    baseMana: 1,
+    type: ["Nature"],
+    tags: ["Discover"],
+    imageUrl: "assets/cards/Thrall's_Gift.jpg",
+    effects: [giftDiscover(["lightning-storm", "hex", "bloodlust"])],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Shaman",
+    set: ["Legacy"],
+  },
+  "guldans-gift": {
+    title: "Gul'dan's Gift",
+    description:
+      "Discover a Temporary Mortal Coil, Siphon Soul, or Twisting Nether.",
+    baseMana: 1,
+    type: ["Shadow"],
+    tags: ["Discover"],
+    imageUrl: "assets/cards/Gul'dan's_Gift.jpg",
+    effects: [giftDiscover(["mortal-coil", "siphon-soul", "twisting-nether"])],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Warlock",
+    set: ["Legacy"],
+  },
+  "garroshs-gift": {
+    title: "Garrosh's Gift",
+    description: "Discover a Temporary Execute, Shield Block, or Brawl.",
+    baseMana: 1,
+    tags: ["Discover"],
+    imageUrl: "assets/cards/Garrosh's_Gift.jpg",
+    effects: [giftDiscover(["execute", "shield-block", "brawl"])],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Warrior",
+    set: ["Legacy"],
+  },
+
   // --- Hunter ---
+  tracking: {
+    title: "Tracking",
+    description: "Discover a card from your deck.",
+    baseMana: 1,
+    tags: ["Discover"],
+    imageUrl: "assets/cards/Tracking.jpg",
+    // removeFromSource: the pick is a DRAW — it leaves the deck. (The two
+    // cards not picked stay put; classic Tracking discarded them, the modern
+    // Core version does not.)
+    effects: [discover({ source: "deck", removeFromSource: true })],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Hunter",
+    set: ["Legacy"],
+  },
+  "quick-shot": {
+    title: "Quick Shot",
+    description: "Deal 3 damage. If your hand is empty, draw a card.",
+    baseMana: 2,
+    type: ["Arcane"],
+    imageUrl: "assets/cards/Quick_Shot.jpg",
+    effects: [
+      damage(3),
+      {
+        type: "conditional",
+        // Checked AFTER this card left the hand, so "empty" means empty.
+        conditions: [
+          {
+            type: "numeric",
+            key: { type: "hand-count", side: "friendly" },
+            operator: "==",
+            value: 0,
+          },
+        ],
+        then: [draw(1)],
+      },
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["card", "player"] },
+    isMinion: false,
+    isUncollectible: true,
+    class: "Hunter",
+    set: ["Legacy"],
+  },
+  "selective-breeder": {
+    title: "Selective Breeder",
+    description: "Battlecry: Discover a copy of a Beast in your deck.",
+    baseMana: 2,
+    baseAttack: 1,
+    baseHealth: 3,
+    tags: ["Battlecry", "Discover"],
+    imageUrl: "assets/cards/Selective_Breeder.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    // A COPY — no removeFromSource, so the Beast stays in the deck too.
+    // Runs as an automatic battlecry; the prompt opens mid-settle and the
+    // machine parks in awaitingChoice until it's answered.
+    onPlace: [
+      discover({
+        source: "deck",
+        conditions: [{ type: "tags-include", value: "Beast" }],
+      }),
+    ],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Rare",
+    class: "Hunter",
+    set: ["Legacy"],
+  },
   "hunters-mark": {
     title: "Hunter's Mark",
     description: "Change a minion's Health to 1.",
@@ -6459,6 +7365,57 @@ export const cardTemplates = {
     set: ["Legacy"],
   },
 
+  "blessing-of-wisdom": {
+    title: "Blessing of Wisdom",
+    description: "Choose a minion. Whenever it attacks, draw a card.",
+    baseMana: 1,
+    type: ["Holy"],
+    imageUrl: "assets/cards/Blessing_of_Wisdom.jpg",
+    // The draw belongs to whoever CAST this, not to the minion's controller —
+    // enchanting an enemy minion still draws for you. That works because the
+    // modifier records casterId and granted triggers run as that player.
+    // `self: "only"` keeps it to the enchanted minion's own attacks.
+    effects: [
+      applyModifier({
+        name: "Blessing of Wisdom",
+        description: "Whenever this attacks, its enchanter draws a card",
+        triggers: [
+          trigger("ON_MINION_ATTACK", "FRIENDLY", [draw(1)], { self: "only" }),
+        ],
+      }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["card"] },
+    isMinion: false,
+    rarity: "Common",
+    class: "Paladin",
+    set: ["Legacy"],
+  },
+
+  "thrive-in-the-shadows": {
+    title: "Thrive in the Shadows",
+    description: "Discover a spell from your deck.",
+    baseMana: 2,
+    type: ["Shadow"],
+    tags: ["Discover"],
+    imageUrl: "assets/cards/Thrive_in_the_Shadows.jpg",
+    effects: [
+      discover({
+        source: "deck",
+        removeFromSource: true,
+        conditions: [{ type: "boolean", key: "isSpell", value: true }],
+      }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Priest",
+    set: ["Legacy"],
+  },
+
   // --- Priest ---
   "divine-spirit": {
     title: "Divine Spirit",
@@ -6508,6 +7465,41 @@ export const cardTemplates = {
     rarity: "Common",
     class: "Priest",
     set: ["Legacy"],
+  },
+  lightspawn: {
+    title: "Lightspawn",
+    description: "This minion's Attack is always equal to its Health.",
+    baseMana: 3,
+    baseAttack: 0,
+    baseHealth: 4,
+    type: ["Elemental"],
+    imageUrl: "assets/cards/Lightspawn.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [],
+    // An `override` aura pointed at itself. refreshOngoing re-resolves it every
+    // pass, so the Attack tracks current Health in BOTH directions — Divine
+    // Spirit doubles it, damage drops it. Ongoing modifiers fold last
+    // (foldModifiers), so this beats any Attack buff, which is what "always
+    // equal to its Health" means.
+    aura: [
+      applyModifier({
+        target: "self",
+        name: "Lightspawn",
+        description: "Attack equal to Health",
+        stats: { attack: { type: "card-stat", stat: "health" } },
+        override: true,
+      }),
+    ],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Common",
+    class: "Priest",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["EX1_335_Lightspawn_EnterPlay2.ogg"],
+      ["EX1_335_Lightspawn_Attack2.ogg"],
+      ["EX1_335_Lightspawn_Death4.ogg"],
+    ),
   },
 
   // --- Rogue ---
@@ -6682,6 +7674,68 @@ export const cardTemplates = {
     ),
   },
 
+  "blade-flurry": {
+    title: "Blade Flurry",
+    description:
+      "Destroy your weapon and deal its damage to all enemy minions.",
+    baseMana: 2,
+    imageUrl: "assets/cards/Blade_Flurry.jpg",
+    // ORDER MATTERS: the damage value reads the weapon's Attack, so the weapon
+    // has to still be equipped when it resolves. Breaking it first would deal 0.
+    effects: [
+      {
+        type: "damage",
+        value: { type: "weapon-attack", player: "friendly" },
+        target: "enemy-board",
+      },
+      // Chip off exactly the charges that remain — the durability handler
+      // destroys the weapon once current durability hits 0. Unarmed, this
+      // resolves to -0 and no-ops.
+      durability(
+        { type: "weapon-durability", player: "friendly", mult: -1 },
+        "friendly-weapon",
+      ),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Rogue",
+    set: ["Legacy"],
+  },
+  pilfer: {
+    title: "Pilfer",
+    description: "Add a random card from another class to your hand.",
+    baseMana: 1,
+    imageUrl: "assets/cards/Pilfer.jpg",
+    // "another class" means a different HERO class, not Neutral — so both are
+    // filtered out with negated class matches.
+    effects: [
+      addRandomCard(
+        [
+          { type: "boolean", key: "isUncollectible", value: false },
+          { type: "text-contains", key: "class", value: "Rogue", negate: true },
+          {
+            type: "text-contains",
+            key: "class",
+            value: "Neutral",
+            negate: true,
+          },
+        ],
+        1,
+        [],
+      ),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Common",
+    class: "Rogue",
+    set: ["Legacy"],
+  },
+
   // --- Shaman ---
   "frost-shock": {
     title: "Frost Shock",
@@ -6730,6 +7784,33 @@ export const cardTemplates = {
       ["SFX_EX1_565_Attack_00.ogg"],
       ["EX1_565_Death_FlameTongueTotem.ogg"],
     ),
+  },
+
+  "ancestral-spirit": {
+    title: "Ancestral Spirit",
+    description: 'Give a minion "Deathrattle: Resummon this minion."',
+    baseMana: 2,
+    type: ["Nature"],
+    imageUrl: "assets/cards/Ancestral_Spirit.jpg",
+    // `fromSelf` rebuilds the dying minion from its OWN template, so the copy
+    // comes back pristine — no damage, no enchantments, and notably without
+    // this Ancestral Spirit, so it can't loop.
+    effects: [
+      applyModifier({
+        name: "Ancestral Spirit",
+        description: "Deathrattle: Resummon this minion",
+        deathrattle: [
+          { type: "summon", target: "self", fromSelf: true, value: 1 },
+        ],
+      }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["card"] },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Shaman",
+    set: ["Legacy"],
   },
 
   // --- Warrior ---
@@ -6811,6 +7892,52 @@ export const cardTemplates = {
     set: ["Legacy"],
   },
 
+  "war-cache": {
+    title: "War Cache",
+    description: "Add a random Warrior minion, spell, and weapon to your hand.",
+    baseMana: 3,
+    imageUrl: "assets/cards/War_Cache.jpg",
+    // Three independent rolls. `isUncollectible: false` is what keeps tokens
+    // (Battle Axe, Heavy Axe, Coliseum Crocolisk) out of the pool — without it
+    // the weapon roll would be a token about half the time.
+    effects: [
+      addRandomCard(
+        [
+          { type: "text-contains", key: "class", value: "Warrior" },
+          { type: "boolean", key: "isUncollectible", value: false },
+          { type: "boolean", key: "isMinion", value: true },
+        ],
+        1,
+        [],
+      ),
+      addRandomCard(
+        [
+          { type: "text-contains", key: "class", value: "Warrior" },
+          { type: "boolean", key: "isUncollectible", value: false },
+          { type: "boolean", key: "isSpell", value: true },
+        ],
+        1,
+        [],
+      ),
+      addRandomCard(
+        [
+          { type: "text-contains", key: "class", value: "Warrior" },
+          { type: "boolean", key: "isUncollectible", value: false },
+          { type: "boolean", key: "isWeapon", value: true },
+        ],
+        1,
+        [],
+      ),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Warrior",
+    set: ["Legacy"],
+  },
+
   // --- Warlock ---
   "summoning-portal": {
     title: "Summoning Portal",
@@ -6886,6 +8013,119 @@ export const cardTemplates = {
     rarity: "Epic",
     class: "Warlock",
     set: ["Legacy"],
+  },
+  corruption: {
+    title: "Corruption",
+    description:
+      "Choose an enemy minion. At the start of your turn, destroy it.",
+    baseMana: 1,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Corruption.jpg",
+    // A text-ONLY enchantment: no stats, no keywords. `player: "ENEMY"` is read
+    // from the ENCHANTED minion's point of view — it sits on an opponent's
+    // minion, so "the enemy's turn start" is the caster's turn start, which is
+    // exactly what the card says. Silencing it saves the minion.
+    effects: [
+      applyModifier({
+        name: "Corruption",
+        description: "Destroyed at the start of your opponent's turn",
+        triggers: [trigger("ON_START_TURN", "ENEMY", [destroy("self")])],
+      }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "enemy", type: ["card"] },
+    isMinion: false,
+    class: "Warlock",
+    set: ["Legacy"],
+  },
+  "power-overwhelming": {
+    title: "Power Overwhelming",
+    description:
+      "Give a friendly minion +4/+4 until end of turn. Then, it dies. Horribly.",
+    baseMana: 1,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Power_Overwhelming.jpg",
+    // Stats AND text in one enchantment. Deliberately NOT a `duration` buff:
+    // the minion dies at end of turn anyway, and an expiring modifier could
+    // race the trigger that kills it. One modifier means Silence removes both
+    // halves at once — the classic save.
+    effects: [
+      applyModifier({
+        name: "Power Overwhelming",
+        description: "+4/+4, dies at end of turn",
+        stats: { attack: 4, health: 4 },
+        triggers: [trigger("ON_END_TURN", "FRIENDLY", [destroy("self")])],
+      }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "friendly", type: ["card"] },
+    isMinion: false,
+    rarity: "Common",
+    class: "Warlock",
+    set: ["Legacy"],
+  },
+  "ritual-of-doom": {
+    title: "Ritual of Doom",
+    description:
+      "Destroy a friendly minion. If you had 5 or more, summon a 5/5 Demon.",
+    baseMana: 0,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Ritual_of_Doom.jpg",
+    effects: [
+      destroy("user-select"),
+      // `destroy` only marks a corpse (damageTaken = maxHealth); the death wave
+      // sweeps it after the spell finishes. So this count still includes the
+      // minion just destroyed — which is exactly the "if you HAD 5 or more"
+      // reading the card wants.
+      //
+      // KNOWN LIMIT: on a full board of 7 that corpse is still occupying its
+      // slot when the summon runs, so the Demon is silently dropped. Fixing it
+      // needs a death sweep mid-effect.
+      {
+        type: "conditional",
+        conditions: [
+          {
+            type: "numeric",
+            key: { type: "minion-count", side: "friendly" },
+            operator: ">=",
+            value: 5,
+          },
+        ],
+        then: [summon("demonic-tyrant")],
+      },
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "friendly", type: ["card"] },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Warlock",
+    set: ["Legacy"],
+  },
+  "demonic-tyrant": {
+    title: "Demonic Tyrant",
+    description: "",
+    baseMana: 5,
+    baseAttack: 5,
+    baseHealth: 5,
+    type: ["Demon"],
+    // The wiki has no standalone art upload for this token, so the portrait is
+    // cropped out of the card render — slightly framed at the corners.
+    imageUrl: "assets/cards/Demonic_Tyrant.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    isUncollectible: true,
+    class: "Warlock",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS3_002t_Male_Demon_Play_01.ogg"],
+      ["VO_CS3_002t_Male_Demon_Attack_01.ogg"],
+      ["VO_CS3_002t_Male_Demon_Death_01.ogg"],
+    ),
   },
 
   // --- Neutral ---
@@ -8866,7 +10106,8 @@ export const cardTemplates = {
   },
   "stampeding-kodo": {
     title: "Stampeding Kodo",
-    description: "Battlecry: Destroy a random enemy minion with 2 or less Attack.",
+    description:
+      "Battlecry: Destroy a random enemy minion with 2 or less Attack.",
     baseMana: 5,
     baseAttack: 3,
     baseHealth: 5,
@@ -9238,7 +10479,8 @@ export const cardTemplates = {
   },
   upgrade: {
     title: "Upgrade!",
-    description: "If you have a weapon, give it +1/+1. Otherwise equip a 1/3 weapon.",
+    description:
+      "If you have a weapon, give it +1/+1. Otherwise equip a 1/3 weapon.",
     baseMana: 1,
     imageUrl: "assets/cards/Upgrade!.jpg",
     effects: [
@@ -9315,6 +10557,327 @@ export const cardTemplates = {
     },
     class: "Priest",
     set: ["Legacy"],
+  },
+  "captains-parrot": {
+    title: "Captain's Parrot",
+    description: "Battlecry: Draw a Pirate from your deck.",
+    baseMana: 2,
+    baseAttack: 1,
+    baseHealth: 1,
+    type: ["Beast"],
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Captain's_Parrot.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    // removeFromSource pulls it out of the deck (a draw, not a copy).
+    onPlace: [
+      {
+        type: "addToHand",
+        source: "deck",
+        removeFromSource: true,
+        conditions: [{ type: "tags-include", value: "Pirate" }],
+        value: 1,
+        rand: { n: 1 },
+      },
+    ],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Epic",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_NEW1_016_Play_01.ogg"],
+      ["VO_NEW1_016_Attack_02.ogg"],
+      ["VO_NEW1_016_Death_03.ogg"],
+    ),
+  },
+  "mad-bomber": {
+    title: "Mad Bomber",
+    description:
+      "Battlecry: Deal 3 damage randomly split between all other characters.",
+    baseMana: 2,
+    baseAttack: 3,
+    baseHealth: 2,
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Mad_Bomber.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [
+      {
+        type: "damage",
+        value: 3,
+        target: "all-characters",
+        conditions: [{ type: "exclude-self" }],
+        rand: { split: true, n: 0 },
+      },
+    ],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Common",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_082_Play_01.ogg"],
+      ["VO_EX1_082_Attack_02.ogg"],
+      ["VO_EX1_082_Death_03.ogg"],
+    ),
+  },
+  "bloodsail-raider": {
+    title: "Bloodsail Raider",
+    description: "Battlecry: Gain Attack equal to the Attack of your weapon.",
+    baseMana: 2,
+    baseAttack: 2,
+    baseHealth: 3,
+    type: ["Pirate"],
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Bloodsail_Raider.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    // weapon-attack folds the weapon's own buffs in (Deadly Poison), and reads
+    // 0 unarmed — which resolves to an all-zero modifier and is dropped.
+    onPlace: [
+      applyModifier({
+        target: "self",
+        stats: { attack: { type: "weapon-attack", player: "friendly" } },
+      }),
+    ],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Common",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_NEW1_018_Play_01.ogg"],
+      ["VO_NEW1_018_Attack_02.ogg"],
+      ["VO_NEW1_018_Death_03.ogg"],
+    ),
+  },
+  "dread-corsair": {
+    title: "Dread Corsair",
+    description: "Taunt. Costs (1) less per Attack of your weapon.",
+    baseMana: 4,
+    baseAttack: 3,
+    baseHealth: 3,
+    type: ["Pirate"],
+    taunt: true,
+    tags: ["Taunt"],
+    imageUrl: "assets/cards/Dread_Corsair.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [],
+    // Same shape as molten-giant / sea-giant: a -1 mana modifier scaled by a
+    // DynamicValue. getManaCost already floors the result at 0.
+    inHand: [
+      applyModifier({
+        stats: { mana: -1 },
+        target: "self",
+        mult: { type: "weapon-attack", player: "friendly" },
+      }),
+    ],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Common",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_NEW1_022_Play_01.ogg"],
+      ["VO_NEW1_022_Attack_02.ogg"],
+      ["VO_NEW1_022_Death_03.ogg"],
+    ),
+  },
+  brightwing: {
+    title: "Brightwing",
+    description: "Battlecry: Add a random Legendary minion to your hand.",
+    baseMana: 2,
+    baseAttack: 3,
+    baseHealth: 2,
+    type: ["Dragon"],
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Brightwing.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [
+      addRandomCard(
+        [
+          { type: "boolean", key: "isMinion", value: true },
+          { type: "boolean", key: "isUncollectible", value: false },
+          { type: "text-contains", key: "rarity", value: "Legendary" },
+        ],
+        1,
+        [],
+      ),
+    ],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Legendary",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_189_Female_Faerie_Play_02.ogg", "Brightwing_Play_Stinger.ogg"],
+      [
+        "VO_EX1_189_Female_Faerie_Attack_01.ogg",
+        "WingFlapTiny_Underlay_Attack.ogg",
+      ],
+      [
+        "VO_EX1_189_Female_Faerie_Death_01.ogg",
+        "WingFlapTiny_Underlay_Death.ogg",
+      ],
+    ),
+  },
+  "king-mukla": {
+    title: "King Mukla",
+    description: "Battlecry: Give your opponent 2 Bananas.",
+    baseMana: 3,
+    baseAttack: 5,
+    baseHealth: 6,
+    type: ["Beast"],
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/King_Mukla.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    // `recipient: "enemy"` sends the cards to the other hand; the pool is still
+    // built for the acting player (here it's a fixed cardID, so neither matters).
+    onPlace: [
+      {
+        type: "addToHand",
+        source: "global",
+        cardID: "bananas",
+        value: 2,
+        recipient: "enemy",
+      },
+    ],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Legendary",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_TUTORIAL_03_MUKLA_01_01.ogg", "Pegasus_Stinger_Beast_Villain.ogg"],
+      ["VO_TUTORIAL_03_MUKLA_02_02.ogg"],
+      ["VO_TUTORIAL_03_MUKLA_08_08.ogg"],
+    ),
+  },
+  bananas: {
+    title: "Bananas",
+    description: "Give a minion +1/+1.",
+    baseMana: 1,
+    imageUrl: "assets/cards/Bananas.jpg",
+    effects: [
+      applyModifier({ stats: { attack: 1, health: 1 }, stackable: true }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["card"] },
+    isMinion: false,
+    isUncollectible: true,
+    class: "Neutral",
+    set: ["Legacy"],
+  },
+  "mind-control-tech": {
+    title: "Mind Control Tech",
+    description:
+      "Battlecry: If your opponent has 4 or more minions, take control of one.",
+    baseMana: 5,
+    baseAttack: 3,
+    baseHealth: 3,
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Mind_Control_Tech.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [
+      {
+        type: "conditional",
+        conditions: [
+          {
+            type: "numeric",
+            key: { type: "minion-count", side: "enemy" },
+            operator: ">=",
+            value: 4,
+          },
+        ],
+        then: [takeControl("enemy-board", undefined, { split: false, n: 1 })],
+      },
+    ],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Rare",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_085_Play_01.ogg"],
+      ["VO_EX1_085_Attack_02.ogg"],
+      ["VO_EX1_085_Death_03.ogg"],
+    ),
+  },
+  "ysera-the-dreamer": {
+    title: "Ysera the Dreamer",
+    description: "Battlecry: Add one of each Dream card to your hand.",
+    baseMana: 9,
+    baseAttack: 4,
+    baseHealth: 12,
+    type: ["Dragon"],
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Ysera_the_Dreamer.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    // One effect per card, the way mirror-image-spell stacks two summons.
+    // NOT a single 5-id addToHand: `value` is read twice — findCardsInPool uses
+    // it as copies-per-id, then the handler slices the pool down to it — so a
+    // 5-id list with value 1 would add only the first card.
+    onPlace: [
+      addToHand("emerald-drake", 1),
+      addToHand("laughing-sister", 1),
+      addToHand("ysera-awakens", 1),
+      addToHand("dream", 1),
+      addToHand("nightmare", 1),
+    ],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Legendary",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS3_033_Female_Dragon_Play_01.ogg", "HS_LegendaryStinger_Ysera.ogg"],
+      ["VO_CS3_033_Female_Dragon_Attack_01.ogg"],
+      ["VO_CS3_033_Female_Dragon_Death_01.ogg"],
+    ),
+  },
+  "deathwing-the-destroyer": {
+    title: "Deathwing the Destroyer",
+    description:
+      "Battlecry: Destroy all other minions. Discard a card for each destroyed.",
+    baseMana: 10,
+    baseAttack: 12,
+    baseHealth: 12,
+    type: ["Dragon"],
+    tags: ["Battlecry"],
+    imageUrl: "assets/cards/Deathwing_the_Destroyer.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    // Discard is counted FIRST, deliberately: `destroy` only marks corpses and
+    // the death wave sweeps them after the battlecry, so a count taken
+    // afterwards would still include them. Counting beforehand yields the same
+    // number — every other minion on the board is about to die — without
+    // depending on sweep timing.
+    onPlace: [
+      discard(
+        {
+          type: "minion-count",
+          side: "all",
+          conditions: [{ type: "exclude-self" }],
+        },
+        "random",
+      ),
+      {
+        type: "destroy",
+        target: "board",
+        conditions: [{ type: "exclude-self" }],
+      },
+    ],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Legendary",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      [
+        "VO_CS3_036_Male_Dragon_Play_02.ogg",
+        "HS_LegendaryStinger_Deathwing.ogg",
+      ],
+      ["VO_CS3_036_Male_Dragon_Attack_02.ogg"],
+      ["VO_CS3_036_Male_Dragon_Death_01.ogg"],
+    ),
   },
   // ---------------------------------------------------------------------
   // SILENCE
@@ -9736,7 +11299,9 @@ export const cardTemplates = {
       }),
     ],
     onPlace: [],
-    deathrattle: [takeControl("enemy-board", undefined, { split: false, n: 1 })],
+    deathrattle: [
+      takeControl("enemy-board", undefined, { split: false, n: 1 }),
+    ],
     targetQuery: {
       side: "enemy",
       type: ["card", "player"],
@@ -9813,8 +11378,7 @@ export const cardTemplates = {
   },
   "divine-favor": {
     title: "Divine Favor",
-    description:
-      "Draw cards until you have as many in hand as your opponent.",
+    description: "Draw cards until you have as many in hand as your opponent.",
     baseMana: 3,
     type: ["Holy"],
     imageUrl: "assets/cards/Divine_Favor.jpg",
@@ -9871,7 +11435,8 @@ export const cardTemplates = {
   // ---------------------------------------------------------------------
   "psychic-conjurer": {
     title: "Psychic Conjurer",
-    description: "Battlecry: Copy a card in your opponent's deck and add it to your hand.",
+    description:
+      "Battlecry: Copy a card in your opponent's deck and add it to your hand.",
     baseMana: 1,
     baseAttack: 1,
     baseHealth: 2,
@@ -10048,6 +11613,7 @@ export const cardTemplates = {
       ["VO_EX1_557_Play_01.ogg", "Pegasus_Stinger_Gnome.ogg"],
       ["VO_EX1_557_Attack_03.ogg"],
       ["VO_EX1_557_Death_04.ogg"],
+      ["VO_EX1_557_Trigger_02.ogg"],
     ),
   },
   demolisher: {
@@ -10062,7 +11628,12 @@ export const cardTemplates = {
     onPlace: [],
     triggers: [
       trigger("ON_START_TURN", "FRIENDLY", [
-        { type: "damage", value: 2, target: "enemy-all", rand: { split: false, n: 1 } },
+        {
+          type: "damage",
+          value: 2,
+          target: "enemy-all",
+          rand: { split: false, n: 1 },
+        },
       ]),
     ],
     targetQuery: { side: "enemy", type: ["card", "player"] },
@@ -10106,6 +11677,42 @@ export const cardTemplates = {
       ["EX1_341_Play_Lightwell.ogg"],
       ["EX1_341_Attack_Lightwell.ogg"],
       ["EX1_341_Death_Lightwell.ogg"],
+    ),
+  },
+  "blood-imp": {
+    title: "Blood Imp",
+    description:
+      "Stealth. At the end of your turn, give another random friendly minion +1 Health.",
+    baseMana: 1,
+    baseAttack: 0,
+    baseHealth: 1,
+    type: ["Demon"],
+    stealth: true,
+    imageUrl: "assets/cards/Blood_Imp.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [],
+    // Same shape as young-priestess below: "another" is the exclude-self
+    // condition, and rand n:1 picks one of whatever survives the filter.
+    triggers: [
+      trigger("ON_END_TURN", "FRIENDLY", [
+        applyModifier({
+          stats: { health: 1 },
+          target: "friendly-board",
+          conditions: [{ type: "exclude-self" }],
+          rand: { split: false, n: 1 },
+          stackable: true,
+        }),
+      ]),
+    ],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Common",
+    class: "Warlock",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_CS2_059_Play_01.ogg"],
+      ["VO_CS2_059_Attack_02.ogg"],
+      ["VO_CS2_059_Death_03.ogg"],
     ),
   },
   "young-priestess": {
@@ -10175,10 +11782,7 @@ export const cardTemplates = {
     effects: [damage({ stat: "attack", type: "card-stat" })],
     onPlace: [],
     triggers: [
-      trigger("ON_END_TURN", "FRIENDLY", [
-        damage(1, "self"),
-        summon("imp"),
-      ]),
+      trigger("ON_END_TURN", "FRIENDLY", [damage(1, "self"), summon("imp")]),
     ],
     targetQuery: { side: "enemy", type: ["card", "player"] },
     isMinion: true,
@@ -10268,7 +11872,8 @@ export const cardTemplates = {
   },
   "baron-geddon": {
     title: "Baron Geddon",
-    description: "At the end of your turn, deal 2 damage to ALL other characters.",
+    description:
+      "At the end of your turn, deal 2 damage to ALL other characters.",
     baseMana: 7,
     baseAttack: 7,
     baseHealth: 5,
@@ -10339,7 +11944,12 @@ export const cardTemplates = {
     onPlace: [],
     triggers: [
       trigger("ON_END_TURN", "FRIENDLY", [
-        { type: "damage", value: 8, target: "enemy-all", rand: { split: false, n: 1 } },
+        {
+          type: "damage",
+          value: 8,
+          target: "enemy-all",
+          rand: { split: false, n: 1 },
+        },
       ]),
     ],
     targetQuery: { side: "enemy", type: ["card", "player"] },
@@ -10350,6 +11960,8 @@ export const cardTemplates = {
     sfx: sfx(
       ["VO_EX1_298_Play_01.ogg", "Pegasus_Stinger_Elemental_Villain.ogg"],
       ["VO_EX1_298_Attack_02.ogg"],
+      ["VO_EX1_298_Death_04.ogg"],
+      ["VO_EX1_298_Trigger_03.ogg"],
     ),
   },
   ysera: {
@@ -10362,14 +11974,19 @@ export const cardTemplates = {
     imageUrl: "assets/cards/Ysera.jpg",
     effects: [damage({ stat: "attack", type: "card-stat" })],
     onPlace: [],
-    // One of the four Dream cards at random. (Nightmare is omitted — it needs
-    // an enchantment that carries its own start-of-turn trigger.)
+    // One of the five Dream cards at random.
     triggers: [
       trigger("ON_END_TURN", "FRIENDLY", [
         {
           type: "addToHand",
           source: "global",
-          cardID: ["emerald-drake", "laughing-sister", "ysera-awakens", "dream"],
+          cardID: [
+            "emerald-drake",
+            "laughing-sister",
+            "ysera-awakens",
+            "dream",
+            "nightmare",
+          ],
           value: 1,
           rand: { n: 1 },
         },
@@ -10384,6 +12001,64 @@ export const cardTemplates = {
       ["VO_EX1_572_Play_01.ogg", "Pegasus_Stinger_Dragon_Good_New.ogg"],
       ["VO_EX1_572_Attack_02.ogg"],
     ),
+  },
+  "onyxia-the-broodmother": {
+    title: "Onyxia the Broodmother",
+    description: "At the end of each turn, fill your board with 1/1 Whelps.",
+    baseMana: 9,
+    baseAttack: 8,
+    baseHealth: 8,
+    type: ["Dragon"],
+    imageUrl: "assets/cards/Onyxia_the_Broodmother.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [],
+    // "each turn" → ANY_PLAYER, so it fires on both hand-offs. executeTrigger
+    // runs with playerID = the trigger's owner, so `target: "self"` fills
+    // Onyxia's controller's board either way. The summon loop stops at 7,
+    // which is what "fill" means.
+    triggers: [
+      trigger("ON_END_TURN", "ANY_PLAYER", [summon("whelp", "self", 7)]),
+    ],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Legendary",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      [
+        "VO_CS3_032_Female_Dragon_Play_01.ogg",
+        "HS_LegendaryStinger_Onyxia.ogg",
+      ],
+      ["VO_CS3_032_Female_Dragon_Attack_03.ogg"],
+      ["VO_CS3_032_Female_Dragon_Death_01.ogg"],
+      ["VO_CS3_032_Female_Dragon_Trigger_01.ogg"],
+    ),
+  },
+  nightmare: {
+    title: "Nightmare",
+    description:
+      "Give a minion +5/+5. At the start of your next turn, destroy it.",
+    baseMana: 0,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Nightmare.jpg",
+    // The fifth Dream card. Same shape as Power Overwhelming, one window later:
+    // the enchanted minion survives the turn it was buffed on and dies when its
+    // controller's next turn begins.
+    effects: [
+      applyModifier({
+        name: "Nightmare",
+        description: "+5/+5, destroyed at the start of your next turn",
+        stats: { attack: 5, health: 5 },
+        triggers: [trigger("ON_START_TURN", "FRIENDLY", [destroy("self")])],
+      }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["card"] },
+    isMinion: false,
+    isUncollectible: true,
+    class: "Neutral",
+    set: ["Legacy"],
   },
   "emerald-drake": {
     title: "Emerald Drake",
@@ -10619,10 +12294,15 @@ export const cardTemplates = {
     effects: [damage({ stat: "attack", type: "card-stat" })],
     onPlace: [],
     triggers: [
-      trigger("ON_MINION_DEATH", "FRIENDLY", [buffSelf({ attack: 2, health: 1 })], {
-        self: "exclude",
-        conditions: [{ type: "tags-include", value: "Beast" }],
-      }),
+      trigger(
+        "ON_MINION_DEATH",
+        "FRIENDLY",
+        [buffSelf({ attack: 2, health: 1 })],
+        {
+          self: "exclude",
+          conditions: [{ type: "tags-include", value: "Beast" }],
+        },
+      ),
     ],
     targetQuery: { side: "enemy", type: ["card", "player"] },
     isMinion: true,
@@ -10775,7 +12455,9 @@ export const cardTemplates = {
     effects: [damage({ stat: "attack", type: "card-stat" })],
     onPlace: [],
     triggers: [
-      trigger("ON_SPELL_CAST", "FRIENDLY", [buffSelf({ attack: 2, health: 2 })]),
+      trigger("ON_SPELL_CAST", "FRIENDLY", [
+        buffSelf({ attack: 2, health: 2 }),
+      ]),
     ],
     targetQuery: { side: "enemy", type: ["card", "player"] },
     isMinion: true,
@@ -10789,7 +12471,8 @@ export const cardTemplates = {
   },
   "archmage-antonidas": {
     title: "Archmage Antonidas",
-    description: "Whenever you cast a spell, add a 'Fireball' spell to your hand.",
+    description:
+      "Whenever you cast a spell, add a 'Fireball' spell to your hand.",
     baseMana: 7,
     baseAttack: 5,
     baseHealth: 7,
@@ -10805,6 +12488,8 @@ export const cardTemplates = {
     sfx: sfx(
       ["VO_EX1_559_Play_01.ogg", "Pegasus_Stinger_Alliance.ogg"],
       ["VO_EX1_559_Attack_03.ogg"],
+      ["VO_EX1_559_Death_04.ogg"],
+      ["VO_EX1_559_Trigger_02.ogg"],
     ),
   },
 
@@ -10823,7 +12508,14 @@ export const cardTemplates = {
       trigger(
         "ON_SUMMON",
         "FRIENDLY",
-        [{ type: "damage", value: 1, target: "enemy-all", rand: { split: false, n: 1 } }],
+        [
+          {
+            type: "damage",
+            value: 1,
+            target: "enemy-all",
+            rand: { split: false, n: 1 },
+          },
+        ],
         { self: "exclude" },
       ),
     ],
@@ -10904,17 +12596,22 @@ export const cardTemplates = {
     // "user-select" inside a trigger resolves to the window's subject — the
     // minion that was just summoned.
     triggers: [
-      trigger("ON_SUMMON", "FRIENDLY", [{ type: "charge", target: "user-select" }], {
-        self: "exclude",
-        conditions: [
-          {
-            type: "numeric",
-            key: { type: "card-stat", stat: "attack" },
-            operator: "<=",
-            value: 3,
-          },
-        ],
-      }),
+      trigger(
+        "ON_SUMMON",
+        "FRIENDLY",
+        [{ type: "charge", target: "user-select" }],
+        {
+          self: "exclude",
+          conditions: [
+            {
+              type: "numeric",
+              key: { type: "card-stat", stat: "attack" },
+              operator: "<=",
+              value: 3,
+            },
+          ],
+        },
+      ),
     ],
     targetQuery: { side: "enemy", type: ["card", "player"] },
     isMinion: true,
@@ -10941,18 +12638,14 @@ export const cardTemplates = {
     // Weapons are trigger owners too — listTriggerOwners includes the equipped
     // weapon on each side.
     triggers: [
-      trigger(
-        "ON_SUMMON",
-        "FRIENDLY",
-        [
-          applyModifier({
-            target: "user-select",
-            stats: { attack: 1, health: 1 },
-            stackable: true,
-          }),
-          durability(-1, "friendly-weapon"),
-        ],
-      ),
+      trigger("ON_SUMMON", "FRIENDLY", [
+        applyModifier({
+          target: "user-select",
+          stats: { attack: 1, health: 1 },
+          stackable: true,
+        }),
+        durability(-1, "friendly-weapon"),
+      ]),
     ],
     targetQuery: { side: "all", type: ["lane"] },
     rarity: "Epic",
@@ -10971,9 +12664,14 @@ export const cardTemplates = {
     effects: [damage({ stat: "attack", type: "card-stat" })],
     onPlace: [],
     triggers: [
-      trigger("ON_CARD_PLAYED", "FRIENDLY", [buffSelf({ attack: 1, health: 1 })], {
-        self: "exclude",
-      }),
+      trigger(
+        "ON_CARD_PLAYED",
+        "FRIENDLY",
+        [buffSelf({ attack: 1, health: 1 })],
+        {
+          self: "exclude",
+        },
+      ),
     ],
     targetQuery: { side: "enemy", type: ["card", "player"] },
     isMinion: true,
@@ -11010,6 +12708,146 @@ export const cardTemplates = {
       ["VO_EX1_001_Death_03.ogg"],
     ),
   },
+  "unbound-elemental": {
+    title: "Unbound Elemental",
+    description: "After you play a card with Overload, gain +1/+1.",
+    baseMana: 3,
+    baseAttack: 3,
+    baseHealth: 4,
+    type: ["Elemental"],
+    imageUrl: "assets/cards/Unbound_Elemental.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [],
+    // The condition inspects the card that was just played. For SPELLS that
+    // card is already in the graveyard by the time CARD_PLAYED opens, which is
+    // why findSubjectCard falls back to the graveyard — without it this would
+    // only ever fire for Overload minions like Dust Devil, never Lightning Bolt.
+    triggers: [
+      trigger(
+        "ON_CARD_PLAYED",
+        "FRIENDLY",
+        [buffSelf({ attack: 1, health: 1 })],
+        {
+          self: "exclude",
+          conditions: [
+            {
+              type: "numeric",
+              key: { type: "card-stat", stat: "overload" },
+              operator: ">",
+              value: 0,
+            },
+          ],
+        },
+      ),
+    ],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Common",
+    class: "Shaman",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["EX1_258_Unbound_Elemental_EnterPlay1.ogg"],
+      ["EX1_258_Unbound_Elemental_Attack3.ogg"],
+      ["EX1_258_Unbound_Elemental_Death1.ogg"],
+    ),
+  },
+  "lorewalker-cho": {
+    title: "Lorewalker Cho",
+    description:
+      "Whenever a player casts a spell, put a copy into the other player's hand.",
+    baseMana: 2,
+    baseAttack: 0,
+    baseHealth: 4,
+    imageUrl: "assets/cards/Lorewalker_Cho.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [],
+    // "the OTHER player" is relative to whoever cast the spell, and a trigger's
+    // effects always run as Cho's controller — so this needs two clauses rather
+    // than one, differing only in who receives the copy.
+    //
+    // `source: "trigger-subject"` copies the spell that opened the window.
+    // Reading it by identity matters: this is a QUEUED reaction, so by the time
+    // it resolves the death wave has already run and any "last graveyard entry"
+    // shortcut would grab a corpse instead of the spell.
+    triggers: [
+      trigger("ON_SPELL_CAST", "FRIENDLY", [
+        {
+          type: "addToHand",
+          source: "trigger-subject",
+          value: 1,
+          recipient: "enemy",
+        },
+      ]),
+      trigger("ON_SPELL_CAST", "ENEMY", [
+        {
+          type: "addToHand",
+          source: "trigger-subject",
+          value: 1,
+          recipient: "self",
+        },
+      ]),
+    ],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Legendary",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_100_Play_Original.ogg", "Pegasus_Stinger_Pandaria_2.ogg"],
+      ["VO_EX1_100_Attack_Original.ogg"],
+      ["VO_EX1_100_Death_Original.ogg"],
+    ),
+  },
+  xavius: {
+    title: "Xavius",
+    description: "After you play a card, summon a 2/1 Satyr.",
+    baseMana: 6,
+    baseAttack: 7,
+    baseHealth: 5,
+    type: ["Demon"],
+    imageUrl: "assets/cards/Xavius.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [],
+    // CARD_PLAYED fires at the end of playCard, by which point Xavius is
+    // already on the board and would react to his own arrival — `self:
+    // "exclude"` is the same guard questing-adventurer uses.
+    triggers: [
+      trigger("ON_CARD_PLAYED", "FRIENDLY", [summon("xavian-satyr")], {
+        self: "exclude",
+      }),
+    ],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    rarity: "Legendary",
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["VO_EX1_614_Male_Satyr_Play_01.ogg", "Xavius_Play_Stinger.ogg"],
+      ["VO_EX1_614_Male_Satyr_Attack_01.ogg"],
+      ["VO_EX1_614_Male_Satyr_Death_01.ogg"],
+    ),
+  },
+  "xavian-satyr": {
+    title: "Xavian Satyr",
+    description: "",
+    baseMana: 1,
+    baseAttack: 2,
+    baseHealth: 1,
+    type: ["Demon"],
+    imageUrl: "assets/cards/Xavian_Satyr.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    isUncollectible: true,
+    class: "Neutral",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["EX1_614t_XavianSatyr_Play.ogg"],
+      ["EX1_614t_XavianSatyr_Attack.ogg"],
+      ["EX1_614t_XavianSatyr_Death.ogg"],
+    ),
+  },
   "northshire-cleric": {
     title: "Northshire Cleric",
     description: "Whenever a minion is healed, draw a card.",
@@ -11043,9 +12881,7 @@ export const cardTemplates = {
     onPlace: [],
     // Overheal is healing that went to waste — only fires when the target was
     // at (or reached) full health with healing left over.
-    triggers: [
-      trigger("OVERHEAL", "ANY_PLAYER", [draw(1)], { self: "only" }),
-    ],
+    triggers: [trigger("OVERHEAL", "ANY_PLAYER", [draw(1)], { self: "only" })],
     targetQuery: { side: "enemy", type: ["card", "player"] },
     isMinion: true,
     rarity: "Rare",
@@ -11066,3 +12902,14 @@ export type CardTemplateKey = keyof typeof cardTemplates;
 
 // 2. An actual type-safe Record mapping your exact keys to cards
 export type CardTemplateRecord = typeof cardTemplates;
+
+// 3. A single template, widened.
+//
+// `satisfies` above keeps each entry's literal type, which is what makes
+// CardTemplateKey exhaustive — but it also means optional fields like `rarity`
+// and `isWeapon` are missing from the union for any card that doesn't set them.
+// Read a template through this type when you need those fields.
+export type CardTemplate = Omit<
+  Card,
+  "id" | "originalID" | "damageTaken" | "attacksLeft"
+>;

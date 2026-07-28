@@ -1,17 +1,20 @@
 import { create } from "zustand";
 import {
-  premadeDecks,
+  starterDecks,
+  STARTER_DECK_SEED_VERSION,
+  type DeckString,
   type SavedDeck,
-  type CardTemplateKey,
 } from "@project/shared";
-
-export type DeckString = Partial<Record<CardTemplateKey, number>>;
 
 // Configuration: Set to true to filter cards by hero class + neutral when building decks
 export const FILTER_BY_CLASS_WHEN_BUILDING = true;
 
 // LocalStorage key for user decks
 const USER_DECKS_KEY = "hearthstone_user_decks";
+// Which generation of starter decks this player has already been given. Kept
+// separate from USER_DECKS_KEY so seeding can add to an existing collection
+// rather than orphaning it behind a new key.
+const STARTER_SEED_KEY = "hearthstone_starter_seed_version";
 
 // Helper functions for localStorage
 function loadUserDecks(): SavedDeck[] {
@@ -30,6 +33,48 @@ function saveUserDecksToStorage(decks: SavedDeck[]): void {
   } catch (error) {
     console.error("Failed to save user decks to localStorage:", error);
   }
+}
+
+/** Copy a starter deck so callers can never mutate the shared constant. */
+function cloneDeck(deck: SavedDeck): SavedDeck {
+  return { ...deck, deckString: { ...deck.deckString } };
+}
+
+/**
+ * Load the player's decks, giving them the starter decks the first time round.
+ *
+ * Seeding is keyed on the seed version, not on the decks key being empty:
+ * players from before starter decks existed already have a populated
+ * USER_DECKS_KEY, and they still need the starters — otherwise anyone who never
+ * built a deck of their own would end up with an empty collection and no way to
+ * start a game. Starters the player has since deleted stay deleted, because the
+ * version has already been recorded.
+ */
+function loadOrSeedUserDecks(): SavedDeck[] {
+  const existing = loadUserDecks();
+
+  let seededVersion = 0;
+  try {
+    seededVersion = Number(localStorage.getItem(STARTER_SEED_KEY)) || 0;
+  } catch (error) {
+    console.error("Failed to read starter deck seed version:", error);
+  }
+  if (seededVersion >= STARTER_DECK_SEED_VERSION) return existing;
+
+  const existingIds = new Set(existing.map((deck) => deck.id));
+  const missing = starterDecks
+    .filter((deck) => !existingIds.has(deck.id))
+    .map(cloneDeck);
+  const seeded = missing.length ? [...missing, ...existing] : existing;
+
+  if (missing.length) saveUserDecksToStorage(seeded);
+  try {
+    localStorage.setItem(STARTER_SEED_KEY, String(STARTER_DECK_SEED_VERSION));
+  } catch (error) {
+    console.error("Failed to record starter deck seed version:", error);
+  }
+
+  return seeded;
 }
 
 interface DeckState {
@@ -63,42 +108,11 @@ interface DeckState {
   clearSelectedDeck: () => void;
 }
 
-// // Helper function to create a deck from a deck string
-// function createDeckFromDeckString(deckString: DeckString): Card[] {
-//   const deck: Card[] = [];
-//   for (const cardId in deckString) {
-//     const count = deckString[cardId as CardTemplateKey];
-//     if (count) {
-//       for (let i = 0; i < count; i++) {
-//         const card = createCardFromID(cardId as CardTemplateKey);
-//         if (card) {
-//           deck.push(card);
-//         } else {
-//           console.warn(`Card with ID ${cardId} not found.`);
-//         }
-//       }
-//     }
-//   }
-//   return deck;
-// }
-
-// Helper function to pick a random premade deck
-function getRandomPremadeDeck(): SavedDeck {
-  const randomDeck =
-    premadeDecks[Math.floor(Math.random() * premadeDecks.length)];
-  return {
-    id: `premade-${randomDeck.name.toLowerCase()}`,
-    name: randomDeck.name,
-    hero: randomDeck.hero,
-    deckString: randomDeck.deckString,
-  };
-}
-
 export const useDeckStore = create<DeckState>((set, get) => ({
   playerDeck: {},
   opponentDeck: null,
   isDeckReady: false,
-  userDecks: loadUserDecks(),
+  userDecks: loadOrSeedUserDecks(),
   selectedDeckForPlay: null,
 
   setPlayerDeck: (deck: DeckString) => {
@@ -106,11 +120,13 @@ export const useDeckStore = create<DeckState>((set, get) => ({
   },
 
   generateOpponentDeck: () => {
-    // Generate a random premade deck for the opponent
-    const opponentSavedDeck = getRandomPremadeDeck();
+    // Opponents always play a starter deck. Drawn from the static list rather
+    // than the player's collection so it stays valid whatever they edit.
+    const randomDeck =
+      starterDecks[Math.floor(Math.random() * starterDecks.length)];
 
     set({
-      opponentDeck: opponentSavedDeck,
+      opponentDeck: cloneDeck(randomDeck),
       isDeckReady: true,
     });
   },
@@ -162,17 +178,7 @@ export const useDeckStore = create<DeckState>((set, get) => ({
     set({ userDecks: updatedDecks });
   },
 
-  getAllDecks: () => {
-    const state = get();
-    // Convert premade decks to SavedDeck format and combine with user decks
-    const premadeAsSaved: SavedDeck[] = premadeDecks.map((deck) => ({
-      id: `premade-${deck.name.toLowerCase()}`,
-      name: deck.name,
-      hero: deck.hero,
-      deckString: deck.deckString,
-    }));
-    return [...premadeAsSaved, ...state.userDecks];
-  },
+  getAllDecks: () => get().userDecks,
 
   selectDeckForPlay: (deck: SavedDeck) => {
     set({ selectedDeckForPlay: deck });

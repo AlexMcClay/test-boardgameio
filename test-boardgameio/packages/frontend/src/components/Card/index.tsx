@@ -44,6 +44,10 @@ const keywords = [
   "Immune",
   "Spell Damage",
   "Overload",
+  "Overheal",
+  "Temporary",
+  "Choose One",
+  "Discover",
 ];
 
 const Card = ({
@@ -223,6 +227,7 @@ const Card = ({
           ` w-[7.8vw] relative aspect-[5/7] h-[10.92vw]  rounded-2xl flex-col flex gap-0 items-center  text-white font-serif`,
           isDragging && !card.isPlaced && " isDragPlay ",
           isDragging && "cursor-grabbing dragging-card scale-110",
+          card.temporary && "isTempCard",
         )}
       >
         {/* Art */}

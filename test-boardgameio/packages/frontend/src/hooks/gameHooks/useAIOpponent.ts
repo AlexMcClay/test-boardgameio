@@ -15,12 +15,50 @@ import {
   getManaCost,
   hasPendingDeaths,
   moveCommandToEvent,
+  type Card,
   type PlayerID,
 } from "@project/shared";
 import type {
   AIWorkerRequest,
   AIWorkerResponse,
 } from "@/workers/ai.worker";
+
+/** Cards costing this or less are what a turn 1-3 curve is made of. */
+const CHEAP_CURVE = 3;
+
+/**
+ * Which opening cards to throw back.
+ *
+ * The old rule ("replace anything over 4 mana") threw away every four-drop
+ * regardless of the rest of the hand, which is a bad keep/toss line: a hand of
+ * three one-drops wants a top end, and a hand with nothing under five wants to
+ * keep one castable card rather than gamble the whole grip. Holding the Coin is
+ * never wrong — it is free tempo and marks you as going second.
+ */
+function chooseMulligan(hand: Card[]): string[] {
+  const isCoin = (card: Card) => card.originalID === "the-coin";
+
+  const cheapCount = hand.filter(
+    (c) => !isCoin(c) && getManaCost(c) <= CHEAP_CURVE,
+  ).length;
+  // Going second (holding the Coin) an extra crystal is available on turn 4,
+  // and a hand short on early plays needs a payoff to aim at.
+  const fourDropsToKeep = hand.some(isCoin) || cheapCount < 2 ? 1 : 0;
+
+  let kept = 0;
+  return hand
+    .filter((card) => {
+      if (isCoin(card)) return false;
+      const mana = getManaCost(card);
+      if (mana <= CHEAP_CURVE) return false;
+      if (mana === 4 && kept < fourDropsToKeep) {
+        kept++;
+        return false;
+      }
+      return true;
+    })
+    .map((card) => card.id);
+}
 
 export function useAIOpponent(
   actor: Actor<typeof gameMachine> | null,
@@ -49,17 +87,14 @@ export function useAIOpponent(
       const { G, ctx } = snapshot.context;
       if (ctx.gameover) return;
 
-      // Mulligan is simultaneous — handle it before any turn checks. Simple
-      // heuristic: throw back expensive cards (cost > 4) for a curve start.
+      // Mulligan is simultaneous — handle it before any turn checks.
       if (snapshot.matches("mulligan")) {
         if (G.mulligan?.active && !G.mulligan.confirmed[botSeat]) {
-          const replaceCardIds = G.players[botSeat].hand
-            .filter(
-              (card) =>
-                card.originalID !== "the-coin" && getManaCost(card) > 4,
-            )
-            .map((card) => card.id);
-          actor.send({ type: "MULLIGAN_CONFIRM", playerID: botSeat, replaceCardIds });
+          actor.send({
+            type: "MULLIGAN_CONFIRM",
+            playerID: botSeat,
+            replaceCardIds: chooseMulligan(G.players[botSeat].hand),
+          });
         }
         return;
       }
@@ -72,7 +107,11 @@ export function useAIOpponent(
       // the machine lands back in an actionable state.
       const actionable =
         snapshot.matches({ playing: "idle" }) ||
-        snapshot.matches({ playing: "awaitingBattlecryTarget" });
+        snapshot.matches({ playing: "awaitingBattlecryTarget" }) ||
+        // A Choose One / Discover prompt is the bot's move to make. Left out
+        // of this list the bot would request nothing and the game would hang
+        // on its turn forever — there is no timeout to rescue it.
+        snapshot.matches({ playing: "awaitingChoice" });
       if (!actionable || hasPendingDeaths(G)) {
         return;
       }
@@ -108,7 +147,8 @@ export function useAIOpponent(
       // Drop it — the subscription re-requests once resolution settles.
       const actionable =
         snapshot.matches({ playing: "idle" }) ||
-        snapshot.matches({ playing: "awaitingBattlecryTarget" });
+        snapshot.matches({ playing: "awaitingBattlecryTarget" }) ||
+        snapshot.matches({ playing: "awaitingChoice" });
       if (!actionable) return;
 
       if (!chosen) {

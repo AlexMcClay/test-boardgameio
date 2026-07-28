@@ -16,7 +16,6 @@ type Props = {
   ) => void;
   // Props for the "edit" variant
   setDeckName?: (value: string) => void;
-  isPremade?: boolean;
 };
 
 const Deck = ({
@@ -27,7 +26,6 @@ const Deck = ({
   handleEditDeck,
   image,
   setDeckName,
-  isPremade = false,
 }: Props) => {
   const playSfx = useAudioStore((state) => state.playSfx);
 
@@ -59,14 +57,12 @@ const Deck = ({
           {name}
         </span>
 
-        {!id.startsWith("premade-") && (
-          <button
-            onClick={(e) => (handleDeleteDeck ? handleDeleteDeck(id, e) : null)}
-            className="text-red-400 hover:text-red-600 text-[0.8vw] px-[0.3vw] z-30"
-          >
-            ✕
-          </button>
-        )}
+        <button
+          onClick={(e) => (handleDeleteDeck ? handleDeleteDeck(id, e) : null)}
+          className="text-red-400 hover:text-red-600 text-[0.8vw] px-[0.3vw] z-30"
+        >
+          ✕
+        </button>
       </motion.div>
     );
   }
@@ -101,13 +97,7 @@ const Deck = ({
             placeholder="Enter deck name..."
             className="w-full p-[0.3vw] text-[1.1vw] bg-transparent text-white focus:outline-none"
             maxLength={30}
-            readOnly={isPremade}
           />
-          {isPremade && (
-            <span className="text-[0.6vw] text-amber-400 font-bold whitespace-nowrap self-center*">
-              (Premade)
-            </span>
-          )}
         </div>
       </motion.div>
     );

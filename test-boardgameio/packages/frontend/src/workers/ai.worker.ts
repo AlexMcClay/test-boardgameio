@@ -6,11 +6,14 @@ import {
   DEFAULT_MCTS_CONFIG,
   type EngineState,
   type MCTSChosenMove,
+  type MCTSConfig,
 } from "@project/shared";
 
 export interface AIWorkerRequest {
   requestId: number;
   state: EngineState;
+  /** Search strength; omit for DEFAULT_MCTS_CONFIG. See MCTS_PRESETS. */
+  config?: MCTSConfig;
 }
 
 export interface AIWorkerResponse {
@@ -20,8 +23,8 @@ export interface AIWorkerResponse {
 }
 
 self.onmessage = (event: MessageEvent<AIWorkerRequest>) => {
-  const { requestId, state } = event.data;
-  const chosen = findBestMove(state, DEFAULT_MCTS_CONFIG);
+  const { requestId, state, config } = event.data;
+  const chosen = findBestMove(state, config ?? DEFAULT_MCTS_CONFIG);
   const response: AIWorkerResponse = { requestId, chosen };
   self.postMessage(response);
 };

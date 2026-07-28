@@ -4,6 +4,7 @@ import type {
   Card,
   Player,
   TargetValue,
+  TargetQuery,
   EffectTypes,
   EffectContext,
   HeroPower,
@@ -21,7 +22,11 @@ import {
   isUserSelectValue,
 } from "./utils";
 import { resolveDynamicValue } from "./utils/effectEngine";
-import { checkTargetRestrictions } from "./utils/validateMove";
+import {
+  checkTargetRestrictions,
+  validateMove,
+  validateTargetQuery,
+} from "./utils/validateMove";
 
 // Types for AI moves
 export type AIMove = {
@@ -40,6 +45,15 @@ export function enumerateAIMoves(G: GameState, ctx: Ctx): AIMove[] {
 
   const moves: AIMove[] = [];
   const player = G.players[ctx.currentPlayer];
+
+  // Special case: a Choose One / Discover prompt owns the action completely —
+  // applyMove rejects everything else (engine.ts "choice-pending"), so
+  // enumerating anything else would just spin the search on illegal moves.
+  // Checked BEFORE the battlecry branch: a battlecry can open a Discover
+  // (Selective Breeder), and the prompt is what's actually pending then.
+  if (G.pendingChoice) {
+    return enumerateChoiceMoves(G, ctx);
+  }
 
   // Special case: If there's a pending battlecry, enumerate target selection
   if (G.activeBattlecryMinion) {
@@ -97,29 +111,253 @@ export function enumerateAIMoves(G: GameState, ctx: Ctx): AIMove[] {
     endTurnScore += 15;
   }
 
-  // Score all moves and sort by score (highest first)
-  // Note: With objectives, MCTS uses evaluateGameState during simulations
-  // So we don't need to add it here - keeps scores positive and interpretable
-  const scoredMoves = moves.map((move) => ({
-    ...move,
-    score: move.score, // Pure move value without game state adjustment
-  }));
+  // Never pass up lethal. The +1000 bonuses in scoreAttack / scoreHeroAttack /
+  // evaluateEffect mark a winning line; without this guard the playout policy
+  // (which samples among the top few moves) could roll "end turn" on it.
+  const hasLethal = moves.some((move) => move.score >= 900);
+  if (hasLethal) {
+    endTurnScore -= 500;
+  }
 
   // Sort by score descending
-  scoredMoves.sort((a, b) => b.score - a.score);
-  if (scoredMoves.length < 2) {
-    scoredMoves.push({
-      move: "endTurn",
+  const scoredMoves = [...moves].sort((a, b) => b.score - a.score);
+
+  // Ending the turn is ALWAYS an option. It used to be enumerated only when
+  // fewer than two other moves existed, which meant MCTS could never choose to
+  // hold a card — the bot emptied its hand every turn no matter how bad the
+  // plays were. Now the search weighs passing against playing like any other
+  // move, so it can keep an AoE for a board worth clearing, or decline to
+  // overcommit. It is appended AFTER the cap so a wide board can't crowd it out.
+  const top = scoredMoves.slice(0, 19);
+  top.push({
+    move: "endTurn",
+    args: [],
+    score: endTurnScore,
+    description: "End turn",
+  });
+  top.sort((a, b) => b.score - a.score);
+
+  return top;
+}
+
+/**
+ * Enumerate the picks for an open Choose One / Discover prompt.
+ *
+ * Unlike enumerateBattlecryTargets, this builds the candidate list from every
+ * character on the board and runs the REAL validator over it, rather than
+ * re-deriving side/type rules — the option cards' targetQueries are ordinary
+ * ones and there's no reason to hand-roll them a second time.
+ */
+function enumerateChoiceMoves(G: GameState, ctx: Ctx): AIMove[] {
+  const pending = G.pendingChoice!;
+  const moves: AIMove[] = [];
+  const enemyId = ctx.currentPlayer === "0" ? "1" : "0";
+
+  pending.options.forEach((option, index) => {
+    // Discover picks NEVER take a target — the card just goes to hand, and
+    // gets aimed later when it's actually played. Only a Choose One half can
+    // need one.
+    const needsTarget =
+      pending.kind === "chooseOne" &&
+      !!option.targetQuery &&
+      option.effects.some((e) => isUserSelectValue(e));
+
+    if (!needsTarget) {
+      moves.push({
+        move: "resolveChoice",
+        args: [index],
+        score: scoreChoiceOption(G, ctx, pending.kind, option),
+        description: `Choose: ${option.title}`,
+      });
+      return;
+    }
+
+    // Every character, filtered by the option's own targetQuery.
+    const candidates: TargetValue[] = [
+      ...G.board[ctx.currentPlayer].map((c) => ({
+        type: "card" as const,
+        id: c.id,
+        player: ctx.currentPlayer,
+      })),
+      ...G.board[enemyId].map((c) => ({
+        type: "card" as const,
+        id: c.id,
+        player: enemyId,
+      })),
+      { type: "player" as const, id: ctx.currentPlayer, player: ctx.currentPlayer },
+      { type: "player" as const, id: enemyId, player: enemyId },
+    ];
+
+    candidates.forEach((target) => {
+      const context: EffectContext = {
+        G,
+        ctx,
+        card: option,
+        target,
+        playerID: ctx.currentPlayer,
+        location: "hand",
+        type: "spell",
+      };
+      if (!validateTargetQuery(option.targetQuery!, context, option.id)) return;
+      moves.push({
+        move: "resolveChoice",
+        args: [index, target],
+        score: scoreChoiceOption(G, ctx, pending.kind, option, target),
+        description: `Choose: ${option.title} -> ${target.type} ${target.id}`,
+      });
+    });
+  });
+
+  // Choose One can be backed out of; Discover cannot.
+  if (pending.kind === "chooseOne") {
+    moves.push({
+      move: "cancelChoice",
       args: [],
-      score: endTurnScore - 200,
-      description: "End turn",
+      score: -50, // Low priority — prefer to actually pick a half
+      description: "Cancel choose one",
     });
   }
 
-  // Return only top moves to prevent infinite loops (widened from 10 to make
-  // room for hero power / hero attack moves alongside card plays & attacks)
-  // console.log("SCORE MOVES", scoredMoves);
-  return scoredMoves.slice(0, 20);
+  return moves.sort((a, b) => b.score - a.score).slice(0, 20);
+}
+
+/**
+ * Rough desirability of one option. Deliberately simple: MCTS does the real
+ * work by simulating the pick, this only shapes which branches get explored
+ * first.
+ */
+function scoreChoiceOption(
+  G: GameState,
+  ctx: Ctx,
+  kind: "chooseOne" | "discover",
+  option: Card,
+  target?: TargetValue,
+): number {
+  if (kind === "discover") {
+    // Prefer expensive (usually stronger) cards, mildly prefer minions since
+    // the bot plays boards better than it plays spells.
+    return 10 + (option.baseMana ?? 0) * 2 + (option.isMinion ? 2 : 0);
+  }
+  // Choose One: reuse the battlecry target scorer where a target is involved,
+  // since the option card's `effects` read exactly like a battlecry's onPlace.
+  let score = 10;
+  if (target) {
+    const targetCard =
+      target.type === "card"
+        ? G.board[target.player].find((c) => c.id === target.id)
+        : undefined;
+    const targetEntity = targetCard ?? G.players[target.player];
+    score += scoreBattlecryTarget(
+      { ...option, onPlace: option.effects },
+      targetEntity,
+      {
+        G,
+        ctx,
+        card: option,
+        target,
+        playerID: ctx.currentPlayer,
+        location: "board",
+        type: "minion",
+      },
+    );
+  }
+  return score;
+}
+
+/**
+ * Every TargetValue the given query types could conceivably name: both boards,
+ * both heroes, both lanes. Deliberately unfiltered — legality is decided by
+ * enumerateValidTargets' predicate, which runs the engine's own validator.
+ */
+function collectCandidateTargets(
+  G: GameState,
+  currentPlayer: string,
+  types: TargetQuery["type"],
+): TargetValue[] {
+  const enemyId = currentPlayer === "0" ? "1" : "0";
+  const candidates: TargetValue[] = [];
+
+  types.forEach((type) => {
+    switch (type) {
+      case "card":
+        [currentPlayer, enemyId].forEach((owner) => {
+          G.board[owner].forEach((c) => {
+            candidates.push({ type: "card", id: c.id, player: owner });
+          });
+        });
+        break;
+      case "player":
+        [currentPlayer, enemyId].forEach((owner) => {
+          candidates.push({ type: "player", id: owner, player: owner });
+        });
+        break;
+      case "lane":
+        [currentPlayer, enemyId].forEach((owner) => {
+          candidates.push({
+            type: "lane",
+            id: `lane-${owner}`,
+            player: owner,
+          });
+        });
+        break;
+      // "hand" is never a user-select target in the current card pool.
+    }
+  });
+
+  return candidates;
+}
+
+/**
+ * The targets the ENGINE would actually accept.
+ *
+ * This is the fix for the bot walking into moves the engine silently drops
+ * (Execute on an undamaged minion, a spell aimed at an Elusive or Stealthed
+ * minion, a battlecry that may not hit itself). Callers pass the very
+ * validator their move will be checked against, so enumeration can't drift
+ * from engine semantics the way hand-rolled side/type filtering did.
+ */
+function enumerateValidTargets(
+  G: GameState,
+  ctx: Ctx,
+  types: TargetQuery["type"],
+  isLegal: (target: TargetValue) => boolean,
+): TargetValue[] {
+  return collectCandidateTargets(G, ctx.currentPlayer, types).filter(isLegal);
+}
+
+/** The board card or hero a TargetValue names, for scoring. */
+function resolveTargetEntity(
+  G: GameState,
+  target: TargetValue,
+): Card | Player | undefined {
+  if (target.type === "card") {
+    return G.board[target.player].find((c) => c.id === target.id);
+  }
+  if (target.type === "player") {
+    return G.players[target.player];
+  }
+  return undefined;
+}
+
+/**
+ * Damage needed to kill a hero. Armor soaks damage before health does, so
+ * ignoring it makes the bot commit to "lethal" lines that leave the opponent
+ * alive — worse than not seeing the lethal at all.
+ */
+function effectiveHealth(player: Player): number {
+  return player.health + player.armor;
+}
+
+/** Short label for a target, used only in AIMove.description. */
+function describeTarget(G: GameState, target: TargetValue): string {
+  if (target.type === "card") {
+    const card = G.board[target.player].find((c) => c.id === target.id);
+    return card?.title ?? target.id;
+  }
+  if (target.type === "player") {
+    return target.player === "0" ? "hero P0" : "hero P1";
+  }
+  return `board ${target.player}`;
 }
 
 /**
@@ -133,137 +371,35 @@ function enumerateBattlecryTargets(G: GameState, ctx: Ctx): AIMove[] {
   const card = G.board[playerId].find((c) => c.id === cardId);
   if (!card || !card.battlecryQuery) return moves;
 
-  const enemyPlayerId = ctx.currentPlayer === "0" ? "1" : "0";
+  // resolveBattlecry runs validateMove on the placed minion, which routes to
+  // the activeBattlecryMinion branch and checks battlecryQuery — conditions
+  // included. Self-targeting is legal unless the card says otherwise via an
+  // `exclude-self` condition, so it is NOT hardcoded here.
+  const targets = enumerateValidTargets(
+    G,
+    ctx,
+    card.battlecryQuery.type,
+    (target) => validateMove(G, ctx, cardId, "board", target).valid,
+  );
 
-  // Get valid targets based on battlecryTargets
-  card.battlecryQuery?.type.forEach((targetType) => {
-    switch (targetType) {
-      case "card": {
-        if (
-          card.battlecryQuery?.side === "all" ||
-          card.battlecryQuery?.side === "enemy"
-        ) {
-          // Target enemy minions
-          G.board[enemyPlayerId].forEach((enemyCard) => {
-            const target: TargetValue = {
-              type: "card",
-              id: enemyCard.id,
-              player: enemyPlayerId,
-            };
-            const score = scoreBattlecryTarget(card, enemyCard, {
-              G,
-              ctx,
-              card: card,
-              target: target,
-              playerID: ctx.currentPlayer,
-              location: "board",
-              type: "minion",
-            });
-            moves.push({
-              move: "resolveBattlecry",
-              args: [cardId, target],
-              score,
-              description: `Battlecry target: ${enemyCard.title}`,
-            });
-          });
-        }
-
-        // Target friendly minions
-        if (
-          card.battlecryQuery?.side === "all" ||
-          card.battlecryQuery?.side === "friendly"
-        ) {
-          G.board[ctx.currentPlayer].forEach((friendlyCard) => {
-            if (friendlyCard.id !== cardId) {
-              const target: TargetValue = {
-                type: "card",
-                id: friendlyCard.id,
-                player: ctx.currentPlayer,
-              };
-              const score = scoreBattlecryTarget(card, friendlyCard, {
-                G,
-                ctx,
-                card: card,
-                target: target,
-                playerID: ctx.currentPlayer,
-                location: "board",
-                type: "minion",
-              });
-              moves.push({
-                move: "resolveBattlecry",
-                args: [cardId, target],
-                score,
-                description: `Battlecry target: ${friendlyCard.title}`,
-              });
-            }
-          });
-        }
-
-        break;
-      }
-      case "player": {
-        if (
-          card.battlecryQuery?.side === "all" ||
-          card.battlecryQuery?.side === "enemy"
-        ) {
-          // Target enemy minions
-          const targetHero: TargetValue = {
-            type: "player",
-            id: enemyPlayerId,
-            player: enemyPlayerId,
-          };
-          const scoreHero = scoreBattlecryTarget(
-            card,
-            G.players[enemyPlayerId],
-            {
-              G,
-              ctx,
-              card: card,
-              target: targetHero,
-              playerID: ctx.currentPlayer,
-              location: "board",
-              type: "minion",
-            },
-          );
-          moves.push({
-            move: "resolveBattlecry",
-            args: [cardId, targetHero],
-            score: scoreHero,
-            description: `Battlecry target: Enemy hero`,
-          });
-        }
-
-        if (
-          card.battlecryQuery?.side === "all" ||
-          card.battlecryQuery?.side === "friendly"
-        ) {
-          const targetOwnHero: TargetValue = {
-            type: "player",
-            id: ctx.currentPlayer,
-            player: ctx.currentPlayer,
-          };
-          const scoreOwnHero = scoreBattlecryTarget(
-            card,
-            G.players[ctx.currentPlayer],
-            {
-              G,
-              ctx,
-              card: card,
-              target: targetOwnHero,
-              playerID: ctx.currentPlayer,
-              location: "board",
-              type: "minion",
-            },
-          );
-          moves.push({
-            move: "resolveBattlecry",
-            args: [cardId, targetOwnHero],
-            score: scoreOwnHero,
-            description: `Battlecry target: Own hero`,
-          });
-        }
-      }
-    }
+  targets.forEach((target) => {
+    const entity = resolveTargetEntity(G, target);
+    if (!entity) return;
+    const score = scoreBattlecryTarget(card, entity, {
+      G,
+      ctx,
+      card: card,
+      target: target,
+      playerID: ctx.currentPlayer,
+      location: "board",
+      type: "minion",
+    });
+    moves.push({
+      move: "resolveBattlecry",
+      args: [cardId, target],
+      score,
+      description: `Battlecry target: ${describeTarget(G, target)}`,
+    });
   });
 
   return moves;
@@ -307,7 +443,10 @@ function scoreBattlecryTarget(
       } else {
         // Targeting player - check for lethal
         const targetPlayer = target as Player;
-        if (targetPlayer.maxHealth <= damage) {
+        if (
+          targetPlayer.id !== context.playerID &&
+          effectiveHealth(targetPlayer) <= damage
+        ) {
           score += 1000; // LETHAL!
         } else {
           score += damage * 5; // Face damage is good
@@ -403,69 +542,36 @@ function enumerateHeroPower(G: GameState, ctx: Ctx, player: Player): AIMove[] {
     return moves;
   }
 
-  const enemyPlayerId = ctx.currentPlayer === "0" ? "1" : "0";
+  // Mirrors useHeroPower's own check exactly, sourceID included — hero powers
+  // never run checkTargetRestrictions, but validateTargetQuery is where the
+  // Elusive gate lives, and `type: "heroPower"` is what arms it.
+  const targets = enumerateValidTargets(
+    G,
+    ctx,
+    heroPower.targetQuery.type,
+    (target) =>
+      validateTargetQuery(
+        heroPower.targetQuery,
+        {
+          G,
+          ctx,
+          playerID: ctx.currentPlayer,
+          target,
+          location: "hand",
+          type: "heroPower",
+          heroPower,
+        },
+        `hero-power-${ctx.currentPlayer}`,
+      ),
+  );
 
-  heroPower.targetQuery.type.forEach((targetType) => {
-    const { side } = heroPower.targetQuery;
-    if (targetType === "card") {
-      if (side === "all" || side === "enemy") {
-        G.board[enemyPlayerId].forEach((enemyCard) => {
-          const target: TargetValue = {
-            type: "card",
-            id: enemyCard.id,
-            player: enemyPlayerId,
-          };
-          moves.push({
-            move: "useHeroPower",
-            args: [target],
-            score: scoreHeroPower(G, ctx, heroPower, target),
-            description: `Hero power: ${heroPower.name} on ${enemyCard.title}`,
-          });
-        });
-      }
-      if (side === "all" || side === "friendly") {
-        G.board[ctx.currentPlayer].forEach((friendlyCard) => {
-          const target: TargetValue = {
-            type: "card",
-            id: friendlyCard.id,
-            player: ctx.currentPlayer,
-          };
-          moves.push({
-            move: "useHeroPower",
-            args: [target],
-            score: scoreHeroPower(G, ctx, heroPower, target),
-            description: `Hero power: ${heroPower.name} on ${friendlyCard.title}`,
-          });
-        });
-      }
-    } else if (targetType === "player") {
-      if (side === "all" || side === "enemy") {
-        const target: TargetValue = {
-          type: "player",
-          id: enemyPlayerId,
-          player: enemyPlayerId,
-        };
-        moves.push({
-          move: "useHeroPower",
-          args: [target],
-          score: scoreHeroPower(G, ctx, heroPower, target),
-          description: `Hero power: ${heroPower.name} on enemy hero`,
-        });
-      }
-      if (side === "all" || side === "friendly") {
-        const target: TargetValue = {
-          type: "player",
-          id: ctx.currentPlayer,
-          player: ctx.currentPlayer,
-        };
-        moves.push({
-          move: "useHeroPower",
-          args: [target],
-          score: scoreHeroPower(G, ctx, heroPower, target),
-          description: `Hero power: ${heroPower.name} on own hero`,
-        });
-      }
-    }
+  targets.forEach((target) => {
+    moves.push({
+      move: "useHeroPower",
+      args: [target],
+      score: scoreHeroPower(G, ctx, heroPower, target),
+      description: `Hero power: ${heroPower.name} on ${describeTarget(G, target)}`,
+    });
   });
 
   return moves;
@@ -511,93 +617,38 @@ function enumerateAttacks(G: GameState, ctx: Ctx): AIMove[] {
   const enemyPlayer = G.players[enemyPlayerId];
 
   G.board[ctx.currentPlayer].forEach((card) => {
-    // Can only attack if not summoning sick and hasn't attacked
-
-    const isSicknessActive =
-      card.summoningSickness &&
-      !hasKeyword(card, "charge") &&
-      !hasKeyword(card, "rush");
-    const disabled =
-      (card.attacksLeft == 0 || isSicknessActive || hasKeyword(card, "frozen")) &&
-      !G?.activeBattlecryMinion;
-    if (disabled || !getAttack(card) || getAttack(card) <= 0) {
+    // Cheap pre-gate so we don't run the full validator per candidate for a
+    // minion that plainly cannot swing. validateMove is still the authority on
+    // summoning sickness, frozen, cantAttack, taunt, stealth and immune.
+    if (card.attacksLeft <= 0 || !getAttack(card) || getAttack(card) <= 0) {
       return;
     }
 
-    // Check if enemy has taunt minions
-    const enemyTaunts = G.board[enemyPlayerId].filter((c) =>
-      hasKeyword(c, "taunt"),
+    const targets = enumerateValidTargets(
+      G,
+      ctx,
+      card.targetQuery.type,
+      (target) => validateMove(G, ctx, card.id, "board", target).valid,
     );
 
-    if (enemyTaunts.length > 0) {
-      // Must attack taunts
-      enemyTaunts.forEach((tauntCard) => {
-        const target: TargetValue = {
-          type: "card",
-          id: tauntCard.id,
-          player: enemyPlayerId,
-        };
-        const score = scoreAttack(
-          card,
-          tauntCard,
-          enemyPlayer,
-          "card",
-          G,
-          enemyPlayerId,
-        );
-        moves.push({
-          move: "minionAttack",
-          args: [card.id, target],
-          score,
-          description: `Attack ${tauntCard.title} with ${card.title}`,
-        });
-      });
-    } else {
-      // Can attack any minion or face
-      // Attack enemy minions
-      G.board[enemyPlayerId].forEach((enemyCard) => {
-        const target: TargetValue = {
-          type: "card",
-          id: enemyCard.id,
-          player: enemyPlayerId,
-        };
-        const score = scoreAttack(
-          card,
-          enemyCard,
-          enemyPlayer,
-          "card",
-          G,
-          enemyPlayerId,
-        );
-        moves.push({
-          move: "minionAttack",
-          args: [card.id, target],
-          score,
-          description: `Attack ${enemyCard.title} with ${card.title}`,
-        });
-      });
-
-      // Attack face
-      const targetFace: TargetValue = {
-        type: "player",
-        id: enemyPlayerId,
-        player: enemyPlayerId,
-      };
-      const scoreFace = scoreAttack(
+    targets.forEach((target) => {
+      const entity = resolveTargetEntity(G, target);
+      if (!entity) return;
+      const score = scoreAttack(
         card,
+        entity,
         enemyPlayer,
-        enemyPlayer,
-        "player",
+        target.type === "player" ? "player" : "card",
         G,
         enemyPlayerId,
       );
       moves.push({
         move: "minionAttack",
-        args: [card.id, targetFace],
-        score: scoreFace,
-        description: `Attack face with ${card.title}`,
+        args: [card.id, target],
+        score,
+        description: `Attack ${describeTarget(G, target)} with ${card.title}`,
       });
-    }
+    });
   });
 
   return moves;
@@ -716,7 +767,7 @@ function scoreHeroAttack(
   } else {
     score += attackValue * 8;
     const targetPlayer = target as Player;
-    if (targetPlayer.health <= attackValue) {
+    if (effectiveHealth(targetPlayer) <= attackValue) {
       score += 1000; // LETHAL!
     }
   }
@@ -734,7 +785,6 @@ function enumerateTargets(
   location: "hand" | "board",
 ): AIMove[] {
   const moves: AIMove[] = [];
-  const enemyPlayerId = ctx.currentPlayer === "0" ? "1" : "0";
 
   if (card.isMinion && location === "hand" && !card.isPlaced) {
     // place on lane
@@ -753,150 +803,21 @@ function enumerateTargets(
     return moves; // Minions from hand can only be placed on lane, so return early
   }
 
-  card.targetQuery.type.forEach((targetType) => {
-    switch (targetType) {
-      case "card":
-        // Generic card targeting - enumerate both friendly and enemy minions
-        // Enemy minions
-        if (
-          card.targetQuery.side == "all" ||
-          card.targetQuery.side == "enemy"
-        ) {
-          G.board[enemyPlayerId].forEach((enemyCard) => {
-            const target: TargetValue = {
-              type: "card",
-              id: enemyCard.id,
-              player: enemyPlayerId,
-            };
-            const score = scoreCardPlay(G, ctx, card, target);
-            moves.push({
-              move: "placeCard",
-              args: [card.id, target],
-              score,
-              description: `Play ${card.title} on ${enemyCard.title}`,
-            });
-          });
-        }
+  // placeCard runs validateMove, so run the same thing here: a spell whose
+  // targetQuery conditions nothing on the board satisfies (Execute with no
+  // damaged enemy) now yields zero moves and simply stays in hand, instead of
+  // producing plays the engine drops on the floor.
+  const targets = enumerateValidTargets(G, ctx, card.targetQuery.type, (target) =>
+    validateMove(G, ctx, card.id, location, target).valid,
+  );
 
-        // Friendly minions
-        if (
-          card.targetQuery.side == "all" ||
-          card.targetQuery.side == "friendly"
-        ) {
-          G.board[ctx.currentPlayer].forEach((friendlyCard) => {
-            const target: TargetValue = {
-              type: "card",
-              id: friendlyCard.id,
-              player: ctx.currentPlayer,
-            };
-            const score = scoreCardPlay(G, ctx, card, target);
-            moves.push({
-              move: "placeCard",
-              args: [card.id, target],
-              score,
-              description: `Play ${card.title} on ${friendlyCard.title}`,
-            });
-          });
-        }
-
-        break;
-
-      case "player":
-        // Generic player targeting - enumerate both friendly and enemy heroes
-        // Enemy hero
-        if (
-          card.targetQuery.side == "all" ||
-          card.targetQuery.side == "enemy"
-        ) {
-          const targetEnemyHeroGeneric: TargetValue = {
-            type: "player",
-            id: enemyPlayerId,
-            player: enemyPlayerId,
-          };
-          const scoreEnemyHeroGeneric = scoreCardPlay(
-            G,
-            ctx,
-            card,
-            targetEnemyHeroGeneric,
-          );
-          moves.push({
-            move: "placeCard",
-            args: [card.id, targetEnemyHeroGeneric],
-            score: scoreEnemyHeroGeneric,
-            description: `Cast ${card.title} on enemy hero`,
-          });
-        }
-
-        // Friendly hero
-        if (
-          card.targetQuery.side == "all" ||
-          card.targetQuery.side == "friendly"
-        ) {
-          const targetFriendlyHeroGeneric: TargetValue = {
-            type: "player",
-            id: ctx.currentPlayer,
-            player: ctx.currentPlayer,
-          };
-          const scoreFriendlyHeroGeneric = scoreCardPlay(
-            G,
-            ctx,
-            card,
-            targetFriendlyHeroGeneric,
-          );
-          moves.push({
-            move: "placeCard",
-            args: [card.id, targetFriendlyHeroGeneric],
-            score: scoreFriendlyHeroGeneric,
-            description: `Cast ${card.title} on friendly hero`,
-          });
-        }
-
-        break;
-      case "lane":
-        // Target enemy lane (for AoE spells)  if (
-        if (
-          card.targetQuery.side == "all" ||
-          card.targetQuery.side == "enemy"
-        ) {
-          const targetEnemyLane: TargetValue = {
-            type: "lane",
-            id: `lane-${enemyPlayerId}`,
-            player: enemyPlayerId,
-          };
-          const scoreEnemyLane = scoreCardPlay(G, ctx, card, targetEnemyLane);
-          moves.push({
-            move: "placeCard",
-            args: [card.id, targetEnemyLane],
-            score: scoreEnemyLane,
-            description: `Cast ${card.title} on enemy board`,
-          });
-        }
-        // Target friendly lane (for AoE spells)
-
-        if (
-          card.targetQuery.side == "all" ||
-          card.targetQuery.side == "friendly"
-        ) {
-          const targetFriendlyLane: TargetValue = {
-            type: "lane",
-            id: `lane-${ctx.currentPlayer}`,
-            player: ctx.currentPlayer,
-          };
-          const scoreFriendlyLane = scoreCardPlay(
-            G,
-            ctx,
-            card,
-            targetFriendlyLane,
-          );
-          moves.push({
-            move: "placeCard",
-            args: [card.id, targetFriendlyLane],
-            score: scoreFriendlyLane,
-            description: `Cast ${card.title} on friendly board`,
-          });
-        }
-        break;
-    }
+  targets.forEach((target) => {
+    moves.push({
+      move: "placeCard",
+      args: [card.id, target],
+      score: scoreCardPlay(G, ctx, card, target),
+      description: `Play ${card.title} on ${describeTarget(G, target)}`,
+    });
   });
 
   return moves;
@@ -1091,7 +1012,7 @@ function scoreAttack(
     }
 
     // Lethal is always priority
-    if (enemyPlayer.health <= getAttack(attacker)) {
+    if (effectiveHealth(enemyPlayer) <= getAttack(attacker)) {
       score += 1000; // LETHAL!
     }
   }
@@ -1114,7 +1035,7 @@ function evaluateEffect(effect: EffectTypes, context: EffectContext): number {
       if (effect.target === "enemy-hero") {
         score += damage * 8;
         // Check for lethal
-        if (enemyPlayer.health <= damage) {
+        if (effectiveHealth(enemyPlayer) <= damage) {
           score += 1000; // LETHAL!
         }
       } else if (effect.target === "enemy-board") {
@@ -1141,7 +1062,7 @@ function evaluateEffect(effect: EffectTypes, context: EffectContext): number {
       } else if (effect.target === "enemy-all") {
         score += damage * 8;
         // Check for lethal
-        if (enemyPlayer.health <= damage) {
+        if (effectiveHealth(enemyPlayer) <= damage) {
           score += 1000; // LETHAL!
         }
         // minions
@@ -1168,7 +1089,7 @@ function evaluateEffect(effect: EffectTypes, context: EffectContext): number {
           } else {
             // Damage enemy hero
             score += damage * 16;
-            if (targetPlayer.health <= damage) {
+            if (effectiveHealth(targetPlayer) <= damage) {
               score += 1000; // LETHAL!
             }
           }
@@ -1579,6 +1500,52 @@ function evaluateEffect(effect: EffectTypes, context: EffectContext): number {
 }
 
 /**
+ * What one minion on the board is worth.
+ *
+ * Raw stats alone can't tell a 4/5 Taunt from a 4/5 vanilla, so every playout
+ * that traded into the wrong one looked equally good. Keywords are scored as a
+ * fraction of the body they're attached to, because that is how they actually
+ * behave: Divine Shield on a 1/1 is nearly worthless and on a 7/7 is a second
+ * minion, and Windfury doubles whatever attack it is given.
+ */
+function minionValue(card: Card): number {
+  const attack = getAttack(card) || 0;
+  const health = getCurrentHealth(card) || 0;
+  if (health <= 0) return 0;
+
+  let value = attack * 2 + health;
+
+  if (hasKeyword(card, "taunt")) value += 2 + health * 0.5;
+  if (hasKeyword(card, "divineShield")) value += 2 + attack;
+  if (hasKeyword(card, "windfury")) value += attack;
+  if (hasKeyword(card, "poisonous")) value += 4;
+  if (hasKeyword(card, "stealth")) value += 2;
+  if (hasKeyword(card, "elusive")) value += 2;
+  if (hasKeyword(card, "immune")) value += 4;
+  // Frozen or unable to swing: the attack half is off the table for now.
+  if (hasKeyword(card, "frozen") || card.cantAttack) value -= attack;
+  // A minion that cannot attack yet is worth less than one that can.
+  if (
+    card.summoningSickness &&
+    !hasKeyword(card, "charge") &&
+    !hasKeyword(card, "rush")
+  ) {
+    value -= attack * 0.5;
+  }
+
+  return value;
+}
+
+/** Remaining damage an equipped weapon represents. */
+function weaponValue(player: Player): number {
+  const weapon = player.weapon;
+  if (!weapon) return 0;
+  const durability =
+    (weapon.baseDurability ?? 0) - (weapon.durabilityLost ?? 0);
+  return Math.max(0, (getAttack(weapon) || 0) * Math.max(0, durability));
+}
+
+/**
  * Evaluate overall game state
  * IMPORTANT: These weights are critical for MCTS simulations!
  * MCTS uses this function to evaluate game positions during playouts.
@@ -1593,26 +1560,22 @@ export function evaluateGameState(G: GameState, ctx: Ctx): number {
   const ourBoard = G.board[ctx.currentPlayer];
   const theirBoard = G.board[enemyPlayerId];
 
-  // Count total stats on board
-  const ourBoardValue = ourBoard.reduce(
-    (sum, card) =>
-      sum + (getAttack(card) || 0) * 2 + (getCurrentHealth(card) || 0),
-    0,
-  );
-  const theirBoardValue = theirBoard.reduce(
-    (sum, card) =>
-      sum + (getAttack(card) || 0) * 2 + (getCurrentHealth(card) || 0),
-    0,
-  );
+  const ourBoardValue = ourBoard.reduce((sum, c) => sum + minionValue(c), 0);
+  const theirBoardValue = theirBoard.reduce((sum, c) => sum + minionValue(c), 0);
 
   // Board control is CRITICAL - increased 10x for MCTS
   score += (ourBoardValue - theirBoardValue) * 5;
 
-  // HP difference - increased 7x for MCTS
-  score += (player.health - enemyPlayer.health) * 2;
+  // Weapons are board presence too: attack the hero can make on future turns.
+  score += (weaponValue(player) - weaponValue(enemyPlayer)) * 5;
 
-  // Hand size (card advantage) - increased 5x for MCTS
-  score += player.hand.length * 10;
+  // HP difference - increased 7x for MCTS. Armor counts: it is effective HP.
+  score += (effectiveHealth(player) - effectiveHealth(enemyPlayer)) * 2;
+
+  // Card advantage. Held cards are worth real points, which is what lets the
+  // search prefer keeping a card over making a bad play — but a played minion
+  // is worth several times more, so this never turns into hoarding.
+  score += (player.hand.length - enemyPlayer.hand.length) * 10;
 
   // Tempo advantage - having mana available is good
   score += getSpendableMana(player) * 0.5;

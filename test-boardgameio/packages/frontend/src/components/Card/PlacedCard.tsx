@@ -15,6 +15,8 @@ import WindfuryOverlay from "./Overlays/WindfuryOverlay";
 import StealthOverlay from "./Overlays/StealthOverlay";
 import {
   getAttack,
+  getCardDeathrattles,
+  getCardTriggers,
   getCurrentHealth,
   getMaxHealth,
   getSpellDamageSource,
@@ -326,7 +328,9 @@ const PlacedCard = ({
           )}
         </>
       )}
-      {!!card.deathrattle?.length && (
+      {/* Printed OR granted by an enchantment (Soul of the Forest, Ancestral
+          Spirit) — same accessor the death wave itself reads. */}
+      {getCardDeathrattles(card).length > 0 && (
         <img
           src={skullIcon}
           alt="Deathrattle"
@@ -344,7 +348,9 @@ const PlacedCard = ({
           draggable="false"
         />
       )}
-      {!!card.triggers?.length && (
+      {/* Likewise granted triggers — Corruption, Power Overwhelming, Nightmare
+          and Blessing of Wisdom all show the trigger icon while enchanted. */}
+      {getCardTriggers(card).length > 0 && (
         <motion.img
           // A new firing swaps the key, remounting the icon so its pulse
           // restarts from the top instead of layering over the previous one.

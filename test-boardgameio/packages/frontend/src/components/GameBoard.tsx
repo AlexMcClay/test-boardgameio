@@ -37,6 +37,8 @@ import { useGameAnimation, useGameTargeting } from "@/hooks";
 import { useAnimationStore } from "@/stores/animationStore";
 import EventHistory from "./Board/EventHistory";
 import MulliganOverlay from "./Mulligan/MulliganOverlay";
+import ChoiceOverlay from "./Choice/ChoiceOverlay";
+import TargetingLayer from "./Targeting/TargetingLayer";
 
 interface Props extends GameBoardProps {}
 
@@ -49,6 +51,8 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   const setActiveCard = useDragStore((state) => state.setActiveCard);
   const setCurrentPlayer = useDragStore((state) => state.setCurrentPlayer);
   const setGameState = useDragStore((state) => state.setGameState);
+  // Used to hide the Choose One overlay while one of its halves is being aimed.
+  const targetingMode = useDragStore((state) => state.targetingMode);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { isAnimating, activeAnimations } = useAnimationStore();
 
@@ -81,12 +85,9 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     setGlobalTrack(backgroundMusic);
   }, [setGlobalTrack]);
 
-  // Targetinmg
-  useGameTargeting({
-    G,
-    ctx,
-    moves,
-  });
+  // ESC cancellation for battlecry / Choose One prompts. Aiming itself lives
+  // in <TargetingLayer> below.
+  useGameTargeting({ G, moves });
 
   // Track if the dragged card was hovered
   const [wasHovered, setWasHovered] = useState(false);
@@ -497,6 +498,18 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           <MulliganOverlay G={G} moves={moves} playerID={props.playerID} />
         )}
       </AnimatePresence>
+      {/* Choose One / Discover prompt — reads ACTUAL state (it gates the whole
+          game) and hides while a picked half is being aimed. */}
+      <AnimatePresence>
+        {G.pendingChoice && targetingMode !== "choice" && (
+          <ChoiceOverlay G={G} ctx={ctx} moves={moves} playerID={props.playerID} />
+        )}
+      </AnimatePresence>
+      {/* The single pointer handler for every targeting mode. Board-level so
+          it survives its source unmounting mid-aim, and so heroes (rendered
+          once per seat) can't double-handle a gesture. Takes the ACTUAL G —
+          the resolvers validate against it. */}
+      <TargetingLayer G={G} ctx={ctx} moves={moves} />
       {/* Settings Overlay */}
       <SettingsButton setIsSettingsOpen={setIsSettingsOpen} />
       <SettingsOverlay

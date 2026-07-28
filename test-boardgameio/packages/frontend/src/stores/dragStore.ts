@@ -3,13 +3,15 @@ import { create } from "zustand";
 import type { PlayerID } from "@project/shared";
 import {
   canTargetHighlight,
+  validateTargetQuery,
   type Card,
   type GameState,
   type TargetValue,
   type EffectContextWithOptionalCard,
 } from "@project/shared";
-
-type TargetingMode = "attack" | "battlecry" | "hero-power" | "hero-attack" | null;
+// One-way import: targetingModes owns the mode union and must never import
+// from stores/, or the two files form a cycle.
+import type { TargetingMode } from "@/game/targetingModes";
 
 type DragStore = {
   activeCard: Card | null;
@@ -37,30 +39,24 @@ type DragStore = {
   setHoverBoard: (index: number | null, lane: PlayerID | null) => void;
   clearHoverBoard: () => void;
 
-  // Extensible targeting system
-  targetingMode: TargetingMode;
+  // Extensible targeting system. All pointer handling for these lives in
+  // components/Targeting/TargetingLayer.tsx; the per-mode resolve logic lives
+  // in game/targetingModes.ts.
+  targetingMode: TargetingMode | null;
   targetingCardId: string | null;
   targetingOrigin: { x: number; y: number } | null;
   cursorPosition: { x: number; y: number } | null;
+  /** "choice" mode only: which option of G.pendingChoice is being aimed. */
+  choiceOptionIndex: number | null;
 
   startTargeting: (
     mode: TargetingMode,
     cardId: string,
     origin: { x: number; y: number },
     card: Card,
+    choiceOptionIndex?: number,
   ) => void;
-  updateTargetingCursor: (position: { x: number; y: number }) => void;
   endTargeting: () => void;
-
-  // Backward compatibility - Attack arrow state
-  get attackingCardId(): string | null;
-  startAttack: (
-    cardId: string,
-    origin: { x: number; y: number },
-    card: Card,
-  ) => void;
-  updateAttackCursor: (position: { x: number; y: number }) => void;
-  endAttack: () => void;
 };
 
 export const useDragStore = create<DragStore>((set, get) => ({
@@ -74,7 +70,17 @@ export const useDragStore = create<DragStore>((set, get) => ({
   setGameState: (gameState) => set({ gameState }),
 
   isValidTarget: (target, context) => {
-    const { activeCard } = get();
+    const { activeCard, targetingMode } = get();
+    // A Choose One half isn't in any zone the normal highlight rules know
+    // about (it's neither in hand nor on the board), so validate it directly
+    // against its own targetQuery instead of going through canTargetHighlight.
+    if (targetingMode === "choice" && activeCard?.targetQuery) {
+      return validateTargetQuery(
+        activeCard.targetQuery,
+        { ...context, card: activeCard, target },
+        activeCard.id,
+      );
+    }
     return canTargetHighlight(activeCard, { ...context, target: target });
   },
 
@@ -92,19 +98,20 @@ export const useDragStore = create<DragStore>((set, get) => ({
   targetingCardId: null,
   targetingOrigin: null,
   cursorPosition: null,
+  choiceOptionIndex: null,
 
-  startTargeting: (mode, cardId, origin, card) => {
+  startTargeting: (mode, cardId, origin, card, choiceOptionIndex) => {
     set({
       targetingMode: mode,
       targetingCardId: cardId,
       targetingOrigin: origin,
       cursorPosition: origin,
       activeCard: card,
+      choiceOptionIndex: choiceOptionIndex ?? null,
+      // Otherwise a hover left over from the previous aim is still published
+      // until the first mousemove of this one.
+      hoveredTarget: null,
     });
-  },
-
-  updateTargetingCursor: (position) => {
-    set({ cursorPosition: position });
   },
 
   endTargeting: () => {
@@ -114,24 +121,8 @@ export const useDragStore = create<DragStore>((set, get) => ({
       targetingOrigin: null,
       cursorPosition: null,
       activeCard: null,
+      choiceOptionIndex: null,
+      hoveredTarget: null,
     });
-  },
-
-  // Backward compatibility getters and methods
-  get attackingCardId() {
-    const state = get();
-    return state.targetingMode === "attack" ? state.targetingCardId : null;
-  },
-
-  startAttack: (cardId, origin, card) => {
-    get().startTargeting("attack", cardId, origin, card);
-  },
-
-  updateAttackCursor: (position) => {
-    get().updateTargetingCursor(position);
-  },
-
-  endAttack: () => {
-    get().endTargeting();
   },
 }));

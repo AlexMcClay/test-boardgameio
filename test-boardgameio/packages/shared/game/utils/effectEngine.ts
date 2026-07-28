@@ -13,10 +13,25 @@ import type {
   Card,
   DynamicValue,
   EffectContext,
+  GameState,
   ModifierBoolKey,
   TargetCondition,
   BaseEffectSelection,
 } from "../types";
+
+/**
+ * Cards played this turn, counted in ONE pass. Combo and cards-played-turn both
+ * need it, and the event history is append-only and unbounded — it is the
+ * longest list in the game state by mid-game, and this runs inside every MCTS
+ * simulation, so repeat scans are not free.
+ */
+function countCardsPlayedThisTurn(G: GameState, turn: number): number {
+  let count = 0;
+  for (const event of G.eventHistory) {
+    if (event.type === "cardPlayed" && event.turn === turn) count++;
+  }
+  return count;
+}
 
 export function resolveDynamicValue(
   val: number | DynamicValue,
@@ -54,9 +69,7 @@ export function resolveDynamicValue(
     }
 
     case "cards-played-turn":
-      baseValue = G.eventHistory.filter(
-        (e) => e.type === "cardPlayed" && e.turn === context.ctx.turn,
-      ).length;
+      baseValue = countCardsPlayedThisTurn(G, context.ctx.turn);
       break;
 
     case "player-max-mana":
@@ -95,6 +108,15 @@ export function resolveDynamicValue(
       break;
     }
 
+    case "weapon-attack": {
+      // Attack of the equipped weapon, its buffs included (Deadly Poison), so
+      // Bloodsail Raider matches what the weapon actually hits for. 0 unarmed.
+      const p =
+        val.player === "friendly" ? G.players[playerID] : G.players[enemyId];
+      baseValue = p.weapon ? getAttack(p.weapon) : 0;
+      break;
+    }
+
     case "card-stat":
       if (!context.card) {
         baseValue = 0;
@@ -105,6 +127,11 @@ export function resolveDynamicValue(
       if (val.stat === "maxHealth") baseValue = getMaxHealth(context.card);
       if (val.stat === "mana") baseValue = getManaCost(context.card);
       if (val.stat === "damageTaken") baseValue = context.card.damageTaken;
+      // Printed Overload only. A card whose overload is itself a DynamicValue
+      // has no fixed answer here, so it reads as 0 rather than guessing.
+      if (val.stat === "overload")
+        baseValue =
+          typeof context.card.overload === "number" ? context.card.overload : 0;
 
       break;
 
@@ -142,21 +169,10 @@ export function resolveDynamicValue(
       baseValue = excessDamageDealt ?? 0;
       break;
 
-    case "combo-count": {
-      baseValue =
-        G.eventHistory.filter(
-          (e) => e.type === "cardPlayed" && e.turn === context.ctx.turn,
-        ).length - 1; // subtracting this card played
-      console.log(
-        G.eventHistory.filter(
-          (e) => e.type === "cardPlayed" && e.turn === context.ctx.turn,
-        ),
-        G.eventHistory.filter(
-          (e) => e.type === "cardPlayed" && e.turn === context.ctx.turn,
-        ).length,
-      );
+    case "combo-count":
+      // Minus one: the card doing the asking has already been recorded.
+      baseValue = countCardsPlayedThisTurn(G, context.ctx.turn) - 1;
       break;
-    }
 
     case "damage-dealt":
       baseValue = lastDamageDealt ?? 0;
@@ -213,7 +229,8 @@ export function checkSingleTargetCondition(
 
     case "text-contains": {
       const text = card[condition.key]?.toLowerCase() ?? "";
-      return text.includes(condition.value.toLowerCase());
+      const hit = text.includes(condition.value.toLowerCase());
+      return condition.negate ? !hit : hit;
     }
 
     case "tags-include": {
@@ -285,11 +302,23 @@ export function resolveTargets(
       }
       break;
     case "self": {
+      const selfCard = context.card!;
+      // The card's TRUE controller, which is NOT always the acting player: a
+      // granted trigger runs as the enchantment's caster, so Corruption sitting
+      // on an enemy minion resolves as the Warlock while the minion is still on
+      // the opponent's board. Reading ownerId as `playerID` there sent
+      // downstream handlers looking in the wrong board and they silently no-op.
+      // Falls back to playerID for cards outside both boards (hand auras).
+      const trueOwner = G.board[playerID]?.some((c) => c.id === selfCard.id)
+        ? playerID
+        : G.board[enemyId]?.some((c) => c.id === selfCard.id)
+          ? enemyId
+          : playerID;
       pool.push({
         type: "card",
-        id: context.card!.id,
-        ownerId: playerID,
-        cardRef: context.card,
+        id: selfCard.id,
+        ownerId: trueOwner,
+        cardRef: selfCard,
       });
 
       break;
@@ -333,6 +362,18 @@ export function resolveTargets(
       Object.entries(G.board).forEach(([player, minions]) => {
         minions.forEach((c) => {
           pool.push({ type: "card", id: c.id, ownerId: player, cardRef: c });
+        });
+      });
+      break;
+
+    // Everything that can be damaged or healed: both heroes AND every minion.
+    // Heroes go in first so a random split (Mad Bomber) treats them as equal
+    // candidates rather than favouring board order.
+    case "all-characters":
+      (["0", "1"] as const).forEach((pId) => {
+        pool.push({ type: "player", id: pId, ownerId: pId });
+        G.board[pId].forEach((c) => {
+          pool.push({ type: "card", id: c.id, ownerId: pId, cardRef: c });
         });
       });
       break;
@@ -420,7 +461,23 @@ export function resolveTargets(
   // 2. Filter Targets based on specific card conditions (e.g., "to all TAUNT minions")
   if (effect.conditions && effect.conditions.length > 0) {
     pool = pool.filter((t) => {
-      if (t.type === "player") return false; // Conditions typically inspect cards
+      if (t.type === "player") {
+        // Most conditions read properties of a card, which a hero doesn't have,
+        // so a hero can't satisfy them and is dropped. The IDENTITY filters are
+        // the exception: they only ask "is this the source / the chosen
+        // target?", which is a perfectly meaningful question about a hero.
+        //
+        // This is what lets "all OTHER characters" (Mad Bomber) keep both
+        // heroes. It also fixes Swipe, whose `enemy-all` + exclude-target never
+        // reached the enemy hero for its 1 splash damage.
+        return effect.conditions!.every((cond) =>
+          cond.type === "exclude-self"
+            ? t.id !== context.card?.id
+            : cond.type === "exclude-target"
+              ? !(context.target?.type === "player" && context.target.id === t.id)
+              : false,
+        );
+      }
       if (!t.cardRef) return false;
       return effect.conditions!.every((cond) =>
         // Pass the acting card's id so "exclude-self" can actually match

@@ -374,6 +374,15 @@ export function validateMove(
     return { valid: false, error: "cant-attack" };
   }
 
+  // The remaining rules all govern DECLARING AN ATTACK, so they apply only to
+  // board actions — same scoping as the cantAttack check above. Playing a card
+  // out of your hand is never blocked by summoning sickness or by being frozen;
+  // gating this stops a stale flag on a hand card (a cancelled battlecry used
+  // to leave one behind) from making that card permanently unplayable.
+  if (location !== "board") {
+    return { valid: true };
+  }
+
   // --- SUMMONING SICKNESS CHECK ---
   // Bypass summoning sickness if the minion has Charge OR Rush
   if (

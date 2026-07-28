@@ -2,6 +2,7 @@ import type { CardProps } from "./types";
 import { useDroppable } from "@dnd-kit/core";
 import type { Ctx, PlayerID } from "@project/shared";
 import { useDragStore } from "@/stores/dragStore";
+import { centerOf, lungeDelta } from "@/utils/targeting";
 import { useAnimationStore } from "@/stores/animationStore";
 import { twMerge } from "tailwind-merge";
 import { AnimatePresence, motion } from "motion/react";
@@ -25,7 +26,6 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
   const startTargeting = useDragStore((s) => s.startTargeting);
-  const updateTargetingCursor = useDragStore((s) => s.updateTargetingCursor);
   const endTargeting = useDragStore((s) => s.endTargeting);
   const targetingCardId = useDragStore((s) => s.targetingCardId);
   const targetingMode = useDragStore((s) => s.targetingMode);
@@ -47,8 +47,11 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
     !hasKeyword(card, "charge") &&
     !hasKeyword(card, "rush");
   const disabled =
-    (card.attacksLeft == 0 || isSicknessActive || hasKeyword(card, "frozen")) &&
-    !gameState?.activeBattlecryMinion;
+    ((card.attacksLeft == 0 ||
+      isSicknessActive ||
+      hasKeyword(card, "frozen")) &&
+      !gameState?.activeBattlecryMinion) ||
+    card.cantAttack;
   const isBattlecryMinion =
     gameState?.activeBattlecryMinion?.cardId === card.id;
   const prevIsBattlecryRef = useRef(isBattlecryMinion);
@@ -60,53 +63,14 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
   const isAttackAnimating = !!attackAnimation;
 
   // Calculate target position for attack animation
-  const getTargetPosition = () => {
-    if (
-      !isAttackAnimating ||
-      !attackAnimation ||
-      attackAnimation.type !== "attack"
-    ) {
-      return { x: 0, y: 0 };
-    }
-
-    const targetId = attackAnimation.targetId;
-    const targetType = attackAnimation.targetType;
-
-    // Get attacker position
-    const attackerElement = placedCardRef.current;
-    if (!attackerElement) return { x: 0, y: 0 };
-
-    const attackerRect = attackerElement.getBoundingClientRect();
-    const attackerCenterX = attackerRect.left + attackerRect.width / 2;
-    const attackerCenterY = attackerRect.top + attackerRect.height / 2;
-
-    // Get target position
-    let targetElement: HTMLElement | null = null;
-
-    if (targetType === "card") {
-      // Find target card by ID
-      targetElement = document.querySelector(`[data-card-id="${targetId}"]`);
-    } else if (targetType === "player") {
-      // Find player hero by ID
-      targetElement = document.querySelector(`[data-player-id="${targetId}"]`);
-    }
-
-    if (targetElement) {
-      const targetRect = targetElement.getBoundingClientRect();
-      const targetCenterX = targetRect.left + targetRect.width / 2;
-      const targetCenterY = targetRect.top + targetRect.height / 2;
-
-      // Calculate relative position
-      const deltaX = targetCenterX - attackerCenterX;
-      const deltaY = targetCenterY - attackerCenterY;
-
-      return { x: deltaX, y: deltaY };
-    }
-
-    return { x: 0, y: 0 };
-  };
-
-  const targetPosition = getTargetPosition();
+  const targetPosition =
+    isAttackAnimating && attackAnimation?.type === "attack"
+      ? lungeDelta(
+          placedCardRef.current,
+          attackAnimation.targetId,
+          attackAnimation.targetType,
+        )
+      : { x: 0, y: 0 };
 
   // Hover handlers for popover
   const handleMouseEnter = () => {
@@ -178,13 +142,8 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
     if (disabled && !isBattlecryMinion) return;
 
     // Get card center position
-    const rect = wrapperRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    const origin = {
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2,
-    };
+    const origin = centerOf(wrapperRef.current);
+    if (!origin) return;
 
     // Determine mode based on battlecry state
     const mode = isBattlecryMinion ? "battlecry" : "attack";
@@ -195,13 +154,8 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
   useEffect(() => {
     if (isBattlecryMinion && !isTargeting && playerID === ctx.currentPlayer) {
       // console.debug("Auto-triggering battlecry targeting for:", card.id);
-      const rect = wrapperRef.current?.getBoundingClientRect();
-      if (!rect) return;
-
-      const origin = {
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2,
-      };
+      const origin = centerOf(wrapperRef.current);
+      if (!origin) return;
 
       startTargeting("battlecry", card.id, origin, card);
     }
@@ -230,103 +184,6 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
       endTargeting();
     }
   }, [isBattlecryMinion, isTargeting, targetingCardId, card.id, endTargeting]);
-
-  useEffect(() => {
-    if (!isTargeting) return;
-
-    // Helper function to find target ID via coordinate bounding boxes
-    const getTargetAtCoordinates = (clientX: number, clientY: number) => {
-      // Find all player containers on the board
-      const playerElements = document.querySelectorAll(
-        '[data-player-bounds="true"]',
-      );
-
-      for (const el of playerElements) {
-        const rect = el.getBoundingClientRect();
-
-        // Check if mouse coordinates fall strictly within the element's actual box boundary
-        const isInsideX = clientX >= rect.left && clientX <= rect.right;
-        const isInsideY = clientY >= rect.top && clientY <= rect.bottom;
-
-        if (isInsideX && isInsideY) {
-          return el.getAttribute("data-player-id");
-        }
-      }
-      return null;
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      updateTargetingCursor({ x: e.clientX, y: e.clientY });
-
-      // 1. Check if hovering a player via geometry
-      const targetPlayerId = getTargetAtCoordinates(e.clientX, e.clientY);
-
-      // 2. Fall back to elementFromPoint for cards (assuming cards aren't blocked by the health bar)
-      let targetCardId: string | null = null;
-      if (!targetPlayerId) {
-        const element = document.elementFromPoint(e.clientX, e.clientY);
-        targetCardId =
-          element?.closest("[data-card-id]")?.getAttribute("data-card-id") ||
-          null;
-      }
-
-      // Update store state for the bullseye target preview
-      if (targetPlayerId) {
-        useDragStore.setState({
-          hoveredTarget: { type: "player", id: targetPlayerId },
-        });
-      } else if (targetCardId) {
-        useDragStore.setState({
-          hoveredTarget: { type: "card", id: targetCardId },
-        });
-      } else {
-        useDragStore.setState({ hoveredTarget: null });
-      }
-    };
-
-    const handleMouseUp = (e: MouseEvent) => {
-      const targetPlayerId = getTargetAtCoordinates(e.clientX, e.clientY);
-
-      let targetCardId: string | null = null;
-      if (!targetPlayerId) {
-        const element = document.elementFromPoint(e.clientX, e.clientY);
-        targetCardId =
-          element?.closest("[data-card-id]")?.getAttribute("data-card-id") ||
-          null;
-      }
-
-      if (targetCardId || targetPlayerId) {
-        // Dispatch event based on targeting mode
-        const eventType =
-          targetingMode === "battlecry" ? "battlecry-target" : "attack-target";
-        const event = new CustomEvent(eventType, {
-          detail: {
-            sourceCardId: card.id,
-            targetCardId,
-            targetPlayerId,
-          },
-        });
-        window.dispatchEvent(event);
-      }
-
-      useDragStore.setState({ hoveredTarget: null });
-      endTargeting();
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [
-    isTargeting,
-    card.id,
-    targetingMode,
-    updateTargetingCursor,
-    endTargeting,
-  ]);
 
   return (
     <>

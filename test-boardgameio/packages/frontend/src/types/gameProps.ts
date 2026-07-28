@@ -14,6 +14,13 @@ export interface GameMoves {
   useHeroPower: (target?: TargetValue) => void;
   resolveBattlecry: (cardId: string, target: TargetValue) => void;
   cancelBattlecry: () => void;
+  /**
+   * Picks an option from the open Choose One / Discover prompt. `target` is
+   * only passed for a Choose One option that needs one (its own targetQuery).
+   */
+  resolveChoice: (optionIndex: number, target?: TargetValue) => void;
+  /** Backs out of a Choose One (refund + card to hand). Discover can't cancel. */
+  cancelChoice: () => void;
   drawCard: () => void;
   endTurn: () => void;
   /**

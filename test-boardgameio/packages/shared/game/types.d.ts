@@ -70,6 +70,19 @@ export interface Card {
   baseDurability?: number; // Weapon-only: charges before it breaks
   durabilityLost?: number; // Weapon-only: parallel to damageTaken, charges used toward baseDurability
   isUncollectible?: boolean; // Optional, to indicate if the card is uncollectible (like tokens)
+  /**
+   * Choose One: template keys of this card's OPTION CARDS — real uncollectible
+   * card templates (Hearthstone's model: Wrath EX1_154a/b, "Cat Form"/"Bear
+   * Form"). Playing a card with this set pays its mana, then opens a
+   * pendingChoice instead of resolving; the picked option card's `effects`
+   * run with the PARENT as context (the placed minion, or the held spell).
+   */
+  chooseOne?: string[];
+  /**
+   * Temporary: this card discards itself from hand at the end of its
+   * controller's turn (the Discover Gift cards). Swept by endTurnCleanup.
+   */
+  temporary?: boolean;
   // Bool states
   taunt?: boolean; // Optional, to indicate if the card has taunt
   frozen?: boolean;
@@ -110,6 +123,8 @@ export interface Card {
     death?: SFXInstance[];
     play?: SFXInstance[];
     attack?: SFXInstance[];
+    /** Voice line for when one of this card's `triggers` fires. */
+    trigger?: SFXInstance[];
   };
   set: string[];
 }
@@ -317,6 +332,44 @@ export interface PendingTrigger {
   sourceEventIndex?: number;
 }
 
+// ---------------------------------------------------------------------------
+// PENDING CHOICE (Choose One / Discover)
+// ---------------------------------------------------------------------------
+
+/**
+ * A prompt waiting on the player. `options` are real Card instances in both
+ * shapes — for chooseOne they're the option cards (whose `effects` and
+ * `targetQuery` drive resolution), for discover they're the candidates
+ * themselves (the picked one goes to hand).
+ */
+export type PendingChoice =
+  | {
+      kind: "chooseOne";
+      playerId: PlayerID;
+      /** The parent card: a minion already on the board, or a held spell. */
+      sourceCardId: string;
+      cardZone: "board" | "held";
+      /** The parent spell instance while cardZone === "held". */
+      heldCard?: Card;
+      options: Card[];
+      /** Cancel receipts — mirror of activeBattlecryMinion's. */
+      manaPaid: ManaPayment;
+      overloadPaid: number;
+      sourceEventIndex?: number;
+    }
+  | {
+      kind: "discover";
+      playerId: PlayerID;
+      /** Card that discovered, for the UI header / eventRef chaining. */
+      sourceCardId?: string;
+      options: Card[];
+      /** Picked card enters hand with temporary: true (the Gift cards). */
+      temporary?: boolean;
+      /** Tracking/Thrive: the picked card is REMOVED from the deck. */
+      removePickedFromDeck?: boolean;
+      sourceEventIndex?: number;
+    };
+
 export interface ModifierLifecycle {
   // Who cast the buff? ("0" or "1")
   sourcePlayerId: string;
@@ -377,6 +430,19 @@ export interface CardModifier {
   keys?: Partial<Record<ModifierBoolKey, true>>; // boolean keyword grants
   override?: boolean; // applies to this modifier's stats
   lifecycle?: ModifierLifecycle; // Optional metadata for temporal mechanics
+  // --- GRANTED TEXT -------------------------------------------------------
+  // Rules text this enchantment adds to the card, on top of whatever is
+  // printed on it (Soul of the Forest, Power Overwhelming). Both run exactly
+  // like the printed versions; see getCardDeathrattles / getCardTriggers.
+  // Silence removes them for free, because it strips the whole modifier.
+  deathrattle?: EffectTypes[];
+  triggers?: TriggerDef[];
+  /**
+   * Who applied this enchantment. Granted triggers run their effects as THIS
+   * player rather than the card's controller, which is what lets Blessing of
+   * Wisdom on an enemy minion still draw for the caster.
+   */
+  casterId?: PlayerID;
 }
 
 export type TargetValue = {
@@ -410,7 +476,15 @@ export type DynamicValue =
     }
   | {
       type: "card-stat";
-      stat: "attack" | "health" | "mana" | "maxHealth" | "damageTaken";
+      stat:
+        | "attack"
+        | "health"
+        | "mana"
+        | "maxHealth"
+        | "damageTaken"
+        // Crystals the card locks when played, 0 for everything else — the
+        // precise test for "a card with Overload" (Unbound Elemental).
+        | "overload";
       mult?: number;
     } // inspects current target
   | {
@@ -466,6 +540,13 @@ export type DynamicValue =
       type: "weapon-durability";
       player: "friendly" | "enemy";
       mult?: number;
+    }
+  | {
+      // Attack of an equipped weapon, buffs included; 0 when unarmed
+      // (Bloodsail Raider, Dread Corsair, Blade Flurry).
+      type: "weapon-attack";
+      player: "friendly" | "enemy";
+      mult?: number;
     };
 // most recent damage delt
 
@@ -483,6 +564,8 @@ export type BooleanCardKey =
   | "silenced"
   | "isMinion"
   | "isSpell"
+  | "isWeapon"
+  | "isUncollectible"
   | "summoningSickness";
 
 export type TargetCondition =
@@ -495,8 +578,10 @@ export type TargetCondition =
     }
   | {
       type: "text-contains";
-      key: "title" | "description" | "class";
+      key: "title" | "description" | "class" | "rarity";
       value: string;
+      /** Inverts the match — "a card from ANOTHER class" (Pilfer). */
+      negate?: boolean;
     }
   | { type: "tags-include"; value: string } // For "Wisp", "Demon", "Murloc"
   | { type: "state-match"; condition: "isDamaged" | "isUndamaged" } // Special derived states
@@ -543,7 +628,28 @@ export type EffectTypes =
   | DurabilityEffect
   | SilenceEffect
   | TransformEffect
-  | TakeControlEffect;
+  | TakeControlEffect
+  | DiscoverEffect;
+
+/**
+ * Offer the player a pick of `count` cards; the picked one goes to their hand.
+ * Sets G.pendingChoice and HALTS the action there — so a discover must be the
+ * LAST effect in a card's effect list (every Legacy discover card complies).
+ */
+export interface DiscoverEffect {
+  type: "discover";
+  /** Where candidates come from: all templates, or the owner's deck. */
+  source: "global" | "deck";
+  /** Fixed menu of template keys (the Gift cards) — overrides source search. */
+  cardID?: string[];
+  conditions?: TargetCondition[]; // e.g. tags-include Beast, isSpell
+  /** Picked card enters hand with temporary: true. */
+  temporary?: boolean;
+  /** source "deck" only: the picked card is REMOVED from the deck (Tracking). */
+  removeFromSource?: boolean;
+  /** How many options to offer. Defaults to 3. */
+  count?: number;
+}
 
 /**
  * Wipes everything text-granted from a minion: keyword flags, enchantments,
@@ -598,9 +704,22 @@ export interface BounceEffect {
   modifiers?: ApplyModifierEffect[]; // For giving it "Costs (2) less"
 }
 
+/**
+ * Where an addToHand pulls its cards from. "trigger-subject" is the card that
+ * opened the current trigger window (context.target) — the only source that
+ * needs no zone, since it may already have left play.
+ */
+export type AddToHandSource =
+  | "deck"
+  | "global"
+  | "graveyard"
+  | "hand"
+  | "board"
+  | "trigger-subject";
+
 export interface AddToHandEffect {
   type: "addToHand";
-  source: "deck" | "global" | "graveyard" | "hand" | "board";
+  source: AddToHandSource;
   removeFromSource?: boolean; // If true, removes from source (e.g., draw from deck)
   // Which zone the `source` is read from. Defaults to the acting player's own;
   // "enemy-hand" / "enemy-deck" flip it to the opponent (Mind Vision,
@@ -613,6 +732,13 @@ export interface AddToHandEffect {
     | "enemy-hand"
     | "friendly-deck"
     | "enemy-deck";
+  /**
+   * WHOSE hand receives the cards; defaults to the acting player. Orthogonal to
+   * `target`, which names the zone the pool is READ from — King Mukla reads no
+   * zone and gives to "enemy", Lorewalker Cho copies the spell just cast into
+   * the other player's hand.
+   */
+  recipient?: "self" | "enemy";
   conditions?: TargetCondition[]; // Filter cards (e.g., Demons, cost 7-10, etc.)
   cardID?: string | string[]; // Specific card(s) to add (e.g., "Cub", "Arcane Bolt")
   value: number | DynamicValue; // Count of cards to add
@@ -643,6 +769,10 @@ export type EffectTarget =
   | "enemy-board"
   | "enemy-all"
   | "board"
+  // Both heroes plus every minion on both boards. Distinct from "board", which
+  // is minions only. Pair with `exclude-self` for "all OTHER characters"
+  // (Mad Bomber) — identity conditions keep hero targets, see resolveTargets.
+  | "all-characters"
   | "self"
   | "adjacent" // neighbors of context.card — board index ±1 when on board, hand index ±1 when in hand
   | "adjacent-target" // neighbors of context.target on its owner's board (e.g. Explosive Shot)
@@ -749,6 +879,14 @@ export type ApplyModifierEffect = {
   stats?: Partial<Record<ModifierStatKey, number | DynamicValue>>;
   /** Boolean keyword grants: { taunt: true, stealth: true, ... } */
   keys?: Partial<Record<ModifierBoolKey, true>>;
+  /**
+   * Rules TEXT to graft onto the target — the enchantment equivalent of the
+   * card's own `deathrattle` / `triggers`. A modifier carrying only text (no
+   * stats, no keys) is still a real enchantment, so pass a `description`:
+   * describeModifier can only summarise numbers and keywords.
+   */
+  deathrattle?: EffectTypes[];
+  triggers?: TriggerDef[];
   override?: boolean;
   mult?: number | DynamicValue; // multiplies every stat value
   min?: number; // per-stat clamp on the resulting stat (refresh passes)
@@ -776,6 +914,12 @@ type ChangeKeyEffect = {
 export type SummonEffect = {
   type: "summon";
   target: "self" | "enemy";
+  /**
+   * Summon a fresh copy of the card this effect is running on, from its own
+   * template — "Deathrattle: Resummon this minion" (Ancestral Spirit). Takes
+   * precedence over cardID; the copy carries no damage or enchantments.
+   */
+  fromSelf?: boolean;
   cardID?: string | string[]; // A specific card, or a list of options picked from at random (per summon). Omit to summon from all minion templates.
   conditions?: TargetCondition[]; // Filter candidates (e.g. summon a random Demon)
   value: number | DynamicValue; // How many minions to summon
@@ -883,7 +1027,43 @@ type GameEventBody =
   | SilenceEvent
   | TransformEvent
   | TakeControlEvent
-  | TriggerEvent;
+  | TriggerEvent
+  | ChoiceOfferedEvent
+  | ChoiceResolvedEvent;
+
+/**
+ * A Choose One / Discover prompt opened. Options ride along so the client can
+ * render the overlay from the event stream if it wants to.
+ */
+export type ChoiceOfferedEvent = {
+  type: "choiceOffered";
+  kind: "chooseOne" | "discover";
+  playerId: PlayerID;
+  /** The parent card (chooseOne) or the discovering card (discover). */
+  cardId?: string;
+  options: Card[];
+  timestamp: number;
+  eventRef?: number;
+};
+
+/**
+ * The player picked an option. Recorded BEFORE the option's effects run so
+ * everything they produce chains back here via eventRef. Also what satisfies
+ * MatchManager's eventHistory-growth "move applied" heuristic.
+ */
+export type ChoiceResolvedEvent = {
+  type: "choiceResolved";
+  kind: "chooseOne" | "discover";
+  playerId: PlayerID;
+  /** The parent/discovering card, when there was one. */
+  cardId?: string;
+  optionIndex: number;
+  optionName: string;
+  /** Discover: snapshot of the picked card as it entered the hand. */
+  card?: Card;
+  timestamp: number;
+  eventRef?: number;
+};
 
 /**
  * A card's trigger fired. Recorded BEFORE the trigger's effects run, so every
@@ -1192,7 +1372,7 @@ export type AddToHandEvent = {
   playerId: PlayerID;
   timestamp: number;
   card: Card;
-  source: "deck" | "global" | "graveyard" | "hand" | "board";
+  source: AddToHandSource;
   eventRef?: number; // Index of the top-level event that caused this
   snapshot: Card; // Deep clone of the card at record time
 };
@@ -1271,6 +1451,14 @@ export interface GameState {
   // deaths and end-of-turn triggers have finished resolving. Consumed by
   // finishTurnAdvance (engine.ts).
   pendingTurnAdvance?: boolean;
+
+  // A Choose One / Discover prompt waiting on the player. Options are FULL
+  // Card instances for both kinds (instantiated once, so both clients and
+  // MCTS clones see the same list — plain JSON, structuredClone-safe).
+  // Everything halts on it: the machine parks in `awaitingChoice`, the settle
+  // loop stops, and applyMove rejects every move except
+  // resolveChoice / cancelChoice / endTurn.
+  pendingChoice?: PendingChoice;
 
   // Runaway backstop: counts trigger firings within one player action so a
   // pair of minions that trigger each other can't loop forever. Reset wherever

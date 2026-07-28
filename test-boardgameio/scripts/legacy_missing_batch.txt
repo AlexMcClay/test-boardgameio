@@ -1,0 +1,111 @@
+# ---- A_READY ----
+Alexstrasza
+Blood Imp
+Captain's Parrot
+Crazed Alchemist
+Deathwing the Destroyer
+Gladiator's Longbow
+Lightspawn
+Mad Bomber
+Mind Control Tech
+Onyxia the Broodmother
+Ritual of Doom
+Unbound Elemental
+Void Terror
+War Cache
+Xavius
+Ysera the Dreamer
+# ---- A_SMALL_ENGINE_ADD ----
+Blade Flurry
+Bloodsail Raider
+Brightwing
+Dread Corsair
+Far Sight
+High Inquisitor Whitemane
+King Mukla
+Lorewalker Cho
+Malygos the Spellweaver
+Pilfer
+Vanessa VanCleef
+# ---- B_SECRETS ----
+Counterspell
+Eaglehorn Bow
+Ethereal Arcanist
+Explosive Trap
+Eye for an Eye
+Flare
+Freezing Trap
+Ice Barrier
+Ice Block
+Kirin Tor Mage
+Mirror Entity
+Misdirection
+Noble Sacrifice
+Reckoning
+Redemption
+Repentance
+SI:7 Infiltrator
+Secretkeeper
+Snake Trap
+Snipe
+Spellbender
+Vaporize
+# ---- C_DISCOVER ----
+Anduin's Gift
+Garrosh's Gift
+Gul'dan's Gift
+Jaina's Gift
+Malfurion's Gift
+Rexxar's Gift
+Selective Breeder
+Thrall's Gift
+Thrive in the Shadows
+Tracking
+Uther's Gift
+Valeera's Gift
+# ---- D_CHOOSE_ONE ----
+Ancient of Lore
+Ancient of War
+Cenarius
+Druid of the Claw
+Keeper of the Grove
+Mark of Nature
+Nourish
+Power of the Wild
+Starfall
+Wrath
+# ---- E_NEW_PRIMITIVE ----
+Aegwynn, the Guardian
+Alarm-o-Bot
+Ancestral Spirit
+Ancient Mage
+Auchenai Soulpriest
+Blessing of Wisdom
+Blood Knight
+Bloodsail Deckhand
+Commanding Shout
+Corruption
+Crusader Aura
+Enslaved Fel Lord
+Faceless Manipulator
+Felsoul Jailer
+Footman
+Gnomelia, S.A.F.E. Pilot
+Gorehowl
+Headcrack
+Holy Wrath
+Lord Jaraxxus
+Millhouse Manastorm
+Mindgames
+Night Elf Huntress
+Nordrassil Druid
+Pint-Sized Summoner
+Power Overwhelming
+Preparation
+Prophet Velen
+Pursuit of Justice
+Shadow Madness
+Shadowform
+Soul of the Forest
+Spiteful Smith
+Warsong Grunt

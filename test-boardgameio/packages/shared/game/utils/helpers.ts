@@ -9,6 +9,7 @@ import {
 import { cardTemplates, type CardTemplateKey } from "../data/cards";
 import {
   type AddToHandEffect,
+  type AddToHandSource,
   type ApplyModifierEffect,
   type BaseEffectSelection,
   type BoolEffectType,
@@ -26,11 +27,17 @@ import {
   type TriggerWindow,
 } from "../types";
 import { checkSingleTargetCondition } from "./effectEngine";
+import { findSubjectCard } from "./triggers";
+import { stripForSimulation } from "./simulation";
 // Helper function to record game events
 export function recordEvent(G: GameState, event: GameEvent) {
   // Monotonic sequence number = index in the full history. Clients filter by
   // this instead of timestamps (which collide within the same millisecond).
   event.seq = G.eventHistory.length;
+
+  // Inside a search the animation payloads are dead weight on a state that
+  // gets deep-cloned thousands of times; see utils/simulation.ts.
+  stripForSimulation(event);
 
   // Add to current move events
   G.gameEvents.push(event);
@@ -175,7 +182,13 @@ function applyModifierWithStacking(
   const stats = normalizeStats(changes.stats, override);
   const keys =
     changes.keys && Object.keys(changes.keys).length ? changes.keys : undefined;
-  const isEmpty = !stats && !keys;
+  // Granted rules text (Corruption grants ONLY a trigger, no stats at all), so
+  // it has to count toward emptiness or the whole enchantment is discarded.
+  const grantedDeathrattle = effect.deathrattle?.length
+    ? effect.deathrattle
+    : undefined;
+  const grantedTriggers = effect.triggers?.length ? effect.triggers : undefined;
+  const isEmpty = !stats && !keys && !grantedDeathrattle && !grantedTriggers;
   const description =
     changes.description ?? describeModifier(stats, keys, override);
 
@@ -215,6 +228,9 @@ function applyModifierWithStacking(
         const existing = list[existingIndex];
         existing.stats = stats;
         existing.keys = keys;
+        existing.deathrattle = grantedDeathrattle;
+        existing.triggers = grantedTriggers;
+        existing.casterId = playerId;
         existing.override = override;
         existing.description = description;
         existing.img = changes.img ?? existing.img;
@@ -247,6 +263,9 @@ function applyModifierWithStacking(
     stackable: effect.stackable ?? false,
     stats,
     keys,
+    deathrattle: grantedDeathrattle,
+    triggers: grantedTriggers,
+    casterId: playerId,
     override,
     lifecycle,
   };
@@ -913,6 +932,9 @@ const SELECTION_EFFECTS: Record<EffectTypes["type"], boolean> = {
   addToHand: false,
   discard: false,
   equip: false,
+  // The pick IS the selection — a discover battlecry (Selective Breeder) is an
+  // AUTOMATIC one that opens a prompt, never a targeted one.
+  discover: false,
 };
 
 //  as BaseEffectSelection
@@ -934,7 +956,7 @@ export function addCardToHand(
   playerID: string,
   card: Card,
   modifiers?: ApplyModifierEffect[],
-  source: "deck" | "global" | "graveyard" | "hand" | "board" = "global",
+  source: AddToHandSource = "global",
   sourceEventIndex?: number,
 ) {
   const player = G.players[playerID];
@@ -1206,6 +1228,26 @@ export function findCardsInPool(
       // This will be handled by target resolution logic
       pool = [];
       break;
+
+    // A fresh copy of the card that opened the current trigger window. Inside a
+    // trigger the subject rides in as context.target, and findSubjectCard walks
+    // board -> weapon -> graveyard, so this works even for a spell that has
+    // already finished resolving (Lorewalker Cho). Rebuilt from the template so
+    // the copy carries no damage or enchantments.
+    case "trigger-subject": {
+      const t = context.target;
+      if (!t || t.type === "player") break;
+      const subject = findSubjectCard(context.G, {
+        kind: "card",
+        id: t.id,
+        ownerId: t.player,
+      });
+      const copy = subject
+        ? createCardFromID(subject.originalID as CardTemplateKey)
+        : null;
+      if (copy) pool.push(copy);
+      break;
+    }
   }
 
   // Filter by conditions
@@ -1274,6 +1316,12 @@ export function resolveSummonCandidates(
   effect: SummonEffect,
   context: EffectContext,
 ): string[] {
+  // "Resummon this minion" — rebuilt from its own template, so the copy is
+  // pristine. Wins over cardID; yields nothing if there's no card in context.
+  if (effect.fromSelf) {
+    return context.card ? [context.card.originalID] : [];
+  }
+
   let ids: string[] = effect.cardID
     ? Array.isArray(effect.cardID)
       ? effect.cardID
