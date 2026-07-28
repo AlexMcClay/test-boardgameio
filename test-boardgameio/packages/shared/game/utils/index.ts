@@ -10,7 +10,10 @@ import type {
   TriggerDef,
 } from "../types";
 import { cardTemplates, type CardTemplateKey } from "../data/cards";
-import { isBaseEffectSelection } from "../..";
+// Directly from its defining module, not the package barrel: routing through
+// "../.." made utils depend on the whole package, and the resulting import
+// cycle left game/index.ts evaluating before utils/triggers.ts had finished.
+import { isBaseEffectSelection } from "./helpers";
 import { canAfford } from "./mana";
 
 export function shuffleDeck(deck: Card[]): Card[] {

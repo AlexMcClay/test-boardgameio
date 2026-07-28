@@ -472,7 +472,10 @@ const chooseOneOption = (opts: {
   isSpell: true,
   isMinion: false,
   isUncollectible: true,
-  targetQuery: opts.targetQuery ?? { side: "all" as const, type: ["lane" as const] },
+  targetQuery: opts.targetQuery ?? {
+    side: "all" as const,
+    type: ["lane" as const],
+  },
   class: opts.parentClass,
   set: ["Legacy"],
 });
@@ -4966,7 +4969,11 @@ export const cardTemplates = {
       }),
     ],
     onPlace: [
-      applyModifier({ stats: { attack: 2, health: 2 }, keys: { taunt: true } }),
+      applyModifier({
+        stats: { attack: 2, health: 2 },
+        keys: { taunt: true },
+        name: "Master's Presence",
+      }),
     ],
     battlecryQuery: {
       side: "friendly",
@@ -6784,7 +6791,8 @@ export const cardTemplates = {
   },
   "rexxars-gift": {
     title: "Rexxar's Gift",
-    description: "Discover a Temporary Quick Shot, Deadly Shot, or Explosive Shot.",
+    description:
+      "Discover a Temporary Quick Shot, Deadly Shot, or Explosive Shot.",
     baseMana: 1,
     type: ["Nature"],
     tags: ["Discover"],
@@ -6800,7 +6808,8 @@ export const cardTemplates = {
   },
   "jainas-gift": {
     title: "Jaina's Gift",
-    description: "Discover a Temporary Frostbolt, Arcane Intellect, or Fireball.",
+    description:
+      "Discover a Temporary Frostbolt, Arcane Intellect, or Fireball.",
     baseMana: 1,
     type: ["Arcane"],
     tags: ["Discover"],
@@ -7790,7 +7799,9 @@ export const cardTemplates = {
       applyModifier({
         name: "Ancestral Spirit",
         description: "Deathrattle: Resummon this minion",
-        deathrattle: [{ type: "summon", target: "self", fromSelf: true, value: 1 }],
+        deathrattle: [
+          { type: "summon", target: "self", fromSelf: true, value: 1 },
+        ],
       }),
     ],
     onPlace: [],
@@ -8005,7 +8016,8 @@ export const cardTemplates = {
   },
   corruption: {
     title: "Corruption",
-    description: "Choose an enemy minion. At the start of your turn, destroy it.",
+    description:
+      "Choose an enemy minion. At the start of your turn, destroy it.",
     baseMana: 1,
     type: ["Shadow"],
     imageUrl: "assets/cards/Corruption.jpg",

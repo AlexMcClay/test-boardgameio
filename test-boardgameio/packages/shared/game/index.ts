@@ -1237,7 +1237,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
         const targets = resolveTargets(effect, context); // Unified target array resolution
 
         console.log(
-          `${card?.title} applying modifier targets: ${targets.map((t) => `${t.type} ${t.cardRef?.title ?? t.ownerId}`)}`,
+          `${changes.name} applying modifier targets: ${targets.map((t) => `${t.type} ${t.cardRef?.title ?? t.ownerId}`)}`,
         );
 
         // Iterate over our pre-filtered structural targets collection
@@ -1733,6 +1733,10 @@ export const cancelBattlecry = (G: GameState, ctx: GameCtx) => {
     );
 
     card.isPlaced = false;
+    // placeCard stamped this on the way in. A card sitting in hand must never
+    // carry it: validateMove reads summoningSickness for hand plays too, so
+    // leaving it set made the cancelled minion permanently unplayable.
+    card.summoningSickness = false;
     player.hand.push(card);
   }
   G.activeBattlecryMinion = null;
@@ -1989,6 +1993,7 @@ export const cancelChoice = (G: GameState, ctx: GameCtx) => {
       const card = G.board[pending.playerId][idx];
       G.board[pending.playerId].splice(idx, 1);
       card.isPlaced = false;
+      card.summoningSickness = false; // see cancelBattlecry
       player.hand.push(card);
     }
   } else if (pending.heldCard) {
