@@ -5,7 +5,7 @@ import {
   type CardTemplateKey,
   type Hero,
 } from "@project/shared";
-import type { DeckString } from "@/stores/deckStore";
+import type { DeckString } from "@project/shared";
 import { twMerge } from "tailwind-merge";
 import HeroPowerCircle from "./HeroPower/HeroPowerCircle";
 

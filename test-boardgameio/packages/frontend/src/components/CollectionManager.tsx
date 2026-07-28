@@ -9,15 +9,12 @@ import {
   heros,
   type CardTemplateKey,
   type Card as CardType,
+  type DeckString,
   type Hero,
   type SavedDeck,
 } from "@project/shared";
 import { useAudioStore } from "@/stores/audioStore";
-import {
-  useDeckStore,
-  type DeckString,
-  FILTER_BY_CLASS_WHEN_BUILDING,
-} from "@/stores/deckStore";
+import { useDeckStore, FILTER_BY_CLASS_WHEN_BUILDING } from "@/stores/deckStore";
 import { useViewStore } from "@/stores/viewStore";
 import { twMerge } from "tailwind-merge";
 import SettingsOverlay from "./SettingsOverlay";
@@ -73,8 +70,6 @@ const CollectionManager = () => {
   const setView = useViewStore((state) => state.setView);
 
   const CARDS_PER_PAGE = 8; // 2 rows × 4 columns
-
-  const isPremade = editingDeck?.id.startsWith("premade-") ?? false;
 
   useBackgroundMusic({
     autoplay: true,
@@ -247,7 +242,6 @@ const CollectionManager = () => {
   }
 
   function handleDeckChange(cardId: CardTemplateKey, count: number) {
-    if (isPremade) return;
     setDeck((prevDeck) => {
       const newDeck = { ...prevDeck };
       if (count > 0) {
@@ -602,13 +596,13 @@ const CollectionManager = () => {
             {displayedCards.map(([id, card]) => (
               <div
                 className={
-                  mode === "card-select" && !isPremade
+                  mode === "card-select"
                     ? "cursor-pointer z-10 transition-transform duration-200 hover:scale-105 minion-shadow"
                     : "z-10 minion-shadow"
                 }
                 key={id}
                 onClick={() => {
-                  if (mode === "card-select" && !isPremade) {
+                  if (mode === "card-select") {
                     const currentCount = deck[id as CardTemplateKey] || 0;
                     const maxInstance =
                       (card as CardType).rarity === "Legendary" ? 1 : 2;
@@ -619,7 +613,7 @@ const CollectionManager = () => {
                   }
                 }}
                 onMouseEnter={() =>
-                  mode === "card-select" && !isPremade && playSfx("card-over")
+                  mode === "card-select" && playSfx("card-over")
                 }
                 onContextMenu={(e) => {
                   e.preventDefault();
@@ -750,26 +744,23 @@ const CollectionManager = () => {
               name={deckName}
               id={editingDeck?.id ?? "NEW DECK"}
               setDeckName={setDeckName}
-              isPremade={isPremade}
             />
           </div>
 
           {/* Generate Deck Button */}
-          {!isPremade && (
-            <div className="absolute top-[28vh] left-[86.5vw] z-50">
-              <button
-                onMouseEnter={() => playSfx("button-over")}
-                className="relative px-[0.8vw] py-[0.4vw] bg-[#bda393] rounded-lg border-[0.3vw] border-[#8d7037] shadow-[0_0.4vw_0_rgba(92,64,51,1),0_0.6vw_1.5vw_rgba(0,0,0,0.6),inset_0_0.2vw_0_rgba(255,255,255,0.3)] transition-all duration-200 hover:translate-y-[0.15vw] hover:shadow-[0_0.2vw_0_rgba(92,64,51,1),0_0.4vw_1vw_rgba(0,0,0,0.6)] hover:brightness-110"
-                onClick={handleGenerateDeck}
-              >
-                <span className="text-[1vw] font-bold text-stone-800 drop-shadow-[0_0.1vw_0.1vw_rgba(255,255,255,0.3)] whitespace-nowrap">
-                  Generate Deck
-                </span>
-                <div className="absolute inset-0 rounded-lg border-t-[0.15vw] border-l-[0.15vw] border-white/20 pointer-events-none" />
-                <div className="absolute inset-0 rounded-lg border-b-[0.15vw] border-r-[0.15vw] border-black/20 pointer-events-none" />
-              </button>
-            </div>
-          )}
+          <div className="absolute top-[28vh] left-[86.5vw] z-50">
+            <button
+              onMouseEnter={() => playSfx("button-over")}
+              className="relative px-[0.8vw] py-[0.4vw] bg-[#bda393] rounded-lg border-[0.3vw] border-[#8d7037] shadow-[0_0.4vw_0_rgba(92,64,51,1),0_0.6vw_1.5vw_rgba(0,0,0,0.6),inset_0_0.2vw_0_rgba(255,255,255,0.3)] transition-all duration-200 hover:translate-y-[0.15vw] hover:shadow-[0_0.2vw_0_rgba(92,64,51,1),0_0.4vw_1vw_rgba(0,0,0,0.6)] hover:brightness-110"
+              onClick={handleGenerateDeck}
+            >
+              <span className="text-[1vw] font-bold text-stone-800 drop-shadow-[0_0.1vw_0.1vw_rgba(255,255,255,0.3)] whitespace-nowrap">
+                Generate Deck
+              </span>
+              <div className="absolute inset-0 rounded-lg border-t-[0.15vw] border-l-[0.15vw] border-white/20 pointer-events-none" />
+              <div className="absolute inset-0 rounded-lg border-b-[0.15vw] border-r-[0.15vw] border-black/20 pointer-events-none" />
+            </button>
+          </div>
         </>
       )}
 
@@ -824,10 +815,9 @@ const CollectionManager = () => {
                     key={k}
                     className={twMerge(
                       "bg-gray-800 text-white w-full h-[3vh] min-h-[3vh] flex items-center relative shadow rounded transition-colors",
-                      !isPremade && "cursor-pointer hover:bg-gray-700",
+                      "cursor-pointer hover:bg-gray-700",
                     )}
                     onClick={() => {
-                      if (isPremade) return;
                       const currentCount = deck[k as CardTemplateKey] || 0;
                       if (currentCount > 0) {
                         handleDeckChange(
@@ -892,28 +882,31 @@ const CollectionManager = () => {
         )}
       </div>
 
-      <div className=" absolute bottom-[2.4vw] left-[78.9vw] w-[8vw] text-[1.25vw]  text-white px-[0.5vw] py-[0.25vw] rounded-lg flex flex-col gap-0 ">
+      <div className=" absolute bottom-[2.4vw] left-[78.9vw] w-[8vw] text-[1.25vw]  text-white px-[0.5vw] py-[0.25vw] rounded-lg flex flex-col gap-[0.4vw] ">
         <button
           onMouseEnter={() => playSfx("button-over")}
           className="relative py-[0.25vw] bg-[#bda393] rounded-lg border-[0.3vw] border-[#8d7037] shadow-[0_0.4vw_0_rgba(92,64,51,1),0_0.6vw_1.5vw_rgba(0,0,0,0.6),inset_0_0.2vw_0_rgba(255,255,255,0.3)] transition-all duration-200 hover:translate-y-[0.15vw] hover:shadow-[0_0.2vw_0_rgba(92,64,51,1),0_0.4vw_1vw_rgba(0,0,0,0.6)] hover:brightness-110"
-          onClick={
-            mode === "card-select"
-              ? isPremade
-                ? handleCancelEdit
-                : handleSaveDeck
-              : handleBackToMenu
-          }
+          onClick={mode === "card-select" ? handleSaveDeck : handleBackToMenu}
         >
           <span className="text-[1.25vw] font-bold text-stone-800 drop-shadow-[0_0.1vw_0.1vw_rgba(255,255,255,0.3)]">
-            {mode === "card-select"
-              ? isPremade
-                ? "Back"
-                : "Save Deck"
-              : "Back"}
+            {mode === "card-select" ? "Save Deck" : "Back"}
           </span>
           <div className="absolute inset-0 rounded-lg border-t-[0.15vw] border-l-[0.15vw] border-white/20 pointer-events-none" />
           <div className="absolute inset-0 rounded-lg border-b-[0.15vw] border-r-[0.15vw] border-black/20 pointer-events-none" />
         </button>
+
+        {/* Every deck is editable now, so there has to be a way out without saving. */}
+        {mode === "card-select" && (
+          <button
+            onMouseEnter={() => playSfx("button-over")}
+            className="relative py-[0.15vw] bg-[#8d7037]/70 rounded-lg border-[0.2vw] border-[#5c4033] transition-all duration-200 hover:brightness-125"
+            onClick={handleCancelEdit}
+          >
+            <span className="text-[0.9vw] font-bold text-amber-100/90">
+              Cancel
+            </span>
+          </button>
+        )}
       </div>
 
       {mode === "card-select" && (
