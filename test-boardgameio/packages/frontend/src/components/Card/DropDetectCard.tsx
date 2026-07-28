@@ -2,7 +2,7 @@ import type { CardProps } from "./types";
 import { useDroppable } from "@dnd-kit/core";
 import type { Ctx, PlayerID } from "@project/shared";
 import { useDragStore } from "@/stores/dragStore";
-import { targetAtPoint } from "@/utils/targeting";
+import { centerOf, lungeDelta } from "@/utils/targeting";
 import { useAnimationStore } from "@/stores/animationStore";
 import { twMerge } from "tailwind-merge";
 import { AnimatePresence, motion } from "motion/react";
@@ -26,7 +26,6 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
   const startTargeting = useDragStore((s) => s.startTargeting);
-  const updateTargetingCursor = useDragStore((s) => s.updateTargetingCursor);
   const endTargeting = useDragStore((s) => s.endTargeting);
   const targetingCardId = useDragStore((s) => s.targetingCardId);
   const targetingMode = useDragStore((s) => s.targetingMode);
@@ -64,53 +63,14 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
   const isAttackAnimating = !!attackAnimation;
 
   // Calculate target position for attack animation
-  const getTargetPosition = () => {
-    if (
-      !isAttackAnimating ||
-      !attackAnimation ||
-      attackAnimation.type !== "attack"
-    ) {
-      return { x: 0, y: 0 };
-    }
-
-    const targetId = attackAnimation.targetId;
-    const targetType = attackAnimation.targetType;
-
-    // Get attacker position
-    const attackerElement = placedCardRef.current;
-    if (!attackerElement) return { x: 0, y: 0 };
-
-    const attackerRect = attackerElement.getBoundingClientRect();
-    const attackerCenterX = attackerRect.left + attackerRect.width / 2;
-    const attackerCenterY = attackerRect.top + attackerRect.height / 2;
-
-    // Get target position
-    let targetElement: HTMLElement | null = null;
-
-    if (targetType === "card") {
-      // Find target card by ID
-      targetElement = document.querySelector(`[data-card-id="${targetId}"]`);
-    } else if (targetType === "player") {
-      // Find player hero by ID
-      targetElement = document.querySelector(`[data-player-id="${targetId}"]`);
-    }
-
-    if (targetElement) {
-      const targetRect = targetElement.getBoundingClientRect();
-      const targetCenterX = targetRect.left + targetRect.width / 2;
-      const targetCenterY = targetRect.top + targetRect.height / 2;
-
-      // Calculate relative position
-      const deltaX = targetCenterX - attackerCenterX;
-      const deltaY = targetCenterY - attackerCenterY;
-
-      return { x: deltaX, y: deltaY };
-    }
-
-    return { x: 0, y: 0 };
-  };
-
-  const targetPosition = getTargetPosition();
+  const targetPosition =
+    isAttackAnimating && attackAnimation?.type === "attack"
+      ? lungeDelta(
+          placedCardRef.current,
+          attackAnimation.targetId,
+          attackAnimation.targetType,
+        )
+      : { x: 0, y: 0 };
 
   // Hover handlers for popover
   const handleMouseEnter = () => {
@@ -182,13 +142,8 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
     if (disabled && !isBattlecryMinion) return;
 
     // Get card center position
-    const rect = wrapperRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    const origin = {
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2,
-    };
+    const origin = centerOf(wrapperRef.current);
+    if (!origin) return;
 
     // Determine mode based on battlecry state
     const mode = isBattlecryMinion ? "battlecry" : "attack";
@@ -199,13 +154,8 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
   useEffect(() => {
     if (isBattlecryMinion && !isTargeting && playerID === ctx.currentPlayer) {
       // console.debug("Auto-triggering battlecry targeting for:", card.id);
-      const rect = wrapperRef.current?.getBoundingClientRect();
-      if (!rect) return;
-
-      const origin = {
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2,
-      };
+      const origin = centerOf(wrapperRef.current);
+      if (!origin) return;
 
       startTargeting("battlecry", card.id, origin, card);
     }
@@ -234,80 +184,6 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
       endTargeting();
     }
   }, [isBattlecryMinion, isTargeting, targetingCardId, card.id, endTargeting]);
-
-  useEffect(() => {
-    if (!isTargeting) return;
-    // "choice" mode is owned by ChoiceTargetingLayer, NOT by this component.
-    // targetingCardId points at the Choose One parent, which for a minion
-    // parent is this very card — so without this guard both would attach a
-    // mouseup listener. Ours would win the race, dispatch the wrong event
-    // (the ternary below has no choice case), and call endTargeting(); that
-    // clears targetingMode synchronously, React re-renders, and the layer's
-    // cleanup removes its listener before the browser ever reaches it — so
-    // resolveChoice was never sent and the prompt reopened forever.
-    if (targetingMode === "choice") return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      updateTargetingCursor({ x: e.clientX, y: e.clientY });
-
-      // Heroes by geometry, cards by elementFromPoint — see utils/targeting.
-      const { targetPlayerId, targetCardId } = targetAtPoint(
-        e.clientX,
-        e.clientY,
-      );
-
-      // Update store state for the bullseye target preview
-      if (targetPlayerId) {
-        useDragStore.setState({
-          hoveredTarget: { type: "player", id: targetPlayerId },
-        });
-      } else if (targetCardId) {
-        useDragStore.setState({
-          hoveredTarget: { type: "card", id: targetCardId },
-        });
-      } else {
-        useDragStore.setState({ hoveredTarget: null });
-      }
-    };
-
-    const handleMouseUp = (e: MouseEvent) => {
-      const { targetPlayerId, targetCardId } = targetAtPoint(
-        e.clientX,
-        e.clientY,
-      );
-
-      if (targetCardId || targetPlayerId) {
-        // Dispatch event based on targeting mode
-        const eventType =
-          targetingMode === "battlecry" ? "battlecry-target" : "attack-target";
-        const event = new CustomEvent(eventType, {
-          detail: {
-            sourceCardId: card.id,
-            targetCardId,
-            targetPlayerId,
-          },
-        });
-        window.dispatchEvent(event);
-      }
-
-      useDragStore.setState({ hoveredTarget: null });
-      endTargeting();
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [
-    isTargeting,
-    card.id,
-    targetingMode,
-    updateTargetingCursor,
-    endTargeting,
-  ]);
 
   return (
     <>

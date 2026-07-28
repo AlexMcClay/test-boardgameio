@@ -1,6 +1,8 @@
-import type { Card, GameState, Player } from "@project/shared";
+import type { GameState, Player } from "@project/shared";
 import type { GameBoardProps } from "@/types/gameProps";
 import { canAfford, isUserSelectValue } from "@project/shared";
+import { centerOf } from "@/utils/targeting";
+import { heroPowerCard } from "@/game/pseudoCards";
 import { useDragStore } from "@/stores/dragStore";
 import { useAudioStore } from "@/stores/audioStore";
 import { useEffect, useRef, useState } from "react";
@@ -28,8 +30,6 @@ const HeroPower = ({ player, isTop, moves }: Props) => {
   } | null>(null);
 
   const startTargeting = useDragStore((s) => s.startTargeting);
-  const endTargeting = useDragStore((s) => s.endTargeting);
-  const targetingMode = useDragStore((s) => s.targetingMode);
   const playSfx = useAudioStore((state) => state.playSfx);
 
   function handleHeroPowerMouseDown(e: React.MouseEvent) {
@@ -57,129 +57,20 @@ const HeroPower = ({ player, isTop, moves }: Props) => {
 
     if (requiresUserSelection) {
       // Get hero section position as origin
-
-      const rect = wrapperRef.current?.getBoundingClientRect();
-      if (!rect) return;
-
-      const origin = {
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2,
-      };
-      // Create a pseudo-card for hero power to pass validation context
-      const heroPowerCard: Card = {
-        id: `hero-power-${player.id}`,
-        originalID: `hero-power-${player.id}`,
-        title: heroPower.name,
-        description: heroPower.description,
-        effects: heroPower.effects,
-        onPlace: [],
-        targetQuery: heroPower.targetQuery,
-        isMinion: false,
-        damageTaken: 0,
-        attacksLeft: 0,
-        class: player.hero.class,
-        set: [],
-      };
+      const origin = centerOf(wrapperRef.current);
+      if (!origin) return;
 
       startTargeting(
         "hero-power",
         `hero-power-${player.id}`,
         origin,
-        heroPowerCard,
+        heroPowerCard(player),
       );
     } else {
       // Direct execution for non-targeted hero powers
       moves.useHeroPower();
     }
   }
-
-  // Handle hero power targeting mouse events
-  useEffect(() => {
-    if (targetingMode !== "hero-power") return;
-
-    const updateTargetingCursor = useDragStore.getState().updateTargetingCursor;
-
-    // Helper function to find target ID via coordinate bounding boxes
-    const getTargetAtCoordinates = (clientX: number, clientY: number) => {
-      // Find all player containers on the board
-      const playerElements = document.querySelectorAll(
-        '[data-player-bounds="true"]',
-      );
-
-      for (const el of playerElements) {
-        const rect = el.getBoundingClientRect();
-
-        // Check if mouse coordinates fall strictly within the element's actual box boundary
-        const isInsideX = clientX >= rect.left && clientX <= rect.right;
-        const isInsideY = clientY >= rect.top && clientY <= rect.bottom;
-
-        if (isInsideX && isInsideY) {
-          return el.getAttribute("data-player-id");
-        }
-      }
-      return null;
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      updateTargetingCursor({ x: e.clientX, y: e.clientY });
-
-      // Determine hovered target
-      const targetPlayerId = getTargetAtCoordinates(e.clientX, e.clientY);
-      let targetCardId: string | null = null;
-
-      if (!targetPlayerId) {
-        const element = document.elementFromPoint(e.clientX, e.clientY);
-        targetCardId =
-          element?.closest("[data-card-id]")?.getAttribute("data-card-id") ||
-          null;
-      }
-
-      if (targetCardId || targetPlayerId) {
-        useDragStore.setState({
-          hoveredTarget: {
-            type: targetCardId ? "card" : "player",
-            id: targetCardId || targetPlayerId,
-          },
-        });
-      } else {
-        useDragStore.setState({ hoveredTarget: null });
-      }
-    };
-
-    const handleMouseUp = (e: MouseEvent) => {
-      const targetPlayerId = getTargetAtCoordinates(e.clientX, e.clientY);
-
-      let targetCardId: string | null = null;
-      if (!targetPlayerId) {
-        const element = document.elementFromPoint(e.clientX, e.clientY);
-        targetCardId =
-          element?.closest("[data-card-id]")?.getAttribute("data-card-id") ||
-          null;
-      }
-
-      if (targetCardId || targetPlayerId) {
-        // Dispatch hero-power-target event
-        const event = new CustomEvent("hero-power-target", {
-          detail: {
-            targetCardId,
-            targetPlayerId,
-          },
-        });
-        window.dispatchEvent(event);
-      }
-
-      useDragStore.setState({ hoveredTarget: null });
-      endTargeting();
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [targetingMode, endTargeting]);
 
   const used = player.heroPowerUsedThisTurn;
 

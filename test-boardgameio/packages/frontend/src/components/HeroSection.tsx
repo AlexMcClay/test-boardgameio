@@ -1,13 +1,10 @@
 import { useDragStore } from "@/stores/dragStore";
 import { useAnimationStore } from "@/stores/animationStore";
 import { useDroppable } from "@dnd-kit/core";
-import {
-  getPlayerAttack,
-  hasKeyword,
-  type Card,
-  type Player,
-} from "@project/shared";
+import { getPlayerAttack, hasKeyword, type Player } from "@project/shared";
 import type { GameBoardProps } from "@/types/gameProps";
+import { centerOf, lungeDelta } from "@/utils/targeting";
+import { heroAttackCard } from "@/game/pseudoCards";
 import { twMerge } from "tailwind-merge";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef } from "react";
@@ -30,8 +27,6 @@ const attackIcon = "assets/attack.png";
 const HeroSection = ({ player, ...props }: Props) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const startTargeting = useDragStore((s) => s.startTargeting);
-  const endTargeting = useDragStore((s) => s.endTargeting);
-  const targetingMode = useDragStore((s) => s.targetingMode);
   const activeAnimations = useAnimationStore((s) => s.activeAnimations);
   const playSfx = useAudioStore((state) => state.playSfx);
 
@@ -89,151 +84,22 @@ const HeroSection = ({ player, ...props }: Props) => {
       return;
     }
 
-    const rect = wrapperRef.current?.getBoundingClientRect();
-    if (!rect) return;
+    const origin = centerOf(wrapperRef.current);
+    if (!origin) return;
 
-    const origin = {
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2,
-    };
-
-    // Pseudo-card so canTargetHighlight (which hard-requires a non-null Card)
-    // works, mirroring HeroPower.tsx's heroPowerCard.
-    const heroAttackCard: Card = {
-      id: `hero-${player.id}`,
-      originalID: `hero-${player.id}`,
-      title: player.name,
-      description: "",
-      effects: [],
-      onPlace: [],
-      targetQuery: { side: "enemy", type: ["card", "player"] },
-      isMinion: false,
-      damageTaken: 0,
-      attacksLeft: player.attacksLeft,
-      class: player.hero.class,
-      set: [],
-    };
-
-    startTargeting("hero-attack", `hero-${player.id}`, origin, heroAttackCard);
+    startTargeting(
+      "hero-attack",
+      `hero-${player.id}`,
+      origin,
+      heroAttackCard(player),
+    );
   }
-
-  useEffect(() => {
-    if (targetingMode !== "hero-attack") return;
-
-    const updateTargetingCursor = useDragStore.getState().updateTargetingCursor;
-
-    const getTargetAtCoordinates = (clientX: number, clientY: number) => {
-      const playerElements = document.querySelectorAll(
-        '[data-player-bounds="true"]',
-      );
-      for (const el of playerElements) {
-        const rect = el.getBoundingClientRect();
-        const isInsideX = clientX >= rect.left && clientX <= rect.right;
-        const isInsideY = clientY >= rect.top && clientY <= rect.bottom;
-        if (isInsideX && isInsideY) {
-          return el.getAttribute("data-player-id");
-        }
-      }
-      return null;
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      updateTargetingCursor({ x: e.clientX, y: e.clientY });
-
-      const targetPlayerId = getTargetAtCoordinates(e.clientX, e.clientY);
-      let targetCardId: string | null = null;
-      if (!targetPlayerId) {
-        const element = document.elementFromPoint(e.clientX, e.clientY);
-        targetCardId =
-          element?.closest("[data-card-id]")?.getAttribute("data-card-id") ||
-          null;
-      }
-
-      if (targetCardId || targetPlayerId) {
-        useDragStore.setState({
-          hoveredTarget: {
-            type: targetCardId ? "card" : "player",
-            id: targetCardId || targetPlayerId,
-          },
-        });
-      } else {
-        useDragStore.setState({ hoveredTarget: null });
-      }
-    };
-
-    const handleMouseUp = (e: MouseEvent) => {
-      const targetPlayerId = getTargetAtCoordinates(e.clientX, e.clientY);
-      let targetCardId: string | null = null;
-      if (!targetPlayerId) {
-        const element = document.elementFromPoint(e.clientX, e.clientY);
-        targetCardId =
-          element?.closest("[data-card-id]")?.getAttribute("data-card-id") ||
-          null;
-      }
-
-      if (targetCardId || targetPlayerId) {
-        window.dispatchEvent(
-          new CustomEvent("hero-attack-target", {
-            detail: { targetCardId, targetPlayerId },
-          }),
-        );
-      }
-
-      useDragStore.setState({ hoveredTarget: null });
-      endTargeting();
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [targetingMode, endTargeting]);
 
   // Attack lunge animation, mirrors PlacedCard.tsx's minion attack keyframes
   const attackAnimation = activeAnimations.find(
     (anim) => anim.type === "attack" && anim.attackerId === `hero-${player.id}`,
   );
   const isAttackAnimating = !!attackAnimation;
-
-  const getTargetPosition = () => {
-    if (
-      !isAttackAnimating ||
-      !attackAnimation ||
-      attackAnimation.type !== "attack"
-    ) {
-      return { x: 0, y: 0 };
-    }
-
-    const attackerElement = wrapperRef.current;
-    if (!attackerElement) return { x: 0, y: 0 };
-
-    const attackerRect = attackerElement.getBoundingClientRect();
-    const attackerCenterX = attackerRect.left + attackerRect.width / 2;
-    const attackerCenterY = attackerRect.top + attackerRect.height / 2;
-
-    const targetElement =
-      attackAnimation.targetType === "card"
-        ? document.querySelector<HTMLElement>(
-            `[data-card-id="${attackAnimation.targetId}"]`,
-          )
-        : document.querySelector<HTMLElement>(
-            `[data-player-id="${attackAnimation.targetId}"]`,
-          );
-
-    if (targetElement) {
-      const targetRect = targetElement.getBoundingClientRect();
-      const targetCenterX = targetRect.left + targetRect.width / 2;
-      const targetCenterY = targetRect.top + targetRect.height / 2;
-      return {
-        x: targetCenterX - attackerCenterX,
-        y: targetCenterY - attackerCenterY,
-      };
-    }
-    return { x: 0, y: 0 };
-  };
 
   useEffect(() => {
     if (isAttackAnimating) {
@@ -245,7 +111,14 @@ const HeroSection = ({ player, ...props }: Props) => {
     }
   }, [isAttackAnimating]);
 
-  const targetPosition = getTargetPosition();
+  const targetPosition =
+    isAttackAnimating && attackAnimation?.type === "attack"
+      ? lungeDelta(
+          wrapperRef.current,
+          attackAnimation.targetId,
+          attackAnimation.targetType,
+        )
+      : { x: 0, y: 0 };
 
   const heroPortrait = player.heroPortrait || "src/assets/default-hero.jpg";
 

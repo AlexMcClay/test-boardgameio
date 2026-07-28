@@ -38,7 +38,7 @@ import { useAnimationStore } from "@/stores/animationStore";
 import EventHistory from "./Board/EventHistory";
 import MulliganOverlay from "./Mulligan/MulliganOverlay";
 import ChoiceOverlay from "./Choice/ChoiceOverlay";
-import ChoiceTargetingLayer from "./Choice/ChoiceTargetingLayer";
+import TargetingLayer from "./Targeting/TargetingLayer";
 
 interface Props extends GameBoardProps {}
 
@@ -85,12 +85,9 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     setGlobalTrack(backgroundMusic);
   }, [setGlobalTrack]);
 
-  // Targetinmg
-  useGameTargeting({
-    G,
-    ctx,
-    moves,
-  });
+  // ESC cancellation for battlecry / Choose One prompts. Aiming itself lives
+  // in <TargetingLayer> below.
+  useGameTargeting({ G, moves });
 
   // Track if the dragged card was hovered
   const [wasHovered, setWasHovered] = useState(false);
@@ -508,9 +505,11 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           <ChoiceOverlay G={G} ctx={ctx} moves={moves} playerID={props.playerID} />
         )}
       </AnimatePresence>
-      {/* Pointer handling for an aimed Choose One half. Board-level because a
-          held Choose One SPELL has no board card to hang listeners off. */}
-      <ChoiceTargetingLayer />
+      {/* The single pointer handler for every targeting mode. Board-level so
+          it survives its source unmounting mid-aim, and so heroes (rendered
+          once per seat) can't double-handle a gesture. Takes the ACTUAL G —
+          the resolvers validate against it. */}
+      <TargetingLayer G={G} ctx={ctx} moves={moves} />
       {/* Settings Overlay */}
       <SettingsButton setIsSettingsOpen={setIsSettingsOpen} />
       <SettingsOverlay

@@ -1,221 +1,22 @@
-import {
-  validateMove,
-  validateHeroAttack,
-  validateTargetQuery,
-  type GameState,
-  type TargetValue,
-} from "@project/shared";
-import type { Ctx } from "@project/shared";
-import { useCallback, useEffect } from "react";
+import type { GameState } from "@project/shared";
+import { useEffect } from "react";
 import { useDragStore } from "@/stores/dragStore";
+import type { GameMoves } from "@/types/gameProps";
 
 interface Props {
-  ctx: Ctx;
   G: GameState;
-  moves: any;
+  moves: GameMoves;
 }
 
-export const useGameTargeting = ({ G, ctx, moves }: Props) => {
-  // Handle attack arrow target selection
-  const handleAttackTarget = useCallback(
-    (e: Event) => {
-      const customEvent = e as CustomEvent;
-      const { sourceCardId, attackerId, targetCardId, targetPlayerId } =
-        customEvent.detail;
-      const cardId = sourceCardId || attackerId; // Support both old and new format
-
-      let target: TargetValue | undefined;
-
-      if (targetCardId) {
-        // Find which player owns this card
-        const player0HasCard = G.board["0"].some((c) => c.id === targetCardId);
-        const targetPlayer = player0HasCard ? "0" : "1";
-
-        target = {
-          type: "card",
-          id: targetCardId,
-          player: targetPlayer,
-        };
-      } else if (targetPlayerId) {
-        target = {
-          type: "player",
-          id: targetPlayerId,
-          player: targetPlayerId,
-        };
-      }
-
-      if (!target) return;
-
-      // Execute the move with validation and animations
-      const validation = validateMove(G, ctx, cardId, "board", target);
-
-      if (!validation.valid) {
-        console.warn(`Cannot perform move (UI): ${validation.error}`);
-        return; // Don't execute invalid move
-      }
-
-      // Execute the move - animations will be detected and played by useEffect
-      moves.minionAttack(cardId, target);
-    },
-    [ctx, moves, G],
-  );
-
-  useEffect(() => {
-    window.addEventListener("attack-target", handleAttackTarget);
-    return () => {
-      window.removeEventListener("attack-target", handleAttackTarget);
-    };
-  }, [handleAttackTarget]);
-
-  // Handle battlecry arrow target selection
-  const handleBattlecryTarget = useCallback(
-    (e: Event) => {
-      const customEvent = e as CustomEvent;
-      const { sourceCardId, targetCardId, targetPlayerId } = customEvent.detail;
-
-      let target: TargetValue | undefined;
-
-      if (targetCardId) {
-        const player0HasCard = G.board["0"].some((c) => c.id === targetCardId);
-        const targetPlayer = player0HasCard ? "0" : "1";
-        target = { type: "card", id: targetCardId, player: targetPlayer };
-      } else if (targetPlayerId) {
-        target = { type: "player", id: targetPlayerId, player: targetPlayerId };
-      }
-
-      if (!target) return;
-
-      // Validate and execute
-      const validation = validateMove(G, ctx, sourceCardId, "board", target);
-      if (!validation.valid) {
-        console.warn(`Cannot resolve battlecry (UI): ${validation.error}`);
-        return;
-      }
-
-      moves.resolveBattlecry(sourceCardId, target);
-    },
-    [G, ctx, moves],
-  );
-
-  useEffect(() => {
-    window.addEventListener("battlecry-target", handleBattlecryTarget);
-    return () => {
-      window.removeEventListener("battlecry-target", handleBattlecryTarget);
-    };
-  }, [handleBattlecryTarget]);
-
-  // Handle a Choose One half being aimed (ChoiceTargetingLayer dispatches it)
-  const handleChoiceTarget = useCallback(
-    (e: Event) => {
-      const customEvent = e as CustomEvent;
-      const { optionIndex, targetCardId, targetPlayerId } = customEvent.detail;
-
-      let target: TargetValue | undefined;
-      if (targetCardId) {
-        const player0HasCard = G.board["0"].some((c) => c.id === targetCardId);
-        const targetPlayer = player0HasCard ? "0" : "1";
-        target = { type: "card", id: targetCardId, player: targetPlayer };
-      } else if (targetPlayerId) {
-        target = { type: "player", id: targetPlayerId, player: targetPlayerId };
-      }
-      if (!target || typeof optionIndex !== "number") return;
-
-      // Pre-validate against the option card's own targetQuery, the same check
-      // the engine repeats in resolveChoice. Releasing on an illegal target
-      // just does nothing and leaves the prompt open.
-      const option = G.pendingChoice?.options[optionIndex];
-      if (!option) return;
-      if (
-        option.targetQuery &&
-        !validateTargetQuery(
-          option.targetQuery,
-          { G, ctx, card: option, target, playerID: ctx.currentPlayer, location: "hand", type: "spell" },
-          option.id,
-        )
-      ) {
-        console.warn("Cannot aim that Choose One option there (UI)");
-        return;
-      }
-
-      moves.resolveChoice(optionIndex, target);
-    },
-    [G, ctx, moves],
-  );
-
-  useEffect(() => {
-    window.addEventListener("choice-target", handleChoiceTarget);
-    return () => {
-      window.removeEventListener("choice-target", handleChoiceTarget);
-    };
-  }, [handleChoiceTarget]);
-
-  // Handle hero power arrow target selection
-  const handleHeroPowerTarget = useCallback(
-    (e: Event) => {
-      const customEvent = e as CustomEvent;
-      const { targetCardId, targetPlayerId } = customEvent.detail;
-
-      let target: TargetValue | undefined;
-
-      if (targetCardId) {
-        const player0HasCard = G.board["0"].some((c) => c.id === targetCardId);
-        const targetPlayer = player0HasCard ? "0" : "1";
-        target = { type: "card", id: targetCardId, player: targetPlayer };
-      } else if (targetPlayerId) {
-        target = { type: "player", id: targetPlayerId, player: targetPlayerId };
-      }
-
-      if (!target) return;
-
-      // Execute hero power with target
-      moves.useHeroPower(target);
-    },
-    [G, moves]
-  );
-
-  useEffect(() => {
-    window.addEventListener("hero-power-target", handleHeroPowerTarget);
-    return () => {
-      window.removeEventListener("hero-power-target", handleHeroPowerTarget);
-    };
-  }, [handleHeroPowerTarget]);
-
-  // Handle hero attack arrow target selection
-  const handleHeroAttackTarget = useCallback(
-    (e: Event) => {
-      const customEvent = e as CustomEvent;
-      const { targetCardId, targetPlayerId } = customEvent.detail;
-
-      let target: TargetValue | undefined;
-
-      if (targetCardId) {
-        const player0HasCard = G.board["0"].some((c) => c.id === targetCardId);
-        const targetPlayer = player0HasCard ? "0" : "1";
-        target = { type: "card", id: targetCardId, player: targetPlayer };
-      } else if (targetPlayerId) {
-        target = { type: "player", id: targetPlayerId, player: targetPlayerId };
-      }
-
-      if (!target) return;
-
-      const validation = validateHeroAttack(G, ctx, target);
-      if (!validation.valid) {
-        console.warn(`Cannot perform hero attack (UI): ${validation.error}`);
-        return;
-      }
-
-      moves.heroAttack(target);
-    },
-    [G, ctx, moves],
-  );
-
-  useEffect(() => {
-    window.addEventListener("hero-attack-target", handleHeroAttackTarget);
-    return () => {
-      window.removeEventListener("hero-attack-target", handleHeroAttackTarget);
-    };
-  }, [handleHeroAttackTarget]);
-
+/**
+ * Keyboard cancellation for the two prompts that can gate the game.
+ *
+ * Aiming itself is handled by components/Targeting/TargetingLayer.tsx. This
+ * stays separate because ESC must work when there is no active aim at all —
+ * the Choose One overlay is up, or a battlecry is pending and the player
+ * hasn't grabbed the arrow yet — which is outside that layer's remit.
+ */
+export const useGameTargeting = ({ G, moves }: Props) => {
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
@@ -224,10 +25,6 @@ export const useGameTargeting = ({ G, ctx, moves }: Props) => {
         moves.cancelBattlecry();
         return;
       }
-      // Backs the whole play out — mana refunded, the PARENT card returns to
-      // hand (not the half that was picked). Works both while the overlay is
-      // up and mid-aim; the arrow clears itself once pendingChoice leaves G.
-      // A Discover deliberately ignores ESC: you must pick.
       if (G.pendingChoice?.kind === "chooseOne") {
         console.log("Canceling choose one with ESC");
         useDragStore.getState().endTargeting();

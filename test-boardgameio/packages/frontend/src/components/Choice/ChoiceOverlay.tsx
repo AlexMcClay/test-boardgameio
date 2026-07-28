@@ -21,6 +21,7 @@ import type { GameMoves } from "@/types/gameProps";
 import Card from "../Card";
 import { useAudioStore } from "@/stores/audioStore";
 import { useDragStore } from "@/stores/dragStore";
+import { centerOfTarget } from "@/utils/targeting";
 
 interface Props {
   G: GameState;
@@ -160,14 +161,8 @@ const ChoiceOverlay = ({ G, ctx, moves, playerID }: Props) => {
  * it starts from the centre-bottom of the screen (where the hand sits).
  */
 function targetingOrigin(sourceCardId?: string): { x: number; y: number } {
-  if (sourceCardId) {
-    const el = document.querySelector(`[data-card-id="${sourceCardId}"]`);
-    if (el) {
-      const r = el.getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    }
-  }
-  return { x: window.innerWidth / 2, y: window.innerHeight * 0.8 };
+  const onBoard = sourceCardId && centerOfTarget(sourceCardId, "card");
+  return onBoard || { x: window.innerWidth / 2, y: window.innerHeight * 0.8 };
 }
 
 export default ChoiceOverlay;

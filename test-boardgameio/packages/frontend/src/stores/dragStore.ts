@@ -9,16 +9,9 @@ import {
   type TargetValue,
   type EffectContextWithOptionalCard,
 } from "@project/shared";
-
-type TargetingMode =
-  | "attack"
-  | "battlecry"
-  | "hero-power"
-  | "hero-attack"
-  // Aiming a Choose One half that was picked in the ChoiceOverlay. The option
-  // card is the activeCard; choiceOptionIndex is what the move needs.
-  | "choice"
-  | null;
+// One-way import: targetingModes owns the mode union and must never import
+// from stores/, or the two files form a cycle.
+import type { TargetingMode } from "@/game/targetingModes";
 
 type DragStore = {
   activeCard: Card | null;
@@ -46,8 +39,10 @@ type DragStore = {
   setHoverBoard: (index: number | null, lane: PlayerID | null) => void;
   clearHoverBoard: () => void;
 
-  // Extensible targeting system
-  targetingMode: TargetingMode;
+  // Extensible targeting system. All pointer handling for these lives in
+  // components/Targeting/TargetingLayer.tsx; the per-mode resolve logic lives
+  // in game/targetingModes.ts.
+  targetingMode: TargetingMode | null;
   targetingCardId: string | null;
   targetingOrigin: { x: number; y: number } | null;
   cursorPosition: { x: number; y: number } | null;
@@ -61,18 +56,7 @@ type DragStore = {
     card: Card,
     choiceOptionIndex?: number,
   ) => void;
-  updateTargetingCursor: (position: { x: number; y: number }) => void;
   endTargeting: () => void;
-
-  // Backward compatibility - Attack arrow state
-  get attackingCardId(): string | null;
-  startAttack: (
-    cardId: string,
-    origin: { x: number; y: number },
-    card: Card,
-  ) => void;
-  updateAttackCursor: (position: { x: number; y: number }) => void;
-  endAttack: () => void;
 };
 
 export const useDragStore = create<DragStore>((set, get) => ({
@@ -124,11 +108,10 @@ export const useDragStore = create<DragStore>((set, get) => ({
       cursorPosition: origin,
       activeCard: card,
       choiceOptionIndex: choiceOptionIndex ?? null,
+      // Otherwise a hover left over from the previous aim is still published
+      // until the first mousemove of this one.
+      hoveredTarget: null,
     });
-  },
-
-  updateTargetingCursor: (position) => {
-    set({ cursorPosition: position });
   },
 
   endTargeting: () => {
@@ -139,24 +122,7 @@ export const useDragStore = create<DragStore>((set, get) => ({
       cursorPosition: null,
       activeCard: null,
       choiceOptionIndex: null,
+      hoveredTarget: null,
     });
-  },
-
-  // Backward compatibility getters and methods
-  get attackingCardId() {
-    const state = get();
-    return state.targetingMode === "attack" ? state.targetingCardId : null;
-  },
-
-  startAttack: (cardId, origin, card) => {
-    get().startTargeting("attack", cardId, origin, card);
-  },
-
-  updateAttackCursor: (position) => {
-    get().updateTargetingCursor(position);
-  },
-
-  endAttack: () => {
-    get().endTargeting();
   },
 }));
