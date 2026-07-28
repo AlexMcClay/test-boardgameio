@@ -9,6 +9,7 @@ import {
 import { cardTemplates, type CardTemplateKey } from "../data/cards";
 import {
   type AddToHandEffect,
+  type AddToHandSource,
   type ApplyModifierEffect,
   type BaseEffectSelection,
   type BoolEffectType,
@@ -26,6 +27,7 @@ import {
   type TriggerWindow,
 } from "../types";
 import { checkSingleTargetCondition } from "./effectEngine";
+import { findSubjectCard } from "./triggers";
 // Helper function to record game events
 export function recordEvent(G: GameState, event: GameEvent) {
   // Monotonic sequence number = index in the full history. Clients filter by
@@ -934,7 +936,7 @@ export function addCardToHand(
   playerID: string,
   card: Card,
   modifiers?: ApplyModifierEffect[],
-  source: "deck" | "global" | "graveyard" | "hand" | "board" = "global",
+  source: AddToHandSource = "global",
   sourceEventIndex?: number,
 ) {
   const player = G.players[playerID];
@@ -1206,6 +1208,26 @@ export function findCardsInPool(
       // This will be handled by target resolution logic
       pool = [];
       break;
+
+    // A fresh copy of the card that opened the current trigger window. Inside a
+    // trigger the subject rides in as context.target, and findSubjectCard walks
+    // board -> weapon -> graveyard, so this works even for a spell that has
+    // already finished resolving (Lorewalker Cho). Rebuilt from the template so
+    // the copy carries no damage or enchantments.
+    case "trigger-subject": {
+      const t = context.target;
+      if (!t || t.type === "player") break;
+      const subject = findSubjectCard(context.G, {
+        kind: "card",
+        id: t.id,
+        ownerId: t.player,
+      });
+      const copy = subject
+        ? createCardFromID(subject.originalID as CardTemplateKey)
+        : null;
+      if (copy) pool.push(copy);
+      break;
+    }
   }
 
   // Filter by conditions

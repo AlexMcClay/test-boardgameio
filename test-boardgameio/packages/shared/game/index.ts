@@ -1465,15 +1465,24 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
       case "addToHand": {
         const count = resolveDynamicValue(effect.value, context);
 
-        // Find cards from the specified source
+        // Find cards from the specified source. Always scoped to the ACTING
+        // player: `effect.target` picks the zone to read (Thoughtsteal's
+        // "enemy-deck"), which is independent of who receives the cards.
         const cardsToAdd = findCardsInPool(G, playerID, effect, context);
+
+        const recipientId =
+          effect.recipient === "enemy"
+            ? playerID === "0"
+              ? "1"
+              : "0"
+            : playerID;
 
         // 1. Process the main cards up to the resolved count
         const cardsToProcess = cardsToAdd.slice(0, count);
         cardsToProcess.forEach((cardToAdd: Card) => {
           addCardToHand(
             G,
-            playerID,
+            recipientId,
             cardToAdd,
             effect.modifiers,
             effect.source,
@@ -1493,7 +1502,7 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
             if (fallbackCard) {
               addCardToHand(
                 G,
-                playerID,
+                recipientId,
                 fallbackCard,
                 effect.modifiers,
                 "global",

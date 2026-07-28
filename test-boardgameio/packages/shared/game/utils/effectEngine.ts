@@ -95,6 +95,15 @@ export function resolveDynamicValue(
       break;
     }
 
+    case "weapon-attack": {
+      // Attack of the equipped weapon, its buffs included (Deadly Poison), so
+      // Bloodsail Raider matches what the weapon actually hits for. 0 unarmed.
+      const p =
+        val.player === "friendly" ? G.players[playerID] : G.players[enemyId];
+      baseValue = p.weapon ? getAttack(p.weapon) : 0;
+      break;
+    }
+
     case "card-stat":
       if (!context.card) {
         baseValue = 0;
@@ -105,6 +114,11 @@ export function resolveDynamicValue(
       if (val.stat === "maxHealth") baseValue = getMaxHealth(context.card);
       if (val.stat === "mana") baseValue = getManaCost(context.card);
       if (val.stat === "damageTaken") baseValue = context.card.damageTaken;
+      // Printed Overload only. A card whose overload is itself a DynamicValue
+      // has no fixed answer here, so it reads as 0 rather than guessing.
+      if (val.stat === "overload")
+        baseValue =
+          typeof context.card.overload === "number" ? context.card.overload : 0;
 
       break;
 
@@ -213,7 +227,8 @@ export function checkSingleTargetCondition(
 
     case "text-contains": {
       const text = card[condition.key]?.toLowerCase() ?? "";
-      return text.includes(condition.value.toLowerCase());
+      const hit = text.includes(condition.value.toLowerCase());
+      return condition.negate ? !hit : hit;
     }
 
     case "tags-include": {
@@ -337,6 +352,18 @@ export function resolveTargets(
       });
       break;
 
+    // Everything that can be damaged or healed: both heroes AND every minion.
+    // Heroes go in first so a random split (Mad Bomber) treats them as equal
+    // candidates rather than favouring board order.
+    case "all-characters":
+      (["0", "1"] as const).forEach((pId) => {
+        pool.push({ type: "player", id: pId, ownerId: pId });
+        G.board[pId].forEach((c) => {
+          pool.push({ type: "card", id: c.id, ownerId: pId, cardRef: c });
+        });
+      });
+      break;
+
     case "adjacent": {
       // Neighbors of context.card in its own zone: the board when the card is
       // placed there, else the hand ("Cards adjacent to this in hand ...").
@@ -420,7 +447,23 @@ export function resolveTargets(
   // 2. Filter Targets based on specific card conditions (e.g., "to all TAUNT minions")
   if (effect.conditions && effect.conditions.length > 0) {
     pool = pool.filter((t) => {
-      if (t.type === "player") return false; // Conditions typically inspect cards
+      if (t.type === "player") {
+        // Most conditions read properties of a card, which a hero doesn't have,
+        // so a hero can't satisfy them and is dropped. The IDENTITY filters are
+        // the exception: they only ask "is this the source / the chosen
+        // target?", which is a perfectly meaningful question about a hero.
+        //
+        // This is what lets "all OTHER characters" (Mad Bomber) keep both
+        // heroes. It also fixes Swipe, whose `enemy-all` + exclude-target never
+        // reached the enemy hero for its 1 splash damage.
+        return effect.conditions!.every((cond) =>
+          cond.type === "exclude-self"
+            ? t.id !== context.card?.id
+            : cond.type === "exclude-target"
+              ? !(context.target?.type === "player" && context.target.id === t.id)
+              : false,
+        );
+      }
       if (!t.cardRef) return false;
       return effect.conditions!.every((cond) =>
         // Pass the acting card's id so "exclude-self" can actually match

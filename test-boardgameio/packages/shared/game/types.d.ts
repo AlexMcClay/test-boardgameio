@@ -412,7 +412,15 @@ export type DynamicValue =
     }
   | {
       type: "card-stat";
-      stat: "attack" | "health" | "mana" | "maxHealth" | "damageTaken";
+      stat:
+        | "attack"
+        | "health"
+        | "mana"
+        | "maxHealth"
+        | "damageTaken"
+        // Crystals the card locks when played, 0 for everything else — the
+        // precise test for "a card with Overload" (Unbound Elemental).
+        | "overload";
       mult?: number;
     } // inspects current target
   | {
@@ -468,6 +476,13 @@ export type DynamicValue =
       type: "weapon-durability";
       player: "friendly" | "enemy";
       mult?: number;
+    }
+  | {
+      // Attack of an equipped weapon, buffs included; 0 when unarmed
+      // (Bloodsail Raider, Dread Corsair, Blade Flurry).
+      type: "weapon-attack";
+      player: "friendly" | "enemy";
+      mult?: number;
     };
 // most recent damage delt
 
@@ -485,6 +500,8 @@ export type BooleanCardKey =
   | "silenced"
   | "isMinion"
   | "isSpell"
+  | "isWeapon"
+  | "isUncollectible"
   | "summoningSickness";
 
 export type TargetCondition =
@@ -497,8 +514,10 @@ export type TargetCondition =
     }
   | {
       type: "text-contains";
-      key: "title" | "description" | "class";
+      key: "title" | "description" | "class" | "rarity";
       value: string;
+      /** Inverts the match — "a card from ANOTHER class" (Pilfer). */
+      negate?: boolean;
     }
   | { type: "tags-include"; value: string } // For "Wisp", "Demon", "Murloc"
   | { type: "state-match"; condition: "isDamaged" | "isUndamaged" } // Special derived states
@@ -600,9 +619,22 @@ export interface BounceEffect {
   modifiers?: ApplyModifierEffect[]; // For giving it "Costs (2) less"
 }
 
+/**
+ * Where an addToHand pulls its cards from. "trigger-subject" is the card that
+ * opened the current trigger window (context.target) — the only source that
+ * needs no zone, since it may already have left play.
+ */
+export type AddToHandSource =
+  | "deck"
+  | "global"
+  | "graveyard"
+  | "hand"
+  | "board"
+  | "trigger-subject";
+
 export interface AddToHandEffect {
   type: "addToHand";
-  source: "deck" | "global" | "graveyard" | "hand" | "board";
+  source: AddToHandSource;
   removeFromSource?: boolean; // If true, removes from source (e.g., draw from deck)
   // Which zone the `source` is read from. Defaults to the acting player's own;
   // "enemy-hand" / "enemy-deck" flip it to the opponent (Mind Vision,
@@ -615,6 +647,13 @@ export interface AddToHandEffect {
     | "enemy-hand"
     | "friendly-deck"
     | "enemy-deck";
+  /**
+   * WHOSE hand receives the cards; defaults to the acting player. Orthogonal to
+   * `target`, which names the zone the pool is READ from — King Mukla reads no
+   * zone and gives to "enemy", Lorewalker Cho copies the spell just cast into
+   * the other player's hand.
+   */
+  recipient?: "self" | "enemy";
   conditions?: TargetCondition[]; // Filter cards (e.g., Demons, cost 7-10, etc.)
   cardID?: string | string[]; // Specific card(s) to add (e.g., "Cub", "Arcane Bolt")
   value: number | DynamicValue; // Count of cards to add
@@ -645,6 +684,10 @@ export type EffectTarget =
   | "enemy-board"
   | "enemy-all"
   | "board"
+  // Both heroes plus every minion on both boards. Distinct from "board", which
+  // is minions only. Pair with `exclude-self` for "all OTHER characters"
+  // (Mad Bomber) — identity conditions keep hero targets, see resolveTargets.
+  | "all-characters"
   | "self"
   | "adjacent" // neighbors of context.card — board index ±1 when on board, hand index ±1 when in hand
   | "adjacent-target" // neighbors of context.target on its owner's board (e.g. Explosive Shot)
@@ -1194,7 +1237,7 @@ export type AddToHandEvent = {
   playerId: PlayerID;
   timestamp: number;
   card: Card;
-  source: "deck" | "global" | "graveyard" | "hand" | "board";
+  source: AddToHandSource;
   eventRef?: number; // Index of the top-level event that caused this
   snapshot: Card; // Deep clone of the card at record time
 };

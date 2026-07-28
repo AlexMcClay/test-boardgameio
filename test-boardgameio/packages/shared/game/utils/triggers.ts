@@ -140,6 +140,13 @@ export function triggerMatches(
  * The subject's live Card. Checks the board first, then the owner's weapon —
  * a weapon can be a damage/heal subject only in odd cases, but Sword of
  * Justice proves weapons DO react, and symmetry costs nothing.
+ *
+ * The graveyard is the last resort, and it is what makes conditions work on the
+ * CARD_PLAYED / SPELL_CAST windows: a spell is pushed to the graveyard BEFORE
+ * those windows open, so it exists nowhere else by the time a reacting card
+ * wants to inspect it (Unbound Elemental testing the played card for Overload).
+ * Board is checked first, so a corpse in the DEATH window — which fires before
+ * the sweep, and is therefore still on the board — is unaffected.
  */
 export function findSubjectCard(
   G: GameState,
@@ -149,7 +156,8 @@ export function findSubjectCard(
   const onBoard = G.board[subject.ownerId]?.find((c) => c.id === subject.id);
   if (onBoard) return onBoard;
   const weapon = G.players[subject.ownerId]?.weapon;
-  return weapon && weapon.id === subject.id ? weapon : undefined;
+  if (weapon && weapon.id === subject.id) return weapon;
+  return G.graveyard.find((g) => g.card.id === subject.id)?.card;
 }
 
 /**
