@@ -21,7 +21,10 @@ import {
   isUserSelectValue,
 } from "./utils";
 import { resolveDynamicValue } from "./utils/effectEngine";
-import { checkTargetRestrictions } from "./utils/validateMove";
+import {
+  checkTargetRestrictions,
+  validateTargetQuery,
+} from "./utils/validateMove";
 
 // Types for AI moves
 export type AIMove = {
@@ -40,6 +43,15 @@ export function enumerateAIMoves(G: GameState, ctx: Ctx): AIMove[] {
 
   const moves: AIMove[] = [];
   const player = G.players[ctx.currentPlayer];
+
+  // Special case: a Choose One / Discover prompt owns the action completely —
+  // applyMove rejects everything else (engine.ts "choice-pending"), so
+  // enumerating anything else would just spin the search on illegal moves.
+  // Checked BEFORE the battlecry branch: a battlecry can open a Discover
+  // (Selective Breeder), and the prompt is what's actually pending then.
+  if (G.pendingChoice) {
+    return enumerateChoiceMoves(G, ctx);
+  }
 
   // Special case: If there's a pending battlecry, enumerate target selection
   if (G.activeBattlecryMinion) {
@@ -120,6 +132,130 @@ export function enumerateAIMoves(G: GameState, ctx: Ctx): AIMove[] {
   // room for hero power / hero attack moves alongside card plays & attacks)
   // console.log("SCORE MOVES", scoredMoves);
   return scoredMoves.slice(0, 20);
+}
+
+/**
+ * Enumerate the picks for an open Choose One / Discover prompt.
+ *
+ * Unlike enumerateBattlecryTargets, this builds the candidate list from every
+ * character on the board and runs the REAL validator over it, rather than
+ * re-deriving side/type rules — the option cards' targetQueries are ordinary
+ * ones and there's no reason to hand-roll them a second time.
+ */
+function enumerateChoiceMoves(G: GameState, ctx: Ctx): AIMove[] {
+  const pending = G.pendingChoice!;
+  const moves: AIMove[] = [];
+  const enemyId = ctx.currentPlayer === "0" ? "1" : "0";
+
+  pending.options.forEach((option, index) => {
+    // Discover picks NEVER take a target — the card just goes to hand, and
+    // gets aimed later when it's actually played. Only a Choose One half can
+    // need one.
+    const needsTarget =
+      pending.kind === "chooseOne" &&
+      !!option.targetQuery &&
+      option.effects.some((e) => isUserSelectValue(e));
+
+    if (!needsTarget) {
+      moves.push({
+        move: "resolveChoice",
+        args: [index],
+        score: scoreChoiceOption(G, ctx, pending.kind, option),
+        description: `Choose: ${option.title}`,
+      });
+      return;
+    }
+
+    // Every character, filtered by the option's own targetQuery.
+    const candidates: TargetValue[] = [
+      ...G.board[ctx.currentPlayer].map((c) => ({
+        type: "card" as const,
+        id: c.id,
+        player: ctx.currentPlayer,
+      })),
+      ...G.board[enemyId].map((c) => ({
+        type: "card" as const,
+        id: c.id,
+        player: enemyId,
+      })),
+      { type: "player" as const, id: ctx.currentPlayer, player: ctx.currentPlayer },
+      { type: "player" as const, id: enemyId, player: enemyId },
+    ];
+
+    candidates.forEach((target) => {
+      const context: EffectContext = {
+        G,
+        ctx,
+        card: option,
+        target,
+        playerID: ctx.currentPlayer,
+        location: "hand",
+        type: "spell",
+      };
+      if (!validateTargetQuery(option.targetQuery!, context, option.id)) return;
+      moves.push({
+        move: "resolveChoice",
+        args: [index, target],
+        score: scoreChoiceOption(G, ctx, pending.kind, option, target),
+        description: `Choose: ${option.title} -> ${target.type} ${target.id}`,
+      });
+    });
+  });
+
+  // Choose One can be backed out of; Discover cannot.
+  if (pending.kind === "chooseOne") {
+    moves.push({
+      move: "cancelChoice",
+      args: [],
+      score: -50, // Low priority — prefer to actually pick a half
+      description: "Cancel choose one",
+    });
+  }
+
+  return moves.sort((a, b) => b.score - a.score).slice(0, 20);
+}
+
+/**
+ * Rough desirability of one option. Deliberately simple: MCTS does the real
+ * work by simulating the pick, this only shapes which branches get explored
+ * first.
+ */
+function scoreChoiceOption(
+  G: GameState,
+  ctx: Ctx,
+  kind: "chooseOne" | "discover",
+  option: Card,
+  target?: TargetValue,
+): number {
+  if (kind === "discover") {
+    // Prefer expensive (usually stronger) cards, mildly prefer minions since
+    // the bot plays boards better than it plays spells.
+    return 10 + (option.baseMana ?? 0) * 2 + (option.isMinion ? 2 : 0);
+  }
+  // Choose One: reuse the battlecry target scorer where a target is involved,
+  // since the option card's `effects` read exactly like a battlecry's onPlace.
+  let score = 10;
+  if (target) {
+    const targetCard =
+      target.type === "card"
+        ? G.board[target.player].find((c) => c.id === target.id)
+        : undefined;
+    const targetEntity = targetCard ?? G.players[target.player];
+    score += scoreBattlecryTarget(
+      { ...option, onPlace: option.effects },
+      targetEntity,
+      {
+        G,
+        ctx,
+        card: option,
+        target,
+        playerID: ctx.currentPlayer,
+        location: "board",
+        type: "minion",
+      },
+    );
+  }
+  return score;
 }
 
 /**

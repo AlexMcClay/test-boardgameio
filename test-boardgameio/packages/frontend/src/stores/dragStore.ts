@@ -3,13 +3,22 @@ import { create } from "zustand";
 import type { PlayerID } from "@project/shared";
 import {
   canTargetHighlight,
+  validateTargetQuery,
   type Card,
   type GameState,
   type TargetValue,
   type EffectContextWithOptionalCard,
 } from "@project/shared";
 
-type TargetingMode = "attack" | "battlecry" | "hero-power" | "hero-attack" | null;
+type TargetingMode =
+  | "attack"
+  | "battlecry"
+  | "hero-power"
+  | "hero-attack"
+  // Aiming a Choose One half that was picked in the ChoiceOverlay. The option
+  // card is the activeCard; choiceOptionIndex is what the move needs.
+  | "choice"
+  | null;
 
 type DragStore = {
   activeCard: Card | null;
@@ -42,12 +51,15 @@ type DragStore = {
   targetingCardId: string | null;
   targetingOrigin: { x: number; y: number } | null;
   cursorPosition: { x: number; y: number } | null;
+  /** "choice" mode only: which option of G.pendingChoice is being aimed. */
+  choiceOptionIndex: number | null;
 
   startTargeting: (
     mode: TargetingMode,
     cardId: string,
     origin: { x: number; y: number },
     card: Card,
+    choiceOptionIndex?: number,
   ) => void;
   updateTargetingCursor: (position: { x: number; y: number }) => void;
   endTargeting: () => void;
@@ -74,7 +86,17 @@ export const useDragStore = create<DragStore>((set, get) => ({
   setGameState: (gameState) => set({ gameState }),
 
   isValidTarget: (target, context) => {
-    const { activeCard } = get();
+    const { activeCard, targetingMode } = get();
+    // A Choose One half isn't in any zone the normal highlight rules know
+    // about (it's neither in hand nor on the board), so validate it directly
+    // against its own targetQuery instead of going through canTargetHighlight.
+    if (targetingMode === "choice" && activeCard?.targetQuery) {
+      return validateTargetQuery(
+        activeCard.targetQuery,
+        { ...context, card: activeCard, target },
+        activeCard.id,
+      );
+    }
     return canTargetHighlight(activeCard, { ...context, target: target });
   },
 
@@ -92,14 +114,16 @@ export const useDragStore = create<DragStore>((set, get) => ({
   targetingCardId: null,
   targetingOrigin: null,
   cursorPosition: null,
+  choiceOptionIndex: null,
 
-  startTargeting: (mode, cardId, origin, card) => {
+  startTargeting: (mode, cardId, origin, card, choiceOptionIndex) => {
     set({
       targetingMode: mode,
       targetingCardId: cardId,
       targetingOrigin: origin,
       cursorPosition: origin,
       activeCard: card,
+      choiceOptionIndex: choiceOptionIndex ?? null,
     });
   },
 
@@ -114,6 +138,7 @@ export const useDragStore = create<DragStore>((set, get) => ({
       targetingOrigin: null,
       cursorPosition: null,
       activeCard: null,
+      choiceOptionIndex: null,
     });
   },
 

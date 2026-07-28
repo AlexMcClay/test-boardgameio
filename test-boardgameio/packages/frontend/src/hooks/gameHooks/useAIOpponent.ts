@@ -72,7 +72,11 @@ export function useAIOpponent(
       // the machine lands back in an actionable state.
       const actionable =
         snapshot.matches({ playing: "idle" }) ||
-        snapshot.matches({ playing: "awaitingBattlecryTarget" });
+        snapshot.matches({ playing: "awaitingBattlecryTarget" }) ||
+        // A Choose One / Discover prompt is the bot's move to make. Left out
+        // of this list the bot would request nothing and the game would hang
+        // on its turn forever — there is no timeout to rescue it.
+        snapshot.matches({ playing: "awaitingChoice" });
       if (!actionable || hasPendingDeaths(G)) {
         return;
       }
@@ -108,7 +112,8 @@ export function useAIOpponent(
       // Drop it — the subscription re-requests once resolution settles.
       const actionable =
         snapshot.matches({ playing: "idle" }) ||
-        snapshot.matches({ playing: "awaitingBattlecryTarget" });
+        snapshot.matches({ playing: "awaitingBattlecryTarget" }) ||
+        snapshot.matches({ playing: "awaitingChoice" });
       if (!actionable) return;
 
       if (!chosen) {

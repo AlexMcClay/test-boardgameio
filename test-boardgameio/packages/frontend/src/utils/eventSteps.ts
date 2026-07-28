@@ -62,6 +62,11 @@ const CHAIN_EVENTS: Record<GameEvent["type"], boolean> = {
   gameEnd: false,
   coinToss: false,
   mulligan: false,
+  // Choice prompts are bookkeeping: the overlay renders from G.pendingChoice,
+  // not from the event stream, and `choiceResolved` is the ACTION of its own
+  // move (like cardPlayed/spell) rather than a continuation of a chain.
+  choiceOffered: false,
+  choiceResolved: false,
 };
 
 /** Event types that indicate "the chain is continuing" after a death wave. */

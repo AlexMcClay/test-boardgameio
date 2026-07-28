@@ -24,6 +24,9 @@ const KEYWORD_DEFINITIONS: Record<string, string> = {
   "Spell Damage": "Your spells deal extra damage.",
   Overload: "Have X less mana next turn.",
   Overheal: "A Bonus if restored past full Health.",
+  Temporary: "Discards from your hand at the end of your turn.",
+  "Choose One": "Pick one of two effects when you play this.",
+  Discover: "Pick one of three cards to add to your hand.",
 };
 
 const KeywordPopover = ({ keywords, position }: Props) => {

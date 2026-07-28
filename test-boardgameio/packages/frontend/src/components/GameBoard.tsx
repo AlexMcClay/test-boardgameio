@@ -37,6 +37,8 @@ import { useGameAnimation, useGameTargeting } from "@/hooks";
 import { useAnimationStore } from "@/stores/animationStore";
 import EventHistory from "./Board/EventHistory";
 import MulliganOverlay from "./Mulligan/MulliganOverlay";
+import ChoiceOverlay from "./Choice/ChoiceOverlay";
+import ChoiceTargetingLayer from "./Choice/ChoiceTargetingLayer";
 
 interface Props extends GameBoardProps {}
 
@@ -49,6 +51,8 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   const setActiveCard = useDragStore((state) => state.setActiveCard);
   const setCurrentPlayer = useDragStore((state) => state.setCurrentPlayer);
   const setGameState = useDragStore((state) => state.setGameState);
+  // Used to hide the Choose One overlay while one of its halves is being aimed.
+  const targetingMode = useDragStore((state) => state.targetingMode);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { isAnimating, activeAnimations } = useAnimationStore();
 
@@ -497,6 +501,16 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           <MulliganOverlay G={G} moves={moves} playerID={props.playerID} />
         )}
       </AnimatePresence>
+      {/* Choose One / Discover prompt — reads ACTUAL state (it gates the whole
+          game) and hides while a picked half is being aimed. */}
+      <AnimatePresence>
+        {G.pendingChoice && targetingMode !== "choice" && (
+          <ChoiceOverlay G={G} ctx={ctx} moves={moves} playerID={props.playerID} />
+        )}
+      </AnimatePresence>
+      {/* Pointer handling for an aimed Choose One half. Board-level because a
+          held Choose One SPELL has no board card to hang listeners off. */}
+      <ChoiceTargetingLayer />
       {/* Settings Overlay */}
       <SettingsButton setIsSettingsOpen={setIsSettingsOpen} />
       <SettingsOverlay

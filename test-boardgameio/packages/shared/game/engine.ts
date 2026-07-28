@@ -13,6 +13,8 @@ import {
   useHeroPower,
   resolveBattlecry,
   cancelBattlecry,
+  resolveChoice,
+  cancelChoice,
   drawCard,
   endTurn,
   beginTurn,
@@ -40,6 +42,8 @@ export type MoveName =
   | "useHeroPower"
   | "resolveBattlecry"
   | "cancelBattlecry"
+  | "resolveChoice"
+  | "cancelChoice"
   | "drawCard"
   | "endTurn"
   | "mulliganConfirm";
@@ -204,6 +208,19 @@ export function applyMove(
     return { ok: false, error: "not-your-turn" };
   }
 
+  // A Choose One / Discover prompt halts everything else. The machine state
+  // enforces this for hosted play; this gate covers MCTS and headless callers,
+  // which drive the engine directly. endTurn stays legal — it auto-resolves
+  // the prompt (cancel / random pick) so the bot's fallback can't deadlock.
+  if (
+    G.pendingChoice &&
+    move !== "resolveChoice" &&
+    move !== "cancelChoice" &&
+    move !== "endTurn"
+  ) {
+    return { ok: false, error: "choice-pending" };
+  }
+
   switch (move) {
     case "placeCard":
       placeCard(
@@ -228,6 +245,17 @@ export function applyMove(
       break;
     case "cancelBattlecry":
       cancelBattlecry(G, ctx);
+      break;
+    case "resolveChoice":
+      resolveChoice(
+        G,
+        ctx,
+        args[0] as number,
+        args[1] as TargetValue | undefined,
+      );
+      break;
+    case "cancelChoice":
+      cancelChoice(G, ctx);
       break;
     case "drawCard":
       drawCard(G, ctx);
@@ -263,13 +291,21 @@ export function applyMove(
         processDeaths(G, ctx);
         continue;
       }
-      // A pending targeted battlecry is waiting on the PLAYER, so reactions
-      // hold until they've aimed it (or cancelled).
-      if (hasPendingTriggers(G) && !G.activeBattlecryMinion) {
+      // A pending targeted battlecry or an open Choose One / Discover prompt
+      // is waiting on the PLAYER, so reactions hold until they've decided.
+      if (
+        hasPendingTriggers(G) &&
+        !G.activeBattlecryMinion &&
+        !G.pendingChoice
+      ) {
         processTriggers(G, ctx);
         continue;
       }
-      if (G.pendingTurnAdvance && !G.activeBattlecryMinion) {
+      if (
+        G.pendingTurnAdvance &&
+        !G.activeBattlecryMinion &&
+        !G.pendingChoice
+      ) {
         finishTurnAdvance(state);
         continue;
       }

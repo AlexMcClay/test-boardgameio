@@ -2,6 +2,7 @@ import type {
   Card,
   CardModifier,
   GameState,
+  ManaPayment,
   ModifierStatKey,
   Player,
   TargetValue,
@@ -275,8 +276,24 @@ export const placeCard = (
       turn: ctx.turn,
     });
 
+    // Choose One minion: placed like a battlecry minion, but the pending work
+    // is a CHOICE, not a battlecry — the picked option card's effects run in
+    // resolveChoice with this minion as context. Receipts kept for cancel.
+    if (card.chooseOne?.length) {
+      openChooseOne(
+        G,
+        ctx,
+        card,
+        "board",
+        manaPaid,
+        overloadPaid,
+        sourceEventIndex,
+      );
+    }
+
     // Check if card needs targeted battlecry (damage or heal)
     const needsTargetedBattlecry =
+      !card.chooseOne?.length &&
       card.battlecryQuery &&
       card.onPlace.some((e) => {
         const test = isUserSelectValue(e);
@@ -307,7 +324,11 @@ export const placeCard = (
           overloadPaid,
         };
       }
-    } else if (!needsTargetedBattlecry && card.onPlace.length > 0) {
+    } else if (
+      !card.chooseOne?.length &&
+      !needsTargetedBattlecry &&
+      card.onPlace.length > 0
+    ) {
       // Automatic (non-targeted) battlecry: not executed inline — the host
       // resolves it as its own step (machine: resolvingBattlecry state;
       // engine.applyMove: settle path), AFTER the minion is on the board,
@@ -328,8 +349,9 @@ export const placeCard = (
 
     // SUMMON window — only when nothing is still pending. A battlecry resolves
     // BEFORE play-reactions (modern Hearthstone order), so a minion with one
-    // opens its window from resolveBattlecry / resolvePendingAutoBattlecry.
-    if (!G.activeBattlecryMinion && !G.pendingAutoBattlecry) {
+    // opens its window from resolveBattlecry / resolvePendingAutoBattlecry —
+    // and a Choose One minion opens it from resolveChoice.
+    if (!G.activeBattlecryMinion && !G.pendingAutoBattlecry && !G.pendingChoice) {
       fireMinionSummoned(
         G,
         ctx,
@@ -354,6 +376,23 @@ export const placeCard = (
       card,
       turn: ctx.turn,
     });
+
+    if (card.chooseOne?.length) {
+      // Choose One spell: held aside (off-hand, off-board) until the player
+      // picks. Effects, graveyard push, and the SPELL_CAST / CARD_PLAYED
+      // windows all happen in resolveChoice — the cast completes on the pick.
+      openChooseOne(
+        G,
+        ctx,
+        card,
+        "held",
+        manaPaid,
+        overloadPaid,
+        sourceEventIndex,
+      );
+      G.pendingSourceEventIndex = sourceEventIndex;
+      return;
+    }
 
     executeEffects(card.effects, {
       card: card,
@@ -1516,6 +1555,70 @@ const executeEffects = (effects: EffectTypes[], context: EffectContext) => {
 
         break;
       }
+      case "discover": {
+        const count = effect.count ?? 3;
+        let candidates: Card[];
+
+        if (effect.source === "deck") {
+          // Read the deck DIRECTLY rather than through findCardsInPool: that
+          // helper hands back fresh copies for non-global sources (new ids),
+          // and resolveChoice has to splice the pick out of the deck by id.
+          candidates = G.players[playerID].deck
+            .filter((c) =>
+              (effect.conditions ?? []).every((cond) =>
+                checkSingleTargetCondition(c, cond, context, card?.id),
+              ),
+            )
+            .sort(() => Math.random() - 0.5)
+            .slice(0, count);
+        } else {
+          // Global pool / fixed menu — findCardsInPool already handles the
+          // cardID-list-as-menu and condition filtering, and global sources
+          // are built from templates so identity doesn't matter.
+          candidates = findCardsInPool(
+            G,
+            playerID,
+            {
+              type: "addToHand",
+              source: "global",
+              ...(effect.cardID ? { cardID: effect.cardID } : {}),
+              ...(effect.conditions ? { conditions: effect.conditions } : {}),
+              value: count,
+              rand: { n: count },
+            },
+            context,
+          ).slice(0, count);
+        }
+        if (candidates.length === 0) break; // nothing to offer — fizzle
+
+        // Snapshot: the offer must not alias (and so mutate) live deck cards.
+        // Ids are preserved, which is what lets resolveChoice find the pick.
+        const options = candidates.map(
+          (c) => JSON.parse(JSON.stringify(c)) as Card,
+        );
+
+        G.pendingChoice = {
+          kind: "discover",
+          playerId: playerID,
+          sourceCardId: card?.id,
+          options,
+          ...(effect.temporary ? { temporary: true } : {}),
+          ...(effect.source === "deck" && effect.removeFromSource
+            ? { removePickedFromDeck: true }
+            : {}),
+          sourceEventIndex,
+        };
+        recordEvent(G, {
+          type: "choiceOffered",
+          kind: "discover",
+          playerId: playerID,
+          cardId: card?.id,
+          options,
+          timestamp: Date.now(),
+          eventRef: sourceEventIndex,
+        });
+        break;
+      }
       case "returnToHand": {
         // Build target pool based on effect.target
         let targetPool: Card[] = [];
@@ -1642,6 +1745,293 @@ export const cancelBattlecry = (G: GameState, ctx: GameCtx) => {
   return G;
 };
 
+// ---------------------------------------------------------------------------
+// CHOOSE ONE / DISCOVER
+//
+// A pendingChoice halts the whole game on a player pick, the same way
+// activeBattlecryMinion halts it on a target. Options are real Card instances
+// in both shapes: for chooseOne they're the option CARDS (uncollectible
+// templates named by the parent's `chooseOne` list — Hearthstone's own model),
+// for discover they're the candidate cards themselves.
+// ---------------------------------------------------------------------------
+
+/**
+ * Opens the Choose One prompt for a just-played card. The parent is already
+ * where it belongs (minion on board, spell held aside); receipts ride along so
+ * cancelChoice can undo the play exactly.
+ */
+function openChooseOne(
+  G: GameState,
+  ctx: Ctx,
+  card: Card,
+  cardZone: "board" | "held",
+  manaPaid: ManaPayment,
+  overloadPaid: number,
+  sourceEventIndex?: number,
+) {
+  const options = (card.chooseOne ?? [])
+    .map((key) => createCardFromID(key as CardTemplateKey))
+    .filter((c): c is Card => c !== null);
+  if (options.length === 0) {
+    console.warn(`${card.title}: no chooseOne options resolved — skipping`);
+    return;
+  }
+
+  G.pendingChoice = {
+    kind: "chooseOne",
+    playerId: ctx.currentPlayer,
+    sourceCardId: card.id,
+    cardZone,
+    ...(cardZone === "held" ? { heldCard: card } : {}),
+    options,
+    manaPaid,
+    overloadPaid,
+    sourceEventIndex,
+  };
+
+  recordEvent(G, {
+    type: "choiceOffered",
+    kind: "chooseOne",
+    playerId: ctx.currentPlayer,
+    cardId: card.id,
+    options,
+    timestamp: Date.now(),
+    eventRef: sourceEventIndex,
+  });
+}
+
+/**
+ * The player picked an option.
+ *
+ * chooseOne — the option card supplies the EFFECTS; the parent supplies the
+ * CONTEXT: the placed minion (so "self" buffs and transforms hit it), or the
+ * held spell (which carries any in-hand Spell Damage modifiers and is what
+ * lands in the graveyard). The play's deferred windows (SUMMON for minions,
+ * SPELL_CAST + CARD_PLAYED for spells) fire here — the play completes on the
+ * pick.
+ *
+ * discover — the picked card goes to the picker's hand.
+ */
+export const resolveChoice = (
+  G: GameState,
+  ctx: GameCtx,
+  optionIndex: number,
+  target?: TargetValue,
+) => {
+  const pending = G.pendingChoice;
+  if (!pending) {
+    console.warn("resolveChoice: no pending choice");
+    return;
+  }
+  const optionCard = pending.options[optionIndex];
+  if (!optionCard) {
+    console.warn(`resolveChoice: bad option index ${optionIndex}`);
+    return;
+  }
+
+  // A targeted Choose One half validates like a targeted spell/battlecry.
+  // Discover picks never take a target — the card is aimed when it's played.
+  if (pending.kind === "chooseOne" && target && optionCard.targetQuery) {
+    const context: EffectContext = {
+      G,
+      ctx,
+      card: optionCard,
+      playerID: pending.playerId,
+      location: "hand",
+      target,
+      type: "spell",
+    };
+    if (!validateTargetQuery(optionCard.targetQuery, context, optionCard.id)) {
+      console.warn(`resolveChoice: invalid target for ${optionCard.title}`);
+      return;
+    }
+  }
+
+  // Recorded BEFORE the effects so everything they produce chains back here.
+  const choiceEventIndex = G.eventHistory.length;
+  recordEvent(G, {
+    type: "choiceResolved",
+    kind: pending.kind,
+    playerId: pending.playerId,
+    cardId: pending.sourceCardId,
+    optionIndex,
+    optionName: optionCard.title,
+    ...(pending.kind === "discover"
+      ? { card: JSON.parse(JSON.stringify(optionCard)) }
+      : {}),
+    timestamp: Date.now(),
+    eventRef: pending.sourceEventIndex,
+  });
+
+  // Clear FIRST: the option's effects can open trigger windows, and those
+  // must not see (or be blocked by) the already-decided choice.
+  G.pendingChoice = undefined;
+
+  if (pending.kind === "discover") {
+    let picked = optionCard;
+    if (pending.removePickedFromDeck) {
+      // Tracking / Thrive: the pick is a DRAW — pull it out of the deck.
+      // Tolerate absence (the deck may have been milled since the offer).
+      const deck = G.players[pending.playerId].deck;
+      const i = deck.findIndex((c) => c.id === picked.id);
+      if (i !== -1) deck.splice(i, 1);
+    } else {
+      // The pick is a COPY. A deck-sourced option shares its id with the card
+      // still sitting in the deck, so mint a fresh instance — card ids must
+      // stay unique across zones.
+      const fresh = createCardFromID(picked.originalID as CardTemplateKey);
+      if (fresh) picked = fresh;
+    }
+    if (pending.temporary) picked.temporary = true;
+    addCardToHand(G, pending.playerId, picked, undefined, "global", choiceEventIndex);
+    refreshOngoing(G, ctx);
+    return;
+  }
+
+  // --- chooseOne ---
+  if (pending.cardZone === "board") {
+    const minion = G.board[pending.playerId]?.find(
+      (c) => c.id === pending.sourceCardId,
+    );
+    if (!minion) {
+      console.warn("resolveChoice: choose-one minion left play — fizzling");
+      refreshOngoing(G, ctx);
+      return;
+    }
+    executeEffects(optionCard.effects, {
+      card: minion,
+      G,
+      ctx,
+      location: "hand",
+      playerID: pending.playerId,
+      target,
+      type: "minion",
+      sourceEventIndex: choiceEventIndex,
+    });
+    // Arrival completes now — same deferral as the battlecry paths. Re-find
+    // the minion: a transform option (Cat/Bear Form) replaced it in place.
+    const arrived = G.board[pending.playerId]?.find(
+      (c) => c.id === pending.sourceCardId,
+    );
+    if (arrived) {
+      fireMinionSummoned(
+        G,
+        ctx,
+        arrived,
+        pending.playerId,
+        true,
+        pending.sourceEventIndex,
+      );
+    }
+  } else {
+    const spell = pending.heldCard;
+    if (!spell) {
+      console.warn("resolveChoice: held spell missing — fizzling");
+      refreshOngoing(G, ctx);
+      return;
+    }
+    executeEffects(optionCard.effects, {
+      card: spell,
+      G,
+      ctx,
+      location: "hand",
+      playerID: pending.playerId,
+      target,
+      type: "spell",
+      sourceEventIndex: choiceEventIndex,
+    });
+    G.graveyard.push({
+      card: JSON.parse(JSON.stringify(spell)),
+      originalOwner: pending.playerId,
+      diedOnTurn: ctx.turn,
+    });
+    // Deferred from placeCard: the cast completes on the pick, so Wild
+    // Pyromancer / Questing Adventurer react to the finished play.
+    fireTriggers(G, ctx, {
+      window: "SPELL_CAST",
+      actingPlayer: pending.playerId,
+      subject: { kind: "card", id: spell.id, ownerId: pending.playerId },
+      sourceEventIndex: pending.sourceEventIndex,
+    });
+    fireTriggers(G, ctx, {
+      window: "CARD_PLAYED",
+      actingPlayer: pending.playerId,
+      subject: { kind: "card", id: spell.id, ownerId: pending.playerId },
+      sourceEventIndex: pending.sourceEventIndex,
+    });
+  }
+
+  G.pendingSourceEventIndex = pending.sourceEventIndex;
+  refreshOngoing(G, ctx);
+};
+
+/**
+ * Backs out of a Choose One before it resolved: exact mana/overload refund and
+ * the ORIGINAL card returns to hand (options are never grafted onto it, so
+ * replaying re-prompts). Discover can never be cancelled — you must pick.
+ */
+export const cancelChoice = (G: GameState, ctx: GameCtx) => {
+  const pending = G.pendingChoice;
+  if (!pending) return;
+  if (pending.kind === "discover") {
+    console.warn("cancelChoice: a discover cannot be cancelled");
+    return;
+  }
+
+  const player = G.players[pending.playerId];
+
+  if (pending.cardZone === "board") {
+    // Mirror cancelBattlecry: pull the minion back off the board.
+    const idx = G.board[pending.playerId].findIndex(
+      (c) => c.id === pending.sourceCardId,
+    );
+    if (idx !== -1) {
+      const card = G.board[pending.playerId][idx];
+      G.board[pending.playerId].splice(idx, 1);
+      card.isPlaced = false;
+      player.hand.push(card);
+    }
+  } else if (pending.heldCard) {
+    player.hand.push(pending.heldCard);
+  }
+
+  refundMana(player, pending.manaPaid);
+  player.overloadPending = Math.max(
+    0,
+    player.overloadPending - pending.overloadPaid,
+  );
+
+  G.pendingChoice = undefined;
+  recordEvent(G, {
+    type: "debug",
+    timestamp: Date.now(),
+    playerId: ctx.currentPlayer,
+    details: "Cancel Choice",
+  });
+  refreshOngoing(G, ctx);
+};
+
+/** True while a Choose One / Discover prompt is waiting on a player. */
+export function hasPendingChoice(G: GameState): boolean {
+  return !!G.pendingChoice;
+}
+
+/**
+ * Forced resolution when the turn ends with a prompt still open (parity with
+ * "endTurn clears activeBattlecryMinion", and the bot's END_TURN fallback):
+ * a Choose One is cancelled (refund, card back to hand); a Discover picks a
+ * random option — it can never be declined.
+ */
+export function autoResolvePendingChoice(G: GameState, ctx: GameCtx) {
+  const pending = G.pendingChoice;
+  if (!pending) return;
+  if (pending.kind === "discover") {
+    resolveChoice(G, ctx, Math.floor(Math.random() * pending.options.length));
+  } else {
+    cancelChoice(G, ctx);
+  }
+}
+
 export const drawCard = (G: GameState, ctx: GameCtx) => {
   handleDrawCard(G, ctx);
 };
@@ -1652,10 +2042,13 @@ export const drawCard = (G: GameState, ctx: GameCtx) => {
  * host: advanceTurn() in engine.ts, or boardgame.io's events.endTurn() in the
  * legacy wrapper below.
  */
-export const endTurn = (G: GameState, _ctx: GameCtx) => {
+export const endTurn = (G: GameState, ctx: GameCtx) => {
   // Clear last move metadata at the end of the turn
   G.gameEvents = [];
   G.activeBattlecryMinion = null;
+  // A prompt can't outlive the turn: Choose One cancels (refund), Discover
+  // force-picks at random. Keeps the bot's END_TURN fallback deadlock-free.
+  autoResolvePendingChoice(G, ctx);
 };
 
 function handleDrawCard(
@@ -2675,6 +3068,31 @@ export function endTurnCleanup(G: GameState, ctx: GameCtx) {
 
   // 1. Process anything that expires at the END of a turn (like Abusive Sergeant)
   processModifierLifecycle(G, ctx.currentPlayer, "END_OF_TURN");
+
+  // Temporary cards (the Discover Gifts) dissolve from the ending player's
+  // hand. Recorded as discards so the existing discard animation/tracking
+  // path renders their departure for free.
+  const endingHand = G.players[ctx.currentPlayer].hand;
+  for (let i = endingHand.length - 1; i >= 0; i--) {
+    const c = endingHand[i];
+    if (!c.temporary) continue;
+    endingHand.splice(i, 1);
+    G.discardedCards.push({
+      card: JSON.parse(JSON.stringify(c)),
+      originalOwner: ctx.currentPlayer,
+      discardedOnTurn: ctx.turn,
+      strategy: "temporary",
+    });
+    recordEvent(G, {
+      type: "discard",
+      cardId: c.id,
+      playerId: ctx.currentPlayer,
+      timestamp: Date.now(),
+      card: c,
+      strategy: "all",
+      snapshot: JSON.parse(JSON.stringify(c)),
+    });
+  }
 
   G.board[ctx.currentPlayer].forEach((card) => {
     if (

@@ -61,6 +61,13 @@ export type GameMachineEvent =
       target: TargetValue;
     }
   | { type: "CANCEL_BATTLECRY"; playerID: PlayerID }
+  | {
+      type: "RESOLVE_CHOICE";
+      playerID: PlayerID;
+      optionIndex: number;
+      target?: TargetValue;
+    }
+  | { type: "CANCEL_CHOICE"; playerID: PlayerID }
   | { type: "DRAW_CARD"; playerID: PlayerID }
   | { type: "END_TURN"; playerID: PlayerID }
   | {
@@ -93,6 +100,10 @@ export function moveEventToCommand(event: GameMachineEvent): {
       };
     case "CANCEL_BATTLECRY":
       return { move: "cancelBattlecry", args: [] };
+    case "RESOLVE_CHOICE":
+      return { move: "resolveChoice", args: [event.optionIndex, event.target] };
+    case "CANCEL_CHOICE":
+      return { move: "cancelChoice", args: [] };
     case "DRAW_CARD":
       return { move: "drawCard", args: [] };
     case "END_TURN":
@@ -189,11 +200,18 @@ export const gameMachine = setup({
       !hasPendingAutoBattlecry(context.G) && hasPendingDeaths(context.G),
     autoBattlecryDoneClear: ({ context }) =>
       !hasPendingAutoBattlecry(context.G) && !hasPendingDeaths(context.G),
-    // Queued reactions wait while a targeted battlecry is on the player: the
-    // battlecry resolves first (Hearthstone order), and the board shouldn't
-    // churn under them while they're aiming.
+    // A Choose One / Discover prompt waiting on a player. Deaths outrank it
+    // (the board settles first); it outranks battlecry targeting and triggers.
+    hasPendingChoice: ({ context }) =>
+      !!context.G.pendingChoice && !hasPendingDeaths(context.G),
+    noPendingChoice: ({ context }) => !context.G.pendingChoice,
+    // Queued reactions wait while a targeted battlecry or an open choice is on
+    // the player: those resolve first (Hearthstone order), and the board
+    // shouldn't churn under them while they're deciding.
     hasPendingTriggers: ({ context }) =>
-      hasPendingTriggers(context.G) && !context.G.activeBattlecryMinion,
+      hasPendingTriggers(context.G) &&
+      !context.G.activeBattlecryMinion &&
+      !context.G.pendingChoice,
     noPendingTriggersLeft: ({ context }) => !hasPendingTriggers(context.G),
     // INVARIANT: a resolution state may only leave via `always` once its OWN
     // work is finished. These two exits are entered from resolvingDeaths /
@@ -204,19 +222,30 @@ export const gameMachine = setup({
     deathsClearTriggersPending: ({ context }) =>
       !hasPendingDeaths(context.G) &&
       hasPendingTriggers(context.G) &&
-      !context.G.activeBattlecryMinion,
+      !context.G.activeBattlecryMinion &&
+      !context.G.pendingChoice,
+    // Same invariant for the choice routes out of these two states: each
+    // re-asserts its OWN work is finished before handing over.
+    deathsClearChoicePending: ({ context }) =>
+      !hasPendingDeaths(context.G) && !!context.G.pendingChoice,
+    autoBattlecryDoneChoicePending: ({ context }) =>
+      !hasPendingAutoBattlecry(context.G) &&
+      !hasPendingDeaths(context.G) &&
+      !!context.G.pendingChoice,
     autoBattlecryDoneTriggersPending: ({ context }) =>
       !hasPendingAutoBattlecry(context.G) &&
       !hasPendingDeaths(context.G) &&
       hasPendingTriggers(context.G) &&
-      !context.G.activeBattlecryMinion,
+      !context.G.activeBattlecryMinion &&
+      !context.G.pendingChoice,
     // The turn only hands over once everything this turn queued has resolved.
     readyToAdvanceTurn: ({ context }) =>
       !!context.G.pendingTurnAdvance &&
       !hasPendingDeaths(context.G) &&
       !hasPendingTriggers(context.G) &&
       !hasPendingAutoBattlecry(context.G) &&
-      !context.G.activeBattlecryMinion,
+      !context.G.activeBattlecryMinion &&
+      !context.G.pendingChoice,
     isGameOver: ({ context }) => !!context.ctx.gameover,
     mulliganComplete: ({ context }) => !context.G.mulligan?.active,
   },
@@ -254,6 +283,10 @@ export const gameMachine = setup({
             // Deaths outrank battlecry targeting: a move (or turn switch)
             // that left corpses must resolve them before anything else.
             { target: "resolvingDeaths", guard: "hasPendingDeaths" },
+            // A Choose One / Discover prompt outranks battlecry targeting —
+            // the prompt IS the play, so nothing else can be aimed until it's
+            // answered.
+            { target: "awaitingChoice", guard: "hasPendingChoice" },
             {
               target: "awaitingBattlecryTarget",
               guard: "hasPendingBattlecry",
@@ -270,11 +303,34 @@ export const gameMachine = setup({
             END_TURN: { actions: "applyMoveEvent" },
           },
         },
+        // A Choose One / Discover prompt. The play is only half-made: the
+        // parent minion sits on the board (or the parent spell is held aside)
+        // until the player picks. Like awaitingBattlecryTarget, END_TURN stays
+        // legal — it force-resolves the prompt rather than being rejected, so
+        // the bot's END_TURN fallback can never deadlock here.
+        awaitingChoice: {
+          always: [
+            // A pick can kill things (Wrath, Starfall) — sweep before anything
+            // else, exactly as awaitingBattlecryTarget does.
+            { target: "resolvingDeaths", guard: "hasPendingDeaths" },
+            { target: "resolvingBattlecry", guard: "hasPendingAutoBattlecry" },
+            { target: "resolvingTriggers", guard: "hasPendingTriggers" },
+            { target: "advancingTurn", guard: "readyToAdvanceTurn" },
+            { target: "idle", guard: "noPendingChoice" },
+          ],
+          on: {
+            RESOLVE_CHOICE: { actions: "applyMoveEvent" },
+            CANCEL_CHOICE: { actions: "applyMoveEvent" },
+            END_TURN: { actions: "applyMoveEvent" },
+          },
+        },
         awaitingBattlecryTarget: {
           always: [
             { target: "resolvingBattlecry", guard: "hasPendingAutoBattlecry" },
             // Battlecry effects (RESOLVE_BATTLECRY) can kill minions too
             { target: "resolvingDeaths", guard: "hasPendingDeaths" },
+            // A battlecry can open a Discover (Selective Breeder)
+            { target: "awaitingChoice", guard: "hasPendingChoice" },
             { target: "resolvingTriggers", guard: "hasPendingTriggers" },
             { target: "idle", guard: "noPendingBattlecry" },
           ],
@@ -295,6 +351,12 @@ export const gameMachine = setup({
             {
               target: "resolvingDeaths",
               guard: "autoBattlecryDoneDeathsPending",
+            },
+            // An automatic battlecry can open a Discover (Selective Breeder),
+            // which then owns the action until the player picks.
+            {
+              target: "awaitingChoice",
+              guard: "autoBattlecryDoneChoicePending",
             },
             // Same rule: only once the battlecry itself has resolved, or the
             // minion's own Battlecry gets skipped in favour of reactions to it.
@@ -322,6 +384,9 @@ export const gameMachine = setup({
         // transitions alone would collapse the whole chain into one update).
         resolvingDeaths: {
           always: [
+            // A deathrattle can open a Discover; like the battlecry route,
+            // it only hands over once the wave chain is FULLY swept.
+            { target: "awaitingChoice", guard: "deathsClearChoicePending" },
             {
               target: "awaitingBattlecryTarget",
               guard: "deathsClearBattlecryPending",
@@ -355,6 +420,8 @@ export const gameMachine = setup({
         resolvingTriggers: {
           always: [
             { target: "resolvingDeaths", guard: "hasPendingDeaths" },
+            // A trigger's effects can open a Discover.
+            { target: "awaitingChoice", guard: "hasPendingChoice" },
             { target: "advancingTurn", guard: "readyToAdvanceTurn" },
             {
               target: "awaitingBattlecryTarget",
@@ -435,6 +502,15 @@ export function moveCommandToEvent(
       };
     case "cancelBattlecry":
       return { type: "CANCEL_BATTLECRY", playerID };
+    case "resolveChoice":
+      return {
+        type: "RESOLVE_CHOICE",
+        playerID,
+        optionIndex: args[0] as number,
+        target: args[1] as TargetValue | undefined,
+      };
+    case "cancelChoice":
+      return { type: "CANCEL_CHOICE", playerID };
     case "drawCard":
       return { type: "DRAW_CARD", playerID };
     case "endTurn":

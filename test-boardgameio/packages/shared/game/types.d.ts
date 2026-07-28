@@ -70,6 +70,19 @@ export interface Card {
   baseDurability?: number; // Weapon-only: charges before it breaks
   durabilityLost?: number; // Weapon-only: parallel to damageTaken, charges used toward baseDurability
   isUncollectible?: boolean; // Optional, to indicate if the card is uncollectible (like tokens)
+  /**
+   * Choose One: template keys of this card's OPTION CARDS — real uncollectible
+   * card templates (Hearthstone's model: Wrath EX1_154a/b, "Cat Form"/"Bear
+   * Form"). Playing a card with this set pays its mana, then opens a
+   * pendingChoice instead of resolving; the picked option card's `effects`
+   * run with the PARENT as context (the placed minion, or the held spell).
+   */
+  chooseOne?: string[];
+  /**
+   * Temporary: this card discards itself from hand at the end of its
+   * controller's turn (the Discover Gift cards). Swept by endTurnCleanup.
+   */
+  temporary?: boolean;
   // Bool states
   taunt?: boolean; // Optional, to indicate if the card has taunt
   frozen?: boolean;
@@ -318,6 +331,44 @@ export interface PendingTrigger {
   data?: TriggerData;
   sourceEventIndex?: number;
 }
+
+// ---------------------------------------------------------------------------
+// PENDING CHOICE (Choose One / Discover)
+// ---------------------------------------------------------------------------
+
+/**
+ * A prompt waiting on the player. `options` are real Card instances in both
+ * shapes — for chooseOne they're the option cards (whose `effects` and
+ * `targetQuery` drive resolution), for discover they're the candidates
+ * themselves (the picked one goes to hand).
+ */
+export type PendingChoice =
+  | {
+      kind: "chooseOne";
+      playerId: PlayerID;
+      /** The parent card: a minion already on the board, or a held spell. */
+      sourceCardId: string;
+      cardZone: "board" | "held";
+      /** The parent spell instance while cardZone === "held". */
+      heldCard?: Card;
+      options: Card[];
+      /** Cancel receipts — mirror of activeBattlecryMinion's. */
+      manaPaid: ManaPayment;
+      overloadPaid: number;
+      sourceEventIndex?: number;
+    }
+  | {
+      kind: "discover";
+      playerId: PlayerID;
+      /** Card that discovered, for the UI header / eventRef chaining. */
+      sourceCardId?: string;
+      options: Card[];
+      /** Picked card enters hand with temporary: true (the Gift cards). */
+      temporary?: boolean;
+      /** Tracking/Thrive: the picked card is REMOVED from the deck. */
+      removePickedFromDeck?: boolean;
+      sourceEventIndex?: number;
+    };
 
 export interface ModifierLifecycle {
   // Who cast the buff? ("0" or "1")
@@ -577,7 +628,28 @@ export type EffectTypes =
   | DurabilityEffect
   | SilenceEffect
   | TransformEffect
-  | TakeControlEffect;
+  | TakeControlEffect
+  | DiscoverEffect;
+
+/**
+ * Offer the player a pick of `count` cards; the picked one goes to their hand.
+ * Sets G.pendingChoice and HALTS the action there — so a discover must be the
+ * LAST effect in a card's effect list (every Legacy discover card complies).
+ */
+export interface DiscoverEffect {
+  type: "discover";
+  /** Where candidates come from: all templates, or the owner's deck. */
+  source: "global" | "deck";
+  /** Fixed menu of template keys (the Gift cards) — overrides source search. */
+  cardID?: string[];
+  conditions?: TargetCondition[]; // e.g. tags-include Beast, isSpell
+  /** Picked card enters hand with temporary: true. */
+  temporary?: boolean;
+  /** source "deck" only: the picked card is REMOVED from the deck (Tracking). */
+  removeFromSource?: boolean;
+  /** How many options to offer. Defaults to 3. */
+  count?: number;
+}
 
 /**
  * Wipes everything text-granted from a minion: keyword flags, enchantments,
@@ -955,7 +1027,43 @@ type GameEventBody =
   | SilenceEvent
   | TransformEvent
   | TakeControlEvent
-  | TriggerEvent;
+  | TriggerEvent
+  | ChoiceOfferedEvent
+  | ChoiceResolvedEvent;
+
+/**
+ * A Choose One / Discover prompt opened. Options ride along so the client can
+ * render the overlay from the event stream if it wants to.
+ */
+export type ChoiceOfferedEvent = {
+  type: "choiceOffered";
+  kind: "chooseOne" | "discover";
+  playerId: PlayerID;
+  /** The parent card (chooseOne) or the discovering card (discover). */
+  cardId?: string;
+  options: Card[];
+  timestamp: number;
+  eventRef?: number;
+};
+
+/**
+ * The player picked an option. Recorded BEFORE the option's effects run so
+ * everything they produce chains back here via eventRef. Also what satisfies
+ * MatchManager's eventHistory-growth "move applied" heuristic.
+ */
+export type ChoiceResolvedEvent = {
+  type: "choiceResolved";
+  kind: "chooseOne" | "discover";
+  playerId: PlayerID;
+  /** The parent/discovering card, when there was one. */
+  cardId?: string;
+  optionIndex: number;
+  optionName: string;
+  /** Discover: snapshot of the picked card as it entered the hand. */
+  card?: Card;
+  timestamp: number;
+  eventRef?: number;
+};
 
 /**
  * A card's trigger fired. Recorded BEFORE the trigger's effects run, so every
@@ -1343,6 +1451,14 @@ export interface GameState {
   // deaths and end-of-turn triggers have finished resolving. Consumed by
   // finishTurnAdvance (engine.ts).
   pendingTurnAdvance?: boolean;
+
+  // A Choose One / Discover prompt waiting on the player. Options are FULL
+  // Card instances for both kinds (instantiated once, so both clients and
+  // MCTS clones see the same list — plain JSON, structuredClone-safe).
+  // Everything halts on it: the machine parks in `awaitingChoice`, the settle
+  // loop stops, and applyMove rejects every move except
+  // resolveChoice / cancelChoice / endTurn.
+  pendingChoice?: PendingChoice;
 
   // Runaway backstop: counts trigger firings within one player action so a
   // pair of minions that trigger each other can't loop forever. Reset wherever

@@ -1,11 +1,13 @@
 import {
   validateMove,
   validateHeroAttack,
+  validateTargetQuery,
   type GameState,
   type TargetValue,
 } from "@project/shared";
 import type { Ctx } from "@project/shared";
 import { useCallback, useEffect } from "react";
+import { useDragStore } from "@/stores/dragStore";
 
 interface Props {
   ctx: Ctx;
@@ -102,6 +104,51 @@ export const useGameTargeting = ({ G, ctx, moves }: Props) => {
     };
   }, [handleBattlecryTarget]);
 
+  // Handle a Choose One half being aimed (ChoiceTargetingLayer dispatches it)
+  const handleChoiceTarget = useCallback(
+    (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { optionIndex, targetCardId, targetPlayerId } = customEvent.detail;
+
+      let target: TargetValue | undefined;
+      if (targetCardId) {
+        const player0HasCard = G.board["0"].some((c) => c.id === targetCardId);
+        const targetPlayer = player0HasCard ? "0" : "1";
+        target = { type: "card", id: targetCardId, player: targetPlayer };
+      } else if (targetPlayerId) {
+        target = { type: "player", id: targetPlayerId, player: targetPlayerId };
+      }
+      if (!target || typeof optionIndex !== "number") return;
+
+      // Pre-validate against the option card's own targetQuery, the same check
+      // the engine repeats in resolveChoice. Releasing on an illegal target
+      // just does nothing and leaves the prompt open.
+      const option = G.pendingChoice?.options[optionIndex];
+      if (!option) return;
+      if (
+        option.targetQuery &&
+        !validateTargetQuery(
+          option.targetQuery,
+          { G, ctx, card: option, target, playerID: ctx.currentPlayer, location: "hand", type: "spell" },
+          option.id,
+        )
+      ) {
+        console.warn("Cannot aim that Choose One option there (UI)");
+        return;
+      }
+
+      moves.resolveChoice(optionIndex, target);
+    },
+    [G, ctx, moves],
+  );
+
+  useEffect(() => {
+    window.addEventListener("choice-target", handleChoiceTarget);
+    return () => {
+      window.removeEventListener("choice-target", handleChoiceTarget);
+    };
+  }, [handleChoiceTarget]);
+
   // Handle hero power arrow target selection
   const handleHeroPowerTarget = useCallback(
     (e: Event) => {
@@ -171,9 +218,20 @@ export const useGameTargeting = ({ G, ctx, moves }: Props) => {
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && G.activeBattlecryMinion) {
+      if (event.key !== "Escape") return;
+      if (G.activeBattlecryMinion) {
         console.log("Canceling battlecry with ESC");
         moves.cancelBattlecry();
+        return;
+      }
+      // Backs the whole play out — mana refunded, the PARENT card returns to
+      // hand (not the half that was picked). Works both while the overlay is
+      // up and mid-aim; the arrow clears itself once pendingChoice leaves G.
+      // A Discover deliberately ignores ESC: you must pick.
+      if (G.pendingChoice?.kind === "chooseOne") {
+        console.log("Canceling choose one with ESC");
+        useDragStore.getState().endTargeting();
+        moves.cancelChoice();
       }
     };
 
@@ -181,5 +239,5 @@ export const useGameTargeting = ({ G, ctx, moves }: Props) => {
     return () => {
       window.removeEventListener("keydown", handleEscape);
     };
-  }, [G.activeBattlecryMinion, moves]);
+  }, [G.activeBattlecryMinion, G.pendingChoice, moves]);
 };

@@ -927,6 +927,9 @@ const SELECTION_EFFECTS: Record<EffectTypes["type"], boolean> = {
   addToHand: false,
   discard: false,
   equip: false,
+  // The pick IS the selection — a discover battlecry (Selective Breeder) is an
+  // AUTOMATIC one that opens a prompt, never a targeted one.
+  discover: false,
 };
 
 //  as BaseEffectSelection

@@ -2,6 +2,7 @@ import type { CardProps } from "./types";
 import { useDroppable } from "@dnd-kit/core";
 import type { Ctx, PlayerID } from "@project/shared";
 import { useDragStore } from "@/stores/dragStore";
+import { targetAtPoint } from "@/utils/targeting";
 import { useAnimationStore } from "@/stores/animationStore";
 import { twMerge } from "tailwind-merge";
 import { AnimatePresence, motion } from "motion/react";
@@ -236,42 +237,24 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
 
   useEffect(() => {
     if (!isTargeting) return;
-
-    // Helper function to find target ID via coordinate bounding boxes
-    const getTargetAtCoordinates = (clientX: number, clientY: number) => {
-      // Find all player containers on the board
-      const playerElements = document.querySelectorAll(
-        '[data-player-bounds="true"]',
-      );
-
-      for (const el of playerElements) {
-        const rect = el.getBoundingClientRect();
-
-        // Check if mouse coordinates fall strictly within the element's actual box boundary
-        const isInsideX = clientX >= rect.left && clientX <= rect.right;
-        const isInsideY = clientY >= rect.top && clientY <= rect.bottom;
-
-        if (isInsideX && isInsideY) {
-          return el.getAttribute("data-player-id");
-        }
-      }
-      return null;
-    };
+    // "choice" mode is owned by ChoiceTargetingLayer, NOT by this component.
+    // targetingCardId points at the Choose One parent, which for a minion
+    // parent is this very card — so without this guard both would attach a
+    // mouseup listener. Ours would win the race, dispatch the wrong event
+    // (the ternary below has no choice case), and call endTargeting(); that
+    // clears targetingMode synchronously, React re-renders, and the layer's
+    // cleanup removes its listener before the browser ever reaches it — so
+    // resolveChoice was never sent and the prompt reopened forever.
+    if (targetingMode === "choice") return;
 
     const handleMouseMove = (e: MouseEvent) => {
       updateTargetingCursor({ x: e.clientX, y: e.clientY });
 
-      // 1. Check if hovering a player via geometry
-      const targetPlayerId = getTargetAtCoordinates(e.clientX, e.clientY);
-
-      // 2. Fall back to elementFromPoint for cards (assuming cards aren't blocked by the health bar)
-      let targetCardId: string | null = null;
-      if (!targetPlayerId) {
-        const element = document.elementFromPoint(e.clientX, e.clientY);
-        targetCardId =
-          element?.closest("[data-card-id]")?.getAttribute("data-card-id") ||
-          null;
-      }
+      // Heroes by geometry, cards by elementFromPoint — see utils/targeting.
+      const { targetPlayerId, targetCardId } = targetAtPoint(
+        e.clientX,
+        e.clientY,
+      );
 
       // Update store state for the bullseye target preview
       if (targetPlayerId) {
@@ -288,15 +271,10 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
     };
 
     const handleMouseUp = (e: MouseEvent) => {
-      const targetPlayerId = getTargetAtCoordinates(e.clientX, e.clientY);
-
-      let targetCardId: string | null = null;
-      if (!targetPlayerId) {
-        const element = document.elementFromPoint(e.clientX, e.clientY);
-        targetCardId =
-          element?.closest("[data-card-id]")?.getAttribute("data-card-id") ||
-          null;
-      }
+      const { targetPlayerId, targetCardId } = targetAtPoint(
+        e.clientX,
+        e.clientY,
+      );
 
       if (targetCardId || targetPlayerId) {
         // Dispatch event based on targeting mode

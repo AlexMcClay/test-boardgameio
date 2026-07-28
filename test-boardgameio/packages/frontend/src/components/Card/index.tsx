@@ -45,6 +45,9 @@ const keywords = [
   "Spell Damage",
   "Overload",
   "Overheal",
+  "Temporary",
+  "Choose One",
+  "Discover",
 ];
 
 const Card = ({
@@ -354,6 +357,16 @@ const Card = ({
                 height: `${0.5 * card.type.length}vw`,
               }}
             ></div>
+          </div>
+        )}
+
+        {/* Temporary: discarded from hand at end of turn (Discover Gifts).
+            Sits above the type banner so it reads as a state, not a tribe. */}
+        {card.temporary && (
+          <div className="pointer-events-none absolute bottom-[1.35vw] w-fit select-none rounded-[25%/50%] bg-sky-500/90 px-4 text-center text-[0.5vw]/[0.55vw] font-extrabold text-white smallShadow">
+            <span className="relative z-10 font-belwe text-shadow-A">
+              Temporary
+            </span>
           </div>
         )}
 
