@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import {
   DECK_SIZE,
+  decodeDeckCode,
+  encodeDeckCode,
   type Card as CardType,
+  type DeckCodeDeck,
   type DeckString,
   type Hero,
   type SavedDeck,
@@ -19,6 +22,7 @@ import SettingsOverlay from "../SettingsOverlay";
 
 import CardCollectionPanel from "./CardCollectionPanel";
 import ClassFilterBar from "./ClassFilterBar";
+import ClipboardDeckModal from "./ClipboardDeckModal";
 import CollectionFilterBar from "./CollectionFilterBar";
 import DeckContentsPanel from "./DeckContentsPanel";
 import DeckEditorControls from "./DeckEditorControls";
@@ -37,7 +41,11 @@ import {
 } from "./constants";
 
 /** Which step of the create-a-deck flow is on screen, if any. */
-type CreationStep = { step: "hero" } | { step: "source"; hero: Hero } | null;
+type CreationStep =
+  | { step: "clipboard"; deck: DeckCodeDeck }
+  | { step: "hero" }
+  | { step: "source"; hero: Hero }
+  | null;
 
 const CollectionManager = () => {
   const [mode, setMode] = useState<Mode>("viewer");
@@ -79,9 +87,57 @@ const CollectionManager = () => {
     setView("main-menu");
   }
 
-  function handleCreateNewDeck() {
+  /**
+   * Copy the deck being edited as a shareable code.
+   * Returns false if the browser denied clipboard access.
+   */
+  async function handleCopyDeckCode(): Promise<boolean> {
+    if (!editor.selectedHero) return false;
+    try {
+      await window.navigator.clipboard.writeText(
+        encodeDeckCode({
+          name: editor.deckName.trim() || `${editor.selectedHero.class} Deck`,
+          hero: editor.selectedHero,
+          deckString: editor.deck,
+        }),
+      );
+      return true;
+    } catch (error) {
+      console.error("Failed to copy deck code:", error);
+      return false;
+    }
+  }
+
+  async function handleCreateNewDeck() {
     playSfx("button-click");
+
+    // Offer the clipboard deck first, if there is one. Reading the clipboard
+    // can be denied or unavailable (it needs a secure context), in which case
+    // we just fall through to the normal flow.
+    try {
+      const clipboardText = await window.navigator.clipboard.readText();
+      const clipboardDeck = decodeDeckCode(clipboardText);
+      if (clipboardDeck) {
+        setCreationStep({ step: "clipboard", deck: clipboardDeck });
+        return;
+      }
+    } catch {
+      // No clipboard access — not an error worth surfacing.
+    }
+
     setCreationStep({ step: "hero" });
+  }
+
+  function handleUseClipboardDeck() {
+    if (creationStep?.step !== "clipboard") return;
+    playSfx("button-click");
+    const { deck } = creationStep;
+    editor.startNewDeck(deck.hero, {
+      name: deck.name,
+      deckString: deck.deckString,
+    });
+    setCreationStep(null);
+    openEditor();
   }
 
   function handleSelectHero(hero: Hero) {
@@ -249,6 +305,7 @@ const CollectionManager = () => {
               JSON.stringify(editor.deck, null, 2),
             )
           }
+          onCopyDeckCode={handleCopyDeckCode}
           onDeckMouseEnter={preview.handleDeckMouseEnter}
           onDeckMouseLeave={preview.handleDeckMouseLeave}
         />
@@ -313,6 +370,17 @@ const CollectionManager = () => {
             Cards
           </span>
         </div>
+      )}
+
+      {creationStep?.step === "clipboard" && (
+        <ClipboardDeckModal
+          deck={creationStep.deck}
+          onYes={handleUseClipboardDeck}
+          onNo={() => {
+            playSfx("button-click");
+            setCreationStep({ step: "hero" });
+          }}
+        />
       )}
 
       {creationStep?.step === "hero" && (

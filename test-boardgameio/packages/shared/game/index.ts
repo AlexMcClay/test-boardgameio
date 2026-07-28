@@ -3131,6 +3131,7 @@ export * from "./data/decks.js";
 // Export everything from utils
 export * from "./utils/index.js";
 export * from "./utils/deckBuilder.js";
+export * from "./utils/deckCode.js";
 export * from "./utils/validateMove.js";
 
 // Export individual files in the game root

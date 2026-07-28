@@ -16,7 +16,7 @@ import {
  * The seeding logic adds only the starters whose `id` the user doesn't already
  * have, so bumping this is safe even for players who kept the previous set.
  */
-export const STARTER_DECK_SEED_VERSION = 1;
+export const STARTER_DECK_SEED_VERSION = 1.1;
 
 /**
  * The decks every player starts with — one per playable class.
@@ -36,7 +36,7 @@ export const STARTER_DECK_SEED_VERSION = 1;
 export const starterDecks: SavedDeck[] = [
   {
     id: "starter-warrior",
-    name: "Warrior Starter",
+    name: "Core Warrior",
     hero: warriorHero,
     // Weapons and enrage. Inner Rage / Whirlwind / Cruel Taskmaster are as much
     // about switching on Amani Berserker and Tauren Warrior as they are removal.
@@ -64,7 +64,7 @@ export const starterDecks: SavedDeck[] = [
   },
   {
     id: "starter-shaman",
-    name: "Shaman Starter",
+    name: "Core Shaman",
     hero: shamanHero,
     // Overload midrange. Unbound Elemental grows off every Overload card, and
     // Bloodlust converts a totem-cluttered board into lethal.
@@ -91,7 +91,7 @@ export const starterDecks: SavedDeck[] = [
   },
   {
     id: "starter-rogue",
-    name: "Rogue Starter",
+    name: "Core Rogue",
     hero: rogueHero,
     // Cheap spells feeding Combo. Backstab and Shadowstep are here to enable
     // Defias Ringleader, SI:7 Agent and Edwin as much as to trade.
@@ -119,7 +119,7 @@ export const starterDecks: SavedDeck[] = [
   },
   {
     id: "starter-paladin",
-    name: "Paladin Starter",
+    name: "Core Paladin",
     hero: paladinHero,
     // Divine Shield plus buffs. Only 5 collectible Paladin minions exist, so
     // the shielded bodies are mostly Neutral.
@@ -146,7 +146,7 @@ export const starterDecks: SavedDeck[] = [
   },
   {
     id: "starter-hunter",
-    name: "Hunter Starter",
+    name: "Core Hunter",
     hero: hunterHero,
     // Beast aggro. Every Neutral in here is deliberately a Beast so Timber
     // Wolf, Houndmaster, Kill Command and Tundra Rhino always have targets.
@@ -174,7 +174,7 @@ export const starterDecks: SavedDeck[] = [
   },
   {
     id: "starter-druid",
-    name: "Druid Starter",
+    name: "Core Druid",
     hero: druidHero,
     // Ramp into fat. Only 6 collectible Druid minions exist, so the curve is
     // filled out with Neutral bodies.
@@ -200,7 +200,7 @@ export const starterDecks: SavedDeck[] = [
   },
   {
     id: "starter-warlock",
-    name: "Warlock Starter",
+    name: "Core Warlock",
     hero: warlockHero,
     // Demon zoo with Life Tap as the draw engine. Warlock is the only class
     // with no Legendary of its own, so the marquee slot goes to Xavius — the
@@ -229,7 +229,7 @@ export const starterDecks: SavedDeck[] = [
   },
   {
     id: "starter-mage",
-    name: "Mage Starter",
+    name: "Core Mage",
     hero: mageHero,
     // Spell tempo. Mage has only 4 collectible class minions, so this is the
     // most Neutral-heavy of the nine.
@@ -257,7 +257,7 @@ export const starterDecks: SavedDeck[] = [
   },
   {
     id: "starter-priest",
-    name: "Priest Starter",
+    name: "Core Priest",
     hero: priestHero,
     // Heal-control. Northshire Cleric is the engine, so the deck is stacked
     // with heal effects that draw off it — Lesser Heal included.
