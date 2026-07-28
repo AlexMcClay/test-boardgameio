@@ -22,8 +22,10 @@ What it does
 2. Scrapes stats, text, class, set, rarity, minion type, keywords, ids, flavor.
 3. Downloads the "_full" gallery art, resizes so max dimension is 700px, saves
    as JPEG q80 to  <assets>/cards/<Page_Name>.jpg
-4. Downloads the Play / Attack / Death .wav sounds, converts them to .ogg with
-   ffmpeg, saves to  <public>/cards/<file>.ogg  and deletes the .wav files.
+4. Downloads the Play / Attack / Death / Trigger .wav sounds, converts them to
+   .ogg with ffmpeg, saves to  <public>/cards/<file>.ogg  and deletes the .wav
+   files. ("Trigger" is the voice line a minion plays when its "whenever…"
+   clause fires — Nat Pagle, Ragnaros, Antonidas.)
 5. Writes a TypeScript cardTemplates entry per card into ./output.ts (--out),
    and a .json sidecar per card with everything it scraped (for auditing).
 
@@ -104,7 +106,9 @@ LABELS = {
 LABEL_LINES = set(LABELS) | {"Keywords", "Full tags", "Wiki mechanics", "Flavor",
                              "Availability", "Sounds", "Contents", "Gallery"}
 
-SOUND_BUCKETS = ("play", "attack", "death")
+# Order matters: this is the positional argument order of the `sfx()` helper in
+# data/cards.ts — sfx(play, attack, death, trigger).
+SOUND_BUCKETS = ("play", "attack", "death", "trigger")
 
 
 # --------------------------------------------------------------------------- #
@@ -364,12 +368,20 @@ def extract_sounds(soup: BeautifulSoup) -> dict[str, list[str]]:
 
 
 def categorize(name: str) -> str:
-    """Mirror of the SFX Sorter's filename rules."""
+    """
+    Mirror of the SFX Sorter's filename rules. Only a fallback — pages that use
+    the usual <dt>Play / <dt>Trigger / ... headings are bucketed by heading.
+
+    "trigger" is checked before "play" because the voice lines are named
+    VO_<id>_Trigger_NN.wav and would otherwise fall through to "other".
+    """
     n = name.lower()
     if "attack" in n:
         return "attack"
     if "death" in n:
         return "death"
+    if "trigger" in n:
+        return "trigger"
     if any(k in n for k in ("play", "stinger", "enterplay", "summon", "greet")):
         return "play"
     return "other"
@@ -635,14 +647,16 @@ def emit_ts(d: CardData) -> str:
     # --- sfx ----------------------------------------------------------------
     src = d.ogg_files or {k: [f"{Path(n).stem}.ogg" for n in v] for k, v in d.sounds.items()}
     if src:
-        play, attack, death = (src.get(b, []) for b in SOUND_BUCKETS)
-        add("    sfx: sfx(")
-        add(f"      {ts_array(play)},")
-        if attack or death:
-            add(f"      {ts_array(attack)},")
-        if death:
-            add(f"      {ts_array(death)},")
-        add("    ),")
+        # sfx() takes its buckets positionally, so a later one forces every
+        # earlier one to be written out — drop only the trailing empties.
+        buckets = [src.get(b, []) for b in SOUND_BUCKETS]
+        while buckets and not buckets[-1]:
+            buckets.pop()
+        if buckets:
+            add("    sfx: sfx(")
+            for arr in buckets:
+                add(f"      {ts_array(arr)},")
+            add("    ),")
 
     add("  },")
     return "\n".join(L)

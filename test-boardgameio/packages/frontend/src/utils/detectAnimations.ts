@@ -61,12 +61,17 @@ export function detectAllAnimations(events: GameEvent[]): AnimationEvent[] {
   // only the first play the shared cue (same rule the store uses for deaths —
   // several copies of one sound firing together just phase against each other).
   triggerEvents.forEach((event, i) => {
+    // Two layers of sound:
+    //  - the shared UI cue, first firing only (see above);
+    //  - the card's OWN trigger voice line, if it has one. That's per-minion,
+    //    so it can't stack with itself and every firing gets it.
+    const voice = event.snapshot?.sfx?.trigger ?? [];
     animations.push({
       type: "trigger",
       minionID: event.cardId,
       duration: TRIGGER_ANIMATION.duration,
       startTime: i * TRIGGER_ANIMATION.stagger,
-      sfx: i === 0 ? [{ soundId: "trigger" }] : undefined,
+      sfx: [{ soundId: "trigger" }, ...voice],
     });
   });
 

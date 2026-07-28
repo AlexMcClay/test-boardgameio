@@ -110,6 +110,8 @@ export interface Card {
     death?: SFXInstance[];
     play?: SFXInstance[];
     attack?: SFXInstance[];
+    /** Voice line for when one of this card's `triggers` fires. */
+    trigger?: SFXInstance[];
   };
   set: string[];
 }

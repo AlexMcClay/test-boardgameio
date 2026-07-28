@@ -434,10 +434,14 @@ const sfx = (
   play: SFXTHING[],
   attack?: SFXTHING[],
   death?: SFXTHING[],
+  // SFXTHING, not SFXInstance — the other buckets accept a bare filename
+  // string (or a [file, delay] pair), and that's how the scraper emits them.
+  trigger?: SFXTHING[],
 ): {
   death?: SFXInstance[];
   play?: SFXInstance[];
   attack?: SFXInstance[];
+  trigger?: SFXInstance[];
 } => {
   const parser = (soundId: SFXTHING): SFXInstance =>
     typeof soundId === "string"
@@ -452,6 +456,7 @@ const sfx = (
     death: death?.map(parser),
     play: play?.map(parser),
     attack: attack?.map(parser),
+    trigger: trigger?.map(parser),
   };
 };
 
@@ -8866,7 +8871,8 @@ export const cardTemplates = {
   },
   "stampeding-kodo": {
     title: "Stampeding Kodo",
-    description: "Battlecry: Destroy a random enemy minion with 2 or less Attack.",
+    description:
+      "Battlecry: Destroy a random enemy minion with 2 or less Attack.",
     baseMana: 5,
     baseAttack: 3,
     baseHealth: 5,
@@ -9238,7 +9244,8 @@ export const cardTemplates = {
   },
   upgrade: {
     title: "Upgrade!",
-    description: "If you have a weapon, give it +1/+1. Otherwise equip a 1/3 weapon.",
+    description:
+      "If you have a weapon, give it +1/+1. Otherwise equip a 1/3 weapon.",
     baseMana: 1,
     imageUrl: "assets/cards/Upgrade!.jpg",
     effects: [
@@ -9736,7 +9743,9 @@ export const cardTemplates = {
       }),
     ],
     onPlace: [],
-    deathrattle: [takeControl("enemy-board", undefined, { split: false, n: 1 })],
+    deathrattle: [
+      takeControl("enemy-board", undefined, { split: false, n: 1 }),
+    ],
     targetQuery: {
       side: "enemy",
       type: ["card", "player"],
@@ -9813,8 +9822,7 @@ export const cardTemplates = {
   },
   "divine-favor": {
     title: "Divine Favor",
-    description:
-      "Draw cards until you have as many in hand as your opponent.",
+    description: "Draw cards until you have as many in hand as your opponent.",
     baseMana: 3,
     type: ["Holy"],
     imageUrl: "assets/cards/Divine_Favor.jpg",
@@ -9871,7 +9879,8 @@ export const cardTemplates = {
   // ---------------------------------------------------------------------
   "psychic-conjurer": {
     title: "Psychic Conjurer",
-    description: "Battlecry: Copy a card in your opponent's deck and add it to your hand.",
+    description:
+      "Battlecry: Copy a card in your opponent's deck and add it to your hand.",
     baseMana: 1,
     baseAttack: 1,
     baseHealth: 2,
@@ -10048,6 +10057,7 @@ export const cardTemplates = {
       ["VO_EX1_557_Play_01.ogg", "Pegasus_Stinger_Gnome.ogg"],
       ["VO_EX1_557_Attack_03.ogg"],
       ["VO_EX1_557_Death_04.ogg"],
+      ["VO_EX1_557_Trigger_02.ogg"],
     ),
   },
   demolisher: {
@@ -10062,7 +10072,12 @@ export const cardTemplates = {
     onPlace: [],
     triggers: [
       trigger("ON_START_TURN", "FRIENDLY", [
-        { type: "damage", value: 2, target: "enemy-all", rand: { split: false, n: 1 } },
+        {
+          type: "damage",
+          value: 2,
+          target: "enemy-all",
+          rand: { split: false, n: 1 },
+        },
       ]),
     ],
     targetQuery: { side: "enemy", type: ["card", "player"] },
@@ -10175,10 +10190,7 @@ export const cardTemplates = {
     effects: [damage({ stat: "attack", type: "card-stat" })],
     onPlace: [],
     triggers: [
-      trigger("ON_END_TURN", "FRIENDLY", [
-        damage(1, "self"),
-        summon("imp"),
-      ]),
+      trigger("ON_END_TURN", "FRIENDLY", [damage(1, "self"), summon("imp")]),
     ],
     targetQuery: { side: "enemy", type: ["card", "player"] },
     isMinion: true,
@@ -10268,7 +10280,8 @@ export const cardTemplates = {
   },
   "baron-geddon": {
     title: "Baron Geddon",
-    description: "At the end of your turn, deal 2 damage to ALL other characters.",
+    description:
+      "At the end of your turn, deal 2 damage to ALL other characters.",
     baseMana: 7,
     baseAttack: 7,
     baseHealth: 5,
@@ -10339,7 +10352,12 @@ export const cardTemplates = {
     onPlace: [],
     triggers: [
       trigger("ON_END_TURN", "FRIENDLY", [
-        { type: "damage", value: 8, target: "enemy-all", rand: { split: false, n: 1 } },
+        {
+          type: "damage",
+          value: 8,
+          target: "enemy-all",
+          rand: { split: false, n: 1 },
+        },
       ]),
     ],
     targetQuery: { side: "enemy", type: ["card", "player"] },
@@ -10350,6 +10368,8 @@ export const cardTemplates = {
     sfx: sfx(
       ["VO_EX1_298_Play_01.ogg", "Pegasus_Stinger_Elemental_Villain.ogg"],
       ["VO_EX1_298_Attack_02.ogg"],
+      ["VO_EX1_298_Death_04.ogg"],
+      ["VO_EX1_298_Trigger_03.ogg"],
     ),
   },
   ysera: {
@@ -10369,7 +10389,12 @@ export const cardTemplates = {
         {
           type: "addToHand",
           source: "global",
-          cardID: ["emerald-drake", "laughing-sister", "ysera-awakens", "dream"],
+          cardID: [
+            "emerald-drake",
+            "laughing-sister",
+            "ysera-awakens",
+            "dream",
+          ],
           value: 1,
           rand: { n: 1 },
         },
@@ -10619,10 +10644,15 @@ export const cardTemplates = {
     effects: [damage({ stat: "attack", type: "card-stat" })],
     onPlace: [],
     triggers: [
-      trigger("ON_MINION_DEATH", "FRIENDLY", [buffSelf({ attack: 2, health: 1 })], {
-        self: "exclude",
-        conditions: [{ type: "tags-include", value: "Beast" }],
-      }),
+      trigger(
+        "ON_MINION_DEATH",
+        "FRIENDLY",
+        [buffSelf({ attack: 2, health: 1 })],
+        {
+          self: "exclude",
+          conditions: [{ type: "tags-include", value: "Beast" }],
+        },
+      ),
     ],
     targetQuery: { side: "enemy", type: ["card", "player"] },
     isMinion: true,
@@ -10775,7 +10805,9 @@ export const cardTemplates = {
     effects: [damage({ stat: "attack", type: "card-stat" })],
     onPlace: [],
     triggers: [
-      trigger("ON_SPELL_CAST", "FRIENDLY", [buffSelf({ attack: 2, health: 2 })]),
+      trigger("ON_SPELL_CAST", "FRIENDLY", [
+        buffSelf({ attack: 2, health: 2 }),
+      ]),
     ],
     targetQuery: { side: "enemy", type: ["card", "player"] },
     isMinion: true,
@@ -10789,7 +10821,8 @@ export const cardTemplates = {
   },
   "archmage-antonidas": {
     title: "Archmage Antonidas",
-    description: "Whenever you cast a spell, add a 'Fireball' spell to your hand.",
+    description:
+      "Whenever you cast a spell, add a 'Fireball' spell to your hand.",
     baseMana: 7,
     baseAttack: 5,
     baseHealth: 7,
@@ -10805,6 +10838,8 @@ export const cardTemplates = {
     sfx: sfx(
       ["VO_EX1_559_Play_01.ogg", "Pegasus_Stinger_Alliance.ogg"],
       ["VO_EX1_559_Attack_03.ogg"],
+      ["VO_EX1_559_Death_04.ogg"],
+      ["VO_EX1_559_Trigger_02.ogg"],
     ),
   },
 
@@ -10823,7 +10858,14 @@ export const cardTemplates = {
       trigger(
         "ON_SUMMON",
         "FRIENDLY",
-        [{ type: "damage", value: 1, target: "enemy-all", rand: { split: false, n: 1 } }],
+        [
+          {
+            type: "damage",
+            value: 1,
+            target: "enemy-all",
+            rand: { split: false, n: 1 },
+          },
+        ],
         { self: "exclude" },
       ),
     ],
@@ -10904,17 +10946,22 @@ export const cardTemplates = {
     // "user-select" inside a trigger resolves to the window's subject — the
     // minion that was just summoned.
     triggers: [
-      trigger("ON_SUMMON", "FRIENDLY", [{ type: "charge", target: "user-select" }], {
-        self: "exclude",
-        conditions: [
-          {
-            type: "numeric",
-            key: { type: "card-stat", stat: "attack" },
-            operator: "<=",
-            value: 3,
-          },
-        ],
-      }),
+      trigger(
+        "ON_SUMMON",
+        "FRIENDLY",
+        [{ type: "charge", target: "user-select" }],
+        {
+          self: "exclude",
+          conditions: [
+            {
+              type: "numeric",
+              key: { type: "card-stat", stat: "attack" },
+              operator: "<=",
+              value: 3,
+            },
+          ],
+        },
+      ),
     ],
     targetQuery: { side: "enemy", type: ["card", "player"] },
     isMinion: true,
@@ -10941,18 +10988,14 @@ export const cardTemplates = {
     // Weapons are trigger owners too — listTriggerOwners includes the equipped
     // weapon on each side.
     triggers: [
-      trigger(
-        "ON_SUMMON",
-        "FRIENDLY",
-        [
-          applyModifier({
-            target: "user-select",
-            stats: { attack: 1, health: 1 },
-            stackable: true,
-          }),
-          durability(-1, "friendly-weapon"),
-        ],
-      ),
+      trigger("ON_SUMMON", "FRIENDLY", [
+        applyModifier({
+          target: "user-select",
+          stats: { attack: 1, health: 1 },
+          stackable: true,
+        }),
+        durability(-1, "friendly-weapon"),
+      ]),
     ],
     targetQuery: { side: "all", type: ["lane"] },
     rarity: "Epic",
@@ -10971,9 +11014,14 @@ export const cardTemplates = {
     effects: [damage({ stat: "attack", type: "card-stat" })],
     onPlace: [],
     triggers: [
-      trigger("ON_CARD_PLAYED", "FRIENDLY", [buffSelf({ attack: 1, health: 1 })], {
-        self: "exclude",
-      }),
+      trigger(
+        "ON_CARD_PLAYED",
+        "FRIENDLY",
+        [buffSelf({ attack: 1, health: 1 })],
+        {
+          self: "exclude",
+        },
+      ),
     ],
     targetQuery: { side: "enemy", type: ["card", "player"] },
     isMinion: true,
@@ -11043,9 +11091,7 @@ export const cardTemplates = {
     onPlace: [],
     // Overheal is healing that went to waste — only fires when the target was
     // at (or reached) full health with healing left over.
-    triggers: [
-      trigger("OVERHEAL", "ANY_PLAYER", [draw(1)], { self: "only" }),
-    ],
+    triggers: [trigger("OVERHEAL", "ANY_PLAYER", [draw(1)], { self: "only" })],
     targetQuery: { side: "enemy", type: ["card", "player"] },
     isMinion: true,
     rarity: "Rare",
