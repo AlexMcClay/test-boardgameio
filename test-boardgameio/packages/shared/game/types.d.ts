@@ -379,6 +379,19 @@ export interface CardModifier {
   keys?: Partial<Record<ModifierBoolKey, true>>; // boolean keyword grants
   override?: boolean; // applies to this modifier's stats
   lifecycle?: ModifierLifecycle; // Optional metadata for temporal mechanics
+  // --- GRANTED TEXT -------------------------------------------------------
+  // Rules text this enchantment adds to the card, on top of whatever is
+  // printed on it (Soul of the Forest, Power Overwhelming). Both run exactly
+  // like the printed versions; see getCardDeathrattles / getCardTriggers.
+  // Silence removes them for free, because it strips the whole modifier.
+  deathrattle?: EffectTypes[];
+  triggers?: TriggerDef[];
+  /**
+   * Who applied this enchantment. Granted triggers run their effects as THIS
+   * player rather than the card's controller, which is what lets Blessing of
+   * Wisdom on an enemy minion still draw for the caster.
+   */
+  casterId?: PlayerID;
 }
 
 export type TargetValue = {
@@ -794,6 +807,14 @@ export type ApplyModifierEffect = {
   stats?: Partial<Record<ModifierStatKey, number | DynamicValue>>;
   /** Boolean keyword grants: { taunt: true, stealth: true, ... } */
   keys?: Partial<Record<ModifierBoolKey, true>>;
+  /**
+   * Rules TEXT to graft onto the target — the enchantment equivalent of the
+   * card's own `deathrattle` / `triggers`. A modifier carrying only text (no
+   * stats, no keys) is still a real enchantment, so pass a `description`:
+   * describeModifier can only summarise numbers and keywords.
+   */
+  deathrattle?: EffectTypes[];
+  triggers?: TriggerDef[];
   override?: boolean;
   mult?: number | DynamicValue; // multiplies every stat value
   min?: number; // per-stat clamp on the resulting stat (refresh passes)
@@ -821,6 +842,12 @@ type ChangeKeyEffect = {
 export type SummonEffect = {
   type: "summon";
   target: "self" | "enemy";
+  /**
+   * Summon a fresh copy of the card this effect is running on, from its own
+   * template — "Deathrattle: Resummon this minion" (Ancestral Spirit). Takes
+   * precedence over cardID; the copy carries no damage or enchantments.
+   */
+  fromSelf?: boolean;
   cardID?: string | string[]; // A specific card, or a list of options picked from at random (per summon). Omit to summon from all minion templates.
   conditions?: TargetCondition[]; // Filter candidates (e.g. summon a random Demon)
   value: number | DynamicValue; // How many minions to summon

@@ -46,6 +46,9 @@ const applyModifier = (
     | "stackable"
     // "…a random friendly minion" (Young Priestess, Master Swordsmith)
     | "rand"
+    // Granted rules text: Soul of the Forest, Power Overwhelming, Corruption.
+    | "deathrattle"
+    | "triggers"
   > & { target?: ApplyModifierEffect["target"] },
 ): ApplyModifierEffect => {
   const { target, ...rest } = opts;
@@ -2310,6 +2313,53 @@ export const cardTemplates = {
       ["EX1_158tTreant_Attack2.ogg"],
       ["EX1_158tTreant_Death2.ogg"],
     ),
+  },
+  // Soul of the Forest's Treant (EX1_158t) is a PLAIN 2/2 — distinct from
+  // treant-token above, which is Force of Nature's Charge version.
+  "soul-treant": {
+    title: "Treant",
+    description: "",
+    baseMana: 1,
+    baseAttack: 2,
+    baseHealth: 2,
+    imageUrl: "assets/cards/Treant.jpg",
+    effects: [damage({ stat: "attack", type: "card-stat" })],
+    onPlace: [],
+    targetQuery: { side: "enemy", type: ["card", "player"] },
+    isMinion: true,
+    isUncollectible: true,
+    class: "Druid",
+    set: ["Legacy"],
+    sfx: sfx(
+      ["EX1_158tTreant_EnterPlay1.ogg"],
+      ["EX1_158tTreant_Attack2.ogg"],
+      ["EX1_158tTreant_Death2.ogg"],
+    ),
+  },
+  "soul-of-the-forest": {
+    title: "Soul of the Forest",
+    description: 'Give your minions "Deathrattle: Summon a 2/2 Treant."',
+    baseMana: 3,
+    type: ["Nature"],
+    imageUrl: "assets/cards/Soul_of_the_Forest.jpg",
+    // A modifier carrying only TEXT — no stats, no keywords. getCardDeathrattles
+    // folds it in alongside whatever the minion already had, so a Loot Hoarder
+    // both draws AND leaves a Treant.
+    effects: [
+      applyModifier({
+        target: "friendly-board",
+        name: "Soul of the Forest",
+        description: "Deathrattle: Summon a 2/2 Treant",
+        deathrattle: [summon("soul-treant")],
+      }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["lane"] },
+    isMinion: false,
+    rarity: "Common",
+    class: "Druid",
+    set: ["Legacy"],
   },
   "ironbark-protector": {
     title: "Ironbark Protector",
@@ -6464,6 +6514,34 @@ export const cardTemplates = {
     set: ["Legacy"],
   },
 
+  "blessing-of-wisdom": {
+    title: "Blessing of Wisdom",
+    description: "Choose a minion. Whenever it attacks, draw a card.",
+    baseMana: 1,
+    type: ["Holy"],
+    imageUrl: "assets/cards/Blessing_of_Wisdom.jpg",
+    // The draw belongs to whoever CAST this, not to the minion's controller —
+    // enchanting an enemy minion still draws for you. That works because the
+    // modifier records casterId and granted triggers run as that player.
+    // `self: "only"` keeps it to the enchanted minion's own attacks.
+    effects: [
+      applyModifier({
+        name: "Blessing of Wisdom",
+        description: "Whenever this attacks, its enchanter draws a card",
+        triggers: [
+          trigger("ON_MINION_ATTACK", "FRIENDLY", [draw(1)], { self: "only" }),
+        ],
+      }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["card"] },
+    isMinion: false,
+    rarity: "Common",
+    class: "Paladin",
+    set: ["Legacy"],
+  },
+
   // --- Priest ---
   "divine-spirit": {
     title: "Divine Spirit",
@@ -6834,6 +6912,31 @@ export const cardTemplates = {
     ),
   },
 
+  "ancestral-spirit": {
+    title: "Ancestral Spirit",
+    description: 'Give a minion "Deathrattle: Resummon this minion."',
+    baseMana: 2,
+    type: ["Nature"],
+    imageUrl: "assets/cards/Ancestral_Spirit.jpg",
+    // `fromSelf` rebuilds the dying minion from its OWN template, so the copy
+    // comes back pristine — no damage, no enchantments, and notably without
+    // this Ancestral Spirit, so it can't loop.
+    effects: [
+      applyModifier({
+        name: "Ancestral Spirit",
+        description: "Deathrattle: Resummon this minion",
+        deathrattle: [{ type: "summon", target: "self", fromSelf: true, value: 1 }],
+      }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["card"] },
+    isMinion: false,
+    rarity: "Rare",
+    class: "Shaman",
+    set: ["Legacy"],
+  },
+
   // --- Warrior ---
   "arathi-weaponsmith": {
     title: "Arathi Weaponsmith",
@@ -7032,6 +7135,57 @@ export const cardTemplates = {
     },
     isMinion: false,
     rarity: "Epic",
+    class: "Warlock",
+    set: ["Legacy"],
+  },
+  corruption: {
+    title: "Corruption",
+    description: "Choose an enemy minion. At the start of your turn, destroy it.",
+    baseMana: 1,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Corruption.jpg",
+    // A text-ONLY enchantment: no stats, no keywords. `player: "ENEMY"` is read
+    // from the ENCHANTED minion's point of view — it sits on an opponent's
+    // minion, so "the enemy's turn start" is the caster's turn start, which is
+    // exactly what the card says. Silencing it saves the minion.
+    effects: [
+      applyModifier({
+        name: "Corruption",
+        description: "Destroyed at the start of your opponent's turn",
+        triggers: [trigger("ON_START_TURN", "ENEMY", [destroy("self")])],
+      }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "enemy", type: ["card"] },
+    isMinion: false,
+    class: "Warlock",
+    set: ["Legacy"],
+  },
+  "power-overwhelming": {
+    title: "Power Overwhelming",
+    description:
+      "Give a friendly minion +4/+4 until end of turn. Then, it dies. Horribly.",
+    baseMana: 1,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Power_Overwhelming.jpg",
+    // Stats AND text in one enchantment. Deliberately NOT a `duration` buff:
+    // the minion dies at end of turn anyway, and an expiring modifier could
+    // race the trigger that kills it. One modifier means Silence removes both
+    // halves at once — the classic save.
+    effects: [
+      applyModifier({
+        name: "Power Overwhelming",
+        description: "+4/+4, dies at end of turn",
+        stats: { attack: 4, health: 4 },
+        triggers: [trigger("ON_END_TURN", "FRIENDLY", [destroy("self")])],
+      }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "friendly", type: ["card"] },
+    isMinion: false,
+    rarity: "Common",
     class: "Warlock",
     set: ["Legacy"],
   },
@@ -9782,17 +9936,15 @@ export const cardTemplates = {
     imageUrl: "assets/cards/Ysera_the_Dreamer.jpg",
     effects: [damage({ stat: "attack", type: "card-stat" })],
     // One effect per card, the way mirror-image-spell stacks two summons.
-    // NOT a single 4-id addToHand: `value` is read twice — findCardsInPool uses
+    // NOT a single 5-id addToHand: `value` is read twice — findCardsInPool uses
     // it as copies-per-id, then the handler slices the pool down to it — so a
-    // 4-id list with value 1 would add only the first card.
-    //
-    // Same four-card pool as `ysera`: Nightmare is omitted in both places
-    // because it needs an enchantment carrying its own start-of-turn trigger.
+    // 5-id list with value 1 would add only the first card.
     onPlace: [
       addToHand("emerald-drake", 1),
       addToHand("laughing-sister", 1),
       addToHand("ysera-awakens", 1),
       addToHand("dream", 1),
+      addToHand("nightmare", 1),
     ],
     targetQuery: { side: "enemy", type: ["card", "player"] },
     isMinion: true,
@@ -10945,8 +11097,7 @@ export const cardTemplates = {
     imageUrl: "assets/cards/Ysera.jpg",
     effects: [damage({ stat: "attack", type: "card-stat" })],
     onPlace: [],
-    // One of the four Dream cards at random. (Nightmare is omitted — it needs
-    // an enchantment that carries its own start-of-turn trigger.)
+    // One of the five Dream cards at random.
     triggers: [
       trigger("ON_END_TURN", "FRIENDLY", [
         {
@@ -10957,6 +11108,7 @@ export const cardTemplates = {
             "laughing-sister",
             "ysera-awakens",
             "dream",
+            "nightmare",
           ],
           value: 1,
           rand: { n: 1 },
@@ -11004,6 +11156,32 @@ export const cardTemplates = {
       ["VO_CS3_032_Female_Dragon_Death_01.ogg"],
       ["VO_CS3_032_Female_Dragon_Trigger_01.ogg"],
     ),
+  },
+  nightmare: {
+    title: "Nightmare",
+    description:
+      "Give a minion +5/+5. At the start of your next turn, destroy it.",
+    baseMana: 0,
+    type: ["Shadow"],
+    imageUrl: "assets/cards/Nightmare.jpg",
+    // The fifth Dream card. Same shape as Power Overwhelming, one window later:
+    // the enchanted minion survives the turn it was buffed on and dies when its
+    // controller's next turn begins.
+    effects: [
+      applyModifier({
+        name: "Nightmare",
+        description: "+5/+5, destroyed at the start of your next turn",
+        stats: { attack: 5, health: 5 },
+        triggers: [trigger("ON_START_TURN", "FRIENDLY", [destroy("self")])],
+      }),
+    ],
+    onPlace: [],
+    isSpell: true,
+    targetQuery: { side: "all", type: ["card"] },
+    isMinion: false,
+    isUncollectible: true,
+    class: "Neutral",
+    set: ["Legacy"],
   },
   "emerald-drake": {
     title: "Emerald Drake",

@@ -26,6 +26,8 @@ import {
   consumeKeyword,
   getAttack,
   getCurrentDurability,
+  getCardDeathrattles,
+  getCardTriggers,
   getCurrentHealth,
   getManaCost,
   getMaxDurability,
@@ -1818,6 +1820,13 @@ function executeTrigger(
   subject?: TriggerSubject,
   data?: TriggerData,
   sourceEventIndex?: number,
+  /**
+   * Set for triggers GRANTED by an enchantment: its caster, who the effects run
+   * as. Blessing of Wisdom on an enemy minion still draws for whoever cast it.
+   * Only the effect context changes — the trigger already matched against the
+   * card's controller.
+   */
+  casterId?: PlayerID,
 ) {
   G.triggerFires = (G.triggerFires ?? 0) + 1;
 
@@ -1853,7 +1862,7 @@ function executeTrigger(
     G,
     ctx,
     location: "board",
-    playerID: ownerId,
+    playerID: casterId ?? ownerId,
     target,
     type: "minion",
     sourceEventIndex: triggerEventIndex,
@@ -1880,9 +1889,13 @@ export function fireTriggers(G: GameState, ctx: Ctx, window: TriggerWindow) {
   const owners = listTriggerOwners(G, window.actingPlayer);
 
   for (const { card: owner, ownerId } of owners) {
-    if (!owner.triggers?.length) continue;
+    // Printed triggers plus any grafted on by enchantments (Corruption,
+    // Power Overwhelming). Matching still scopes FRIENDLY/ENEMY against the
+    // card's CONTROLLER; only the effects run as the enchantment's caster.
+    const defs = getCardTriggers(owner);
+    if (!defs.length) continue;
 
-    owner.triggers.forEach((def, triggerIndex) => {
+    defs.forEach(({ def, casterId }, triggerIndex) => {
       if (!triggerMatches(def, owner, ownerId, window, G, ctx)) return;
       // Rolled at match time so a queued reaction's odds are locked in when
       // the event happened, not when it eventually resolves.
@@ -1899,6 +1912,7 @@ export function fireTriggers(G: GameState, ctx: Ctx, window: TriggerWindow) {
           window.subject,
           window.data,
           window.sourceEventIndex,
+          casterId,
         );
       } else {
         (G.pendingTriggers ??= []).push({
@@ -1943,18 +1957,21 @@ export function resolveNextTrigger(G: GameState, ctx: Ctx) {
     : undefined;
   if (!owner) return; // left play before it could react
 
-  const def = owner.triggers?.[pending.triggerIndex];
-  if (!def) return; // silenced since the window opened
+  // Same printed-then-granted list fireTriggers indexed into. A silence (or a
+  // stripped enchantment) shortens it, so the lookup misses and this fizzles.
+  const entry = getCardTriggers(owner)[pending.triggerIndex];
+  if (!entry) return; // silenced since the window opened
 
   executeTrigger(
     G,
     ctx,
     owner,
     pending.ownerId,
-    def,
+    entry.def,
     pending.subject,
     pending.data,
     pending.sourceEventIndex,
+    entry.casterId,
   );
 
   refreshOngoing(G, ctx);
@@ -2052,9 +2069,11 @@ export function resolveDeathWave(G: GameState, ctx: Ctx) {
 
     if (deadMinions.length > 0) {
       deadMinions.forEach((deadCard) => {
-        // 2. TRIGGER DEATHRATTLES:
-        if (deadCard.deathrattle && deadCard.deathrattle.length > 0) {
-          executeEffects(deadCard.deathrattle, {
+        // 2. TRIGGER DEATHRATTLES: printed, plus any granted by enchantments
+        // (Soul of the Forest / Ancestral Spirit).
+        const rattles = getCardDeathrattles(deadCard);
+        if (rattles.length > 0) {
+          executeEffects(rattles, {
             card: deadCard,
             G,
             ctx,

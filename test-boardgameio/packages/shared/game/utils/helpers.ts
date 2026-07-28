@@ -177,7 +177,13 @@ function applyModifierWithStacking(
   const stats = normalizeStats(changes.stats, override);
   const keys =
     changes.keys && Object.keys(changes.keys).length ? changes.keys : undefined;
-  const isEmpty = !stats && !keys;
+  // Granted rules text (Corruption grants ONLY a trigger, no stats at all), so
+  // it has to count toward emptiness or the whole enchantment is discarded.
+  const grantedDeathrattle = effect.deathrattle?.length
+    ? effect.deathrattle
+    : undefined;
+  const grantedTriggers = effect.triggers?.length ? effect.triggers : undefined;
+  const isEmpty = !stats && !keys && !grantedDeathrattle && !grantedTriggers;
   const description =
     changes.description ?? describeModifier(stats, keys, override);
 
@@ -217,6 +223,9 @@ function applyModifierWithStacking(
         const existing = list[existingIndex];
         existing.stats = stats;
         existing.keys = keys;
+        existing.deathrattle = grantedDeathrattle;
+        existing.triggers = grantedTriggers;
+        existing.casterId = playerId;
         existing.override = override;
         existing.description = description;
         existing.img = changes.img ?? existing.img;
@@ -249,6 +258,9 @@ function applyModifierWithStacking(
     stackable: effect.stackable ?? false,
     stats,
     keys,
+    deathrattle: grantedDeathrattle,
+    triggers: grantedTriggers,
+    casterId: playerId,
     override,
     lifecycle,
   };
@@ -1296,6 +1308,12 @@ export function resolveSummonCandidates(
   effect: SummonEffect,
   context: EffectContext,
 ): string[] {
+  // "Resummon this minion" — rebuilt from its own template, so the copy is
+  // pristine. Wins over cardID; yields nothing if there's no card in context.
+  if (effect.fromSelf) {
+    return context.card ? [context.card.originalID] : [];
+  }
+
   let ids: string[] = effect.cardID
     ? Array.isArray(effect.cardID)
       ? effect.cardID

@@ -300,11 +300,23 @@ export function resolveTargets(
       }
       break;
     case "self": {
+      const selfCard = context.card!;
+      // The card's TRUE controller, which is NOT always the acting player: a
+      // granted trigger runs as the enchantment's caster, so Corruption sitting
+      // on an enemy minion resolves as the Warlock while the minion is still on
+      // the opponent's board. Reading ownerId as `playerID` there sent
+      // downstream handlers looking in the wrong board and they silently no-op.
+      // Falls back to playerID for cards outside both boards (hand auras).
+      const trueOwner = G.board[playerID]?.some((c) => c.id === selfCard.id)
+        ? playerID
+        : G.board[enemyId]?.some((c) => c.id === selfCard.id)
+          ? enemyId
+          : playerID;
       pool.push({
         type: "card",
-        id: context.card!.id,
-        ownerId: playerID,
-        cardRef: context.card,
+        id: selfCard.id,
+        ownerId: trueOwner,
+        cardRef: selfCard,
       });
 
       break;

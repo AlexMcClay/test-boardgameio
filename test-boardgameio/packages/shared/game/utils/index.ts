@@ -6,6 +6,8 @@ import type {
   ModifierBoolKey,
   ModifierStatKey,
   Player,
+  PlayerID,
+  TriggerDef,
 } from "../types";
 import { cardTemplates, type CardTemplateKey } from "../data/cards";
 import { isBaseEffectSelection } from "../..";
@@ -248,6 +250,41 @@ export function getManaCost(card: Card): number {
 // Spell-damage bonus a spell card has received from source auras (Spell Damage +N).
 export function getSpellDamage(card: Card): number {
   return Math.max(0, foldModifiers(0, card.modifiers, "spellDamage"));
+}
+
+/**
+ * Every deathrattle that should fire for this card: the printed one first, then
+ * any granted by enchantments (Soul of the Forest, Ancestral Spirit). Silence
+ * clears the printed array AND strips the enchantments, so it empties both.
+ */
+export function getCardDeathrattles(card: Card): EffectTypes[] {
+  const granted = card.modifiers?.flatMap((m) => m.deathrattle ?? []) ?? [];
+  if (!granted.length) return card.deathrattle ?? [];
+  return [...(card.deathrattle ?? []), ...granted];
+}
+
+/**
+ * Every trigger this card reacts with, printed first then granted, each paired
+ * with the player its effects should run as (the enchantment's caster, or the
+ * card's own controller for printed text).
+ *
+ * ORDER IS LOAD-BEARING: fireTriggers records a def's position here as
+ * PendingTrigger.triggerIndex and resolveNextTrigger looks it back up, so
+ * printed triggers must keep stable indices — hence granted ones are appended,
+ * never interleaved.
+ */
+export function getCardTriggers(
+  card: Card,
+): Array<{ def: TriggerDef; casterId?: PlayerID }> {
+  const printed = (card.triggers ?? []).map((def) => ({
+    def,
+    casterId: undefined,
+  }));
+  const granted =
+    card.modifiers?.flatMap((m) =>
+      (m.triggers ?? []).map((def) => ({ def, casterId: m.casterId })),
+    ) ?? [];
+  return granted.length ? [...printed, ...granted] : printed;
 }
 
 // Amount THIS minion grants as a Spell Damage source, read from its aura defs.

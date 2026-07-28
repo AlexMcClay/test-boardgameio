@@ -23,6 +23,7 @@ const KEYWORD_DEFINITIONS: Record<string, string> = {
   Immune: "Can't take damage, and can't be targeted by your opponent.",
   "Spell Damage": "Your spells deal extra damage.",
   Overload: "Have X less mana next turn.",
+  Overheal: "A Bonus if restored past full Health.",
 };
 
 const KeywordPopover = ({ keywords, position }: Props) => {
