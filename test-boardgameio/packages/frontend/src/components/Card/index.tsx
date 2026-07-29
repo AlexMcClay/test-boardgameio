@@ -194,7 +194,7 @@ const Card = ({
   if (back) {
     return (
       <motion.div
-        className="w-[7.8vw] relative aspect-[5/7] bg-[#37373b] rounded-2xl flex-col flex gap-1 items-center shadow-xl overflow-hidden"
+        className="w-[7.8vw] relative aspect-[5/7] bg-[#37373b] rounded-[0.7vw] flex-col flex gap-1 items-center shadow-xl overflow-hidden"
         layout={!disableLayoutAnimation}
         layoutId={!disableLayoutAnimation ? `card-${card.id}` : undefined}
       >
@@ -224,7 +224,7 @@ const Card = ({
         animate={animate}
         exit={exit}
         className={twMerge(
-          ` w-[7.8vw] relative aspect-[5/7] h-[10.92vw]  rounded-2xl flex-col flex gap-0 items-center  text-white font-serif`,
+          ` w-[7.8vw] relative aspect-[5/7] h-[10.92vw]  rounded-[0.7vw] flex-col flex gap-0 items-center  text-white font-serif`,
           isDragging && !card.isPlaced && " isDragPlay ",
           isDragging && "cursor-grabbing dragging-card scale-110",
           card.temporary && "isTempCard",

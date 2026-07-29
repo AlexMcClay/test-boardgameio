@@ -214,7 +214,7 @@ const CollectionManager = () => {
 
   function handleClassSelect(className: string) {
     playSfx("collection-manager-page-flip");
-    browser.selectClass(className);
+    browser.jumpToClass(className);
   }
 
   function handleManaFilterSelect(bucket: number) {
@@ -265,7 +265,8 @@ const CollectionManager = () => {
       <ClassFilterBar
         mode={mode}
         selectedHero={editor.selectedHero}
-        selectedClass={browser.selectedClass}
+        activeClass={browser.activeClass}
+        availableClasses={browser.availableClasses}
         onSelectClass={handleClassSelect}
       />
 
@@ -273,7 +274,7 @@ const CollectionManager = () => {
 
       <CardCollectionPanel
         mode={mode}
-        selectedClass={browser.selectedClass}
+        activeClass={browser.activeClass}
         displayedCards={browser.displayedCards}
         currentPage={browser.currentPage}
         totalPages={browser.totalPages}
