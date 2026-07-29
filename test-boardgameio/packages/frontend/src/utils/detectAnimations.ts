@@ -5,6 +5,8 @@ import {
   CARD_PLAYED_ANIMATION,
   DEATH_ANIMATION,
   DESTROY_WEAPON_ANIMATION,
+  DISCARD_ANIMATION,
+  TRANSFORM_ANIMATION,
   HIT_NUMBER_ANIMATION,
   MINION_PLACED_ANIMATION,
   MINION_SUMMONED_ANIMATION,
@@ -29,6 +31,8 @@ export function detectAllAnimations(events: GameEvent[]): AnimationEvent[] {
   const healEvents = events.filter((e) => e.type === "heal");
   const deathEvents = events.filter((e) => e.type === "death");
   const destroyWeaponEvents = events.filter((e) => e.type === "destroyWeapon");
+  const discardEvents = events.filter((e) => e.type === "discard");
+  const transformEvents = events.filter((e) => e.type === "transform");
   const cardPlayedEvents = events.filter((e) => e.type === "cardPlayed");
   const heroPowerEvents = events.filter((e) => e.type === "heroPower");
   const summonEvents = events.filter((e) => e.type === "summon");
@@ -166,6 +170,33 @@ export function detectAllAnimations(events: GameEvent[]): AnimationEvent[] {
       startTime: deathStartTime,
       duration: DESTROY_WEAPON_ANIMATION.duration,
       sfx: [{ soundId: "weapon-destroy" }, ...(event.card.sfx?.death ?? [])],
+    });
+  });
+
+  // Discard — <HandCard> matches these by cardId to pick its exit. Staggered so
+  // a two-card discard (Doomguard) reads as a sequence rather than one blur.
+  discardEvents.forEach((event, i) => {
+    animations.push({
+      type: "discard",
+      cardId: event.cardId,
+      playerId: event.playerId,
+      startTime: i * DISCARD_ANIMATION.stagger,
+      duration: DISCARD_ANIMATION.duration,
+    });
+  });
+
+  // Transform — the arrival cue belongs to what the minion BECAME (the Sheep,
+  // the Frog). `event.card` is the replacement; the original is already gone by
+  // the time this is recorded, so there is no other sound to reach for.
+  transformEvents.forEach((event, i) => {
+    animations.push({
+      type: "transform",
+      cardId: event.cardId,
+      card: structuredClone(event.card),
+      playerId: event.playerId,
+      startTime: 300 + (i + 1) * TRANSFORM_ANIMATION.stagger,
+      duration: TRANSFORM_ANIMATION.duration,
+      sfx: event.card.sfx?.play,
     });
   });
 

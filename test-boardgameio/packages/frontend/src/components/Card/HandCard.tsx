@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   canAfford,
   getManaCost,
@@ -11,6 +11,8 @@ import { useDraggable } from "@dnd-kit/core";
 import type { CardProps } from "./types";
 import Card from ".";
 import { useAudioStore } from "@/stores/audioStore";
+import { useAnimationStore } from "@/stores/animationStore";
+import { DISCARD_ANIMATION } from "@/utils/animationDurations";
 
 type Props = {
   size: number; // Array of cards in hand
@@ -23,7 +25,6 @@ type Props = {
   onHoverEnter: (cardId: string, rect: DOMRect) => void;
   onCardRef: (cardId: string, ref: HTMLDivElement | null) => void;
   back?: boolean;
-  discarded: boolean;
   isHandFirstRender: boolean;
 };
 
@@ -38,10 +39,32 @@ const HandCard = ({
   onHoverEnter,
   onCardRef,
   back,
-  discarded,
   isHandFirstRender,
 }: Props) => {
   const cardRef = useRef<HTMLDivElement>(null);
+  const activeAnimations = useAnimationStore((s) => s.activeAnimations);
+
+  // Is a discard animation running for THIS card? Same pattern as the trigger
+  // pulse in <PlacedCard>: the store is the whole source of truth, and reading
+  // it here keeps the hand on the visual (animation-paced) state instead of
+  // peeking at the authoritative one, which ran ahead of the animation.
+  const isDiscarding = useMemo(
+    () =>
+      activeAnimations.some(
+        (anim) => anim.type === "discard" && anim.cardId === card.id,
+      ),
+    [activeAnimations, card.id],
+  );
+
+  // Latched, and it has to be. The store drops the animation once its duration
+  // elapses, and only THEN does the visual state advance and drop the card from
+  // the hand — so by the time this component unmounts, `isDiscarding` is
+  // already false again. Without the latch the exit below would always be the
+  // instant fade and the flourish would never play.
+  const [discarded, setDiscarded] = useState(false);
+  useEffect(() => {
+    if (isDiscarding) setDiscarded(true);
+  }, [isDiscarding]);
 
   // Register card ref with parent
   useEffect(() => {
@@ -111,7 +134,9 @@ const HandCard = ({
         exit={
           discarded
             ? {
-                y: [0, -250, -300],
+                // Away from the board either way: the top player's hand sits
+                // above it, so their discard travels down rather than up.
+                y: isTop ? [0, 250, 300] : [0, -250, -300],
                 scale: [1, 1.15, 1.25],
                 opacity: [1, 1, 0],
                 clipPath: [
@@ -120,7 +145,7 @@ const HandCard = ({
                   "inset(0% -100% 0% 0%)", // Wipes left-to-right
                 ],
                 transition: {
-                  duration: 1.4,
+                  duration: DISCARD_ANIMATION.exit / 1000,
                   ease: "easeOut",
                   times: [0, 0.7, 1],
                 },

@@ -5,7 +5,6 @@ import PlayerHand from "./PlayerHand";
 import {
   getDisplayMaxMana,
   getSpendableMana,
-  type GameState,
   type Player,
 } from "@project/shared";
 import HeroPower from "./HeroPower/HeroPower";
@@ -15,7 +14,6 @@ import HeroWeapon from "./Board/HeroWeapon";
 interface Props extends GameBoardProps {
   isTop?: boolean; // true for player 1, false or undefined for player 0
   player: Player;
-  actualG: GameState; // actual game state that is not the visual game state
 }
 
 const mana_crystal = "assets/mana.png";
@@ -33,15 +31,7 @@ const OverloadLock = ({ className = "" }: { className?: string }) => (
   </svg>
 );
 
-const PlayerArea = ({
-  player,
-  isTop,
-  G,
-  ctx,
-  moves,
-  actualG,
-  ...props
-}: Props) => {
+const PlayerArea = ({ player, isTop, G, ctx, moves, ...props }: Props) => {
   return (
     <div
       className={` h-full w-screen flex justify-between items-${isTop ? "end" : "start"} `}
@@ -66,7 +56,6 @@ const PlayerArea = ({
 
       {!(G.mulligan?.active && !isTop) && (
         <PlayerHand
-          actualG={actualG}
           player={player}
           isTop={isTop}
           G={G}
@@ -96,7 +85,6 @@ const PlayerArea = ({
           G={G}
           ctx={ctx}
           moves={moves}
-          actualG={actualG}
           {...props}
         />
       )}

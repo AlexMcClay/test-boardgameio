@@ -84,7 +84,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   // Set the default main theme on startup
   useEffect(() => {
     setGlobalTrack(backgroundMusic);
-  }, [setGlobalTrack]);
+  }, [setGlobalTrack, backgroundMusic]);
 
   // ESC cancellation for battlecry / Choose One prompts. Aiming itself lives
   // in <TargetingLayer> below.
@@ -357,7 +357,6 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
               ctx={visualCtx}
               {...props}
               isTop
-              actualG={G}
               playerID={mainPlayer}
             />
           </div>
@@ -440,7 +439,6 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           {/* Player 0 Hand */}
           <div className="absolute bottom-0 w-full h-1/4 flex flex-col justify-start">
             <PlayerArea
-              actualG={G}
               player={bottomPlayer}
               G={visualGameState}
               ctx={visualCtx}
@@ -503,7 +501,12 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           game) and hides while a picked half is being aimed. */}
       <AnimatePresence>
         {G.pendingChoice && targetingMode !== "choice" && (
-          <ChoiceOverlay G={G} ctx={ctx} moves={moves} playerID={props.playerID} />
+          <ChoiceOverlay
+            G={G}
+            ctx={ctx}
+            moves={moves}
+            playerID={props.playerID}
+          />
         )}
       </AnimatePresence>
       {/* The single pointer handler for every targeting mode. Board-level so

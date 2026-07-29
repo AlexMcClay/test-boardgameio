@@ -32,6 +32,36 @@ export type DestroyWeaponAnimation = {
   sfx?: SFXInstance[];
 };
 
+/**
+ * A card was discarded from hand. Like DeathAnimation this carries no visual of
+ * its own — <HandCard> watches for one matching its id and swaps in the
+ * flourish exit, which plays as the card leaves the visual hand.
+ */
+export type DiscardAnimation = {
+  type: "discard";
+  cardId: string;
+  playerId: PlayerID;
+  startTime: number;
+  duration: number;
+  sfx?: SFXInstance[];
+};
+
+/**
+ * A minion was replaced in place by another template (Polymorph, Hex, Cat/Bear
+ * Form). The engine preserves `card.id` across the swap so the board slot never
+ * remounts — which also means nothing about it animates on its own. This holds
+ * the queue for a beat and plays the new minion's arrival cue.
+ */
+export type TransformAnimation = {
+  type: "transform";
+  cardId: string;
+  card: Card; // what it became
+  playerId: PlayerID;
+  startTime: number;
+  duration: number;
+  sfx?: SFXInstance[];
+};
+
 export type MinionPlacedAnimation = {
   type: "minionPlaced";
   card: Card;
@@ -110,6 +140,8 @@ export type AnimationEvent =
   | AttackAnimation
   | DeathAnimation
   | DestroyWeaponAnimation
+  | DiscardAnimation
+  | TransformAnimation
   | HitNumberAnimation
   | CardPlayedAnimation
   | HeroPowerPlayedAnimation

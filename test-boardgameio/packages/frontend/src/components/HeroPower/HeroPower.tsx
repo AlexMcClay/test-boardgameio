@@ -1,4 +1,4 @@
-import type { GameState, Player } from "@project/shared";
+import type { Player } from "@project/shared";
 import type { GameBoardProps } from "@/types/gameProps";
 import { canAfford, isUserSelectValue } from "@project/shared";
 import { centerOf } from "@/utils/targeting";
@@ -14,7 +14,6 @@ import HeroPowerCircle from "./HeroPowerCircle";
 interface Props extends GameBoardProps {
   isTop?: boolean; // true for player 1, false or undefined for player 0
   player: Player;
-  actualG: GameState; // actual game state that is not the visual game state
 }
 
 const hero_power_used = "assets/hero_powers/hero_power_used.png";
