@@ -1,4 +1,23 @@
-import type { Hero, HeroPower } from "../types";
+import type { Hero, HeroPower, SFXInstance } from "../types";
+
+/**
+ * Announcer voice lines, keyed by filename under `assets/audio/sfx/announcer/`.
+ *
+ * Same shape as the per-card lines in cards.ts: a leading "/" marks the id as a
+ * path relative to the sfx root, so the frontend's `resolveSfxPath` resolves it
+ * directly and none of these need an entry in SFX_MANIFEST.
+ */
+const announcer = (file: string): SFXInstance[] => [
+  { soundId: `/announcer/${file}` },
+];
+
+/**
+ * A hero's own voice lines, under `assets/audio/sfx/classHeroes/<Class>/`.
+ * Same leading-slash convention as `announcer` above.
+ */
+const heroLine = (folder: string, file: string): SFXInstance[] => [
+  { soundId: `/classHeroes/${folder}/${file}` },
+];
 
 // Hero Power Definitions
 const armorUp: HeroPower = {
@@ -201,6 +220,10 @@ export const warriorHero: Hero = {
   class: "Warrior",
   heroName: "Garrosh Hellscream",
   heroPower: armorUp,
+  sfx: {
+    announcer: announcer("VO_ANNOUNCER_GARROSH_10.ogg"),
+    start: heroLine("Warrior", "VO_HERO_01_Start_09.ogg"),
+  },
 };
 
 export const shamanHero: Hero = {
@@ -209,6 +232,11 @@ export const shamanHero: Hero = {
   class: "Shaman",
   heroName: "Thrall",
   heroPower: totemicCall,
+  sfx: {
+    announcer: announcer("VO_ANNOUNCER_THRALL_12.ogg"),
+    // Note the lowercase "Hero" — only the Shaman folder is named this way.
+    start: heroLine("Shaman", "VO_Hero_02_Start_09.ogg"),
+  },
 };
 
 export const rogueHero: Hero = {
@@ -217,6 +245,10 @@ export const rogueHero: Hero = {
   class: "Rogue",
   heroPower: daggerMastery,
   heroName: "Valeera Sanguinar",
+  sfx: {
+    announcer: announcer("VO_ANNOUNCER_VALEERA_08.ogg"),
+    start: heroLine("Rogue", "VO_HERO_03_Start_09.ogg"),
+  },
 };
 
 export const paladinHero: Hero = {
@@ -225,6 +257,10 @@ export const paladinHero: Hero = {
   heroPower: reinforce,
   class: "Paladin",
   heroName: "Uther Lightbringer",
+  sfx: {
+    announcer: announcer("VO_ANNOUNCER_UTHER_11.ogg"),
+    start: heroLine("Paladin", "VO_HERO_04_Start_09.ogg"),
+  },
 };
 
 export const hunterHero: Hero = {
@@ -233,6 +269,10 @@ export const hunterHero: Hero = {
   portrait: "assets/heros/Rexxar.jpg",
   class: "Hunter",
   heroName: "Rexxar",
+  sfx: {
+    announcer: announcer("VO_ANNOUNCER_REXXAR_09.ogg"),
+    start: heroLine("Hunter", "VO_HERO_05_Start_09.ogg"),
+  },
 };
 
 export const druidHero: Hero = {
@@ -241,6 +281,10 @@ export const druidHero: Hero = {
   portrait: "assets/heros/Malfurion.jpg",
   class: "Druid",
   heroName: "Malfurion Stormrage",
+  sfx: {
+    announcer: announcer("VO_ANNOUNCER_MALFURION_15.ogg"),
+    start: heroLine("Druid", "VO_HERO_06_Start_09.ogg"),
+  },
 };
 
 export const warlockHero: Hero = {
@@ -249,6 +293,12 @@ export const warlockHero: Hero = {
   class: "Warlock",
   heroName: "Gul'dan",
   heroPower: lifeTap,
+  // The apostrophe is literal in the filename; it's a legal URL path character,
+  // so it needs no escaping here.
+  sfx: {
+    announcer: announcer("VO_ANNOUNCER_GUL'DAN_13.ogg"),
+    start: heroLine("Warlock", "VO_HERO_07_Start_09.ogg"),
+  },
 };
 
 export const mageHero: Hero = {
@@ -257,6 +307,11 @@ export const mageHero: Hero = {
   class: "Mage",
   heroName: "Jaina Proudmoore",
   heroPower: fireblast,
+  sfx: {
+    announcer: announcer("VO_ANNOUNCER_JAINA_07.ogg"),
+    // The Mage clips use a different numbering run; hers is _64, not _09.
+    start: heroLine("Mage", "VO_HERO_08_Start_64.ogg"),
+  },
 };
 
 export const priestHero: Hero = {
@@ -265,6 +320,10 @@ export const priestHero: Hero = {
   class: "Priest",
   heroName: "Anduin Wrynn",
   heroPower: lesserHeal,
+  sfx: {
+    announcer: announcer("VO_ANNOUNCER_ANDUIN_13.ogg"),
+    start: heroLine("Priest", "VO_HERO_09_Start_09.ogg"),
+  },
 };
 
 // Bonus: Later additions to Hearthstone included in your folder

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import {
+  heros,
   starterDecks,
   STARTER_DECK_SEED_VERSION,
   type DeckString,
@@ -40,6 +41,32 @@ function cloneDeck(deck: SavedDeck): SavedDeck {
   return { ...deck, deckString: { ...deck.deckString } };
 }
 
+const HEROES_BY_NAME = new Map(heros.map((hero) => [hero.heroName, hero]));
+
+function resyncDeckHeroes(decks: SavedDeck[]): {
+  decks: SavedDeck[];
+  changed: boolean;
+} {
+  let changed = false;
+
+  const synced = decks.map((deck) => {
+    const canonical = HEROES_BY_NAME.get(deck.hero?.heroName);
+    if (!canonical) {
+      console.warn(
+        `[decks] No hero definition for "${deck.hero?.heroName}" (deck "${deck.name}") — keeping the saved copy.`,
+      );
+      return deck;
+    }
+
+    if (JSON.stringify(canonical) === JSON.stringify(deck.hero)) return deck;
+
+    changed = true;
+    return { ...deck, hero: canonical };
+  });
+
+  return { decks: synced, changed };
+}
+
 /**
  * Load the player's decks, giving them the starter decks the first time round.
  *
@@ -75,6 +102,20 @@ function loadOrSeedUserDecks(): SavedDeck[] {
   }
 
   return seeded;
+}
+
+/**
+ * The store's entry point: seed starters if owed, then re-resolve every hero
+ * against heros.ts. Written back only when something actually changed, so a
+ * normal boot does no localStorage write at all.
+ */
+function initUserDecks(): SavedDeck[] {
+  const { decks, changed } = resyncDeckHeroes(loadOrSeedUserDecks());
+  if (changed) {
+    console.log("[decks] Re-synced saved deck heroes against heros.ts");
+    saveUserDecksToStorage(decks);
+  }
+  return decks;
 }
 
 interface DeckState {
@@ -113,7 +154,7 @@ export const useDeckStore = create<DeckState>((set, get) => ({
   playerDeck: {},
   opponentDeck: null,
   isDeckReady: false,
-  userDecks: loadOrSeedUserDecks(),
+  userDecks: initUserDecks(),
   selectedDeckForPlay: null,
 
   setPlayerDeck: (deck: DeckString) => {

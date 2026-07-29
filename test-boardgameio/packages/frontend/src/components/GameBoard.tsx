@@ -27,6 +27,9 @@ import BoardCardDeckBottom from "./Board/BoardCardDeckBottom";
 import DragCard from "./Board/DragCard";
 import YourTurn from "./Board/YourTurn";
 import GameOverOverlay from "./Board/GameOverOverlay";
+import VersusOverlay, {
+  VERSUS_OVERLAY_DURATION,
+} from "./Board/VersusOverlay";
 import SettingsOverlay from "./SettingsOverlay";
 import {
   getSpendableMana,
@@ -100,6 +103,17 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   useEffect(() => {
     setGameState(G);
   }, [G, setGameState]);
+
+  // Pre-game matchup card. Seeded from whether the mulligan is still open at
+  // mount, so reconnecting into a game already in progress skips it rather than
+  // replaying the intro.
+  const [showVersus, setShowVersus] = useState(() => !!G.mulligan?.active);
+
+  useEffect(() => {
+    if (!showVersus) return;
+    const timer = setTimeout(() => setShowVersus(false), VERSUS_OVERLAY_DURATION);
+    return () => clearTimeout(timer);
+  }, [showVersus]);
 
   const [yourTurn, setYourTurn] = useState(false);
   const prevMovePlayer = useRef<string | null>(null);
@@ -491,9 +505,20 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       <AttackArrow ctx={ctx} playerID={props.playerID} />
       {/* Hit Numbers Overlay */}
       <HitNumbers />
-      {/* Mulligan Overlay — reads ACTUAL state; the game hasn't started yet */}
+      {/* Pre-game matchup card, ahead of the mulligan. */}
       <AnimatePresence>
-        {visualGameState.mulligan?.active && (
+        {showVersus && (
+          <VersusOverlay
+            key="versus-overlay"
+            player={bottomPlayer}
+            opponent={topPlayer}
+          />
+        )}
+      </AnimatePresence>
+      {/* Mulligan Overlay — reads ACTUAL state; the game hasn't started yet.
+          Held back until the matchup card has had its five seconds. */}
+      <AnimatePresence>
+        {!showVersus && visualGameState.mulligan?.active && (
           <MulliganOverlay G={G} moves={moves} playerID={props.playerID} />
         )}
       </AnimatePresence>

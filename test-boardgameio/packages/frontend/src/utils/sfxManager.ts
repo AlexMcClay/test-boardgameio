@@ -98,6 +98,19 @@ export const SFX_MANIFEST = {
     preload: true,
   },
 
+  // === Announcer ===
+  // The sting between the two hero callouts. The per-hero lines are NOT here —
+  // they hang off `Hero.sfx.announcer` in the shared data and resolve by path,
+  // the same way card voice lines do. This one belongs to no hero, so it needs
+  // an id of its own.
+  //
+  // Preloaded despite firing once a match: it lands mid-sequence between two
+  // hero lines, and a first-use fetch would open a gap right in the middle.
+  "announcer-versus": {
+    path: "/announcer/VO_ANNOUNCER_VERSUS_22.ogg",
+    preload: true,
+  },
+
   // === Combat Sounds (On-demand) ===
 
   "attack-spell": { path: "/gameplay/attack-spell.ogg", preload: false },

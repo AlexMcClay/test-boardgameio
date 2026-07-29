@@ -26,3 +26,21 @@ export const classIcons = [
   { icon: warriorIcon, name: "Warrior" },
   { icon: neutralIcon, name: "Neutral" },
 ];
+
+export const heroPortraitClipPath = `polygon(
+    0% 100%, 
+    0% 50%, 
+    3% 40%, 
+    6% 32%, 
+    12% 24%, 
+    22% 16%, 
+    36% 8%, 
+    50% 1%, 
+    64% 8%, 
+    78% 16%, 
+    88% 24%,
+    94% 32%,
+    97% 40%, 
+    100% 50%, 
+    100% 100%
+  )`;

@@ -46,6 +46,17 @@ export interface Hero {
   class: string;
   heroName: string;
   heroPower: HeroPower;
+  /**
+   * Voice lines, mirroring `Card.sfx`. Same convention as the per-card lines:
+   * a `soundId` starting with "/" is a path relative to the sfx root rather
+   * than a manifest key, so these never touch SFX_MANIFEST.
+   */
+  sfx?: {
+    /** The announcer naming this hero at the start of a match. */
+    announcer?: SFXInstance[];
+    /** The hero's own opening line, played over the mulligan. */
+    start?: SFXInstance[];
+  };
 }
 
 export interface Card {
