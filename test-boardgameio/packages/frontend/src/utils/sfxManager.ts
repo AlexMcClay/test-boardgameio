@@ -64,6 +64,8 @@ export const SFX_MANIFEST = {
     path: "/gameplay/Trigger_Effect_Cast_03.ogg",
     preload: true,
   },
+  // Rejected action — see the notice store.
+  "no-can-do": { path: "/gameplay/UI_no_can_do.ogg", preload: true },
   "secret-revealed": {
     path: "/gameplay/FX_Secret_Trigger.ogg",
     preload: true,
@@ -80,6 +82,37 @@ export const SFX_MANIFEST = {
     preload: true,
   },
 
+  // === Weapons ===
+  // Preloaded: once a weapon is equipped these fire on nearly every turn
+  // boundary, so a first-use fetch would land late. See <HeroWeapon>.
+  "weapon-draw": { path: "/gameplay/hero_weapon_draw.ogg", preload: true },
+  "weapon-sheathe": { path: "/gameplay/hero_weapon_sheathe.ogg", preload: true },
+  "weapon-unsheathe": {
+    path: "/gameplay/hero_weapon_unsheathe.ogg",
+    preload: true,
+  },
+  "weapon-durability-hit": {
+    path: "/gameplay/Weapon_Durability_Hit_01.ogg",
+    preload: true,
+  },
+  "weapon-destroy": {
+    path: "/gameplay/Weapon_Destruction_01.ogg",
+    preload: true,
+  },
+
+  // === Announcer ===
+  // The sting between the two hero callouts. The per-hero lines are NOT here —
+  // they hang off `Hero.sfx.announcer` in the shared data and resolve by path,
+  // the same way card voice lines do. This one belongs to no hero, so it needs
+  // an id of its own.
+  //
+  // Preloaded despite firing once a match: it lands mid-sequence between two
+  // hero lines, and a first-use fetch would open a gap right in the middle.
+  "announcer-versus": {
+    path: "/announcer/VO_ANNOUNCER_VERSUS_22.ogg",
+    preload: true,
+  },
+
   // === Combat Sounds (On-demand) ===
 
   "attack-spell": { path: "/gameplay/attack-spell.ogg", preload: false },
@@ -88,8 +121,28 @@ export const SFX_MANIFEST = {
   death: { path: "/gameplay/death.ogg", preload: false },
 
   // === Game State Sounds (On-demand) ===
-  victory: { path: "/gameplay/victory.ogg", preload: false },
-  defeat: { path: "/gameplay/defeat.ogg", preload: false },
+  // The end-of-game screens layer three parts: a one-shot whoosh as the banner
+  // lands, a one-shot jingle over it, and an ambient bed that loops until the
+  // player clicks away. See <GameOverOverlay>.
+  "victory-start": {
+    path: "/gameplay/victory_screen_start.ogg",
+    preload: false,
+  },
+  "victory-jingle": { path: "/gameplay/victory_jingle.ogg", preload: false },
+  "victory-fireworks": {
+    path: "/gameplay/victory_fireworks.ogg",
+    preload: false,
+  },
+  "victory-loop": {
+    path: "/gameplay/victory_firework_loop.ogg",
+    preload: false,
+  },
+  "defeat-start": { path: "/gameplay/defeat_screen_start.ogg", preload: false },
+  "defeat-jingle": { path: "/gameplay/defeat_jingle.ogg", preload: false },
+  "defeat-loop": {
+    path: "/gameplay/defeat_thunder_rumble_loop.ogg",
+    preload: false,
+  },
 } as const;
 
 export type SfxId = keyof typeof SFX_MANIFEST;

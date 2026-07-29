@@ -20,6 +20,11 @@ interface Props {
 
 const COIN_STAGE_MS = 2000;
 
+/** Let the overlay fade in before the heroes start trash-talking over it. */
+const HERO_LINE_LEAD_IN = 600;
+/** Beat between the two openers so they read as an exchange, not a collision. */
+const HERO_LINE_GAP = 100;
+
 const MulliganOverlay = ({ G, moves, playerID }: Props) => {
   const mulligan = G.mulligan;
 
@@ -48,6 +53,48 @@ const MulliganOverlay = ({ G, moves, playerID }: Props) => {
   const [revealExcludeId, setRevealExcludeId] = useState<string | null>(null);
 
   const playSfx = useAudioStore((state) => state.playSfx);
+
+  /**
+   * The two heroes greet each other: opponent first, then the local player.
+   *
+   * Mount-only, deliberately — in hotseat `actingSeat` flips when the first
+   * player confirms, and this must not replay for the second seat. Sequenced by
+   * awaiting `playSfx`, which resolves when a clip finishes.
+   *
+   * All nine classes have a `start` clip, but a hero without one is skipped
+   * rather than leaving a silent gap in the exchange.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    const localSeat = playerID ?? "0";
+    const enemySeat = localSeat === "0" ? "1" : "0";
+
+    const wait = (ms: number) =>
+      new Promise((resolve) => setTimeout(resolve, ms));
+
+    const greet = async () => {
+      await wait(HERO_LINE_LEAD_IN);
+
+      const openers = [
+        G.players[enemySeat]?.hero?.sfx?.start,
+        G.players[localSeat]?.hero?.sfx?.start,
+      ].filter((lines): lines is NonNullable<typeof lines> => !!lines?.length);
+
+      for (const [index, lines] of openers.entries()) {
+        if (index > 0) await wait(HERO_LINE_GAP);
+        for (const line of lines) {
+          if (cancelled) return;
+          await playSfx(line.soundId, line.volume);
+        }
+      }
+    };
+
+    greet();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Fresh coin flip + selection whenever the acting seat changes (hotseat)
   useEffect(() => {
@@ -160,7 +207,7 @@ const MulliganOverlay = ({ G, moves, playerID }: Props) => {
             transition={{ duration: 0.3 }}
           >
             <motion.div
-              className="flex h-[10vw] w-[10vw] items-center justify-center rounded-full border-8 border-yellow-600 bg-gradient-to-br from-yellow-300 to-yellow-500 text-6xl font-black text-yellow-800 shadow-[0_0_60px_rgba(255,215,0,0.9)]"
+              className="flex h-[10vw] w-[10vw] items-center justify-center rounded-full border-8 border-yellow-600 bg-gradient-to-br from-yellow-300 to-yellow-500 text-[3vw] font-black text-yellow-800 shadow-[0_0_60px_rgba(255,215,0,0.9)]"
               animate={{ rotateY: [0, 1800] }}
               transition={{ duration: 1.4, ease: "easeOut" }}
             >

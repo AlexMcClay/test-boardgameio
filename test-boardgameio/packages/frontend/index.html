@@ -9,6 +9,15 @@
       name="description"
       content="Web site created using create-tsrouter-app"
     />
+    <!-- Card titles measure themselves against this face, so fetch it in
+         parallel with the CSS rather than waiting for the @font-face rule. -->
+    <link
+      rel="preload"
+      as="font"
+      type="font/ttf"
+      href="/assets/fonts/belwe-bold-bt.ttf"
+      crossorigin
+    />
     <link rel="apple-touch-icon" href="/logo192.png" />
     <link rel="manifest" href="/manifest.json" />
     <title>Hearthstone</title>

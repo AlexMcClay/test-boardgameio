@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   canAfford,
   getManaCost,
@@ -11,6 +11,9 @@ import { useDraggable } from "@dnd-kit/core";
 import type { CardProps } from "./types";
 import Card from ".";
 import { useAudioStore } from "@/stores/audioStore";
+import { useAnimationStore } from "@/stores/animationStore";
+import { useNoticeStore } from "@/stores/noticeStore";
+import { DISCARD_ANIMATION } from "@/utils/animationDurations";
 
 type Props = {
   size: number; // Array of cards in hand
@@ -23,7 +26,6 @@ type Props = {
   onHoverEnter: (cardId: string, rect: DOMRect) => void;
   onCardRef: (cardId: string, ref: HTMLDivElement | null) => void;
   back?: boolean;
-  discarded: boolean;
   isHandFirstRender: boolean;
 };
 
@@ -38,10 +40,32 @@ const HandCard = ({
   onHoverEnter,
   onCardRef,
   back,
-  discarded,
   isHandFirstRender,
 }: Props) => {
   const cardRef = useRef<HTMLDivElement>(null);
+  const activeAnimations = useAnimationStore((s) => s.activeAnimations);
+
+  // Is a discard animation running for THIS card? Same pattern as the trigger
+  // pulse in <PlacedCard>: the store is the whole source of truth, and reading
+  // it here keeps the hand on the visual (animation-paced) state instead of
+  // peeking at the authoritative one, which ran ahead of the animation.
+  const isDiscarding = useMemo(
+    () =>
+      activeAnimations.some(
+        (anim) => anim.type === "discard" && anim.cardId === card.id,
+      ),
+    [activeAnimations, card.id],
+  );
+
+  // Latched, and it has to be. The store drops the animation once its duration
+  // elapses, and only THEN does the visual state advance and drop the card from
+  // the hand — so by the time this component unmounts, `isDiscarding` is
+  // already false again. Without the latch the exit below would always be the
+  // instant fade and the flourish would never play.
+  const [discarded, setDiscarded] = useState(false);
+  useEffect(() => {
+    if (isDiscarding) setDiscarded(true);
+  }, [isDiscarding]);
 
   // Register card ref with parent
   useEffect(() => {
@@ -52,6 +76,10 @@ const HandCard = ({
       onCardRef(card.id, null);
     };
   }, [card.id, onCardRef]);
+
+  // Affordability drives both the glow and whether the card can be picked up
+  // at all — one source of truth so they can never disagree.
+  const canAffordCard = canAfford(player, getManaCost(card));
 
   // Only fan if more than 3 cards
   const shouldFan = size > 3;
@@ -80,9 +108,7 @@ const HandCard = ({
       key={`${isTop ? "p1" : "p0"}-hand-${card.id}`}
       className={twMerge(
         "relative transition-all duration-300 ease-in-out flex",
-        canAfford(player, getManaCost(card)) &&
-          ctx.currentPlayer === player.id &&
-          !back
+        canAffordCard && ctx.currentPlayer === player.id && !back
           ? "canPlayCard"
           : "",
         isHovered && isTop && !back ? "translate-y-[120%]" : "",
@@ -111,7 +137,9 @@ const HandCard = ({
         exit={
           discarded
             ? {
-                y: [0, -250, -300],
+                // Away from the board either way: the top player's hand sits
+                // above it, so their discard travels down rather than up.
+                y: isTop ? [0, 250, 300] : [0, -250, -300],
                 scale: [1, 1.15, 1.25],
                 opacity: [1, 1, 0],
                 clipPath: [
@@ -120,7 +148,7 @@ const HandCard = ({
                   "inset(0% -100% 0% 0%)", // Wipes left-to-right
                 ],
                 transition: {
-                  duration: 1.4,
+                  duration: DISCARD_ANIMATION.exit / 1000,
                   ease: "easeOut",
                   times: [0, 0.7, 1],
                 },
@@ -136,6 +164,7 @@ const HandCard = ({
         onDragStart={() => {}}
         isHovered={isHovered}
         back={discarded ? false : back}
+        canAffordCard={canAffordCard}
         isHandFirstRender={isHandFirstRender}
       />
     </div>
@@ -145,11 +174,16 @@ const HandCard = ({
 interface DargCardProps extends CardProps {
   onDragStart?: () => void;
   isHovered?: boolean;
+  /** Can its owner currently pay for it? Unaffordable cards can't be picked up. */
+  canAffordCard: boolean;
   isHandFirstRender: boolean;
 }
 
 const DragCard = (props: DargCardProps) => {
   const disabled = props.card.isPlaced && !!props.card.attacksLeft;
+  // Blocked at the source rather than on drop: dragging a card you can't pay
+  // for and having it snap back tells you nothing about why.
+  const unaffordable = !props.back && !props.canAffordCard;
 
   const { isDragging, setNodeRef, listeners } = useDraggable({
     id: `${props.card.id}`,
@@ -158,7 +192,7 @@ const DragCard = (props: DargCardProps) => {
       card: props.card,
       wasHovered: props.isHovered,
     },
-    disabled: disabled || props.back,
+    disabled: disabled || props.back || unaffordable,
   });
 
   // FIX 1: Initialize this to false (since we aren't dragging on mount)
@@ -196,8 +230,18 @@ const DragCard = (props: DargCardProps) => {
       onMouseEnter={() => {
         if (!props.back) playSfx("card-over");
       }}
-      className={`${!disabled ? "cursor-grab" : ""} ${isDragging ? "cursor-grabbing" : ""}`}
+      className={`${unaffordable ? "cursor-not-allowed" : !disabled ? "cursor-grab" : ""} ${isDragging ? "cursor-grabbing" : ""}`}
       {...listeners}
+      // After the spread, so it isn't clobbered by dnd-kit's own handler.
+      // The card is already undraggable — this is only here to say why,
+      // otherwise an unaffordable card just feels broken.
+      onPointerDown={(event) => {
+        if (unaffordable) {
+          useNoticeStore.getState().showMoveError("not-enough-mana");
+          return;
+        }
+        listeners?.onPointerDown?.(event);
+      }}
     >
       {/* FIX 3: Clean, readable condition. If delayedDrag is true, hide it. */}
 

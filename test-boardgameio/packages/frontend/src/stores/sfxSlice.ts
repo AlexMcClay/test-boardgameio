@@ -132,7 +132,15 @@ export const createSfxSlice: StateCreator<AudioState, [], [], SfxSlice> = (
   },
 
   /**
-   * Play a sound effect
+   * Play a sound effect.
+   *
+   * Resolves when playback FINISHES, not when it starts, so sounds can be
+   * chained: `for (const id of ids) await playSfx(id)`. Fire-and-forget callers
+   * can keep ignoring the promise.
+   *
+   * Never rejects and never hangs — a missing context, a failed load or a
+   * decode error all resolve immediately, so one bad sound can't stall a queue.
+   *
    * @param soundId - Either a manifest ID or a custom path
    * @param volume - Optional volume multiplier (0.0 to 1.0), defaults to 1.0
    */
@@ -180,8 +188,31 @@ export const createSfxSlice: StateCreator<AudioState, [], [], SfxSlice> = (
       source.connect(gainNode);
       gainNode.connect(sfxGain);
 
+      const finished = new Promise<void>((resolve) => {
+        let settled = false;
+        const done = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(guard);
+          // Safe once playback has ended; drops this one-shot's nodes out of
+          // the graph rather than leaving them attached until GC.
+          source.disconnect();
+          gainNode.disconnect();
+          resolve();
+        };
+
+        // Backstop. `onended` never fires while the context is suspended (a
+        // backgrounded tab does this), and a queue awaiting it would deadlock
+        // for the rest of the session. Worst case the next sound starts a beat
+        // early — far better than never.
+        const guard = setTimeout(done, buffer.duration * 1000 + 250);
+
+        source.onended = done;
+      });
+
       // Play
       source.start(0);
+      await finished;
     } catch (error) {
       console.error(`[SFX] Error playing sound '${soundId}':`, error);
     }

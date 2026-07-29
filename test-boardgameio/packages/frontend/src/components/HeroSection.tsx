@@ -14,6 +14,7 @@ import FrozenHeroOverlay from "./Card/Overlays/FrozenHeroOverlay";
 import ImmuneOverlay from "./Card/Overlays/ImmuneOverlay";
 import WindfuryOverlay from "./Card/Overlays/WindfuryOverlay";
 import { useAudioStore } from "@/stores/audioStore";
+import HeroPortrait from "./HeroPortrait";
 
 interface Props extends GameBoardProps {
   isTop?: boolean; // true for player 1, false or undefined for player 0
@@ -122,24 +123,6 @@ const HeroSection = ({ player, ...props }: Props) => {
 
   const heroPortrait = player.heroPortrait || "src/assets/default-hero.jpg";
 
-  const archClipPath = `polygon(
-    0% 100%, 
-    0% 50%, 
-    3% 40%, 
-    6% 32%, 
-    12% 24%, 
-    22% 16%, 
-    36% 8%, 
-    50% 1%, 
-    64% 8%, 
-    78% 16%, 
-    88% 24%,
-    94% 32%,
-    97% 40%, 
-    100% 50%, 
-    100% 100%
-  )`;
-
   return (
     <motion.div
       ref={(node) => setNodeRef(node)}
@@ -193,34 +176,7 @@ const HeroSection = ({ player, ...props }: Props) => {
         onMouseDown={handleHeroAttackMouseDown}
       />
 
-      {/* Visual Portrait Wrapper */}
-      <div
-        className="relative h-full w-full overflow-hidden pointer-events-none"
-        style={{ clipPath: archClipPath }}
-      >
-        {/* The Hero Image (Added pointer-events-none) */}
-        <img
-          src={heroPortrait}
-          alt={`${player.name} portrait`}
-          className="h-full w-full object-cover opacity-100 pointer-events-none"
-          draggable="false"
-        />
-
-        {/* Conforming Inset Shadow Overlay */}
-        <div
-          className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-100 border border-black"
-          style={{
-            boxShadow: "inset 0px 0px 20px 8px rgba(0, 0, 0, 1)",
-            clipPath: archClipPath,
-          }}
-        />
-
-        {/* Top Arc Inset Shadow Correction */}
-        <div
-          className="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/80 via-transparent to-transparent"
-          style={{ clipPath: archClipPath }}
-        />
-      </div>
+      <HeroPortrait src={heroPortrait} alt={`${player.name} portrait`} />
       <AnimatePresence>
         {hasKeyword(player, "frozen") && <FrozenHeroOverlay />}
         {hasKeyword(player, "divineShield") && <DivineShieldHeroOverlay />}

@@ -1,8 +1,8 @@
-import { useFitText, useArchedText } from "@/hooks";
 import type { CardProps } from "./types";
 import { motion, AnimatePresence } from "motion/react";
 import { twMerge } from "tailwind-merge";
 import { useMemo, useRef, useState, useEffect } from "react";
+import CardTitle from "./CardTitle";
 import KeywordPopover from "./KeywordPopover";
 import SilencedOverlay from "./Overlays/SilencedOverlay";
 import {
@@ -60,11 +60,6 @@ const Card = ({
   exit,
   disableLayoutAnimation = false,
 }: Props) => {
-  // Parameters are now multipliers of container height (viewport-scaled)
-  // maxFont: 0.8 = 80% of container height, minFont: 0.4 = 40% of container height
-  // archCompensation: 0.82 = 18% cushion for arched text (default)
-  const { fontSize, containerRef } = useFitText(card.title, 6, 2);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const cardWrapperRef = useRef<HTMLDivElement>(null);
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -74,15 +69,6 @@ const Card = ({
     x: number;
     y: number;
   } | null>(null);
-
-  // Use the arched text hook with the container ref for dynamic width measurement
-  useArchedText(
-    card.title,
-    fontSize,
-    canvasRef,
-    containerRef,
-    card.isMinion ? "minion" : card.isWeapon ? "weapon" : "spell",
-  );
 
   // Detect keywords in card description
   const cardKeywords = useMemo(() => {
@@ -194,7 +180,7 @@ const Card = ({
   if (back) {
     return (
       <motion.div
-        className="w-[7.8vw] relative aspect-[5/7] bg-[#37373b] rounded-2xl flex-col flex gap-1 items-center shadow-xl overflow-hidden"
+        className="w-[7.8vw] relative aspect-[5/7] bg-[#37373b] rounded-[0.7vw] flex-col flex gap-1 items-center shadow-xl overflow-hidden"
         layout={!disableLayoutAnimation}
         layoutId={!disableLayoutAnimation ? `card-${card.id}` : undefined}
       >
@@ -224,7 +210,7 @@ const Card = ({
         animate={animate}
         exit={exit}
         className={twMerge(
-          ` w-[7.8vw] relative aspect-[5/7] h-[10.92vw]  rounded-2xl flex-col flex gap-0 items-center  text-white font-serif`,
+          ` w-[7.8vw] relative aspect-[5/7] h-[10.92vw]  rounded-[0.7vw] flex-col flex gap-0 items-center  text-white font-serif`,
           isDragging && !card.isPlaced && " isDragPlay ",
           isDragging && "cursor-grabbing dragging-card scale-110",
           card.temporary && "isTempCard",
@@ -273,7 +259,7 @@ const Card = ({
         {card.baseMana !== undefined && (
           <div
             className={twMerge(
-              " select-none absolute text-lg top-[-0.5vw] left-[-0.3vw]  w-[2.1vw] h-[2.1vw] flex items-center justify-center font-bold   z-10 ",
+              " select-none absolute text-[1.1vw] top-[-0.5vw] left-[-0.3vw]  w-[2.1vw] h-[2.1vw] flex items-center justify-center font-bold   z-10 ",
               card.isMinion && "h-[2.1vw] w-[2.1vw]",
             )}
           >
@@ -302,37 +288,23 @@ const Card = ({
         {/* Title */}
         <div
           className={twMerge(
-            "text-center  w-full font-extrabold text-white inset-shadow-sm overflow-hidden flex  justify-center  z-20 h-[3vh]! min-h-[3vh] absolute top-[42%]",
+            "text-center w-full flex justify-center z-20 h-[3vh]! min-h-[3vh] absolute top-[42%]",
             card.isMinion && "top-[45%]",
           )}
           title={card.title}
         >
-          {/* Hidden span for font size calculation */}
-          <span
-            ref={containerRef}
-            className="invisible absolute inline-block whitespace-nowrap"
-            style={{
-              fontSize: `${fontSize}px`,
-              lineHeight: "1.2",
-            }}
-          >
-            {card.title}
-          </span>
-          {/* Canvas for arched text rendering */}
-          <canvas
-            ref={canvasRef}
-            className="select-none mx-auto"
-            style={{
-              display: "block",
-              height: "100%",
-            }}
+          <CardTitle
+            title={card.title}
+            variant={
+              card.isMinion ? "minion" : card.isWeapon ? "weapon" : "spell"
+            }
           />
         </div>
         {/* Description */}
         {/* Highlight Keywords Charge, Taunt, Battlecry */}
         <div
           className={twMerge(
-            "select-none text-[0.45vw] w-full absolute top-[40%] text-black px-[1vw] font-[600] py-[0.5vw] pt-[3vw] grow font-base  text-center ",
+            "select-none text-[0.45vw] leading-[0.55vw] w-full absolute top-[40%] text-black px-[1vw] font-[600] py-[0.5vw] pt-[3vw] grow font-base  text-center ",
             card.isWeapon && "text-white",
           )}
         >
@@ -346,7 +318,7 @@ const Card = ({
 
         {/* Type */}
         {card.type && (
-          <div className="absolute select-none bottom-[0.4vw] w-fit text-[0.5vw]/[0.55vw] px-6 text-center font-extrabold text-white shadow-md rounded-[25%/50%]  flex flex-col gap-0">
+          <div className="absolute select-none bottom-[0.4vw] w-fit text-[0.5vw]/[0.55vw] px-[1.2vw] text-center font-extrabold text-white shadow-md rounded-[25%/50%]  flex flex-col gap-0">
             {card.type.map((t) => (
               <span className="relative z-10 font-belwe  py-0   translate-y-[-5%] translate-x-[-5%] text-shadow-A ">
                 {t}
@@ -384,7 +356,7 @@ const Card = ({
                   src={card.isWeapon ? weaponAttack : attackIcon}
                   alt="Card Back"
                   className={twMerge(
-                    "object-cover w-full h-full absolute scale-130 -left-1 bottom-1",
+                    "object-cover w-full h-full absolute scale-130 left-[-0.2vw] bottom-[0.25vw]",
                     card.isWeapon && "left-[0.1vw] scale-160 bottom-[0.3vw]",
                   )}
                   // no drag

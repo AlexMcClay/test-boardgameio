@@ -22,6 +22,7 @@ class MatchmakingWebSocketService {
   private socket: WebSocket | null = null;
   private handlers = new Set<MessageHandler>();
   private openHandlers = new Set<() => void>();
+  private closeHandlers = new Set<() => void>();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private shouldReconnect = true;
 
@@ -61,10 +62,21 @@ class MatchmakingWebSocketService {
       });
     };
 
+    // A failed connect fires onerror and then onclose, so the notification
+    // lives in onclose alone — this is here purely so the failure is visible in
+    // the console rather than swallowed.
+    this.socket.onerror = (event) => {
+      console.warn("WS error", event);
+    };
+
     this.socket.onclose = () => {
       console.log("Disconnected");
 
       this.socket = null;
+
+      // Fired before the reconnect is scheduled so the UI can react to the drop
+      // immediately rather than a debounce later.
+      this.closeHandlers.forEach((handler) => handler());
 
       if (!this.shouldReconnect) return;
 
@@ -138,6 +150,19 @@ class MatchmakingWebSocketService {
 
     return () => {
       this.openHandlers.delete(handler);
+    };
+  }
+
+  /**
+   * Fires whenever the socket closes — dropped connection, failed connect, or
+   * an explicit `disconnect()`. Pair with `subscribeOpen` to track liveness;
+   * auto-reconnect means a close is usually followed by an open a moment later.
+   */
+  subscribeClose(handler: () => void) {
+    this.closeHandlers.add(handler);
+
+    return () => {
+      this.closeHandlers.delete(handler);
     };
   }
 }

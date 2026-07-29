@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import type { GameBoardProps } from "@/types/gameProps";
 import { twMerge } from "tailwind-merge";
 import HandCard from "./Card/HandCard";
-import type { GameState, Player } from "@project/shared";
+import type { Player } from "@project/shared";
 import { AnimatePresence } from "motion/react";
 import { useAudioStore } from "@/stores/audioStore";
 import CountPopover from "./Board/CountPopover";
@@ -15,14 +15,13 @@ import {
 interface Props extends GameBoardProps {
   isTop?: boolean; // true for player 1, false or undefined for player 0
   player: Player;
-  actualG: GameState;
 }
 
 // Configurable hover exit threshold
 const HOVER_EXIT_THRESHOLD_X = 0.85;
 const HOVER_EXIT_THRESHOLD_Y = 1.2;
 
-const PlayerHand = ({ isTop, ctx, player, playerID, actualG }: Props) => {
+const PlayerHand = ({ isTop, ctx, player, playerID }: Props) => {
   const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
   const [hoverOrigin, setHoverOrigin] = useState<{
     x: number;
@@ -169,9 +168,6 @@ const PlayerHand = ({ isTop, ctx, player, playerID, actualG }: Props) => {
               isHovered={hoveredCardId === card.id}
               onHoverEnter={handleCardHoverEnter}
               onCardRef={setCardRef}
-              discarded={
-                !!actualG.discardedCards.find((c) => c.card.id === card.id)
-              }
               isHandFirstRender={isFirstRender.current}
             />
           );

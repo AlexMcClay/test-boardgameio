@@ -6,7 +6,7 @@ import type { Mode } from "./constants";
 
 interface Props {
   mode: Mode;
-  selectedClass: string | null;
+  activeClass: string | null;
   displayedCards: CardEntry[];
   currentPage: number;
   totalPages: number;
@@ -19,7 +19,7 @@ interface Props {
 /** The paged 4×2 grid of collectible cards filling the open book. */
 const CardCollectionPanel = ({
   mode,
-  selectedClass,
+  activeClass,
   displayedCards,
   currentPage,
   totalPages,
@@ -37,7 +37,7 @@ const CardCollectionPanel = ({
       className="flex flex-col w-[56vw] absolute h-[81vh] left-[12.6vw] top-[6vh] rounded-lg shadow-lg p-[1vw] px-[0.5vw] overflow-hidden"
     >
       <p className="absolute w-[12vw] h-[4vh] left-[21vw] top-[3.3vh] text-center text-[1.4vw]">
-        {selectedClass || "All Classes"}
+        {activeClass || "All Classes"}
       </p>
 
       <div className="mt-[8vh] relative h-[69vh]">

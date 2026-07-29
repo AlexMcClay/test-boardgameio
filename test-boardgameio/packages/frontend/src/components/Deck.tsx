@@ -32,9 +32,9 @@ const Deck = ({
   // --- Variant: Collection Manager ---
   if (type === "collectionManager") {
     return (
-      <motion.div
-        layout
-        layoutId={id}
+      // Deliberately not a motion.div: dnd-kit drives this tile's transform
+      // while sorting, and motion's layout tracking fights the drag.
+      <div
         key={id}
         className="flex h-[4vw] min-h-[4vw] w-[10vw] items-end gap-[0.5vw] bg-black/40 rounded cursor-pointer relative"
         onClick={(e) => {
@@ -59,11 +59,11 @@ const Deck = ({
 
         <button
           onClick={(e) => (handleDeleteDeck ? handleDeleteDeck(id, e) : null)}
-          className="text-red-400 hover:text-red-600 text-[0.8vw] px-[0.3vw] z-30"
+          className="absolute top-[-0.2vw] left-[-0.5vw] text-red-400 hover:text-red-600 text-[0.8vw] px-[0.3vw] py-[0.1vw] z-30"
         >
           ✕
         </button>
-      </motion.div>
+      </div>
     );
   }
 

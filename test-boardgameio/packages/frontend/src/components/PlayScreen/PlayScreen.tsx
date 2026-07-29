@@ -17,6 +17,7 @@ import { IoChevronBack, IoChevronForward, IoPerson } from "react-icons/io5";
 import { twMerge } from "tailwind-merge";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { classIcons } from "@/utils";
+import HeroPortrait from "../HeroPortrait";
 import HeroPowerCircle from "../HeroPower/HeroPowerCircle";
 import HeroPowerPopover from "../HeroPower/HeroPowerPopover";
 
@@ -33,24 +34,6 @@ interface PlayScreenProps {
     multiplayerSession?: MultiplayerSession,
   ) => void;
 }
-
-const archClipPath = `polygon(
-    0% 100%, 
-    0% 50%, 
-    3% 40%, 
-    6% 32%, 
-    12% 24%, 
-    22% 16%, 
-    36% 8%, 
-    50% 1%, 
-    64% 8%, 
-    78% 16%, 
-    88% 24%,
-    94% 32%,
-    97% 40%, 
-    100% 50%, 
-    100% 100%
-  )`;
 
 const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
   useEffect(() => {
@@ -407,33 +390,10 @@ const PlayScreen = ({ onGameStart }: PlayScreenProps) => {
           {selectedDeckForPlay ? (
             <>
               <div className="absolute top-[17.7vw] w-[15vw]  left-[4vw]   overflow-hidden  smallShadow ">
-                <div
-                  className="relative h-full w-full overflow-hidden pointer-events-none  "
-                  style={{ clipPath: archClipPath }}
-                >
-                  {/* The Hero Image (Added pointer-events-none) */}
-                  <img
-                    src={selectedDeckForPlay.hero.portrait}
-                    alt={selectedDeckForPlay.hero.name}
-                    className="h-full w-full object-cover opacity-100 pointer-events-none  "
-                    draggable="false"
-                  />
-
-                  {/* Conforming Inset Shadow Overlay */}
-                  <div
-                    className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-100 border border-black"
-                    style={{
-                      boxShadow: "inset 0px 0px 20px 8px rgba(0, 0, 0, 1)",
-                      clipPath: archClipPath,
-                    }}
-                  />
-
-                  {/* Top Arc Inset Shadow Correction */}
-                  <div
-                    className="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/80 via-transparent to-transparent"
-                    style={{ clipPath: archClipPath }}
-                  />
-                </div>
+                <HeroPortrait
+                  src={selectedDeckForPlay.hero.portrait}
+                  alt={selectedDeckForPlay.hero.name}
+                />
               </div>
               <div className=" absolute top-[35.6vw] left-[5vw] w-[12vw] rounded-full   flex items-center justify-center ">
                 <p className="text-[1.5vw] text-white">

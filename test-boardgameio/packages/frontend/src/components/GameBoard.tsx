@@ -26,6 +26,10 @@ import BoardCardDeckTop from "./Board/BoardCardDeckTop";
 import BoardCardDeckBottom from "./Board/BoardCardDeckBottom";
 import DragCard from "./Board/DragCard";
 import YourTurn from "./Board/YourTurn";
+import GameOverOverlay from "./Board/GameOverOverlay";
+import VersusOverlay, {
+  VERSUS_OVERLAY_DURATION,
+} from "./Board/VersusOverlay";
 import SettingsOverlay from "./SettingsOverlay";
 import {
   getSpendableMana,
@@ -35,6 +39,8 @@ import {
 import SettingsButton from "./SettingsButton";
 import { useGameAnimation, useGameTargeting } from "@/hooks";
 import { useAnimationStore } from "@/stores/animationStore";
+import { useNoticeStore } from "@/stores/noticeStore";
+import NoticeBanner from "./Board/NoticeBanner";
 import EventHistory from "./Board/EventHistory";
 import MulliganOverlay from "./Mulligan/MulliganOverlay";
 import ChoiceOverlay from "./Choice/ChoiceOverlay";
@@ -83,7 +89,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   // Set the default main theme on startup
   useEffect(() => {
     setGlobalTrack(backgroundMusic);
-  }, [setGlobalTrack]);
+  }, [setGlobalTrack, backgroundMusic]);
 
   // ESC cancellation for battlecry / Choose One prompts. Aiming itself lives
   // in <TargetingLayer> below.
@@ -99,6 +105,17 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   useEffect(() => {
     setGameState(G);
   }, [G, setGameState]);
+
+  // Pre-game matchup card. Seeded from whether the mulligan is still open at
+  // mount, so reconnecting into a game already in progress skips it rather than
+  // replaying the intro.
+  const [showVersus, setShowVersus] = useState(() => !!G.mulligan?.active);
+
+  useEffect(() => {
+    if (!showVersus) return;
+    const timer = setTimeout(() => setShowVersus(false), VERSUS_OVERLAY_DURATION);
+    return () => clearTimeout(timer);
+  }, [showVersus]);
 
   const [yourTurn, setYourTurn] = useState(false);
   const prevMovePlayer = useRef<string | null>(null);
@@ -292,7 +309,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       const validation = validateMove(G, ctx, cardId, location, target);
 
       if (!validation.valid) {
-        console.warn(`Cannot perform move (UI): ${validation.error}`);
+        useNoticeStore.getState().showMoveError(validation.error);
         return; // Don't execute invalid move
       }
 
@@ -356,7 +373,6 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
               ctx={visualCtx}
               {...props}
               isTop
-              actualG={G}
               playerID={mainPlayer}
             />
           </div>
@@ -439,7 +455,6 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           {/* Player 0 Hand */}
           <div className="absolute bottom-0 w-full h-1/4 flex flex-col justify-start">
             <PlayerArea
-              actualG={G}
               player={bottomPlayer}
               G={visualGameState}
               ctx={visualCtx}
@@ -469,17 +484,17 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           </AnimatePresence>
         </DndContext>
       </div>
-      {(() => {
-        const winner = visualCtx?.gameover?.winner;
-        if (!winner || winner === "draw") return null;
-        return (
-          <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black/60 z-50">
-            <div className="text-4xl text-white bg-black/90 px-6 py-4 rounded-lg shadow-lg">
-              {`${visualGameState.players[winner].name} wins!`}
-            </div>
-          </div>
-        );
-      })()}
+      {/* End of game. Reads the VISUAL ctx so the banner waits for the killing
+          blow's animation to finish rather than cutting over it. */}
+      <AnimatePresence>
+        {visualCtx?.gameover?.winner !== undefined && (
+          <GameOverOverlay
+            winner={visualCtx.gameover.winner}
+            G={visualGameState}
+            playerID={props.playerID}
+          />
+        )}
+      </AnimatePresence>
       {/* CardPlayed Overlay */}
       <CardPlayed
         {...props}
@@ -492,9 +507,20 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       <AttackArrow ctx={ctx} playerID={props.playerID} />
       {/* Hit Numbers Overlay */}
       <HitNumbers />
-      {/* Mulligan Overlay — reads ACTUAL state; the game hasn't started yet */}
+      {/* Pre-game matchup card, ahead of the mulligan. */}
       <AnimatePresence>
-        {visualGameState.mulligan?.active && (
+        {showVersus && (
+          <VersusOverlay
+            key="versus-overlay"
+            player={bottomPlayer}
+            opponent={topPlayer}
+          />
+        )}
+      </AnimatePresence>
+      {/* Mulligan Overlay — reads ACTUAL state; the game hasn't started yet.
+          Held back until the matchup card has had its five seconds. */}
+      <AnimatePresence>
+        {!showVersus && visualGameState.mulligan?.active && (
           <MulliganOverlay G={G} moves={moves} playerID={props.playerID} />
         )}
       </AnimatePresence>
@@ -502,7 +528,12 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           game) and hides while a picked half is being aimed. */}
       <AnimatePresence>
         {G.pendingChoice && targetingMode !== "choice" && (
-          <ChoiceOverlay G={G} ctx={ctx} moves={moves} playerID={props.playerID} />
+          <ChoiceOverlay
+            G={G}
+            ctx={ctx}
+            moves={moves}
+            playerID={props.playerID}
+          />
         )}
       </AnimatePresence>
       {/* The single pointer handler for every targeting mode. Board-level so
@@ -510,6 +541,9 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           once per seat) can't double-handle a gesture. Takes the ACTUAL G —
           the resolvers validate against it. */}
       <TargetingLayer G={G} ctx={ctx} moves={moves} />
+      {/* Rejected-move messages. Above everything, since a notice about a
+          blocked action is useless if the thing that blocked it covers it. */}
+      <NoticeBanner />
       {/* Settings Overlay */}
       <SettingsButton setIsSettingsOpen={setIsSettingsOpen} />
       <SettingsOverlay

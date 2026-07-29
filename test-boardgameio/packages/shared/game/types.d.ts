@@ -46,6 +46,17 @@ export interface Hero {
   class: string;
   heroName: string;
   heroPower: HeroPower;
+  /**
+   * Voice lines, mirroring `Card.sfx`. Same convention as the per-card lines:
+   * a `soundId` starting with "/" is a path relative to the sfx root rather
+   * than a manifest key, so these never touch SFX_MANIFEST.
+   */
+  sfx?: {
+    /** The announcer naming this hero at the start of a match. */
+    announcer?: SFXInstance[];
+    /** The hero's own opening line, played over the mulligan. */
+    start?: SFXInstance[];
+  };
 }
 
 export interface Card {
@@ -1021,6 +1032,7 @@ type GameEventBody =
   | HeroPowerEvent
   | EquipEvent
   | DurabilityEvent
+  | DestroyWeaponEvent
   | GameEndEvent
   | CoinTossEvent
   | MulliganEvent
@@ -1224,6 +1236,24 @@ export type EquipEvent = {
   card: Card; // Include full weapon card data for easier animation handling
   eventRef?: number; // Index of the top-level event that caused this
   snapshot: Card; // Deep clone of the equipped weapon at record time
+};
+
+/**
+ * An equipped weapon broke — ran out of durability, or was destroyed outright.
+ *
+ * Distinct from DeathEvent, which this used to masquerade as: a weapon is not a
+ * minion, it has no board slot to play a death animation on, and the client's
+ * death handling fires the minion-death cue for it. Deliberately does NOT open
+ * the DEATH trigger window; "whenever a minion dies" must not see a weapon.
+ */
+export type DestroyWeaponEvent = {
+  type: "destroyWeapon";
+  cardId: string;
+  playerId: PlayerID;
+  timestamp: number;
+  card: Card; // The weapon that broke, for sfx lookup
+  eventRef?: number; // Index of the top-level event that caused this
+  snapshot: Card; // Deep clone of the weapon at the moment it broke
 };
 
 export type DurabilityEvent = {

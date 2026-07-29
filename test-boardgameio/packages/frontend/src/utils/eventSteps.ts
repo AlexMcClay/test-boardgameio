@@ -49,6 +49,9 @@ const CHAIN_EVENTS: Record<GameEvent["type"], boolean> = {
   attack: false,
   battlecry: false,
   death: false,
+  // Rides in the same wave as the attack that used its last charge, so it must
+  // not cut a new step — that would split the swing from the shatter.
+  destroyWeapon: false,
   cardPlayed: false,
   minionPlaced: false,
   endTurn: false,

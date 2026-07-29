@@ -11045,6 +11045,7 @@ export const cardTemplates = {
     },
     class: "Mage",
     set: ["Legacy"],
+    sfx: sfx([["Shared_PolymorphHex_Impact.ogg", 300]]),
   },
   sheep: {
     title: "Sheep",
@@ -11091,6 +11092,7 @@ export const cardTemplates = {
     },
     class: "Shaman",
     set: ["Legacy"],
+    sfx: sfx([["Shared_PolymorphHex_Impact.ogg", 300]]),
   },
   frog: {
     title: "Frog",
