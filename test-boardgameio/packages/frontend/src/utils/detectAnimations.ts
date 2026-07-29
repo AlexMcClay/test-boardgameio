@@ -4,6 +4,7 @@ import {
   ATTACK_ANIMATION,
   CARD_PLAYED_ANIMATION,
   DEATH_ANIMATION,
+  DESTROY_WEAPON_ANIMATION,
   HIT_NUMBER_ANIMATION,
   MINION_PLACED_ANIMATION,
   MINION_SUMMONED_ANIMATION,
@@ -27,6 +28,7 @@ export function detectAllAnimations(events: GameEvent[]): AnimationEvent[] {
   const damageEvents = events.filter((e) => e.type === "damage");
   const healEvents = events.filter((e) => e.type === "heal");
   const deathEvents = events.filter((e) => e.type === "death");
+  const destroyWeaponEvents = events.filter((e) => e.type === "destroyWeapon");
   const cardPlayedEvents = events.filter((e) => e.type === "cardPlayed");
   const heroPowerEvents = events.filter((e) => e.type === "heroPower");
   const summonEvents = events.filter((e) => e.type === "summon");
@@ -153,6 +155,17 @@ export function detectAllAnimations(events: GameEvent[]): AnimationEvent[] {
       startTime: deathStartTime,
       duration: DEATH_ANIMATION.duration,
       sfx: event.card.sfx?.death,
+    });
+  });
+
+  destroyWeaponEvents.forEach((event) => {
+    animations.push({
+      type: "destroyWeapon",
+      cardId: event.cardId,
+      playerId: event.playerId,
+      startTime: deathStartTime,
+      duration: DESTROY_WEAPON_ANIMATION.duration,
+      sfx: [{ soundId: "weapon-destroy" }, ...(event.card.sfx?.death ?? [])],
     });
   });
 

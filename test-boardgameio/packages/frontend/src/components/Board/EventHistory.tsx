@@ -42,6 +42,7 @@ type ChildEvent = Extract<
       | "damage"
       | "heal"
       | "death"
+      | "destroyWeapon"
       | "drawCard"
       | "addToHand"
       | "returnToHand"
@@ -61,6 +62,7 @@ const isChildEvent = (e: GameEvent): e is ChildEvent =>
   e.type === "damage" ||
   e.type === "heal" ||
   e.type === "death" ||
+  e.type === "destroyWeapon" ||
   e.type === "drawCard" ||
   e.type === "addToHand" ||
   e.type === "returnToHand" ||
@@ -121,7 +123,8 @@ function buildEntries(
         entry.overlayValue = event.value;
       }
       entry.snapshot = event.snapshot;
-    } else if (event.type === "death") {
+      // A broken weapon reads the same as a death in the log — it left play.
+    } else if (event.type === "death" || event.type === "destroyWeapon") {
       const id = event.cardId;
       if (!byId.has(id)) {
         order.push(id);

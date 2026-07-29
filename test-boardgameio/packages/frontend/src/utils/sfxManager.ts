@@ -80,6 +80,24 @@ export const SFX_MANIFEST = {
     preload: true,
   },
 
+  // === Weapons ===
+  // Preloaded: once a weapon is equipped these fire on nearly every turn
+  // boundary, so a first-use fetch would land late. See <HeroWeapon>.
+  "weapon-draw": { path: "/gameplay/hero_weapon_draw.ogg", preload: true },
+  "weapon-sheathe": { path: "/gameplay/hero_weapon_sheathe.ogg", preload: true },
+  "weapon-unsheathe": {
+    path: "/gameplay/hero_weapon_unsheathe.ogg",
+    preload: true,
+  },
+  "weapon-durability-hit": {
+    path: "/gameplay/Weapon_Durability_Hit_01.ogg",
+    preload: true,
+  },
+  "weapon-destroy": {
+    path: "/gameplay/Weapon_Destruction_01.ogg",
+    preload: true,
+  },
+
   // === Combat Sounds (On-demand) ===
 
   "attack-spell": { path: "/gameplay/attack-spell.ogg", preload: false },

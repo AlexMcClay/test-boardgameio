@@ -2112,8 +2112,10 @@ function destroyWeapon(
     });
   }
 
+  // Its own event, not "death": a weapon has no board slot to die in, and the
+  // client's death handling plays the minion-death cue.
   recordEvent(G, {
-    type: "death",
+    type: "destroyWeapon",
     cardId: weapon.id,
     playerId,
     timestamp: Date.now(),

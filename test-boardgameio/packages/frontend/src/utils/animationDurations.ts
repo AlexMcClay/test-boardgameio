@@ -10,6 +10,10 @@ export const DEATH_ANIMATION: AnimationData = {
   duration: 300,
 };
 
+export const DESTROY_WEAPON_ANIMATION: AnimationData = {
+  duration: 300,
+};
+
 export const SPELL_CAST_ANIMATION: AnimationData = {
   duration: 200,
 };

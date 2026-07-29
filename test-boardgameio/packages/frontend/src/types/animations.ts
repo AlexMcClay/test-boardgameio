@@ -23,6 +23,15 @@ export type DeathAnimation = {
   sfx?: SFXInstance[];
 };
 
+export type DestroyWeaponAnimation = {
+  type: "destroyWeapon";
+  cardId: string;
+  playerId: PlayerID;
+  startTime: number;
+  duration: number;
+  sfx?: SFXInstance[];
+};
+
 export type MinionPlacedAnimation = {
   type: "minionPlaced";
   card: Card;
@@ -100,6 +109,7 @@ export type TriggerAnimation = {
 export type AnimationEvent =
   | AttackAnimation
   | DeathAnimation
+  | DestroyWeaponAnimation
   | HitNumberAnimation
   | CardPlayedAnimation
   | HeroPowerPlayedAnimation
