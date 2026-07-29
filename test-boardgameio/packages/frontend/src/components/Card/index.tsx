@@ -259,7 +259,7 @@ const Card = ({
         {card.baseMana !== undefined && (
           <div
             className={twMerge(
-              " select-none absolute text-lg top-[-0.5vw] left-[-0.3vw]  w-[2.1vw] h-[2.1vw] flex items-center justify-center font-bold   z-10 ",
+              " select-none absolute text-[1.1vw] top-[-0.5vw] left-[-0.3vw]  w-[2.1vw] h-[2.1vw] flex items-center justify-center font-bold   z-10 ",
               card.isMinion && "h-[2.1vw] w-[2.1vw]",
             )}
           >
@@ -304,7 +304,7 @@ const Card = ({
         {/* Highlight Keywords Charge, Taunt, Battlecry */}
         <div
           className={twMerge(
-            "select-none text-[0.45vw] w-full absolute top-[40%] text-black px-[1vw] font-[600] py-[0.5vw] pt-[3vw] grow font-base  text-center ",
+            "select-none text-[0.45vw] leading-[0.55vw] w-full absolute top-[40%] text-black px-[1vw] font-[600] py-[0.5vw] pt-[3vw] grow font-base  text-center ",
             card.isWeapon && "text-white",
           )}
         >
@@ -318,7 +318,7 @@ const Card = ({
 
         {/* Type */}
         {card.type && (
-          <div className="absolute select-none bottom-[0.4vw] w-fit text-[0.5vw]/[0.55vw] px-6 text-center font-extrabold text-white shadow-md rounded-[25%/50%]  flex flex-col gap-0">
+          <div className="absolute select-none bottom-[0.4vw] w-fit text-[0.5vw]/[0.55vw] px-[1.2vw] text-center font-extrabold text-white shadow-md rounded-[25%/50%]  flex flex-col gap-0">
             {card.type.map((t) => (
               <span className="relative z-10 font-belwe  py-0   translate-y-[-5%] translate-x-[-5%] text-shadow-A ">
                 {t}
