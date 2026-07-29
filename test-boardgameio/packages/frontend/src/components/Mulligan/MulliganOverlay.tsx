@@ -207,7 +207,7 @@ const MulliganOverlay = ({ G, moves, playerID }: Props) => {
             transition={{ duration: 0.3 }}
           >
             <motion.div
-              className="flex h-[10vw] w-[10vw] items-center justify-center rounded-full border-8 border-yellow-600 bg-gradient-to-br from-yellow-300 to-yellow-500 text-6xl font-black text-yellow-800 shadow-[0_0_60px_rgba(255,215,0,0.9)]"
+              className="flex h-[10vw] w-[10vw] items-center justify-center rounded-full border-8 border-yellow-600 bg-gradient-to-br from-yellow-300 to-yellow-500 text-[3vw] font-black text-yellow-800 shadow-[0_0_60px_rgba(255,215,0,0.9)]"
               animate={{ rotateY: [0, 1800] }}
               transition={{ duration: 1.4, ease: "easeOut" }}
             >
