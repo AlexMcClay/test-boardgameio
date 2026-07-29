@@ -381,7 +381,7 @@ const CollectionManager = () => {
       </div>
 
       {isEditing && (
-        <div className="absolute bottom-[3.2vw] left-[72vw] text-[1.25vw] text-white px-[0.5vw] py-[0.25vw] rounded-lg flex flex-col gap-0">
+        <div className="absolute text-shadow-A bottom-[3.2vw] left-[72vw] text-[1.25vw] text-white px-[0.5vw] py-[0.25vw] rounded-lg flex flex-col gap-0">
           <div>
             <span>{editor.totalCards}</span>
             <span> / {DECK_SIZE}</span>

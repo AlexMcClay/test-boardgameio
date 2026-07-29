@@ -97,8 +97,14 @@ const DeckContentsPanel = ({
             </span>
 
             {count > 1 && (
-              <div className="absolute right-0 top-0 bg-gray-950 h-full flex items-center text-yellow-400 px-[0.3vw] rounded">
+              <div className="absolute right-0 top-0 text-[0.8vw]  bg-gray-950 h-full flex items-center text-yellow-400 px-[0.3vw] rounded">
                 {count}
+              </div>
+            )}
+
+            {(template as any)?.rarity === "Legendary" && (
+              <div className="absolute right-0 top-0 text-[0.8vw]  bg-gray-950 h-full flex items-center text-yellow-400 px-[0.3vw] rounded">
+                ★
               </div>
             )}
           </div>

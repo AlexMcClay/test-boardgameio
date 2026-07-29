@@ -1,8 +1,8 @@
-import { useFitText, useArchedText } from "@/hooks";
 import type { CardProps } from "./types";
 import { motion, AnimatePresence } from "motion/react";
 import { twMerge } from "tailwind-merge";
 import { useMemo, useRef, useState, useEffect } from "react";
+import CardTitle from "./CardTitle";
 import KeywordPopover from "./KeywordPopover";
 import SilencedOverlay from "./Overlays/SilencedOverlay";
 import {
@@ -60,11 +60,6 @@ const Card = ({
   exit,
   disableLayoutAnimation = false,
 }: Props) => {
-  // Parameters are now multipliers of container height (viewport-scaled)
-  // maxFont: 0.8 = 80% of container height, minFont: 0.4 = 40% of container height
-  // archCompensation: 0.82 = 18% cushion for arched text (default)
-  const { fontSize, containerRef } = useFitText(card.title, 6, 2);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const cardWrapperRef = useRef<HTMLDivElement>(null);
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -74,15 +69,6 @@ const Card = ({
     x: number;
     y: number;
   } | null>(null);
-
-  // Use the arched text hook with the container ref for dynamic width measurement
-  useArchedText(
-    card.title,
-    fontSize,
-    canvasRef,
-    containerRef,
-    card.isMinion ? "minion" : card.isWeapon ? "weapon" : "spell",
-  );
 
   // Detect keywords in card description
   const cardKeywords = useMemo(() => {
@@ -302,30 +288,16 @@ const Card = ({
         {/* Title */}
         <div
           className={twMerge(
-            "text-center  w-full font-extrabold text-white inset-shadow-sm overflow-hidden flex  justify-center  z-20 h-[3vh]! min-h-[3vh] absolute top-[42%]",
+            "text-center w-full flex justify-center z-20 h-[3vh]! min-h-[3vh] absolute top-[42%]",
             card.isMinion && "top-[45%]",
           )}
           title={card.title}
         >
-          {/* Hidden span for font size calculation */}
-          <span
-            ref={containerRef}
-            className="invisible absolute inline-block whitespace-nowrap"
-            style={{
-              fontSize: `${fontSize}px`,
-              lineHeight: "1.2",
-            }}
-          >
-            {card.title}
-          </span>
-          {/* Canvas for arched text rendering */}
-          <canvas
-            ref={canvasRef}
-            className="select-none mx-auto"
-            style={{
-              display: "block",
-              height: "100%",
-            }}
+          <CardTitle
+            title={card.title}
+            variant={
+              card.isMinion ? "minion" : card.isWeapon ? "weapon" : "spell"
+            }
           />
         </div>
         {/* Description */}
@@ -384,7 +356,7 @@ const Card = ({
                   src={card.isWeapon ? weaponAttack : attackIcon}
                   alt="Card Back"
                   className={twMerge(
-                    "object-cover w-full h-full absolute scale-130 -left-1 bottom-1",
+                    "object-cover w-full h-full absolute scale-130 left-[-0.2vw] bottom-[0.25vw]",
                     card.isWeapon && "left-[0.1vw] scale-160 bottom-[0.3vw]",
                   )}
                   // no drag
