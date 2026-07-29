@@ -208,7 +208,7 @@ export const placeCard = (
   const validation = validateMove(G, ctx, cardId, "hand", target);
 
   if (!validation.valid) {
-    console.warn(`Invalid move: ${validation.error}`, card.title);
+    console.warn(`Invalid move: ${validation.error}`, card?.title);
     return;
   }
 
@@ -351,7 +351,11 @@ export const placeCard = (
     // BEFORE play-reactions (modern Hearthstone order), so a minion with one
     // opens its window from resolveBattlecry / resolvePendingAutoBattlecry —
     // and a Choose One minion opens it from resolveChoice.
-    if (!G.activeBattlecryMinion && !G.pendingAutoBattlecry && !G.pendingChoice) {
+    if (
+      !G.activeBattlecryMinion &&
+      !G.pendingAutoBattlecry &&
+      !G.pendingChoice
+    ) {
       fireMinionSummoned(
         G,
         ctx,
@@ -1777,7 +1781,7 @@ function openChooseOne(
     .map((key) => createCardFromID(key as CardTemplateKey))
     .filter((c): c is Card => c !== null);
   if (options.length === 0) {
-    console.warn(`${card.title}: no chooseOne options resolved — skipping`);
+    console.warn(`${card?.title}: no chooseOne options resolved — skipping`);
     return;
   }
 
@@ -1846,7 +1850,7 @@ export const resolveChoice = (
       type: "spell",
     };
     if (!validateTargetQuery(optionCard.targetQuery, context, optionCard.id)) {
-      console.warn(`resolveChoice: invalid target for ${optionCard.title}`);
+      console.warn(`resolveChoice: invalid target for ${optionCard?.title}`);
       return;
     }
   }
@@ -1859,7 +1863,7 @@ export const resolveChoice = (
     playerId: pending.playerId,
     cardId: pending.sourceCardId,
     optionIndex,
-    optionName: optionCard.title,
+    optionName: optionCard?.title || "",
     ...(pending.kind === "discover"
       ? { card: JSON.parse(JSON.stringify(optionCard)) }
       : {}),
@@ -1887,7 +1891,14 @@ export const resolveChoice = (
       if (fresh) picked = fresh;
     }
     if (pending.temporary) picked.temporary = true;
-    addCardToHand(G, pending.playerId, picked, undefined, "global", choiceEventIndex);
+    addCardToHand(
+      G,
+      pending.playerId,
+      picked,
+      undefined,
+      "global",
+      choiceEventIndex,
+    );
     refreshOngoing(G, ctx);
     return;
   }
