@@ -29,6 +29,14 @@ export type GameConnection = GameBoardProps & {
   actor: Actor<typeof gameMachine> | null;
   /** False while an online game hasn't received its first sync yet. */
   isReady: boolean;
+  /**
+   * Online only: is the socket currently up? Always true for a local game,
+   * which has no transport to lose.
+   *
+   * Distinct from `isReady` on purpose — once the first sync lands `isReady`
+   * stays true for good, so it can't be used to detect a mid-match drop.
+   */
+  isConnected: boolean;
 };
 
 interface LocalParams {
@@ -101,6 +109,13 @@ export function useGameConnection(params: GameConnectionParams): GameConnection 
   const sessionRef = useRef(session);
   sessionRef.current = session;
 
+  // Socket liveness, for the reconnect modal. Seeded from the current state
+  // rather than `true`: joining a match while the socket is still opening
+  // would otherwise claim to be connected.
+  const [isSocketOpen, setIsSocketOpen] = useState(() =>
+    matchmakingWebSocketService.isOpen(),
+  );
+
   useEffect(() => {
     if (!session) return;
 
@@ -130,20 +145,30 @@ export function useGameConnection(params: GameConnectionParams): GameConnection 
     );
 
     // Re-join whenever the underlying socket reconnects mid-game.
-    const unsubscribeOpen =
-      matchmakingWebSocketService.subscribeOpen(joinMatch);
+    const unsubscribeOpen = matchmakingWebSocketService.subscribeOpen(() => {
+      setIsSocketOpen(true);
+      joinMatch();
+    });
+
+    // The service retries indefinitely on its own, so a close is a "lost, and
+    // trying" signal rather than a terminal one.
+    const unsubscribeClose = matchmakingWebSocketService.subscribeClose(() =>
+      setIsSocketOpen(false),
+    );
 
     // (Re)arm the connection — PlayScreen disconnects the socket when it
     // unmounts into the game view. If the socket is still opening, the
     // subscribeOpen handler above performs the join once it's ready.
     matchmakingWebSocketService.connect();
     if (matchmakingWebSocketService.isOpen()) {
+      setIsSocketOpen(true);
       joinMatch();
     }
 
     return () => {
       unsubscribeMessages();
       unsubscribeOpen();
+      unsubscribeClose();
     };
   }, [session?.matchID]);
 
@@ -195,6 +220,8 @@ export function useGameConnection(params: GameConnectionParams): GameConnection 
       playerID: (params as LocalParams).playerID,
       actor,
       isReady: !!localSnapshot,
+      // Nothing to lose: the machine runs in this tab.
+      isConnected: true,
     };
   }
 
@@ -205,5 +232,6 @@ export function useGameConnection(params: GameConnectionParams): GameConnection 
     playerID: session?.playerID ?? null,
     actor: null,
     isReady: !!remote,
+    isConnected: isSocketOpen,
   };
 }

@@ -13,6 +13,7 @@ import {
 import { useGameConnection } from "@/hooks/gameHooks/useGameConnection";
 import { useAIOpponent } from "@/hooks/gameHooks/useAIOpponent";
 import MatchLoadingScreen from "@/components/MatchLoadingScreen";
+import ConnectionLostModal from "@/components/Board/ConnectionLostModal";
 
 export const Route = createFileRoute("/")({
   component: App,
@@ -48,15 +49,23 @@ function LocalGame({
 /** Online PvP — mirrors the authoritative server actor over the WebSocket. */
 function OnlineGame({ session }: { session: MultiplayerSession }) {
   const connection = useGameConnection({ mode: "online", session });
-  if (!connection.isReady) {
-    return (
-      <MatchLoadingScreen
-        title="Connecting to Match"
-        detail="Syncing with the opponent…"
-      />
-    );
-  }
-  return <Gameboard {...connection} />;
+
+  // The modal sits outside the ready check on purpose: the socket can drop
+  // before the first sync ever arrives, and the loading screen alone would
+  // spin forever with no way out.
+  return (
+    <>
+      {connection.isReady ? (
+        <Gameboard {...connection} />
+      ) : (
+        <MatchLoadingScreen
+          title="Connecting to Match"
+          detail="Syncing with the opponent…"
+        />
+      )}
+      <ConnectionLostModal isOpen={!connection.isConnected} />
+    </>
+  );
 }
 
 function App() {
