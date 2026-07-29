@@ -39,6 +39,8 @@ import {
 import SettingsButton from "./SettingsButton";
 import { useGameAnimation, useGameTargeting } from "@/hooks";
 import { useAnimationStore } from "@/stores/animationStore";
+import { useNoticeStore } from "@/stores/noticeStore";
+import NoticeBanner from "./Board/NoticeBanner";
 import EventHistory from "./Board/EventHistory";
 import MulliganOverlay from "./Mulligan/MulliganOverlay";
 import ChoiceOverlay from "./Choice/ChoiceOverlay";
@@ -307,7 +309,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
       const validation = validateMove(G, ctx, cardId, location, target);
 
       if (!validation.valid) {
-        console.warn(`Cannot perform move (UI): ${validation.error}`);
+        useNoticeStore.getState().showMoveError(validation.error);
         return; // Don't execute invalid move
       }
 
@@ -539,6 +541,9 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           once per seat) can't double-handle a gesture. Takes the ACTUAL G —
           the resolvers validate against it. */}
       <TargetingLayer G={G} ctx={ctx} moves={moves} />
+      {/* Rejected-move messages. Above everything, since a notice about a
+          blocked action is useless if the thing that blocked it covers it. */}
+      <NoticeBanner />
       {/* Settings Overlay */}
       <SettingsButton setIsSettingsOpen={setIsSettingsOpen} />
       <SettingsOverlay

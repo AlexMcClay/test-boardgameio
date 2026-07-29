@@ -12,6 +12,7 @@ import type { CardProps } from "./types";
 import Card from ".";
 import { useAudioStore } from "@/stores/audioStore";
 import { useAnimationStore } from "@/stores/animationStore";
+import { useNoticeStore } from "@/stores/noticeStore";
 import { DISCARD_ANIMATION } from "@/utils/animationDurations";
 
 type Props = {
@@ -76,6 +77,10 @@ const HandCard = ({
     };
   }, [card.id, onCardRef]);
 
+  // Affordability drives both the glow and whether the card can be picked up
+  // at all — one source of truth so they can never disagree.
+  const canAffordCard = canAfford(player, getManaCost(card));
+
   // Only fan if more than 3 cards
   const shouldFan = size > 3;
 
@@ -103,9 +108,7 @@ const HandCard = ({
       key={`${isTop ? "p1" : "p0"}-hand-${card.id}`}
       className={twMerge(
         "relative transition-all duration-300 ease-in-out flex",
-        canAfford(player, getManaCost(card)) &&
-          ctx.currentPlayer === player.id &&
-          !back
+        canAffordCard && ctx.currentPlayer === player.id && !back
           ? "canPlayCard"
           : "",
         isHovered && isTop && !back ? "translate-y-[120%]" : "",
@@ -161,6 +164,7 @@ const HandCard = ({
         onDragStart={() => {}}
         isHovered={isHovered}
         back={discarded ? false : back}
+        canAffordCard={canAffordCard}
         isHandFirstRender={isHandFirstRender}
       />
     </div>
@@ -170,11 +174,16 @@ const HandCard = ({
 interface DargCardProps extends CardProps {
   onDragStart?: () => void;
   isHovered?: boolean;
+  /** Can its owner currently pay for it? Unaffordable cards can't be picked up. */
+  canAffordCard: boolean;
   isHandFirstRender: boolean;
 }
 
 const DragCard = (props: DargCardProps) => {
   const disabled = props.card.isPlaced && !!props.card.attacksLeft;
+  // Blocked at the source rather than on drop: dragging a card you can't pay
+  // for and having it snap back tells you nothing about why.
+  const unaffordable = !props.back && !props.canAffordCard;
 
   const { isDragging, setNodeRef, listeners } = useDraggable({
     id: `${props.card.id}`,
@@ -183,7 +192,7 @@ const DragCard = (props: DargCardProps) => {
       card: props.card,
       wasHovered: props.isHovered,
     },
-    disabled: disabled || props.back,
+    disabled: disabled || props.back || unaffordable,
   });
 
   // FIX 1: Initialize this to false (since we aren't dragging on mount)
@@ -221,8 +230,18 @@ const DragCard = (props: DargCardProps) => {
       onMouseEnter={() => {
         if (!props.back) playSfx("card-over");
       }}
-      className={`${!disabled ? "cursor-grab" : ""} ${isDragging ? "cursor-grabbing" : ""}`}
+      className={`${unaffordable ? "cursor-not-allowed" : !disabled ? "cursor-grab" : ""} ${isDragging ? "cursor-grabbing" : ""}`}
       {...listeners}
+      // After the spread, so it isn't clobbered by dnd-kit's own handler.
+      // The card is already undraggable — this is only here to say why,
+      // otherwise an unaffordable card just feels broken.
+      onPointerDown={(event) => {
+        if (unaffordable) {
+          useNoticeStore.getState().showMoveError("not-enough-mana");
+          return;
+        }
+        listeners?.onPointerDown?.(event);
+      }}
     >
       {/* FIX 3: Clean, readable condition. If delayedDrag is true, hide it. */}
 

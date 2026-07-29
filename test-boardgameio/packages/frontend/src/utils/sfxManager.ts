@@ -64,6 +64,8 @@ export const SFX_MANIFEST = {
     path: "/gameplay/Trigger_Effect_Cast_03.ogg",
     preload: true,
   },
+  // Rejected action — see the notice store.
+  "no-can-do": { path: "/gameplay/UI_no_can_do.ogg", preload: true },
   "secret-revealed": {
     path: "/gameplay/FX_Secret_Trigger.ogg",
     preload: true,

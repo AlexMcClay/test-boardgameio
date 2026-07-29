@@ -7,6 +7,11 @@ import {
   type TargetValue,
 } from "@project/shared";
 import type { GameMoves } from "@/types/gameProps";
+import { useNoticeStore } from "@/stores/noticeStore";
+
+/** Surface a rejected aim to the player instead of only the console. */
+const reportMoveError = (error: string) =>
+  useNoticeStore.getState().showMoveError(error);
 
 export type TargetingMode =
   | "attack"
@@ -58,7 +63,7 @@ export const TARGETING_MODES: Record<
       if (!sourceId) return;
       const validation = validateMove(G, ctx, sourceId, "board", target);
       if (!validation.valid) {
-        console.warn(`Cannot perform move (UI): ${validation.error}`);
+        reportMoveError(validation.error);
         return;
       }
       moves.minionAttack(sourceId, target);
@@ -70,7 +75,7 @@ export const TARGETING_MODES: Record<
       if (!sourceId) return;
       const validation = validateMove(G, ctx, sourceId, "board", target);
       if (!validation.valid) {
-        console.warn(`Cannot resolve battlecry (UI): ${validation.error}`);
+        reportMoveError(validation.error);
         return;
       }
       moves.resolveBattlecry(sourceId, target);
@@ -81,7 +86,9 @@ export const TARGETING_MODES: Record<
     resolve: ({ G, ctx, moves, target }) => {
       const validation = validateHeroAttack(G, ctx, target);
       if (!validation.valid) {
-        console.warn(`Cannot perform hero attack (UI): ${validation.error}`);
+        // Unlike validateMove this returns a mix of raw reasons and full
+        // sentences; the store handles both.
+        reportMoveError(validation.error ?? "invalid-target");
         return;
       }
       moves.heroAttack(target);
@@ -121,7 +128,7 @@ export const TARGETING_MODES: Record<
           option.id,
         )
       ) {
-        console.warn("Cannot aim that Choose One option there (UI)");
+        reportMoveError("invalid-target");
         return;
       }
 
