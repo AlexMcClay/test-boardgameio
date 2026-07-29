@@ -88,8 +88,28 @@ export const SFX_MANIFEST = {
   death: { path: "/gameplay/death.ogg", preload: false },
 
   // === Game State Sounds (On-demand) ===
-  victory: { path: "/gameplay/victory.ogg", preload: false },
-  defeat: { path: "/gameplay/defeat.ogg", preload: false },
+  // The end-of-game screens layer three parts: a one-shot whoosh as the banner
+  // lands, a one-shot jingle over it, and an ambient bed that loops until the
+  // player clicks away. See <GameOverOverlay>.
+  "victory-start": {
+    path: "/gameplay/victory_screen_start.ogg",
+    preload: false,
+  },
+  "victory-jingle": { path: "/gameplay/victory_jingle.ogg", preload: false },
+  "victory-fireworks": {
+    path: "/gameplay/victory_fireworks.ogg",
+    preload: false,
+  },
+  "victory-loop": {
+    path: "/gameplay/victory_firework_loop.ogg",
+    preload: false,
+  },
+  "defeat-start": { path: "/gameplay/defeat_screen_start.ogg", preload: false },
+  "defeat-jingle": { path: "/gameplay/defeat_jingle.ogg", preload: false },
+  "defeat-loop": {
+    path: "/gameplay/defeat_thunder_rumble_loop.ogg",
+    preload: false,
+  },
 } as const;
 
 export type SfxId = keyof typeof SFX_MANIFEST;

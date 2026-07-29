@@ -26,6 +26,7 @@ import BoardCardDeckTop from "./Board/BoardCardDeckTop";
 import BoardCardDeckBottom from "./Board/BoardCardDeckBottom";
 import DragCard from "./Board/DragCard";
 import YourTurn from "./Board/YourTurn";
+import GameOverOverlay from "./Board/GameOverOverlay";
 import SettingsOverlay from "./SettingsOverlay";
 import {
   getSpendableMana,
@@ -469,17 +470,17 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
           </AnimatePresence>
         </DndContext>
       </div>
-      {(() => {
-        const winner = visualCtx?.gameover?.winner;
-        if (!winner || winner === "draw") return null;
-        return (
-          <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black/60 z-50">
-            <div className="text-4xl text-white bg-black/90 px-6 py-4 rounded-lg shadow-lg">
-              {`${visualGameState.players[winner].name} wins!`}
-            </div>
-          </div>
-        );
-      })()}
+      {/* End of game. Reads the VISUAL ctx so the banner waits for the killing
+          blow's animation to finish rather than cutting over it. */}
+      <AnimatePresence>
+        {visualCtx?.gameover?.winner !== undefined && (
+          <GameOverOverlay
+            winner={visualCtx.gameover.winner}
+            G={visualGameState}
+            playerID={props.playerID}
+          />
+        )}
+      </AnimatePresence>
       {/* CardPlayed Overlay */}
       <CardPlayed
         {...props}

@@ -19,6 +19,7 @@ export interface MusicSlice {
   setGlobalTrack: (src: string) => void;
   prepareTrack: (src: string) => void;
   executePlay: (fadeDuration: number) => Promise<HTMLAudioElement | null>;
+  stopTrack: (fadeDuration?: number) => void;
   setIsPlaying: (isPlaying: boolean) => void;
 }
 
@@ -100,6 +101,11 @@ export const createMusicSlice: StateCreator<
     }
 
     const now = ctx.currentTime;
+    // A channel reused soon after `stopTrack` still has that fade-out ramp
+    // scheduled on it. `setValueAtTime` does not displace a pending ramp, so
+    // without this the new track would start at full volume and then slide to
+    // silence on the old ramp's schedule.
+    incomingGain.gain.cancelScheduledValues(now);
     incomingGain.gain.setValueAtTime(oldChannel ? 0 : 1, now);
 
     try {
@@ -142,6 +148,58 @@ export const createMusicSlice: StateCreator<
       });
       throw error;
     }
+  },
+
+  /**
+   * Fades the active channel out and stops it. Unlike the pause in
+   * `useBackgroundMusic`, this tears the selection down as well: `currentSrc`
+   * and `globalTrackSrc` are cleared so the next screen's `setGlobalTrack` is
+   * seen as a change and re-prepares cleanly. Leaving `currentSrc` set would
+   * make `prepareTrack`'s identity guard swallow a request for the same track
+   * and the music would never come back.
+   *
+   * The channel's element, gain and source nodes are deliberately kept —
+   * `createMediaElementSource` throws if it runs twice on the same element, so
+   * `executePlay` must be able to find and reuse them.
+   */
+  stopTrack: (fadeDuration = 1.0) => {
+    const { activeChannel, channelA, channelB, audioContext } = get();
+    const active =
+      activeChannel === "A" ? channelA : activeChannel === "B" ? channelB : null;
+
+    set({
+      currentSrc: null,
+      globalTrackSrc: null,
+      activeChannel: null,
+      isPlaying: false,
+    });
+
+    if (!active?.element) return;
+
+    const element = active.element;
+
+    // No context yet means nothing ever routed through the graph; just stop.
+    if (!active.gainNode || !audioContext) {
+      element.pause();
+      element.currentTime = 0;
+      return;
+    }
+
+    const now = audioContext.currentTime;
+    active.gainNode.gain.setValueAtTime(active.gainNode.gain.value, now);
+    active.gainNode.gain.linearRampToValueAtTime(0, now + fadeDuration);
+
+    setTimeout(() => {
+      // A new track may have claimed this channel while the fade ran; pausing
+      // then would cut off the music that just started.
+      const { activeChannel: current, channelA: a, channelB: b } = get();
+      const claimed =
+        (current === "A" ? a : current === "B" ? b : null)?.element === element;
+      if (claimed) return;
+
+      element.pause();
+      element.currentTime = 0;
+    }, fadeDuration * 1000);
   },
 
   setIsPlaying: (isPlaying) => set({ isPlaying }),
