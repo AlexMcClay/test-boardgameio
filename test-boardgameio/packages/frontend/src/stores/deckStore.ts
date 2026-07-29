@@ -103,6 +103,7 @@ interface DeckState {
   saveUserDeck: (deck: SavedDeck) => void;
   deleteUserDeck: (id: string) => void;
   updateUserDeck: (id: string, updates: Partial<SavedDeck>) => void;
+  reorderUserDecks: (activeId: string, overId: string) => void;
   getAllDecks: () => SavedDeck[];
   selectDeckForPlay: (deck: SavedDeck) => void;
   clearSelectedDeck: () => void;
@@ -174,6 +175,21 @@ export const useDeckStore = create<DeckState>((set, get) => ({
     const updatedDecks = state.userDecks.map((deck) =>
       deck.id === id ? { ...deck, ...updates } : deck,
     );
+    saveUserDecksToStorage(updatedDecks);
+    set({ userDecks: updatedDecks });
+  },
+
+  /** Move the dragged deck to the slot of the deck it was dropped on. */
+  reorderUserDecks: (activeId: string, overId: string) => {
+    const state = get();
+    const from = state.userDecks.findIndex((deck) => deck.id === activeId);
+    const to = state.userDecks.findIndex((deck) => deck.id === overId);
+    if (from === -1 || to === -1 || from === to) return;
+
+    const updatedDecks = [...state.userDecks];
+    const [moved] = updatedDecks.splice(from, 1);
+    updatedDecks.splice(to, 0, moved);
+
     saveUserDecksToStorage(updatedDecks);
     set({ userDecks: updatedDecks });
   },

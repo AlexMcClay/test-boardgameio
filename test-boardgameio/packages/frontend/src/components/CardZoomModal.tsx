@@ -45,8 +45,8 @@ const CardZoomModal = ({ card, originRect, onClose }: Props) => {
     },
     exit: {
       x: originCenterX,
-      y: originCenterY - window.innerWidth * 0.006,
-      scale: startScale,
+      y: originCenterY - window.innerWidth * 0.005,
+      scale: 1.4,
       transition: {
         default: { type: "tween", duration: 0.15, ease: "easeInOut" },
       },

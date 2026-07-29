@@ -59,7 +59,8 @@ const CollectionManager = () => {
   const playSfx = useAudioStore((state) => state.playSfx);
   const setGlobalTrack = useAudioStore((state) => state.setGlobalTrack);
   const setView = useViewStore((state) => state.setView);
-  const { saveUserDeck, deleteUserDeck, getAllDecks } = useDeckStore();
+  const { saveUserDeck, deleteUserDeck, reorderUserDecks, getAllDecks } =
+    useDeckStore();
 
   const editor = useDeckEditor();
   const browser = useCardBrowser(mode, editor.selectedHero);
@@ -153,7 +154,10 @@ const CollectionManager = () => {
     openEditor();
   }
 
-  function handleCopyStarter(starter: { name: string; deckString: DeckString }) {
+  function handleCopyStarter(starter: {
+    name: string;
+    deckString: DeckString;
+  }) {
     if (creationStep?.step !== "source") return;
     playSfx("button-click");
     editor.startNewDeck(creationStep.hero, starter);
@@ -200,11 +204,6 @@ const CollectionManager = () => {
   function handleCancelEdit() {
     playSfx("button-click");
     closeEditor();
-  }
-
-  function handleGenerate() {
-    playSfx("button-click");
-    editor.generate();
   }
 
   function handleComplete() {
@@ -297,10 +296,7 @@ const CollectionManager = () => {
           editingDeck={editor.editingDeck}
           deckName={editor.deckName}
           totalCards={editor.totalCards}
-          isFull={editor.isFull}
           setDeckName={editor.setDeckName}
-          onGenerate={handleGenerate}
-          onComplete={handleComplete}
           onCopyDeckString={() =>
             window.navigator.clipboard.writeText(
               JSON.stringify(editor.deck, null, 2),
@@ -320,24 +316,47 @@ const CollectionManager = () => {
             onEditDeck={handleEditDeck}
             onDeleteDeck={handleDeleteDeck}
             onCreateNewDeck={handleCreateNewDeck}
+            onReorderDecks={reorderUserDecks}
           />
         )}
 
         {isEditing && (
-          <DeckContentsPanel
-            deck={editor.deck}
-            totalCards={editor.totalCards}
-            onRemoveCard={editor.removeCard}
-            onEntryMouseEnter={preview.handleEntryMouseEnter}
-            onEntryMouseLeave={preview.handleEntryMouseLeave}
-          />
+          <>
+            <DeckContentsPanel
+              deck={editor.deck}
+              totalCards={editor.totalCards}
+              onRemoveCard={editor.removeCard}
+              onEntryMouseEnter={preview.handleEntryMouseEnter}
+              onEntryMouseLeave={preview.handleEntryMouseLeave}
+            />
+
+            {/* Only worth offering while the deck is still short of legal. */}
+            {!editor.isFull && (
+              <button
+                onMouseEnter={() => playSfx("button-over")}
+                className={`${woodButtonClass} shrink-0 w-full px-[0.8vw] py-[0.4vw]`}
+                onClick={handleComplete}
+                title={`Fill the remaining ${DECK_SIZE - editor.totalCards} card${
+                  DECK_SIZE - editor.totalCards === 1 ? "" : "s"
+                }, balancing the mana curve and minion/spell mix`}
+              >
+                <span
+                  className={`${woodButtonLabelClass} text-[1vw] whitespace-nowrap`}
+                >
+                  Complete Deck
+                </span>
+                <div className="absolute inset-0 rounded-lg border-t-[0.15vw] border-l-[0.15vw] border-white/20 pointer-events-none" />
+                <div className="absolute inset-0 rounded-lg border-b-[0.15vw] border-r-[0.15vw] border-black/20 pointer-events-none" />
+              </button>
+            )}
+          </>
         )}
       </div>
 
-      <div className="absolute bottom-[2.4vw] left-[78.9vw] w-[8vw] text-[1.25vw] text-white px-[0.5vw] py-[0.25vw] rounded-lg flex flex-col gap-[0.4vw]">
+      <div className="absolute bottom-[2.4vw] left-[78.9vw] text-[1.25vw] text-white px-[0.5vw] py-[0.25vw] rounded-lg flex gap-[0.4vw]">
         <button
           onMouseEnter={() => playSfx("button-over")}
-          className={`${woodButtonClass} py-[0.25vw]`}
+          className={`${woodButtonClass} py-[0.25vw] w-[7vw] `}
           onClick={isEditing ? handleSaveDeck : handleBackToMenu}
         >
           <span className={`${woodButtonLabelClass} text-[1.25vw]`}>
@@ -351,7 +370,7 @@ const CollectionManager = () => {
         {isEditing && (
           <button
             onMouseEnter={() => playSfx("button-over")}
-            className="relative py-[0.15vw] bg-[#8d7037]/70 rounded-lg border-[0.2vw] border-[#5c4033] transition-all duration-200 hover:brightness-125"
+            className="relative w-[7vw]  py-[0.15vw] bg-[#8d7037]/70 rounded-lg border-[0.2vw] border-[#5c4033] transition-all duration-200 hover:brightness-125"
             onClick={handleCancelEdit}
           >
             <span className="text-[0.9vw] font-bold text-amber-100/90">
