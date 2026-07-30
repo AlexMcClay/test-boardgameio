@@ -8,3 +8,6 @@ count.txt
 .nitro
 .tanstack
 docker-compose-prod.yaml
+# Source .wav downloads cached by scripts/hs_hero_sounds.py; only the converted
+# .ogg under packages/frontend/public/assets is committed.
+scripts/.wav_cache
