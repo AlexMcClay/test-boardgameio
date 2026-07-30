@@ -28,7 +28,14 @@ export type MoveValidationError =
   | "stealthed"
   | "immune"
   | "cant-attack"
-  | "elusive";
+  | "elusive"
+  // --- HERO ATTACKS (validateHeroAttack) ---------------------------------
+  // Separate codes rather than reusing the minion ones, because the hero
+  // voice lines distinguish them: "I already attacked." vs "That minion
+  // already attacked.", and "I need a weapon." has no minion equivalent.
+  | "hero-already-attacked"
+  | "needs-weapon"
+  | "cant-attack-own-side";
 
 export type MoveValidationResult =
   | { valid: true }
@@ -405,37 +412,43 @@ export function validateMove(
   return { valid: true };
 }
 
+/**
+ * Hero attacks, validated with the same `MoveValidationError` vocabulary as
+ * every other move.
+ *
+ * This used to return prose for its own rules ("Hero has no attack (equip a
+ * weapon first).") and raw `TargetRestrictionReason` strings for the shared
+ * ones, which left the UI passing engine sentences through to the player
+ * verbatim and gave it nothing stable to key a voice line off.
+ */
 export function validateHeroAttack(
   G: GameState,
   ctx: Ctx,
   target: TargetValue,
-): { valid: boolean; error?: string } {
+): MoveValidationResult {
   const attackerId = ctx.currentPlayer as PlayerID;
   const attacker = G.players[attackerId];
   const defenderId = target.player;
 
   if (attackerId === defenderId) {
-    return { valid: false, error: "Cannot attack your own side." };
+    return { valid: false, error: "cant-attack-own-side" };
   }
   if (hasKeyword(attacker, "frozen")) {
-    return { valid: false, error: "Hero is frozen." };
+    return { valid: false, error: "frozen" };
   }
   if (attacker.attacksLeft <= 0) {
-    return { valid: false, error: "Hero has already attacked this turn." };
+    return { valid: false, error: "hero-already-attacked" };
   }
   if (getPlayerAttack(attacker) <= 0) {
-    return {
-      valid: false,
-      error: "Hero has no attack (equip a weapon first).",
-    };
+    return { valid: false, error: "needs-weapon" };
   }
   if (target.type !== "card" && target.type !== "player") {
-    return { valid: false, error: "Invalid target type for hero attack." };
+    return { valid: false, error: "invalid-target" };
   }
 
   const restriction = checkTargetRestrictions(G, attackerId, target);
   if (!restriction.ok) {
-    return { valid: false, error: restriction.reason };
+    return { valid: false, error: MOVE_TARGET_ERRORS[restriction.reason] };
   }
 
   return { valid: true };

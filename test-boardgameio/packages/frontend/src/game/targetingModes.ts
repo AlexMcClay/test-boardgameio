@@ -4,13 +4,14 @@ import {
   validateTargetQuery,
   type GameCtx,
   type GameState,
+  type MoveValidationError,
   type TargetValue,
 } from "@project/shared";
 import type { GameMoves } from "@/types/gameProps";
 import { useNoticeStore } from "@/stores/noticeStore";
 
 /** Surface a rejected aim to the player instead of only the console. */
-const reportMoveError = (error: string) =>
+const reportMoveError = (error: MoveValidationError) =>
   useNoticeStore.getState().showMoveError(error);
 
 export type TargetingMode =
@@ -32,6 +33,27 @@ export interface ResolveArgs {
   target: TargetValue;
   /** "choice" mode only: index into G.pendingChoice.options. */
   choiceOptionIndex: number | null;
+}
+
+/**
+ * Did this gesture end on the very thing it started from?
+ *
+ * Releasing where you began is how a player backs out of an aim — a click that
+ * starts and stops on the same minion reads as "never mind", not as an attempt
+ * to attack yourself. Resolving it anyway would bounce off `validateMove` and
+ * fire a notice plus a hero bark for what was really a cancelled gesture.
+ *
+ * Heroes are compared through the `hero-<seat>` id that `HeroSection` starts the
+ * aim with, since their TargetValue is a bare `player` instead.
+ */
+export function isSourceTarget(
+  sourceId: string | null,
+  target: TargetValue,
+): boolean {
+  if (!sourceId) return false;
+  if (target.type === "card") return target.id === sourceId;
+  if (target.type === "player") return `hero-${target.id}` === sourceId;
+  return false;
 }
 
 export function toTargetValue(
@@ -56,9 +78,26 @@ export function toTargetValue(
 
 export const TARGETING_MODES: Record<
   TargetingMode,
-  { resolve(args: ResolveArgs): void }
+  {
+    resolve(args: ResolveArgs): void;
+    /**
+     * Releasing back on the source cancels the aim instead of resolving it.
+     *
+     * Set for the aims a player STARTS by pressing on the source: press-and-
+     * release on the same minion is how you back out of an attack, and pushing
+     * that through the validator barks "not a valid target" at what was really a
+     * cancelled gesture.
+     *
+     * NOT set for aims that open by themselves — a battlecry arrow appears when
+     * the minion lands and a Choose One arrow when the half is picked, so there
+     * was no press to undo and a click on the source is a deliberate
+     * self-target. Abusive Sergeant buffing itself depends on that.
+     */
+    cancelOnSourceRelease?: boolean;
+  }
 > = {
   attack: {
+    cancelOnSourceRelease: true,
     resolve: ({ G, ctx, moves, sourceId, target }) => {
       if (!sourceId) return;
       const validation = validateMove(G, ctx, sourceId, "board", target);
@@ -83,12 +122,11 @@ export const TARGETING_MODES: Record<
   },
 
   "hero-attack": {
+    cancelOnSourceRelease: true,
     resolve: ({ G, ctx, moves, target }) => {
       const validation = validateHeroAttack(G, ctx, target);
       if (!validation.valid) {
-        // Unlike validateMove this returns a mix of raw reasons and full
-        // sentences; the store handles both.
-        reportMoveError(validation.error ?? "invalid-target");
+        reportMoveError(validation.error);
         return;
       }
       moves.heroAttack(target);

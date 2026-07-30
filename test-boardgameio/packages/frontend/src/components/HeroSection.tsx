@@ -14,6 +14,8 @@ import FrozenHeroOverlay from "./Card/Overlays/FrozenHeroOverlay";
 import ImmuneOverlay from "./Card/Overlays/ImmuneOverlay";
 import WindfuryOverlay from "./Card/Overlays/WindfuryOverlay";
 import { useAudioStore } from "@/stores/audioStore";
+import { useNoticeStore } from "@/stores/noticeStore";
+import { playHeroLine } from "@/utils/heroVoice";
 import HeroPortrait from "./HeroPortrait";
 
 interface Props extends GameBoardProps {
@@ -72,16 +74,20 @@ const HeroSection = ({ player, ...props }: Props) => {
 
     if (!isOwnHero || !isMyTurn) return;
 
-    if (player.attacksLeft <= 0) {
-      console.warn("Hero has already attacked this turn");
+    // Same three rules validateHeroAttack applies, checked here so the reason
+    // reaches the player (and their hero says it) on the click that starts the
+    // attack, rather than only once they've dragged out an arrow and released.
+    // Order matches the validator's.
+    if (hasKeyword(player, "frozen")) {
+      useNoticeStore.getState().showMoveError("frozen");
       return;
     }
-    if (hasKeyword(player, "frozen")) {
-      console.warn("Hero is frozen");
+    if (player.attacksLeft <= 0) {
+      useNoticeStore.getState().showMoveError("hero-already-attacked");
       return;
     }
     if (getPlayerAttack(player) <= 0) {
-      console.warn("Hero has no attack (equip a weapon first)");
+      useNoticeStore.getState().showMoveError("needs-weapon");
       return;
     }
 
@@ -102,15 +108,20 @@ const HeroSection = ({ player, ...props }: Props) => {
   );
   const isAttackAnimating = !!attackAnimation;
 
+  // The swing lands ~200ms into the lunge, so both the weapon hit and the
+  // hero's own line ("For justice!", "Lok'tar ogar!") are held back to match it.
+  // Keyed to `player.id` rather than the local seat: only the attacking hero's
+  // instance of this component sees isAttackAnimating, and you should hear the
+  // opponent's hero on their turn.
   useEffect(() => {
-    if (isAttackAnimating) {
-      setTimeout(() => {
-        playSfx("minion-attack");
-        // card.sfx?.attack &&
-        //   card.sfx.attack.forEach((sfx) => playSfx(sfx.soundId, sfx.volume));
-      }, 200);
-    }
-  }, [isAttackAnimating]);
+    if (!isAttackAnimating) return;
+    playHeroLine("attack", player.id);
+
+    const timer = setTimeout(() => {
+      playSfx("minion-attack");
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [isAttackAnimating, player.id, playSfx]);
 
   const targetPosition =
     isAttackAnimating && attackAnimation?.type === "attack"

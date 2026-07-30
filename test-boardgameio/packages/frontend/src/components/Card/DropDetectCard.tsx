@@ -10,8 +10,15 @@ import { useRef, useEffect, useState } from "react";
 import { DEATH_ANIMATION } from "@/utils/animationDurations";
 import PlacedCard from "./PlacedCard";
 import { useAudioStore } from "@/stores/audioStore";
+import { useNoticeStore } from "@/stores/noticeStore";
 import MinionCardPopover from "../MinionCardPopover";
-import { getAttack, hasKeyword, type GameState } from "@project/shared";
+import {
+  getAttack,
+  hasKeyword,
+  type Card as CardType,
+  type GameState,
+  type MoveValidationError,
+} from "@project/shared";
 
 interface Props extends CardProps {
   playerID: PlayerID;
@@ -19,6 +26,28 @@ interface Props extends CardProps {
   isValid: boolean;
   G: GameState;
 }
+
+/**
+ * Why this minion can't declare an attack, in the same vocabulary the engine
+ * uses. Mirrors the tail of `validateMove` (summoning sickness → frozen →
+ * exhausted) so the pre-emptive notice can never name a different reason than
+ * the one the engine would have rejected the move with.
+ *
+ * Returns null when the minion is actually able to attack.
+ */
+const blockedAttackReason = (card: CardType): MoveValidationError | null => {
+  if (card.cantAttack) return "cant-attack";
+  if (
+    card.summoningSickness &&
+    !hasKeyword(card, "charge") &&
+    !hasKeyword(card, "rush")
+  ) {
+    return "summon-sickness";
+  }
+  if (hasKeyword(card, "frozen")) return "frozen";
+  if (card.attacksLeft === 0) return "already-attacked";
+  return null;
+};
 
 // MinionCard component with attack arrow behavior and attack animations
 const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
@@ -55,6 +84,20 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
   const isBattlecryMinion =
     gameState?.activeBattlecryMinion?.cardId === card.id;
   const prevIsBattlecryRef = useRef(isBattlecryMinion);
+
+  // The seat this client is playing. In hotseat one client owns both seats, so
+  // it tracks whoever's turn it is; null only before GameBoard's first effect.
+  const localPlayerID = useDragStore((s) => s.localPlayerID);
+  const localSeat = localPlayerID ?? ctx.currentPlayer;
+  /** This minion is on the local player's own board (the bottom one). */
+  const isMine = playerID === localSeat;
+  /**
+   * ...and it's their turn, so it can actually be acted with. Everything
+   * interactive hangs off this: an enemy minion must not be draggable, must not
+   * start an attack aim, and must not show the attack cursor — the opponent's
+   * board is a target, never a handle.
+   */
+  const isOwnActionable = isMine && ctx.currentPlayer === localSeat;
 
   // Check if this card is performing an attack animation
   const attackAnimation = activeAnimations.find(
@@ -139,7 +182,19 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
   }, [isTargeting]);
 
   const handleMouseDown = (_e: React.MouseEvent) => {
-    if (disabled && !isBattlecryMinion) return;
+    // Someone else's minion, or not your turn: do nothing, and say nothing.
+    // Neither is a mistake worth narrating — the opponent's board is somewhere
+    // you aim AT, not something you can pick up.
+    if (!isOwnActionable) return;
+
+    if (disabled && !isBattlecryMinion) {
+      // Say WHY before the engine is ever asked. Grabbing a summoning-sick
+      // minion used to do nothing at all, which reads as a broken click rather
+      // than a rule.
+      const reason = blockedAttackReason(card);
+      if (reason) useNoticeStore.getState().showMoveError(reason);
+      return;
+    }
 
     // Get card center position
     const origin = centerOf(wrapperRef.current);
@@ -150,9 +205,14 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
     startTargeting(mode, card.id, origin, card);
   };
 
-  // Auto-trigger targeting mode for battlecry minions
+  // Auto-trigger targeting mode for battlecry minions.
+  //
+  // Gated on isOwnActionable, not just `playerID === ctx.currentPlayer`: that
+  // test is true for the OPPONENT's minion while they're playing it, so this
+  // client used to hijack their battlecry and open an aim for a minion the
+  // player doesn't control.
   useEffect(() => {
-    if (isBattlecryMinion && !isTargeting && playerID === ctx.currentPlayer) {
+    if (isBattlecryMinion && !isTargeting && isOwnActionable) {
       // console.debug("Auto-triggering battlecry targeting for:", card.id);
       const origin = centerOf(wrapperRef.current);
       if (!origin) return;
@@ -163,8 +223,7 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
     isBattlecryMinion,
     isTargeting,
     card.id,
-    playerID,
-    ctx.currentPlayer,
+    isOwnActionable,
     startTargeting,
     card,
   ]);
@@ -203,8 +262,11 @@ const MinionCard = ({ card, playerID, ctx, isValid }: Props) => {
             : { y: 0, scale: 1 }
         }
         className={twMerge(
+          // isOwnActionable rather than `ctx.currentPlayer === playerID`, which
+          // was also true of the opponent's minions on their turn and lit them
+          // up as though they were yours to swing.
           !disabled &&
-            ctx.currentPlayer === playerID &&
+            isOwnActionable &&
             !isAttackingWithArrow &&
             !isValid &&
             getAttack(card) &&

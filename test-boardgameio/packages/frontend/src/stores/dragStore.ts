@@ -16,6 +16,14 @@ import type { TargetingMode } from "@/game/targetingModes";
 type DragStore = {
   activeCard: Card | null;
   currentPlayer: PlayerID | null;
+  /**
+   * The seat this client is playing, as opposed to `currentPlayer` (whoever's
+   * turn it is). The two differ while the opponent is acting, so anything
+   * addressed at "you" — the notice banner, your hero's voice lines — must key
+   * off this one. Falls back to `currentPlayer` in hotseat, where one client
+   * owns both seats.
+   */
+  localPlayerID: PlayerID | null;
   gameState: GameState | null;
   hoveredTarget: {
     type: "card" | "player" | null;
@@ -23,6 +31,7 @@ type DragStore = {
   } | null;
   setActiveCard: (card: Card | null) => void;
   setCurrentPlayer: (player: PlayerID) => void;
+  setLocalPlayerID: (player: PlayerID | null) => void;
   setGameState: (gameState: GameState) => void;
   isValidTarget: (
     target: TargetValue,
@@ -62,11 +71,13 @@ type DragStore = {
 export const useDragStore = create<DragStore>((set, get) => ({
   activeCard: null,
   currentPlayer: null,
+  localPlayerID: null,
   gameState: null,
   hoveredTarget: null,
 
   setActiveCard: (card) => set({ activeCard: card }),
   setCurrentPlayer: (player) => set({ currentPlayer: player }),
+  setLocalPlayerID: (player) => set({ localPlayerID: player }),
   setGameState: (gameState) => set({ gameState }),
 
   isValidTarget: (target, context) => {

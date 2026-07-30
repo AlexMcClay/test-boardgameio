@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { MoveValidationError } from "@project/shared";
 import { useAudioStore } from "./audioStore";
+import { playMoveErrorLine } from "@/utils/heroVoice";
 
 /** How long a notice stays up before fading on its own. */
 const NOTICE_DURATION = 2600;
@@ -37,18 +38,9 @@ const MOVE_ERROR_COPY: Record<MoveValidationError, string> = {
   immune: "That character is Immune.",
   "cant-attack": "Minion exhausted",
   elusive: "That minion can't be targeted by spells or Hero Powers.",
-};
-
-/**
- * `validateHeroAttack` returns raw restriction reasons for the shared
- * stealth/taunt/immune checks and full sentences for everything else, so its
- * errors are strings rather than a closed union.
- */
-const HERO_ATTACK_COPY: Record<string, string> = {
-  "target-not-found": "That's not a valid target.",
-  stealthed: MOVE_ERROR_COPY.stealthed,
-  taunt: MOVE_ERROR_COPY["must-attack-taunt"],
-  immune: MOVE_ERROR_COPY.immune,
+  "hero-already-attacked": "Your hero has already attacked this turn.",
+  "needs-weapon": "Equip a weapon first",
+  "cant-attack-own-side": "Can't attack your own side.",
 };
 
 interface NoticeState {
@@ -56,10 +48,13 @@ interface NoticeState {
   /** Show an arbitrary message. */
   showNotice: (message: string, kind?: NoticeKind) => void;
   /**
-   * Show the copy for a rejected move. Accepts a `MoveValidationError` code or
-   * a `validateHeroAttack` error, which may already be a sentence.
+   * Show the copy for a rejected move, and play the local hero's bark for it.
+   *
+   * Takes a code, never prose: `validateHeroAttack` used to hand back finished
+   * sentences and this accepted `string` to swallow them, which meant any typo'd
+   * code silently became the banner text.
    */
-  showMoveError: (error: MoveValidationError | string) => void;
+  showMoveError: (error: MoveValidationError) => void;
   clearNotice: () => void;
 }
 
@@ -83,7 +78,7 @@ export const useNoticeStore = create<NoticeState>((set) => ({
     set({ notice: { id: nextId++, message, kind } });
 
     // The "no can do" cue the assets already carry for exactly this.
-    if (kind === "warning") useAudioStore.getState().playSfx("no-can-do");
+    if (kind === "warning") useAudioStore.getState().playSfx("no-can-do", 0.3);
 
     dismissTimer = setTimeout(() => {
       dismissTimer = null;
@@ -92,12 +87,9 @@ export const useNoticeStore = create<NoticeState>((set) => ({
   },
 
   showMoveError: (error) => {
-    const copy =
-      MOVE_ERROR_COPY[error as MoveValidationError] ??
-      HERO_ATTACK_COPY[error] ??
-      // validateHeroAttack's own messages are already player-facing sentences.
-      error;
+    const copy = MOVE_ERROR_COPY[error];
     useNoticeStore.getState().showNotice(copy, "warning");
+    playMoveErrorLine(error);
   },
 
   clearNotice: () => {
