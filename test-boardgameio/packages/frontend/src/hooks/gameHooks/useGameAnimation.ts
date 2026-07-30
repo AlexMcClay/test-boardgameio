@@ -19,6 +19,7 @@ import {
 } from "@/utils/animationDurations";
 import { getMulliganTurnDrawCardId } from "@/utils/mulliganEvents";
 import { detectAllAnimations } from "@/utils/detectAnimations";
+import { playHeroErrorLine } from "@/utils/heroVoice";
 import { splitEventsIntoSteps } from "@/utils/eventSteps";
 import { applyEventsToVisualState } from "@/utils/visualEventReducer";
 import type { GameState, Ctx, PlayerID } from "@project/shared";
@@ -77,9 +78,7 @@ export const useGameAnimation = ({ ctx, G, ...props }: Props) => {
         return;
       }
 
-      lastProcessedSeq.current = Math.max(
-        ...newEvents.map((e) => e.seq ?? -1),
-      );
+      lastProcessedSeq.current = Math.max(...newEvents.map((e) => e.seq ?? -1));
 
       // Mulligan completion (the confirm that also started the first turn):
       // hold the pre-game visual while the overlay reveals the replaced cards
@@ -161,6 +160,16 @@ export const useGameAnimation = ({ ctx, G, ...props }: Props) => {
       const isMyTurn = props.playerID
         ? ctx.currentPlayer === props.playerID
         : true;
+
+      // "My hand is too full!" — the one hero error line that isn't a rejected
+      // move but a consequence of one succeeding. Voice only, no notice banner:
+      // the card visibly burning away is already the explanation.
+      const localSeat = props.playerID ?? ctx.currentPlayer;
+      if (
+        newEvents.some((e) => e.type === "burnCard" && e.playerId === localSeat)
+      ) {
+        playHeroErrorLine("hand-full", localSeat);
+      }
 
       // Split this move's events into staggered resolution steps
       const steps = splitEventsIntoSteps(newEvents);

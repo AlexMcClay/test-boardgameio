@@ -17,7 +17,11 @@ import type { GameCtx, GameState } from "@project/shared";
 import type { GameMoves } from "@/types/gameProps";
 import { useDragStore } from "@/stores/dragStore";
 import { targetAtPoint } from "@/utils/targeting";
-import { TARGETING_MODES, toTargetValue } from "@/game/targetingModes";
+import {
+  TARGETING_MODES,
+  isSourceTarget,
+  toTargetValue,
+} from "@/game/targetingModes";
 
 interface Props {
   G: GameState;
@@ -64,9 +68,19 @@ const TargetingLayer = ({ G, ctx, moves }: Props) => {
 
       try {
         const { G, ctx, moves } = latest.current;
+        const mode = TARGETING_MODES[targetingMode];
         const target = toTargetValue(G, targetAtPoint(e.clientX, e.clientY));
-        if (target) {
-          TARGETING_MODES[targetingMode].resolve({
+        // Releasing on nothing always cancels. Releasing back on the source
+        // cancels only for the modes that say so — see cancelOnSourceRelease.
+        // Either way it must not reach the validator, which would answer a
+        // cancelled gesture with a notice and a hero bark.
+        const cancelled =
+          !target ||
+          (mode.cancelOnSourceRelease &&
+            isSourceTarget(targetingCardId, target));
+
+        if (target && !cancelled) {
+          mode.resolve({
             G,
             ctx,
             moves,

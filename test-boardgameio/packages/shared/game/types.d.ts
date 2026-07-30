@@ -39,6 +39,118 @@ export interface HeroPower {
   imageUrl: string; // URL to the card image
 }
 
+/**
+ * The emote wheel. Every hero records these under the same keys, so a hero
+ * missing one just falls back to silence rather than to another hero's line.
+ *
+ * Hearthstone also ships a seasonal greeting per in-game holiday (Winter Veil,
+ * Hallow's End, Noblegarden, ...) that swaps in for `greetings` while the event
+ * runs. Deliberately not modelled — there are no in-game events here to key
+ * them off.
+ */
+export type HeroEmoteKey =
+  | "greetings"
+  | "wellPlayed"
+  | "oops"
+  | "threaten"
+  | "thanks"
+  | "wow"
+  // Cut from the live emote wheel but still shipped in the audio, so worth
+  // keeping addressable: Blizzard removed "Sorry" and "Good Game".
+  | "sorry"
+  | "goodGame"
+  /** Used when both players picked the same class. */
+  | "greetingsMirror";
+
+/**
+ * Opponents that get a bespoke opening line instead of the hero's usual
+ * `start` — Uther and Jaina both greet Arthas by name, Malfurion greets Illidan.
+ *
+ * Only opponents that exist as a `Hero` here are listed. The wiki also has
+ * lines aimed at Tyrande Whisperwind (Malfurion) and Varian Wrynn (Anduin),
+ * left out because neither is a hero in this game and the keys could never fire.
+ */
+export type HeroOpponentKey = "arthas" | "illidan";
+
+/**
+ * The hero's "I can't do that" barks, keyed so `noticeStore` can look one up
+ * straight from the code that rejected the move.
+ *
+ * Most keys ARE `MoveValidationError` codes (see game/utils/validateMove.ts) and
+ * must stay spelled identically. The rest cover errors Hearthstone voices but
+ * this engine has no validation code for yet — `needs-weapon`,
+ * `hero-already-attacked`, `hand-full`, `cant-play` — plus `generic`, the
+ * catch-all for any code with no line of its own.
+ */
+export type HeroErrorKey =
+  // Shared with MoveValidationError:
+  | "not-enough-mana"
+  | "board-full"
+  | "cant-attack"
+  | "summon-sickness"
+  | "stealthed"
+  | "invalid-target"
+  | "must-attack-taunt"
+  // No MoveValidationError counterpart (yet):
+  | "needs-weapon"
+  | "hero-already-attacked"
+  | "hand-full"
+  | "cant-play"
+  | "generic";
+
+/**
+ * A hero's voice lines, keyed by cue. Generic over what a cue holds so that
+ * `Hero.sfx` (the clips) and `Hero.sfxText` (their transcripts) are forced to
+ * use the identical key set — adding a cue to one is a type error until it's
+ * added to the other.
+ *
+ * `TCue` is the WHOLE cue, and for clips that means an `SFXInstance[]` played
+ * as a SEQUENCE (MulliganOverlay awaits each line in turn). `thinking` is
+ * therefore `TCue[]`: its three lines are ALTERNATIVE takes, one picked at
+ * random, not three lines played back to back.
+ */
+export interface HeroSFXCues<TCue> {
+  /** The announcer naming this hero at the start of a match. */
+  announcer?: TCue;
+  /** The hero's own opening line, played over the mulligan. */
+  start?: TCue;
+  /** Opening line used when both players picked this same class. */
+  startMirror?: TCue;
+  /** Opening lines aimed at one specific opponent, overriding `start`. */
+  startVs?: Partial<Record<HeroOpponentKey, TCue>>;
+  /** Played when this hero is chosen on the hero-select screen. */
+  picked?: TCue;
+  /** The hero swinging — weapon, or bare-handed. */
+  attack?: TCue;
+  death?: TCue;
+  concede?: TCue;
+  /** ALTERNATIVES: one is picked at random while the turn timer idles. */
+  thinking?: TCue[];
+  /** The turn timer is nearly up. */
+  outOfTime?: TCue;
+  /** Deck is nearly empty. */
+  lowCards?: TCue;
+  /** Deck is empty; fatigue starts. */
+  noCards?: TCue;
+  emotes?: Partial<Record<HeroEmoteKey, TCue>>;
+  errors?: Partial<Record<HeroErrorKey, TCue>>;
+}
+
+/**
+ * Voice lines, mirroring `Card.sfx`. Same convention as the per-card lines:
+ * a `soundId` starting with "/" is a path relative to the sfx root rather
+ * than a manifest key, so these never touch SFX_MANIFEST.
+ */
+export type HeroSFX = HeroSFXCues<SFXInstance[]>;
+
+/**
+ * Transcripts for `Hero.sfx`, cue for cue. Nothing plays these — they're what
+ * makes a wall of `VO_HERO_08_ERROR07_81.ogg` filenames readable at the call
+ * site, and they're the copy a subtitle/accessibility pass would draw on.
+ * `<angle brackets>` mark a non-verbal clip (e.g. `<death sound>`).
+ */
+export type HeroSFXText = HeroSFXCues<string>;
+
 export interface Hero {
   name: string;
   portrait: string;
@@ -46,17 +158,8 @@ export interface Hero {
   class: string;
   heroName: string;
   heroPower: HeroPower;
-  /**
-   * Voice lines, mirroring `Card.sfx`. Same convention as the per-card lines:
-   * a `soundId` starting with "/" is a path relative to the sfx root rather
-   * than a manifest key, so these never touch SFX_MANIFEST.
-   */
-  sfx?: {
-    /** The announcer naming this hero at the start of a match. */
-    announcer?: SFXInstance[];
-    /** The hero's own opening line, played over the mulligan. */
-    start?: SFXInstance[];
-  };
+  sfx?: HeroSFX;
+  sfxText?: HeroSFXText;
 }
 
 export interface Card {

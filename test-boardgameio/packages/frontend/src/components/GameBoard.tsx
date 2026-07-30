@@ -27,9 +27,7 @@ import BoardCardDeckBottom from "./Board/BoardCardDeckBottom";
 import DragCard from "./Board/DragCard";
 import YourTurn from "./Board/YourTurn";
 import GameOverOverlay from "./Board/GameOverOverlay";
-import VersusOverlay, {
-  VERSUS_OVERLAY_DURATION,
-} from "./Board/VersusOverlay";
+import VersusOverlay, { VERSUS_OVERLAY_DURATION } from "./Board/VersusOverlay";
 import SettingsOverlay from "./SettingsOverlay";
 import {
   getSpendableMana,
@@ -56,6 +54,7 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
   const activeCard = useDragStore((state) => state.activeCard);
   const setActiveCard = useDragStore((state) => state.setActiveCard);
   const setCurrentPlayer = useDragStore((state) => state.setCurrentPlayer);
+  const setLocalPlayerID = useDragStore((state) => state.setLocalPlayerID);
   const setGameState = useDragStore((state) => state.setGameState);
   // Used to hide the Choose One overlay while one of its halves is being aimed.
   const targetingMode = useDragStore((state) => state.targetingMode);
@@ -106,6 +105,13 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
     setGameState(G);
   }, [G, setGameState]);
 
+  // `mainPlayer` already resolves the hotseat case (props.playerID is null
+  // there, so both seats are "local"). Published so non-React consumers —
+  // noticeStore, picking whose hero barks at a rejected move — can reach it.
+  useEffect(() => {
+    setLocalPlayerID(mainPlayer);
+  }, [mainPlayer, setLocalPlayerID]);
+
   // Pre-game matchup card. Seeded from whether the mulligan is still open at
   // mount, so reconnecting into a game already in progress skips it rather than
   // replaying the intro.
@@ -113,7 +119,10 @@ const Gameboard = ({ ctx, G, moves, ...props }: Props) => {
 
   useEffect(() => {
     if (!showVersus) return;
-    const timer = setTimeout(() => setShowVersus(false), VERSUS_OVERLAY_DURATION);
+    const timer = setTimeout(
+      () => setShowVersus(false),
+      VERSUS_OVERLAY_DURATION,
+    );
     return () => clearTimeout(timer);
   }, [showVersus]);
 

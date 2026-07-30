@@ -1,0 +1,233 @@
+[
+  {
+    "type": "Attack",
+    "file": "VO_HERO_08_Attack_71.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_Attack_71.wav",
+    "transcript": "I'm ready.",
+    "ogg": "VO_HERO_08_Attack_71.ogg"
+  },
+  {
+    "type": "Death",
+    "file": "VO_HERO_08_Death_72.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_Death_72.wav",
+    "transcript": "<death sound>",
+    "ogg": "VO_HERO_08_Death_72.ogg"
+  },
+  {
+    "type": "Emote: Greetings",
+    "file": "VO_HERO_08_Greetings_56.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_Greetings_56.wav",
+    "transcript": "Hello.",
+    "ogg": "VO_HERO_08_Greetings_56.ogg"
+  },
+  {
+    "type": "Emote: Well Played",
+    "file": "VO_HERO_08_WellPlayed_57.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_WellPlayed_57.wav",
+    "transcript": "Well played.",
+    "ogg": "VO_HERO_08_WellPlayed_57.ogg"
+  },
+  {
+    "type": "Emote: Oops",
+    "file": "VO_HERO_08_Oops_58.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_Oops_58.wav",
+    "transcript": "Whoops.",
+    "ogg": "VO_HERO_08_Oops_58.ogg"
+  },
+  {
+    "type": "Emote: Threaten",
+    "file": "VO_HERO_08_Threaten_59.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_Threaten_59.wav",
+    "transcript": "My magic will tear you apart!",
+    "ogg": "VO_HERO_08_Threaten_59.ogg"
+  },
+  {
+    "type": "Emote: Thanks",
+    "file": "VO_HERO_08_Thanks_60.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_Thanks_60.wav",
+    "transcript": "Thank you.",
+    "ogg": "VO_HERO_08_Thanks_60.ogg"
+  },
+  {
+    "type": "Unused: Sorry",
+    "file": "VO_HERO_08_Sorry_61.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_Sorry_61.wav",
+    "transcript": "I'm sorry.",
+    "ogg": "VO_HERO_08_Sorry_61.ogg"
+  },
+  {
+    "type": "Concede",
+    "file": "VO_HERO_08_Concede_62.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_Concede_62.wav",
+    "transcript": "You win this one.",
+    "ogg": "VO_HERO_08_Concede_62.ogg"
+  },
+  {
+    "type": "Start",
+    "file": "VO_HERO_08_Start_64.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_Start_64.wav",
+    "transcript": "You asked for it!",
+    "ogg": "VO_HERO_08_Start_64.ogg"
+  },
+  {
+    "type": "Running out of time",
+    "file": "VO_HERO_08_Time_66.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_Time_66.wav",
+    "transcript": "Time runs out on me!",
+    "ogg": "VO_HERO_08_Time_66.ogg"
+  },
+  {
+    "type": "Thinking",
+    "file": "VO_HERO_08_Thinking1_67.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_Thinking1_67.wav",
+    "transcript": "Hmmm...",
+    "ogg": "VO_HERO_08_Thinking1_67.ogg"
+  },
+  {
+    "type": "Thinking",
+    "file": "VO_HERO_08_Thinking2_68.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_Thinking2_68.wav",
+    "transcript": "I wonder...",
+    "ogg": "VO_HERO_08_Thinking2_68.ogg"
+  },
+  {
+    "type": "Thinking",
+    "file": "VO_HERO_08_Thinking3_69.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_Thinking3_69.wav",
+    "transcript": "What to do... What to do...",
+    "ogg": "VO_HERO_08_Thinking3_69.ogg"
+  },
+  {
+    "type": "Almost out of cards",
+    "file": "VO_HERO_08_LowCards_73.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_LowCards_73.wav",
+    "transcript": "I'm almost out of cards!",
+    "ogg": "VO_HERO_08_LowCards_73.ogg"
+  },
+  {
+    "type": "Out of cards",
+    "file": "VO_HERO_08_NoCards_74.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_NoCards_74.wav",
+    "transcript": "I'm out of cards!",
+    "ogg": "VO_HERO_08_NoCards_74.ogg"
+  },
+  {
+    "type": "Error: Need a weapon",
+    "file": "VO_HERO_08_ERROR01_75.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_ERROR01_75.wav",
+    "transcript": "I need a weapon.",
+    "ogg": "VO_HERO_08_ERROR01_75.ogg"
+  },
+  {
+    "type": "Error: Not enough mana",
+    "file": "VO_HERO_08_ERROR02_76.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_ERROR02_76.wav",
+    "transcript": "I don't have enough Mana.",
+    "ogg": "VO_HERO_08_ERROR02_76.ogg"
+  },
+  {
+    "type": "Error: Minion exhausted",
+    "file": "VO_HERO_08_ERROR03_77.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_ERROR03_77.wav",
+    "transcript": "That minion already attacked.",
+    "ogg": "VO_HERO_08_ERROR03_77.ogg"
+  },
+  {
+    "type": "Error: Hero already attacked",
+    "file": "VO_HERO_08_ERROR04_78.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_ERROR04_78.wav",
+    "transcript": "I already attacked.",
+    "ogg": "VO_HERO_08_ERROR04_78.ogg"
+  },
+  {
+    "type": "Error: Minion not ready",
+    "file": "VO_HERO_08_ERROR05_79.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_ERROR05_79.wav",
+    "transcript": "Give that minion a turn to get ready.",
+    "ogg": "VO_HERO_08_ERROR05_79.ogg"
+  },
+  {
+    "type": "Error: Hand already full",
+    "file": "VO_HERO_08_ERROR06_80.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_ERROR06_80.wav",
+    "transcript": "My hand is too full!",
+    "ogg": "VO_HERO_08_ERROR06_80.ogg"
+  },
+  {
+    "type": "Error: Too many minions",
+    "file": "VO_HERO_08_ERROR07_81.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_ERROR07_81.wav",
+    "transcript": "I have too many minions.",
+    "ogg": "VO_HERO_08_ERROR07_81.ogg"
+  },
+  {
+    "type": "Error: Can't target Stealthed minion",
+    "file": "VO_HERO_08_ERROR08_82.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_ERROR08_82.wav",
+    "transcript": "I can't target Stealthed minions.",
+    "ogg": "VO_HERO_08_ERROR08_82.ogg"
+  },
+  {
+    "type": "Error: Can't play that card",
+    "file": "VO_HERO_08_ERROR09_83.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_ERROR09_83.wav",
+    "transcript": "I can't play that.",
+    "ogg": "VO_HERO_08_ERROR09_83.ogg"
+  },
+  {
+    "type": "Error: Not a valid target",
+    "file": "VO_HERO_08_ERROR10_84.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_ERROR10_84.wav",
+    "transcript": "That's not a valid target.",
+    "ogg": "VO_HERO_08_ERROR10_84.ogg"
+  },
+  {
+    "type": "Error: Must attack Taunt minion",
+    "file": "VO_HERO_08_ERROR11_20.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_ERROR11_20.wav",
+    "transcript": "A minion with Taunt is in the way.",
+    "ogg": "VO_HERO_08_ERROR11_20.ogg"
+  },
+  {
+    "type": "Error: Generic",
+    "file": "VO_HERO_08_ERROR12_86.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_ERROR12_86.wav",
+    "transcript": "I can't do that.",
+    "ogg": "VO_HERO_08_ERROR12_86.ogg"
+  },
+  {
+    "type": "Selection in Choose Your Hero",
+    "file": "VO_HERO_08_Picked_63.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_Picked_63.wav",
+    "transcript": "My magic will prevail!",
+    "ogg": "VO_HERO_08_Picked_63.ogg"
+  },
+  {
+    "type": "Start [Mirror]",
+    "file": "VO_HERO_08_MIRROR_START_01.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_MIRROR_START_01.wav",
+    "transcript": "Oh, it is on.",
+    "ogg": "VO_HERO_08_MIRROR_START_01.ogg"
+  },
+  {
+    "type": "Emote: Wow",
+    "file": "VO_HERO_08_WOW_06.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_WOW_06.wav",
+    "transcript": "Amazing.",
+    "ogg": "VO_HERO_08_WOW_06.ogg"
+  },
+  {
+    "type": "Emote: Greetings [Mirror]",
+    "file": "VO_HERO_08_MIRROR_GREETINGS_02.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_MIRROR_GREETINGS_02.wav",
+    "transcript": "Hello, stranger.",
+    "ogg": "VO_HERO_08_MIRROR_GREETINGS_02.ogg"
+  },
+  {
+    "type": "Start [Prince Arthas]",
+    "file": "VO_HERO_08_Female_Human_START_Arthas_01.wav",
+    "url": "https://hearthstone.wiki.gg/images/VO_HERO_08_Female_Human_START_Arthas_01.wav",
+    "transcript": "There's nothing I should worry about, right Arthas?",
+    "ogg": "VO_HERO_08_Female_Human_START_Arthas_01.ogg"
+  }
+]
